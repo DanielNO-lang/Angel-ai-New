@@ -1,0 +1,6 @@
+{
+  "name": "Angel AI",
+  "description": "Personal AI workspace and agent platform combining conversational AI, persistent memory, tasks, agent workflows, and visual interaction.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

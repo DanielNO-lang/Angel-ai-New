@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production builds & bundler output
+dist/
+build/
+server.js
+server.cjs
+.vercel/
+
+# Environment configurations & secrets (NEVER commit secrets to Git)
+.env*
+!.env.example
+
+# Logs & debugging
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# Unit test & code coverage
+coverage/
+.nyc_output/
+
+# Operating System & IDE artifacts
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# Cryptographic keys & certificates
+*.pem
+*.key
+*.cert
+*.crt

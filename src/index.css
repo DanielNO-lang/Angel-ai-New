@@ -1,0 +1,242 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #121212;
+    --border-color: #262626;
+    --text-primary: #f5f5f5;
+    --text-secondary: #a3a3a3;
+  }
+
+  .light {
+    --bg-primary: #f8f9fa;
+    --bg-secondary: #ffffff;
+    --border-color: #e5e7eb;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* BackdropLayer CSS component */
+.backdrop-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Custom minimal scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #2e2e2e;
+  border-radius: 9999px;
+}
+.light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #404040;
+}
+.light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Clean markdown formatting */
+.markdown-body {
+  line-height: 1.6;
+}
+.markdown-body p {
+  margin-bottom: 0.75rem;
+}
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  font-weight: 600;
+  color: #f5f5f5;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+.markdown-body h1 { font-size: 1.25rem; }
+.markdown-body h2 { font-size: 1.1rem; }
+.markdown-body h3 { font-size: 0.95rem; }
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.markdown-body ul {
+  list-style-type: disc;
+}
+.markdown-body ol {
+  list-style-type: decimal;
+}
+.markdown-body li {
+  margin-bottom: 0.25rem;
+}
+.markdown-body pre {
+  background-color: #0d0d0d;
+  border: 1px solid #262626;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+  color: #e5e5e5;
+}
+.markdown-body code {
+  background-color: #171717;
+  border: 1px solid #262626;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+  color: #f5f5f5;
+}
+.markdown-body pre code {
+  background-color: transparent;
+  border: none;
+  padding: 0;
+}
+.markdown-body blockquote {
+  border-left: 3px solid #404040;
+  padding-left: 0.75rem;
+  color: #a3a3a3;
+  margin: 0.75rem 0;
+  font-style: italic;
+}
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.8rem;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #262626;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.markdown-body th {
+  background-color: #171717;
+  color: #e5e5e5;
+}
+
+/* 3D and Glowing Effects */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-3d {
+  transform-style: preserve-3d;
+}
+
+.card-3d-hover {
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease;
+}
+
+.card-3d-hover:hover {
+  transform: translateY(-3px) rotateX(2deg) rotateY(-1deg);
+}
+
+.glow-indigo {
+  box-shadow: 0 0 25px -4px rgba(99, 102, 241, 0.4);
+}
+
+.glow-purple {
+  box-shadow: 0 0 25px -4px rgba(168, 85, 247, 0.4);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 25px -4px rgba(6, 182, 212, 0.4);
+}
+
+.border-glow-indigo {
+  box-shadow: inset 0 0 15px rgba(99, 102, 241, 0.2), 0 0 15px rgba(99, 102, 241, 0.25);
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.45));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgba(168, 85, 247, 0.7));
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* Light Mode Overrides for clean, anti-dark texture */
+.light .bg-neutral-900\/80,
+.light .bg-neutral-900\/90,
+.light .bg-neutral-900,
+.light .bg-neutral-950\/90,
+.light .bg-neutral-950 {
+  background-color: #ffffff;
+}
+
+.light .bg-neutral-850\/80,
+.light .bg-neutral-850,
+.light .bg-neutral-800 {
+  background-color: #f1f5f9;
+}
+
+.light .border-neutral-800,
+.light .border-neutral-700,
+.light .border-neutral-850,
+.light .border-white\/5,
+.light .border-white\/10 {
+  border-color: #e2e8f0;
+}
+
+.light .text-neutral-100 {
+  color: #0f172a;
+}
+
+.light .text-neutral-200 {
+  color: #1e293b;
+}
+
+.light .text-neutral-300 {
+  color: #475569;
+}
+
+.light .text-neutral-400 {
+  color: #64748b;
+}
+
+.light .text-neutral-500 {
+  color: #94a3b8;
+}
+
+/* Preserve bright text for colored buttons & badges */
+.light .bg-indigo-600,
+.light .bg-indigo-500,
+.light .bg-purple-600,
+.light .bg-purple-500,
+.light [class*="from-indigo-600"],
+.light [class*="bg-gradient-to"] {
+  color: #ffffff !important;
+}
+
