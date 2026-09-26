@@ -240,3 +240,56 @@
   color: #ffffff !important;
 }
 
+
+
+/* Shared blue/dark/neutral workspace language for operational modules.
+   Keeps Agents, Projects and Memories visually aligned with Media Studio/Schedule. */
+.module-blue-theme {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.10), transparent 32%),
+    radial-gradient(circle at 82% 8%, rgba(14, 116, 144, 0.08), transparent 28%);
+}
+.module-blue-theme .bg-neutral-950,
+.module-blue-theme .bg-neutral-950\/60,
+.module-blue-theme .bg-neutral-950\/80,
+.module-blue-theme .bg-neutral-950\/90,
+.module-blue-theme .bg-neutral-900,
+.module-blue-theme .bg-neutral-900\/80 {
+  background-color: #0e1420 !important;
+}
+.module-blue-theme .bg-neutral-800,
+.module-blue-theme .bg-neutral-800\/80 {
+  background-color: #151e2d !important;
+}
+.module-blue-theme .border-neutral-800,
+.module-blue-theme .border-neutral-700,
+.module-blue-theme .border-white\/5,
+.module-blue-theme .border-white\/10 {
+  border-color: rgba(96, 165, 250, 0.14) !important;
+}
+.module-blue-theme .text-neutral-400 {
+  color: #94a3b8 !important;
+}
+.module-blue-theme .text-neutral-300 {
+  color: #cbd5e1 !important;
+}
+.module-blue-theme .text-neutral-200 {
+  color: #e2e8f0 !important;
+}
+.light .module-blue-theme {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.06), transparent 32%),
+    radial-gradient(circle at 82% 8%, rgba(14, 116, 144, 0.05), transparent 28%);
+}
+.light .module-blue-theme .bg-neutral-950,
+.light .module-blue-theme .bg-neutral-950\/60,
+.light .module-blue-theme .bg-neutral-950\/80,
+.light .module-blue-theme .bg-neutral-950\/90,
+.light .module-blue-theme .bg-neutral-900,
+.light .module-blue-theme .bg-neutral-900\/80 {
+  background-color: #f8fafc !important;
+}
+.light .module-blue-theme .bg-neutral-800,
+.light .module-blue-theme .bg-neutral-800\/80 {
+  background-color: #eef4fb !important;
+}
