@@ -20,6 +20,20 @@ export type NavigationTab =
   | 'profile'
   | 'recycle_bin';
 
+export type SettingsSubSection =
+  | 'account'
+  | 'profile'
+  | 'appearance'
+  | 'theme'
+  | 'workspace'
+  | 'voice'
+  | 'visual'
+  | 'memory'
+  | 'privacy'
+  | 'notifications'
+  | 'connections'
+  | 'security';
+
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
 export interface Attachment {

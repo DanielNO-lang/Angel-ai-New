@@ -17,7 +17,6 @@ import {
   Bell,
   Menu,
   Moon,
-  Search,
   Share2,
   Sparkles,
   Sun,
@@ -29,12 +28,11 @@ import {
 import { useAngel } from '../../context/AppContext';
 import { UserProfileMenu } from './UserProfileMenu';
 import { AppearanceModal } from './AppearanceModal';
-import { WindowsShortcutBadge } from '../ui/WindowsShortcutBadge';
+import { HeaderBreadcrumbs } from './HeaderBreadcrumbs';
 
 export const Header: React.FC = () => {
   const {
     setMobileMenuOpen,
-    openCommandPalette,
     userProfile,
     settings,
     toggleTheme,
@@ -70,11 +68,11 @@ export const Header: React.FC = () => {
             : 'bg-[#0B0E14]/90 border-b border-white/5 text-neutral-100'
         }`}
       >
-        {/* Left Section: Mobile Drawer Toggle & Workspace Search */}
-        <div className="flex items-center gap-2 md:gap-4 flex-1 max-w-sm sm:max-w-md">
+        {/* Left Section: Mobile Drawer Toggle & Subtle Breadcrumb Navigation Bar */}
+        <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0 mr-2 md:mr-4">
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className={`md:hidden p-1.5 -ml-1 rounded-xl transition-colors ${
+            className={`md:hidden p-1.5 -ml-1 rounded-xl transition-colors shrink-0 ${
               isLight
                 ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
@@ -84,26 +82,8 @@ export const Header: React.FC = () => {
             <Menu className="w-5 h-5" />
           </button>
 
-          {/* Search anything... with Windows Shortcut Badge */}
-          <button
-            onClick={() => openCommandPalette('all')}
-            className={`w-full flex items-center justify-between gap-2 px-3 py-1.5 md:py-2 rounded-xl text-xs transition-all cursor-pointer group shadow-2xs ${
-              isLight
-                ? 'bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-slate-700'
-                : 'bg-neutral-900/80 hover:bg-neutral-900 border border-white/5 text-neutral-400 hover:text-neutral-200'
-            }`}
-            title="Search workspace (Win + K)"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <Search
-                className={`w-3.5 h-3.5 shrink-0 ${
-                  isLight ? 'text-slate-400 group-hover:text-slate-700' : 'text-neutral-400 group-hover:text-white'
-                }`}
-              />
-              <span className="truncate">Search anything...</span>
-            </div>
-            <WindowsShortcutBadge shortcut="K" />
-          </button>
+          {/* Subtle Breadcrumb Navigation Bar */}
+          <HeaderBreadcrumbs isLight={isLight} />
         </div>
 
         {/* Right Section */}

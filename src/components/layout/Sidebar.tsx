@@ -229,7 +229,7 @@ export const Sidebar: React.FC = () => {
               <>
                 <div
                   onClick={() => handleNavClick('home')}
-                  className="flex items-center gap-2.5 cursor-pointer group"
+                  className="flex items-center gap-2.5 cursor-pointer group min-w-0"
                 >
                   <AngelLogo size={28} glow={true} />
                   <span
@@ -243,22 +243,40 @@ export const Sidebar: React.FC = () => {
                   </span>
                 </div>
 
-                <button
-                  onClick={isSidebarCollapsed ? handleExpandSidebarPermanently : handleCollapseSidebar}
-                  aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    isLight
-                      ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
-                      : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-                  }`}
-                  title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                >
-                  {isSidebarCollapsed ? (
-                    <PanelLeftOpen className="w-4 h-4 text-indigo-500" />
-                  ) : (
-                    <PanelLeftClose className="w-4 h-4" />
+                {/* Top Actions: Search Icon next to collapse toggle button when expanded */}
+                <div className="flex items-center gap-1 shrink-0">
+                  {!isSidebarCollapsed && (
+                    <button
+                      onClick={() => openCommandPalette('all')}
+                      aria-label="Search workspace (Win + K)"
+                      title="Search workspace (Win + K)"
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        isLight
+                          ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+                          : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                      }`}
+                    >
+                      <Search className="w-4 h-4" />
+                    </button>
                   )}
-                </button>
+
+                  <button
+                    onClick={isSidebarCollapsed ? handleExpandSidebarPermanently : handleCollapseSidebar}
+                    aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      isLight
+                        ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+                        : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                    }`}
+                    title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  >
+                    {isSidebarCollapsed ? (
+                      <PanelLeftOpen className="w-4 h-4 text-indigo-500" />
+                    ) : (
+                      <PanelLeftClose className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -277,22 +295,22 @@ export const Sidebar: React.FC = () => {
             {effectiveExpanded && <span>New Conversation</span>}
           </button>
 
-          {/* Search Button with Windows Key Shortcut */}
-          <button
-            onClick={() => openCommandPalette('all')}
-            title={!effectiveExpanded ? 'Search (Win + K)' : undefined}
-            className={`w-full flex items-center gap-2.5 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-              isLight
-                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 border border-slate-200/60'
-                : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/60 border border-white/5'
-            } ${!effectiveExpanded ? 'justify-center px-2' : 'justify-between px-3'}`}
-          >
-            <div className="flex items-center gap-2 truncate">
-              <Search className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-              {effectiveExpanded && <span className="truncate">Search</span>}
-            </div>
-            {effectiveExpanded && <WindowsShortcutBadge shortcut="K" />}
-          </button>
+          {/* Standalone Search Trigger Icon:
+              Transitions to a standalone icon when collapsed and persists this state during temporary mouse-over expansions */}
+          {isSidebarCollapsed && (
+            <button
+              onClick={() => openCommandPalette('all')}
+              title="Search workspace (Win + K)"
+              aria-label="Search workspace (Win + K)"
+              className={`w-full flex items-center justify-center py-2 rounded-xl text-xs font-medium transition-colors ${
+                isLight
+                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+              }`}
+            >
+              <Search className="w-4 h-4 text-neutral-400 hover:text-indigo-400 transition-colors" />
+            </button>
+          )}
 
           {/* Home Tool — Fixed & Unscrollable */}
           <div className="pt-0.5">
@@ -579,6 +597,65 @@ export const Sidebar: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* When Collapsed: Transform Conversation Sections into Standalone Icons */}
+          {!effectiveExpanded && (
+            <div className="space-y-2 pt-2 border-t border-inherit">
+              {/* Pinned Section Icon */}
+              {pinnedConversations.length > 0 && (
+                <button
+                  onClick={() => handleSelectChat(pinnedConversations[0].id)}
+                  title={`Pinned Chats (${pinnedConversations.length})`}
+                  className={`w-full flex items-center justify-center p-2 rounded-xl transition-all relative group ${
+                    isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-neutral-900 text-neutral-400'
+                  }`}
+                >
+                  <Pin className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+                  <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-indigo-600 text-white text-[9px] font-mono flex items-center justify-center font-bold shadow-2xs">
+                    {pinnedConversations.length}
+                  </span>
+                </button>
+              )}
+
+              {/* Recent Section Icon */}
+              {recentConversations.length > 0 && (
+                <button
+                  onClick={() => handleSelectChat(recentConversations[0].id)}
+                  title={`Recent Chats (${recentConversations.length})`}
+                  className={`w-full flex items-center justify-center p-2 rounded-xl transition-all relative group ${
+                    activeTab === 'chat'
+                      ? isLight
+                        ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                        : 'bg-[#151926] text-white font-semibold'
+                      : isLight
+                      ? 'hover:bg-slate-100 text-slate-600'
+                      : 'hover:bg-neutral-900 text-neutral-400'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4 text-neutral-400 group-hover:text-indigo-400 group-hover:scale-110 transition-transform" />
+                  <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-neutral-700 text-white text-[9px] font-mono flex items-center justify-center font-bold shadow-2xs">
+                    {recentConversations.length}
+                  </span>
+                </button>
+              )}
+
+              {/* Archived Section Icon */}
+              {archivedConversations.length > 0 && (
+                <button
+                  onClick={() => handleSelectChat(archivedConversations[0].id)}
+                  title={`Archived Chats (${archivedConversations.length})`}
+                  className={`w-full flex items-center justify-center p-2 rounded-xl transition-all relative group ${
+                    isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-neutral-900 text-neutral-400'
+                  }`}
+                >
+                  <Archive className="w-4 h-4 text-neutral-400 group-hover:text-indigo-400 group-hover:scale-110 transition-transform" />
+                  <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-neutral-700 text-white text-[9px] font-mono flex items-center justify-center font-bold shadow-2xs">
+                    {archivedConversations.length}
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ========================================================
@@ -723,14 +800,28 @@ export const Sidebar: React.FC = () => {
                   <AngelLogo size={28} glow={true} />
                   <span className="font-semibold text-base tracking-tight">Angel</span>
                 </div>
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-neutral-400 hover:bg-neutral-900'
-                  }`}
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      openCommandPalette('all');
+                    }}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      isLight ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-100' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                    }`}
+                    title="Search workspace (Win + K)"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-neutral-400 hover:bg-neutral-900'
+                    }`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* New Conversation Button */}
@@ -744,25 +835,6 @@ export const Sidebar: React.FC = () => {
               >
                 <Plus className="w-4 h-4 text-indigo-500 shrink-0" />
                 <span>New Conversation</span>
-              </button>
-
-              {/* Search Button with Windows Shortcut */}
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  openCommandPalette('all');
-                }}
-                className={`w-full flex items-center justify-between gap-2.5 py-1.5 px-3 rounded-xl text-xs font-medium transition-colors ${
-                  isLight
-                    ? 'text-slate-600 bg-slate-100/80 border border-slate-200/60'
-                    : 'text-neutral-400 bg-neutral-900/60 border border-white/5'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <Search className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-                  <span className="truncate">Search</span>
-                </div>
-                <WindowsShortcutBadge shortcut="K" />
               </button>
 
               {/* Home Tool */}

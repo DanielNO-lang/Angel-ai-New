@@ -23,7 +23,9 @@ import {
   FileCode,
   FileText,
   Globe,
+  Headphones,
   Lightbulb,
+  Menu,
   MessageSquare,
   Mic,
   Paperclip,
@@ -58,6 +60,7 @@ export const ChatView: React.FC = () => {
     memories,
     setActiveTab,
     settings,
+    setMobileMenuOpen,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
@@ -72,11 +75,93 @@ export const ChatView: React.FC = () => {
   const [editingTitle, setEditingTitle] = useState('');
   const [activeChip, setActiveChip] = useState<'think' | 'search' | 'browse' | 'model'>('think');
 
+  // Web Speech API Dictation (Speech to Text)
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const activeAgent = agents.find((a) => a.id === selectedAgentId) || agents[0];
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  const toggleSpeechRecognition = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert('Speech recognition is not supported in your browser. Please try Chrome, Edge, or Safari.');
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          setInput((prev) => {
+            const separator = prev && !prev.endsWith(' ') ? ' ' : '';
+            const next = prev + separator + transcript;
+            if (textareaRef.current) {
+              textareaRef.current.style.height = 'auto';
+              textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+            }
+            return next;
+          });
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.warn('Speech recognition start failed:', err);
+      setIsListening(false);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -177,7 +262,7 @@ export const ChatView: React.FC = () => {
 
   return (
     <div
-      className={`flex h-[calc(100vh-4rem)] w-full overflow-hidden transition-colors ${
+      className={`flex h-full min-h-screen w-full overflow-hidden transition-colors ${
         isLight ? 'bg-slate-50 text-slate-800' : 'bg-[#0B0E14] text-neutral-100'
       }`}
     >
@@ -257,6 +342,15 @@ export const ChatView: React.FC = () => {
           }`}
         >
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className={`md:hidden p-1.5 rounded-xl transition-colors ${
+                isLight ? 'text-slate-600 hover:bg-slate-100' : 'text-neutral-400 hover:bg-neutral-900'
+              }`}
+              aria-label="Open navigation drawer"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
             <button
               onClick={() => setIsThreadsOpen(!isThreadsOpen)}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
@@ -653,8 +747,24 @@ export const ChatView: React.FC = () => {
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
               }`}
               title="Attach file or image"
+              aria-label="Attach file or image"
             >
               <Plus className="w-4 h-4" />
+            </button>
+
+            {/* Visual Mode in Chat Bar */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('visual_mode')}
+              className={`p-2 rounded-xl transition-colors shrink-0 ${
+                isLight
+                  ? 'text-slate-500 hover:text-indigo-600 hover:bg-slate-200/60'
+                  : 'text-neutral-400 hover:text-indigo-400 hover:bg-neutral-800'
+              }`}
+              title="Visual Mode (Camera & Screen Perception)"
+              aria-label="Visual Mode"
+            >
+              <Eye className="w-4 h-4" />
             </button>
 
             {/* Textarea Input (Placeholder: "Message Angel...") */}
@@ -665,55 +775,61 @@ export const ChatView: React.FC = () => {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               rows={1}
-              placeholder="Message Angel..."
+              placeholder={isListening ? 'Listening... speak into your microphone' : 'Message Angel...'}
               className={`flex-1 bg-transparent border-0 resize-none text-xs sm:text-sm outline-none py-2 px-1 max-h-40 custom-scrollbar ${
                 isLight ? 'text-slate-900 placeholder-slate-400' : 'text-white placeholder-neutral-500'
               }`}
             />
 
-            {/* Voice Mode button (Image 3) */}
+            {/* Browser Web Speech API Dictate Icon (Speech to Text) */}
             <button
               type="button"
-              onClick={() => setActiveTab('voice')}
-              className={`p-2 rounded-xl transition-colors shrink-0 ${
-                isLight
+              onClick={toggleSpeechRecognition}
+              className={`p-2 rounded-xl transition-all shrink-0 ${
+                isListening
+                  ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/40'
+                  : isLight
                   ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/60'
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
               }`}
-              title="Open Voice Mode"
+              title={isListening ? 'Stop dictation' : 'Dictate hands-free (Speech to Text)'}
+              aria-label="Dictate message"
             >
-              <Mic className="w-4 h-4 text-indigo-400" />
+              <Mic className={`w-4 h-4 ${isListening ? 'animate-bounce' : ''}`} />
             </button>
 
-            {/* Voice Mode pill button */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('voice')}
-              className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-semibold transition-all ${
-                isLight
-                  ? 'bg-slate-200/80 hover:bg-slate-300 text-slate-700'
-                  : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300'
-              }`}
-              title="Launch Voice Mode"
-            >
-              <Sparkles className="w-3 h-3 text-indigo-400" />
-              <span>Voice</span>
-            </button>
-
-            {/* Send Button */}
-            <button
-              type="submit"
-              id="btn-chat-send"
-              disabled={(!input.trim() && attachments.length === 0) || isChatStreaming}
-              className="p-2 rounded-xl bg-indigo-600 disabled:opacity-30 hover:bg-indigo-500 text-white transition-colors shrink-0 shadow-xs cursor-pointer transform-gpu active:scale-95"
-              aria-label="Send message"
-            >
-              {isChatStreaming ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <ArrowUp className="w-4 h-4 stroke-[2.5]" />
-              )}
-            </button>
+            {/* Alternating Voice Mode vs Send Button */}
+            {input.trim().length > 0 || attachments.length > 0 ? (
+              <button
+                type="submit"
+                id="btn-chat-send"
+                disabled={isChatStreaming}
+                className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shrink-0 shadow-xs cursor-pointer transform-gpu active:scale-95 animate-in zoom-in-90 duration-150"
+                aria-label="Send message"
+                title="Send message"
+              >
+                {isChatStreaming ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <ArrowUp className="w-4 h-4 stroke-[2.5]" />
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                id="btn-activate-voice"
+                onClick={() => setActiveTab('voice')}
+                className={`p-2 rounded-xl transition-all shrink-0 cursor-pointer transform-gpu active:scale-95 animate-in zoom-in-90 duration-150 ${
+                  isLight
+                    ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200/80 shadow-2xs'
+                    : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 border border-indigo-500/30 shadow-xs'
+                }`}
+                title="Activate Voice Mode"
+                aria-label="Activate Voice Mode"
+              >
+                <Headphones className="w-4 h-4" />
+              </button>
+            )}
           </form>
 
           <div

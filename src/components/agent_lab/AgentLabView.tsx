@@ -95,7 +95,10 @@ export const AgentLabView: React.FC = () => {
     setActiveTab,
     selectedAgentId,
     setSelectedAgentId,
+    settings,
   } = useAngel();
+
+  const isLight = settings.theme === 'light';
 
   // Active View Tab: 'workbench' | 'inspector'
   const [activeSubTab, setActiveSubTab] = useState<'workbench' | 'inspector'>('workbench');
@@ -333,109 +336,160 @@ export const AgentLabView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 md:py-8 space-y-6 animate-in fade-in duration-150">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-6">
-        <div>
+    <div
+      className={`min-h-full p-4 sm:p-6 lg:p-8 space-y-6 transition-colors duration-150 ${
+        isLight ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#0B0E14] text-neutral-100'
+      }`}
+    >
+      <div className="max-w-6xl mx-auto space-y-6">
+        {/* Top Header */}
+        <div
+          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-6 transition-colors ${
+            isLight ? 'border-slate-200' : 'border-white/5'
+          }`}
+        >
+          <div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`p-1.5 rounded-xl border ${
+                  isLight
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                    : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+                }`}
+              >
+                <Bot className="w-4 h-4" />
+              </span>
+              <span
+                className={`text-xs font-mono uppercase tracking-wider ${
+                  isLight ? 'text-indigo-600 font-semibold' : 'text-indigo-400'
+                }`}
+              >
+                Autonomous Systems & Registry
+              </span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight mt-1">
+              Agent Lab
+            </h1>
+            <p className={`text-xs sm:text-sm mt-0.5 max-w-2xl ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+              Extensible agent registry and 9-step execution lifecycle inspector. Configure agent models, system instructions, permissions, and inspect deterministic pipeline execution traces.
+            </p>
+          </div>
+
           <div className="flex items-center gap-2">
-            <span className="p-1 rounded bg-neutral-900 border border-neutral-800 text-neutral-300">
-              <Bot className="w-4 h-4" />
-            </span>
-            <span className="text-xs font-mono tracking-wider uppercase text-neutral-400">
-              Autonomous Systems & Registry
-            </span>
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-100 mt-1">
-            Agent Lab
-          </h1>
-          <p className="text-sm text-neutral-400 mt-0.5 max-w-2xl">
-            Extensible agent registry and 9-step execution lifecycle inspector. Configure agent models, system instructions, permissions, and inspect deterministic pipeline execution traces.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Sub-tab view switcher */}
-          <div className="flex items-center p-1 rounded-xl bg-neutral-900 border border-neutral-800 text-xs">
-            <button
-              onClick={() => setActiveSubTab('workbench')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
-                activeSubTab === 'workbench'
-                  ? 'bg-neutral-800 text-neutral-100 shadow-xs'
-                  : 'text-neutral-400 hover:text-neutral-200'
+            {/* Sub-tab view switcher */}
+            <div
+              className={`flex items-center p-1 rounded-2xl border text-xs ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-neutral-900/80 border-white/5'
               }`}
             >
-              <Cpu className="w-3.5 h-3.5" />
-              <span>Registry & Bench</span>
-            </button>
+              <button
+                onClick={() => setActiveSubTab('workbench')}
+                className={`px-3 py-1.5 rounded-xl font-medium transition-colors flex items-center gap-1.5 ${
+                  activeSubTab === 'workbench'
+                    ? isLight
+                      ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs'
+                      : 'bg-[#151926] text-white font-semibold border border-white/5 shadow-xs'
+                    : isLight
+                    ? 'text-slate-600 hover:text-slate-900'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                <Cpu className="w-3.5 h-3.5" />
+                <span>Registry & Bench</span>
+              </button>
+              <button
+                onClick={() => setActiveSubTab('inspector')}
+                className={`px-3 py-1.5 rounded-xl font-medium transition-colors flex items-center gap-1.5 ${
+                  activeSubTab === 'inspector'
+                    ? isLight
+                      ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs'
+                      : 'bg-[#151926] text-white font-semibold border border-white/5 shadow-xs'
+                    : isLight
+                    ? 'text-slate-600 hover:text-slate-900'
+                    : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Execution Inspector ({executions.length})</span>
+              </button>
+            </div>
+
             <button
-              onClick={() => setActiveSubTab('inspector')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
-                activeSubTab === 'inspector'
-                  ? 'bg-neutral-800 text-neutral-100 shadow-xs'
-                  : 'text-neutral-400 hover:text-neutral-200'
-              }`}
+              id="btn-create-agent"
+              onClick={() => openEditor()}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-xs transition-all shrink-0 transform-gpu hover:-translate-y-0.5"
             >
-              <History className="w-3.5 h-3.5" />
-              <span>Execution Inspector ({executions.length})</span>
+              <Plus className="w-4 h-4" />
+              <span>Create Agent</span>
             </button>
           </div>
-
-          <button
-            id="btn-create-agent"
-            onClick={() => openEditor()}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-neutral-100 hover:bg-white text-neutral-950 text-xs font-medium transition-colors shrink-0 shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Agent</span>
-          </button>
         </div>
-      </div>
 
-      {activeSubTab === 'workbench' ? (
-        /* WORKBENCH & REGISTRY VIEW */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Extensible Agent Registry Catalog (4 cols) */}
-          <div className="lg:col-span-4 space-y-3">
-            {/* Filter and Search */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
-                  Registered Agents ({filteredAgents.length})
-                </span>
-                <span className="text-[10px] font-mono text-neutral-500">
-                  Total: {agents.length}
-                </span>
-              </div>
-
-              {/* Search input */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Filter agents..."
-                  className="w-full bg-neutral-900/80 border border-neutral-800 rounded-xl px-3 py-1.5 pl-8 text-xs text-neutral-200 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500"
-                />
-              </div>
-
-              {/* Status Tabs */}
-              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-neutral-900 border border-neutral-800 text-[11px]">
-                {(['all', 'active', 'draft', 'archived'] as const).map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setStatusFilter(st)}
-                    className={`flex-1 py-1 rounded text-center capitalize transition-colors ${
-                      statusFilter === st
-                        ? 'bg-neutral-800 text-neutral-100 font-medium'
-                        : 'text-neutral-400 hover:text-neutral-200'
+        {activeSubTab === 'workbench' ? (
+          /* WORKBENCH & REGISTRY VIEW */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column: Extensible Agent Registry Catalog (4 cols) */}
+            <div className="lg:col-span-4 space-y-3">
+              {/* Filter and Search */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between px-1">
+                  <span
+                    className={`text-xs font-semibold uppercase tracking-wider ${
+                      isLight ? 'text-slate-500' : 'text-neutral-400'
                     }`}
                   >
-                    {st}
-                  </button>
-                ))}
+                    Registered Agents ({filteredAgents.length})
+                  </span>
+                  <span className="text-[10px] font-mono opacity-60">
+                    Total: {agents.length}
+                  </span>
+                </div>
+
+                {/* Search input */}
+                <div className="relative">
+                  <Search
+                    className={`w-3.5 h-3.5 absolute left-3 top-2.5 ${
+                      isLight ? 'text-slate-400' : 'text-neutral-500'
+                    }`}
+                  />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Filter agents..."
+                    className={`w-full rounded-xl px-3 py-1.5 pl-8 text-xs outline-none transition-colors border ${
+                      isLight
+                        ? 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-indigo-500 shadow-2xs'
+                        : 'bg-[#121620] border-white/5 text-neutral-200 placeholder-neutral-500 focus:border-indigo-500'
+                    }`}
+                  />
+                </div>
+
+                {/* Status Tabs */}
+                <div
+                  className={`flex items-center gap-1 p-0.5 rounded-xl border text-[11px] ${
+                    isLight ? 'bg-white border-slate-200 shadow-2xs' : 'bg-[#121620] border-white/5'
+                  }`}
+                >
+                  {(['all', 'active', 'draft', 'archived'] as const).map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setStatusFilter(st)}
+                      className={`flex-1 py-1 rounded-lg text-center capitalize transition-colors ${
+                        statusFilter === st
+                          ? isLight
+                            ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs'
+                            : 'bg-[#151926] text-white font-semibold'
+                          : isLight
+                          ? 'text-slate-500 hover:text-slate-900'
+                          : 'text-neutral-400 hover:text-neutral-200'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
             {/* Agent Cards */}
             <div className="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
@@ -455,27 +509,41 @@ export const AgentLabView: React.FC = () => {
                       }}
                       className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                         isSelected
-                          ? 'bg-neutral-900 border-neutral-600 text-neutral-100 shadow-xs ring-1 ring-neutral-700/50'
-                          : 'bg-neutral-900/30 border-neutral-800/80 hover:border-neutral-700 text-neutral-300'
+                          ? isLight
+                            ? 'bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-200/60 text-slate-900 shadow-sm'
+                            : 'bg-[#151926] border-indigo-500/40 text-white shadow-xs ring-1 ring-indigo-500/30'
+                          : isLight
+                          ? 'bg-white border-slate-200/90 hover:border-slate-300 text-slate-800 shadow-2xs hover:shadow-xs'
+                          : 'bg-[#121620] border-white/5 hover:border-white/10 text-neutral-300'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg bg-neutral-950 border border-neutral-800 flex items-center justify-center text-xs font-mono font-bold text-neutral-200">
+                          <div
+                            className={`w-8 h-8 rounded-lg border flex items-center justify-center text-xs font-mono font-bold ${
+                              isLight
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                                : 'bg-[#0B0E14] border-white/10 text-neutral-200'
+                            }`}
+                          >
                             {agent.name.charAt(0)}
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <h3 className="text-xs font-semibold text-neutral-200">
+                              <h3 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
                                 {agent.name}
                               </h3>
                               {agent.isBuiltIn && (
-                                <span className="text-[9px] font-mono px-1 rounded bg-neutral-800 text-neutral-400">
+                                <span
+                                  className={`text-[9px] font-mono px-1 rounded ${
+                                    isLight ? 'bg-slate-100 text-slate-600' : 'bg-neutral-800 text-neutral-400'
+                                  }`}
+                                >
                                   Core
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] font-mono text-neutral-500">
+                            <span className="text-[10px] font-mono opacity-60">
                               {agent.codename}
                             </span>
                           </div>
@@ -485,10 +553,16 @@ export const AgentLabView: React.FC = () => {
                           <span
                             className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border ${
                               agent.status === 'active'
-                                ? 'bg-neutral-950 border-neutral-800 text-neutral-300'
+                                ? isLight
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                  : 'bg-emerald-950/40 border-emerald-900 text-emerald-400'
                                 : agent.status === 'draft'
-                                ? 'bg-neutral-900 border-neutral-800 text-neutral-500'
-                                : 'bg-neutral-950 border-neutral-900 text-neutral-600'
+                                ? isLight
+                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                  : 'bg-amber-950/40 border-amber-900 text-amber-400'
+                                : isLight
+                                ? 'bg-slate-100 border-slate-200 text-slate-500'
+                                : 'bg-neutral-900 border-neutral-800 text-neutral-500'
                             }`}
                           >
                             {agent.status}
@@ -496,11 +570,13 @@ export const AgentLabView: React.FC = () => {
                         </div>
                       </div>
 
-                      <p className="text-[11px] text-neutral-400 line-clamp-2 mt-2 leading-relaxed">
+                      <p className={`text-[11px] line-clamp-2 mt-2 leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
                         {agent.description}
                       </p>
 
-                      <div className="flex items-center justify-between mt-3 text-[10px] font-mono text-neutral-500 pt-2 border-t border-neutral-850">
+                      <div className={`flex items-center justify-between mt-3 text-[10px] font-mono pt-2 border-t ${
+                        isLight ? 'border-slate-100 text-slate-400' : 'border-white/5 text-neutral-500'
+                      }`}>
                         <span>{agent.tools.length} tools • {agent.permissions.length} perms</span>
                         <span>{agent.modelConfig.modelId}</span>
                       </div>
@@ -514,30 +590,54 @@ export const AgentLabView: React.FC = () => {
           {/* Right Column: Active Agent Inspector & Execution Benchmark (8 cols) */}
           <div className="lg:col-span-8 space-y-6">
             {/* Agent Configuration Spec Card */}
-            <div className="p-5 rounded-2xl border border-neutral-800 bg-neutral-900/40 space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-800 pb-4">
+            <div
+              className={`p-5 rounded-2xl border transition-colors shadow-2xs space-y-5 ${
+                isLight ? 'bg-white border-slate-200/90 text-slate-800' : 'bg-[#121620] border-white/5 text-neutral-100'
+              }`}
+            >
+              <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4 ${
+                isLight ? 'border-slate-100' : 'border-white/5'
+              }`}>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-semibold text-neutral-100">
+                    <h2 className="text-lg font-bold tracking-tight">
                       {selectedAgent.name}
                     </h2>
-                    <span className="text-xs font-mono text-neutral-400 px-2 py-0.5 rounded bg-neutral-900 border border-neutral-800">
+                    <span
+                      className={`text-xs font-mono px-2 py-0.5 rounded border ${
+                        isLight ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-[#0E121B] border-white/5 text-neutral-300'
+                      }`}
+                    >
                       {selectedAgent.codename}
                     </span>
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-neutral-950 border border-neutral-800 text-neutral-400">
+                    <span
+                      className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                        selectedAgent.status === 'active'
+                          ? isLight
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                            : 'bg-emerald-950/40 border-emerald-800 text-emerald-400'
+                          : isLight
+                          ? 'bg-slate-100 border-slate-200 text-slate-600'
+                          : 'bg-[#0E121B] border-white/5 text-neutral-400'
+                      }`}
+                    >
                       Status: {selectedAgent.status}
                     </span>
-                    <span className="text-[10px] font-mono text-neutral-500">
+                    <span className="text-[10px] font-mono opacity-60">
                       Owner: {selectedAgent.ownerId}
                     </span>
                   </div>
-                  <p className="text-xs text-neutral-400 mt-1">{selectedAgent.tagline}</p>
+                  <p className={`text-xs mt-1 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{selectedAgent.tagline}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => openEditor(selectedAgent)}
-                    className="px-3 py-1.5 rounded-lg border border-neutral-700 bg-neutral-900 hover:bg-neutral-800 text-xs text-neutral-200 transition-colors flex items-center gap-1.5"
+                    className={`px-3 py-1.5 rounded-xl border text-xs transition-colors flex items-center gap-1.5 ${
+                      isLight
+                        ? 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
+                        : 'border-white/10 bg-[#0E121B] hover:bg-neutral-800 text-neutral-200'
+                    }`}
                     title="Configure agent parameters"
                   >
                     <Settings className="w-3.5 h-3.5" />
@@ -545,7 +645,7 @@ export const AgentLabView: React.FC = () => {
                   </button>
                   <button
                     onClick={() => handleStartChatWithAgent(selectedAgent)}
-                    className="px-3 py-1.5 rounded-lg bg-neutral-100 hover:bg-white text-neutral-950 text-xs font-medium transition-colors flex items-center gap-1.5 shadow-xs"
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                     title="Open chat conversation with this agent"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
@@ -565,50 +665,66 @@ export const AgentLabView: React.FC = () => {
 
               {/* Spec Details Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-                <div className="p-3 rounded-lg bg-neutral-950/60 border border-neutral-800/60">
-                  <span className="text-[10px] font-mono uppercase text-neutral-500">
+                <div
+                  className={`p-3 rounded-xl border transition-colors ${
+                    isLight ? 'bg-slate-50 border-slate-200/90 text-slate-800' : 'bg-[#0E121B] border-white/5 text-neutral-200'
+                  }`}
+                >
+                  <span className={`text-[10px] font-mono uppercase ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                     Model Engine
                   </span>
-                  <p className="font-mono text-neutral-200 mt-1 font-medium truncate">
+                  <p className="font-mono mt-1 font-semibold truncate">
                     {selectedAgent.modelConfig.modelId}
                   </p>
-                  <span className="text-[10px] text-neutral-500">
+                  <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>
                     Temp: {selectedAgent.modelConfig.temperature} | Max: {selectedAgent.modelConfig.maxTokens || 4096}
                   </span>
                 </div>
 
-                <div className="p-3 rounded-lg bg-neutral-950/60 border border-neutral-800/60">
-                  <span className="text-[10px] font-mono uppercase text-neutral-500">
+                <div
+                  className={`p-3 rounded-xl border transition-colors ${
+                    isLight ? 'bg-slate-50 border-slate-200/90 text-slate-800' : 'bg-[#0E121B] border-white/5 text-neutral-200'
+                  }`}
+                >
+                  <span className={`text-[10px] font-mono uppercase ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                     Execution Mode
                   </span>
-                  <p className="font-mono text-neutral-200 mt-1 capitalize font-medium">
+                  <p className="font-mono mt-1 capitalize font-semibold">
                     {selectedAgent.executionMode}
                   </p>
-                  <span className="text-[10px] text-neutral-500">
+                  <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>
                     Deterministic pipeline
                   </span>
                 </div>
 
-                <div className="p-3 rounded-lg bg-neutral-950/60 border border-neutral-800/60">
-                  <span className="text-[10px] font-mono uppercase text-neutral-500">
+                <div
+                  className={`p-3 rounded-xl border transition-colors ${
+                    isLight ? 'bg-slate-50 border-slate-200/90 text-slate-800' : 'bg-[#0E121B] border-white/5 text-neutral-200'
+                  }`}
+                >
+                  <span className={`text-[10px] font-mono uppercase ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                     Memory Access
                   </span>
-                  <p className="font-mono text-neutral-200 mt-1 font-medium">
+                  <p className="font-mono mt-1 font-semibold">
                     {selectedAgent.memoryAccess?.canRead ? 'Read' : 'No-Read'} / {selectedAgent.memoryAccess?.canWrite ? 'Write' : 'No-Write'}
                   </p>
-                  <span className="text-[10px] text-neutral-500">
+                  <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>
                     {selectedAgent.memoryAccess?.types?.length || 0} allowed categories
                   </span>
                 </div>
 
-                <div className="p-3 rounded-lg bg-neutral-950/60 border border-neutral-800/60">
-                  <span className="text-[10px] font-mono uppercase text-neutral-500">
+                <div
+                  className={`p-3 rounded-xl border transition-colors ${
+                    isLight ? 'bg-slate-50 border-slate-200/90 text-slate-800' : 'bg-[#0E121B] border-white/5 text-neutral-200'
+                  }`}
+                >
+                  <span className={`text-[10px] font-mono uppercase ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                     Timestamps
                   </span>
-                  <p className="font-mono text-neutral-200 mt-1 text-[11px]">
+                  <p className="font-mono mt-1 text-[11px] font-semibold">
                     Created: {new Date(selectedAgent.createdAt).toLocaleDateString()}
                   </p>
-                  <span className="text-[10px] text-neutral-500">
+                  <span className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>
                     Updated: {new Date(selectedAgent.updatedAt).toLocaleDateString()}
                   </span>
                 </div>
@@ -616,10 +732,14 @@ export const AgentLabView: React.FC = () => {
 
               {/* System Instructions Preview */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500">
+                <span className={`text-[11px] font-mono uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                   System Instructions
                 </span>
-                <div className="p-3 rounded-xl bg-neutral-950/80 border border-neutral-800/80 font-mono text-xs text-neutral-300 leading-relaxed max-h-28 overflow-y-auto custom-scrollbar">
+                <div
+                  className={`p-3.5 rounded-xl border font-mono text-xs leading-relaxed max-h-28 overflow-y-auto custom-scrollbar ${
+                    isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-[#0E121B] border-white/5 text-neutral-300'
+                  }`}
+                >
                   {selectedAgent.systemInstructions}
                 </div>
               </div>
@@ -628,19 +748,23 @@ export const AgentLabView: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Active Tools */}
                 <div className="space-y-1.5">
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500">
+                  <span className={`text-[11px] font-mono uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                     Bound Tools ({selectedAgent.tools.length})
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedAgent.tools.length === 0 ? (
-                      <span className="text-xs text-neutral-500 italic">No tools bound.</span>
+                      <span className={`text-xs italic ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>No tools bound.</span>
                     ) : (
                       selectedAgent.tools.map((tool) => (
                         <span
                           key={tool}
-                          className="px-2 py-0.5 rounded-md bg-neutral-950 border border-neutral-800 text-[11px] font-mono text-neutral-300 flex items-center gap-1"
+                          className={`px-2.5 py-1 rounded-lg border text-[11px] font-mono flex items-center gap-1.5 ${
+                            isLight
+                              ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                              : 'bg-[#0E121B] border-white/5 text-neutral-300'
+                          }`}
                         >
-                          <Wrench className="w-2.5 h-2.5 text-neutral-500" />
+                          <Wrench className={`w-3 h-3 ${isLight ? 'text-indigo-500' : 'text-indigo-400'}`} />
                           {tool}
                         </span>
                       ))
@@ -650,19 +774,23 @@ export const AgentLabView: React.FC = () => {
 
                 {/* Granted Permissions */}
                 <div className="space-y-1.5">
-                  <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500">
+                  <span className={`text-[11px] font-mono uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                     Granted Permissions ({selectedAgent.permissions.length})
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedAgent.permissions.length === 0 ? (
-                      <span className="text-xs text-neutral-500 italic">No special permissions.</span>
+                      <span className={`text-xs italic ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>No special permissions.</span>
                     ) : (
                       selectedAgent.permissions.map((perm) => (
                         <span
                           key={perm}
-                          className="px-2 py-0.5 rounded-md bg-neutral-950 border border-neutral-800 text-[11px] font-mono text-neutral-400 flex items-center gap-1"
+                          className={`px-2.5 py-1 rounded-lg border text-[11px] font-mono flex items-center gap-1.5 ${
+                            isLight
+                              ? 'bg-purple-50 border-purple-200 text-purple-700'
+                              : 'bg-[#0E121B] border-white/5 text-neutral-300'
+                          }`}
                         >
-                          <Shield className="w-2.5 h-2.5 text-neutral-500" />
+                          <Shield className={`w-3 h-3 ${isLight ? 'text-purple-500' : 'text-purple-400'}`} />
                           {perm}
                         </span>
                       ))
@@ -673,26 +801,36 @@ export const AgentLabView: React.FC = () => {
             </div>
 
             {/* 9-Step Execution Pipeline Benchmark */}
-            <div className="p-5 rounded-2xl border border-neutral-800 bg-neutral-900/40 space-y-4">
-              <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+            <div
+              className={`p-5 rounded-2xl border transition-colors shadow-2xs space-y-4 ${
+                isLight ? 'bg-white border-slate-200/90 text-slate-800' : 'bg-[#121620] border-white/5 text-neutral-100'
+              }`}
+            >
+              <div className={`flex items-center justify-between border-b pb-3 ${
+                isLight ? 'border-slate-100' : 'border-white/5'
+              }`}>
                 <div className="flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-neutral-400" />
-                  <h3 className="text-sm font-semibold text-neutral-100">
+                  <Activity className={`w-4 h-4 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
+                  <h3 className="text-sm font-semibold">
                     Execution Test Bench
                   </h3>
                 </div>
-                <span className="text-[11px] font-mono text-neutral-400 px-2 py-0.5 rounded bg-neutral-950 border border-neutral-800">
+                <span
+                  className={`text-[11px] font-mono px-2 py-0.5 rounded border ${
+                    isLight ? 'bg-slate-100 border-slate-200 text-slate-700' : 'bg-[#0E121B] border-white/5 text-neutral-300'
+                  }`}
+                >
                   9-Step Lifecycle Pipeline
                 </span>
               </div>
 
-              <p className="text-xs text-neutral-400">
+              <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                 Trigger a real execution through the deterministic 9-step pipeline for <strong>{selectedAgent.name}</strong>. The output, tool operations, memory recalls, and step logs will be recorded for inspection.
               </p>
 
               {/* Sample Prompts */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] font-mono uppercase text-neutral-500">Quick Prompts:</span>
+                <span className={`text-[10px] font-mono uppercase ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>Quick Prompts:</span>
                 {[
                   'Deconstruct sprint milestones into tasks',
                   'Audit active workspace memories and preferences',
@@ -701,7 +839,11 @@ export const AgentLabView: React.FC = () => {
                   <button
                     key={sample}
                     onClick={() => setBenchPrompt(sample)}
-                    className="text-[11px] px-2.5 py-1 rounded-lg bg-neutral-950 border border-neutral-800 text-neutral-400 hover:text-neutral-200 transition-colors"
+                    className={`text-[11px] px-2.5 py-1 rounded-xl border transition-colors ${
+                      isLight
+                        ? 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                        : 'bg-[#0E121B] hover:bg-neutral-800 border-white/5 text-neutral-400 hover:text-neutral-200'
+                    }`}
                   >
                     "{sample}"
                   </button>
@@ -718,17 +860,21 @@ export const AgentLabView: React.FC = () => {
                     if (e.key === 'Enter') handleRunBench();
                   }}
                   placeholder={`Send an instruction to ${selectedAgent.name}...`}
-                  className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs text-neutral-200 placeholder-neutral-500 focus:outline-hidden focus:border-neutral-500"
+                  className={`flex-1 rounded-xl px-3.5 py-2 text-xs outline-none transition-colors border ${
+                    isLight
+                      ? 'bg-slate-50 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:bg-white'
+                      : 'bg-[#0E121B] border-white/10 text-neutral-200 placeholder-neutral-500 focus:border-indigo-500'
+                  }`}
                 />
                 <button
                   id="btn-run-agent-pipeline"
                   onClick={handleRunBench}
                   disabled={!benchPrompt.trim() || isExecuting}
-                  className="px-4 py-2 rounded-xl bg-neutral-100 hover:bg-white text-neutral-950 text-xs font-medium disabled:opacity-40 transition-colors shrink-0 flex items-center gap-1.5 shadow-xs"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold disabled:opacity-40 transition-all shrink-0 flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   {isExecuting ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-neutral-950 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       <span>Executing...</span>
                     </>
                   ) : (
@@ -748,20 +894,22 @@ export const AgentLabView: React.FC = () => {
           {/* Left Column: Execution History List (4 cols) */}
           <div className="lg:col-span-4 space-y-3">
             <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">
+              <span className={`text-xs font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                 Execution History ({executions.length})
               </span>
-              <span className="text-[10px] font-mono text-neutral-500">
+              <span className="text-[10px] font-mono opacity-60">
                 Inspectable
               </span>
             </div>
 
             <div className="space-y-2 max-h-[650px] overflow-y-auto custom-scrollbar pr-1">
               {executions.length === 0 ? (
-                <div className="p-6 rounded-xl border border-neutral-800/60 bg-neutral-900/20 text-center space-y-2">
-                  <History className="w-6 h-6 text-neutral-500 mx-auto" />
-                  <p className="text-xs text-neutral-300 font-medium">No executions recorded</p>
-                  <p className="text-[11px] text-neutral-500">
+                <div className={`p-6 rounded-2xl border text-center space-y-2 ${
+                  isLight ? 'border-slate-200 bg-white/70' : 'border-white/5 bg-[#121620]'
+                }`}>
+                  <History className={`w-6 h-6 mx-auto ${isLight ? 'text-slate-400' : 'text-neutral-500'}`} />
+                  <p className={`text-xs font-medium ${isLight ? 'text-slate-700' : 'text-neutral-300'}`}>No executions recorded</p>
+                  <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                     Switch to the Registry & Bench tab to run an agent through the pipeline.
                   </p>
                 </div>
@@ -775,8 +923,12 @@ export const AgentLabView: React.FC = () => {
                       onClick={() => setInspectedExecutionId(exec.id)}
                       className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                         isSelected
-                          ? 'bg-neutral-900 border-neutral-600 text-neutral-100 shadow-xs ring-1 ring-neutral-700/50'
-                          : 'bg-neutral-900/30 border-neutral-800/80 hover:border-neutral-700 text-neutral-300'
+                          ? isLight
+                            ? 'bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-200/60 text-slate-900 shadow-sm'
+                            : 'bg-[#151926] border-indigo-500/40 text-white shadow-xs ring-1 ring-indigo-500/30'
+                          : isLight
+                          ? 'bg-white border-slate-200/90 hover:border-slate-300 text-slate-800 shadow-2xs hover:shadow-xs'
+                          : 'bg-[#121620] border-white/5 hover:border-white/10 text-neutral-300'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -786,28 +938,36 @@ export const AgentLabView: React.FC = () => {
                               isSuccess ? 'bg-emerald-400' : exec.status === 'failed' ? 'bg-red-400' : 'bg-neutral-400'
                             }`}
                           />
-                          <span className="text-xs font-mono font-medium text-neutral-200 truncate">
+                          <span className={`text-xs font-mono font-medium truncate ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
                             {exec.agentName}
                           </span>
                         </div>
                         <span
                           className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded border ${
                             isSuccess
-                              ? 'bg-emerald-950/40 border-emerald-900 text-emerald-400'
+                              ? isLight
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                : 'bg-emerald-950/40 border-emerald-900 text-emerald-400'
                               : exec.status === 'failed'
-                              ? 'bg-red-950/40 border-red-900 text-red-400'
-                              : 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                              ? isLight
+                                ? 'bg-red-50 border-red-200 text-red-700'
+                                : 'bg-red-950/40 border-red-900 text-red-400'
+                              : isLight
+                              ? 'bg-slate-100 border-slate-200 text-slate-600'
+                              : 'bg-[#0E121B] border-white/5 text-neutral-400'
                           }`}
                         >
                           {exec.status}
                         </span>
                       </div>
 
-                      <p className="text-[11px] text-neutral-400 line-clamp-2 mt-2 leading-relaxed font-sans">
+                      <p className={`text-[11px] line-clamp-2 mt-2 leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
                         "{exec.taskPrompt}"
                       </p>
 
-                      <div className="flex items-center justify-between mt-3 text-[10px] font-mono text-neutral-500 pt-2 border-t border-neutral-850">
+                      <div className={`flex items-center justify-between mt-3 text-[10px] font-mono pt-2 border-t ${
+                        isLight ? 'border-slate-100 text-slate-400' : 'border-white/5 text-neutral-500'
+                      }`}>
                         <span>ID: {exec.id.slice(0, 14)}...</span>
                         <span>{new Date(exec.startedAt).toLocaleTimeString()}</span>
                       </div>

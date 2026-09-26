@@ -84,12 +84,15 @@ export const SettingsView: React.FC = () => {
     updateSettings,
     clearAllData,
     signOut,
+    activeSettingsSection,
+    setActiveSettingsSection,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
 
-  // Active Sub-Section
-  const [activeSection, setActiveSection] = useState<SettingsSubSection>('account');
+  // Active Sub-Section from Context
+  const activeSection = activeSettingsSection;
+  const setActiveSection = setActiveSettingsSection;
   const [isSaved, setIsSaved] = useState(false);
 
   // Profile form states

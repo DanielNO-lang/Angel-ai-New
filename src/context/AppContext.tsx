@@ -32,15 +32,26 @@ import {
   CommandPaletteScope,
   UserProfile,
   ThemeMode,
+  SettingsSubSection,
 } from '../types';
 
 interface AppContextType {
   activeTab: NavigationTab;
   setActiveTab: (tab: NavigationTab) => void;
+  activeSettingsSection: SettingsSubSection;
+  setActiveSettingsSection: (section: SettingsSubSection) => void;
   isSidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   isMobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
+
+  // Manual Workspace Minimization & Stage Sizing
+  isWorkspaceMinimized: boolean;
+  setIsWorkspaceMinimized: (minimized: boolean) => void;
+  toggleWorkspaceMinimized: () => void;
+  workspaceSizeMode: 'full' | 'half' | 'compact';
+  setWorkspaceSizeMode: (mode: 'full' | 'half' | 'compact') => void;
 
   // Global Command Palette & Search
   isCommandPaletteOpen: boolean;
@@ -177,7 +188,54 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('home');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [activeSettingsSection, setActiveSettingsSectionState] = useState<SettingsSubSection>(() =>
+    getStoredItem<SettingsSubSection>('active_settings_section', 'account')
+  );
+
+  const setActiveSettingsSection = (section: SettingsSubSection) => {
+    setActiveSettingsSectionState(section);
+    setStoredItem('active_settings_section', section);
+  };
+
+  const [isSidebarCollapsed, setIsSidebarCollapsedState] = useState<boolean>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      return true;
+    }
+    return getStoredItem<boolean>('is_sidebar_collapsed', false);
+  });
+
+  const setSidebarCollapsed = (collapsed: boolean) => {
+    setIsSidebarCollapsedState(collapsed);
+    setStoredItem('is_sidebar_collapsed', collapsed);
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsedState((prev) => {
+      const next = !prev;
+      setStoredItem('is_sidebar_collapsed', next);
+      return next;
+    });
+  };
+
+  // Automatically collapse or transform sidebar sections when window width is reduced
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsSidebarCollapsedState(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Manual Workspace Minimization & Stage Sizing State
+  const [isWorkspaceMinimized, setIsWorkspaceMinimized] = useState<boolean>(false);
+  const [workspaceSizeMode, setWorkspaceSizeMode] = useState<'full' | 'half' | 'compact'>('full');
+
+  const toggleWorkspaceMinimized = () => {
+    setIsWorkspaceMinimized((prev) => !prev);
+  };
+
   const [isMobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Command Palette & Global Search State
@@ -346,8 +404,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     refreshIntegrations();
   }, []);
-
-  const toggleSidebar = () => setIsSidebarCollapsed((prev) => !prev);
 
   // Active conversation helpers
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
@@ -1114,10 +1170,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         activeTab,
         setActiveTab,
+        activeSettingsSection,
+        setActiveSettingsSection,
         isSidebarCollapsed,
+        setSidebarCollapsed,
         toggleSidebar,
         isMobileMenuOpen,
         setMobileMenuOpen,
+        isWorkspaceMinimized,
+        setIsWorkspaceMinimized,
+        toggleWorkspaceMinimized,
+        workspaceSizeMode,
+        setWorkspaceSizeMode,
         isCommandPaletteOpen,
         setIsCommandPaletteOpen,
         openCommandPalette,

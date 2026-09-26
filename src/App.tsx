@@ -26,9 +26,20 @@ import { MediaStudioView } from './components/media_studio/MediaStudioView';
 import { SettingsView } from './components/settings/SettingsView';
 import { CommandPalette } from './components/search/CommandPalette';
 import { BackdropLayer } from './components/ui/BackdropLayer';
+import {
+  WorkspaceStageControls,
+  WorkspaceMinimizedView,
+} from './components/layout/WorkspaceStageControls';
+import { MobileTopBar } from './components/layout/MobileTopBar';
 
 const WorkspaceContent: React.FC = () => {
-  const { activeTab, settings, isIncognitoActive } = useAngel();
+  const {
+    activeTab,
+    settings,
+    isIncognitoActive,
+    isWorkspaceMinimized,
+    workspaceSizeMode,
+  } = useAngel();
   const isLight = settings.theme === 'light';
 
   // Dedicated Incognito Page when active
@@ -103,12 +114,27 @@ const WorkspaceContent: React.FC = () => {
         {/* Persistent Collapsible Sidebar (and responsive slide-in drawer on mobile/tablet) */}
         <Sidebar />
 
-        {/* Main Workspace Stage with independent scrolling context */}
-        <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-          <Header />
-          <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar">
-            {renderActiveView()}
-          </main>
+        {/* Main Workspace Stage with independent scrolling context and manual minimize/sizing support */}
+        <div
+          className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative transition-all duration-300 ${
+            workspaceSizeMode === 'half'
+              ? 'max-w-4xl mx-auto shadow-2xl border-x border-inherit'
+              : 'w-full'
+          }`}
+        >
+          {/* Top-Right Manual Workspace Stage Controls (Minimize, Half-Screen Sizing) */}
+          <WorkspaceStageControls />
+
+          {isWorkspaceMinimized ? (
+            <WorkspaceMinimizedView />
+          ) : (
+            <>
+              {activeTab === 'home' ? <Header /> : <MobileTopBar />}
+              <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar">
+                {renderActiveView()}
+              </main>
+            </>
+          )}
         </div>
       </div>
 
