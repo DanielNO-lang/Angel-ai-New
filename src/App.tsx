@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { AppProvider, useAngel } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -129,9 +130,20 @@ const WorkspaceContent: React.FC = () => {
             <WorkspaceMinimizedView />
           ) : (
             <>
-              {activeTab === 'home' ? <Header /> : <MobileTopBar />}
+              {activeTab === 'home' ? <Header /> : activeTab === 'tasks' ? null : <MobileTopBar />}
               <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar">
-                {renderActiveView()}
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 8, filter: 'blur(2px)' }}
+                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, y: -6, filter: 'blur(1px)' }}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
+                    className="min-h-full"
+                  >
+                    {renderActiveView()}
+                  </motion.div>
+                </AnimatePresence>
               </main>
             </>
           )}
