@@ -262,7 +262,7 @@ export const TasksView: React.FC = () => {
 
   return (
     <div
-      className={`min-h-full px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6 transition-colors duration-150 animate-in fade-in duration-150 ${
+      className={`module-blue-theme min-h-full px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6 transition-colors duration-150 animate-in fade-in duration-150 ${
         isLight ? 'text-slate-800' : 'text-neutral-100'
       }`}
     >
