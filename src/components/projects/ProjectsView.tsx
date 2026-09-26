@@ -101,7 +101,7 @@ export const ProjectsView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6 md:py-8 space-y-6 animate-in fade-in duration-150">
+    <div className="module-blue-theme max-w-6xl mx-auto px-4 py-6 md:py-8 space-y-6 animate-in fade-in duration-150">
       {/* Header */}
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b ${
         isLight ? 'border-slate-200' : 'border-neutral-800'
