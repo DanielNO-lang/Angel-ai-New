@@ -190,8 +190,10 @@ export const Sidebar: React.FC = () => {
       <motion.aside
         onMouseEnter={handleMouseEnterRail}
         onMouseLeave={handleMouseLeaveRail}
+        layout
         animate={{ width: effectiveExpanded ? 256 : 64 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.72 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.72, layout: { type: 'spring', stiffness: 500, damping: 38, mass: 0.65 } }}
+        style={{ willChange: 'width', transform: 'translateZ(0)' }}
         className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-hidden ${
           isSidebarCollapsed ? 'absolute left-0 top-0' : 'relative'
         } ${
@@ -347,7 +349,7 @@ export const Sidebar: React.FC = () => {
             With overscroll-contain preventing scroll chaining to right pane!
             Contains tools, chats, and More dropdown
             ======================================================== */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-3 custom-scrollbar overscroll-contain">
+        <motion.div layoutScroll className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-3 custom-scrollbar overscroll-contain">
           {/* Main Navigation Tools */}
           <div className="space-y-0.5">
             {scrollableTools.map((tool) => {
