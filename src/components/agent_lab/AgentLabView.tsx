@@ -337,7 +337,7 @@ export const AgentLabView: React.FC = () => {
 
   return (
     <div
-      className={`min-h-full p-4 sm:p-6 lg:p-8 space-y-6 transition-colors duration-150 ${
+      className={`module-blue-theme min-h-full p-4 sm:p-6 lg:p-8 space-y-6 transition-colors duration-150 ${
         isLight ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#0B0E14] text-neutral-100'
       }`}
     >
