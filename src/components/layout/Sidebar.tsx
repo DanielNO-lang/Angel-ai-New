@@ -22,6 +22,7 @@
  */
 
 import React, { useState, useRef } from 'react';
+import { motion } from 'motion/react';
 import {
   Bot,
   Brain,
@@ -186,16 +187,16 @@ export const Sidebar: React.FC = () => {
       )}
 
       {/* Persistent Desktop Sidebar with Full Hover-Expansion when Collapsed */}
-      <aside
+      <motion.aside
         onMouseEnter={handleMouseEnterRail}
         onMouseLeave={handleMouseLeaveRail}
-        className={`hidden md:flex flex-col shrink-0 h-screen select-none transition-all duration-200 ${
-          isSidebarCollapsed
-            ? isHoverExpanded
-              ? 'w-64 absolute left-0 top-0 z-40 shadow-2xl border-r'
-              : 'w-16 absolute left-0 top-0 z-30 border-r'
-            : 'w-64 relative border-r z-30'
+        animate={{ width: effectiveExpanded ? 256 : 64 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.72 }}
+        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-hidden ${
+          isSidebarCollapsed ? 'absolute left-0 top-0' : 'relative'
         } ${
+          isHoverExpanded || !isSidebarCollapsed ? 'z-40 shadow-2xl' : 'z-30'
+        } border-r ${
           isLight
             ? 'bg-white border-slate-200/90 text-slate-800 shadow-slate-300/40'
             : 'bg-[#0B0E14] border-white/5 text-neutral-200 shadow-black/80'
