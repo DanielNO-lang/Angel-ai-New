@@ -168,6 +168,8 @@ export interface Memory {
   createdAt: string;
   updatedAt: string;
   isPinned?: boolean;
+  audioUrl?: string;
+  audioDuration?: number;
 }
 
 export type ProjectStatus = 'active' | 'planning' | 'completed' | 'on_hold';
@@ -184,6 +186,8 @@ export interface Project {
   memoryIds: string[];
   conversationIds: string[];
   goals: string[];
+  startDate?: string;
+  dueDate?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -301,6 +305,7 @@ export interface AngelSettings {
   accentColor: AccentColor;
   fontSize: FontSize;
   compactMode: boolean;
+  focusMode?: boolean;
   personality: {
     tone: 'balanced' | 'strategic' | 'direct' | 'creative';
     verbosity: 'concise' | 'balanced' | 'thorough';

@@ -76,24 +76,24 @@ export const HeaderBreadcrumbs: React.FC<HeaderBreadcrumbsProps> = ({ isLight })
 
   // Tab Icon and Display Label Mapping
   const tabConfig: Record<NavigationTab, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
-    home: { label: 'Home', icon: Home },
-    chat: { label: 'Chat', icon: MessageSquare },
-    voice: { label: 'Voice Mode', icon: Mic },
-    visual_mode: { label: 'Visual Mode', icon: Eye },
+    home: { label: 'Projects', icon: FolderGit2 },
+    chat: { label: 'Projects', icon: FolderGit2 },
+    voice: { label: 'Projects', icon: FolderGit2 },
+    visual_mode: { label: 'Projects', icon: FolderGit2 },
     agent_lab: { label: 'Agent Lab', icon: Cpu },
     projects: { label: 'Projects', icon: FolderGit2 },
-    tasks: { label: 'Tasks', icon: CheckSquare },
+    tasks: { label: 'Schedule', icon: CheckSquare },
     memories: { label: 'Memory Vault', icon: Brain },
     media_studio: { label: 'Media Studio', icon: Palette },
-    assistants: { label: 'Assistants', icon: Bot },
-    marketplace: { label: 'Marketplace', icon: Layers },
+    assistants: { label: 'Projects', icon: FolderGit2 },
+    marketplace: { label: 'Projects', icon: FolderGit2 },
     settings: { label: 'Settings', icon: SlidersHorizontal },
-    profile: { label: 'Profile', icon: Bot },
+    profile: { label: 'Profile', icon: SlidersHorizontal },
     recycle_bin: { label: 'Recycle Bin', icon: Trash2 },
-    more: { label: 'More Tools', icon: Layers },
+    more: { label: 'Projects', icon: FolderGit2 },
   };
 
-  const currentTabInfo = tabConfig[activeTab] || { label: 'Workspace', icon: Sparkles };
+  const currentTabInfo = tabConfig[activeTab] || { label: 'Projects', icon: FolderGit2 };
   const TabIcon = currentTabInfo.icon;
 
   // Settings Deep Info

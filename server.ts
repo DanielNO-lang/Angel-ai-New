@@ -13,7 +13,7 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { executeAgentPipeline } from './server/orchestrator';
 import { providerRegistry } from './server/providers';
-import { getSupabaseServerStatus } from './server/supabase_service';
+import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase } from './server/supabase_service';
 import { automationService, AutomationEventType } from './server/services/automationService';
 import { dispatchZapierEvent } from './server/zapier_service';
 
@@ -110,6 +110,43 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         ],
       },
     });
+  });
+
+  // 3. Supabase Real-Time Project Velocity & Completion Status
+  app.get('/api/supabase/velocity', async (req: Request, res: Response) => {
+    try {
+      const metrics = await getTasksVelocity([]);
+      res.json(metrics);
+    } catch (err) {
+      console.error('[API /api/supabase/velocity Error]', err);
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/supabase/velocity', async (req: Request, res: Response) => {
+    try {
+      const { tasks } = req.body || {};
+      const fallbackTasks = Array.isArray(tasks) ? tasks : [];
+      const metrics = await getTasksVelocity(fallbackTasks);
+      res.json(metrics);
+    } catch (err) {
+      console.error('[API /api/supabase/velocity POST Error]', err);
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/supabase/sync', async (req: Request, res: Response) => {
+    try {
+      const { tasks } = req.body || {};
+      if (!Array.isArray(tasks)) {
+        return res.status(400).json({ error: 'tasks array is required' });
+      }
+      const result = await syncTasksToSupabase(tasks);
+      res.json(result);
+    } catch (err) {
+      console.error('[API /api/supabase/sync Error]', err);
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
   });
 
   // ============================================================================

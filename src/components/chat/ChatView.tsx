@@ -10,6 +10,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowUp,
   Bot,
@@ -28,6 +29,7 @@ import {
   Menu,
   MessageSquare,
   Mic,
+  MicOff,
   Paperclip,
   Plus,
   RotateCcw,
@@ -39,8 +41,11 @@ import {
   X,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
-import { Attachment } from '../../types';
+import { Attachment, Conversation } from '../../types';
 import { AngelLogo } from '../ui/AngelLogo';
+import { AddSectionMenu } from './AddSectionMenu';
+import { useVoiceDictation } from '../../services/voice/useVoiceDictation';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 export const ChatView: React.FC = () => {
   const {
@@ -69,99 +74,40 @@ export const ChatView: React.FC = () => {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
-  const [isThreadsOpen, setIsThreadsOpen] = useState(false);
-  const [threadSearch, setThreadSearch] = useState('');
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [activeChip, setActiveChip] = useState<'think' | 'search' | 'browse' | 'model'>('think');
+  const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
+  const [convToDelete, setConvToDelete] = useState<Conversation | null>(null);
 
-  // Web Speech API Dictation (Speech to Text)
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  // Web Speech API Voice Dictation with anti-echo deduplication
+  const voiceDictation = useVoiceDictation({
+    onResult: (finalText, interimText) => {
+      const combined = interimText ? `${finalText} ${interimText}`.trim() : finalText;
+      setInput(combined);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+      }
+    },
+    onFinal: (finalText) => {
+      setInput(finalText);
+    },
+  });
+
+  const toggleSpeechRecognition = () => {
+    if (voiceDictation.isListening) {
+      voiceDictation.stopListening();
+    } else {
+      voiceDictation.startListening(input);
+    }
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const activeAgent = agents.find((a) => a.id === selectedAgentId) || agents[0];
-
-  useEffect(() => {
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, []);
-
-  const toggleSpeechRecognition = () => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in your browser. Please try Chrome, Edge, or Safari.');
-      return;
-    }
-
-    if (isListening) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
-      }
-      setIsListening(false);
-      return;
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
-        }
-        if (transcript) {
-          setInput((prev) => {
-            const separator = prev && !prev.endsWith(' ') ? ' ' : '';
-            const next = prev + separator + transcript;
-            if (textareaRef.current) {
-              textareaRef.current.style.height = 'auto';
-              textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
-            }
-            return next;
-          });
-        }
-      };
-
-      recognition.onerror = (event: any) => {
-        console.warn('Speech recognition error:', event.error);
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (err) {
-      console.warn('Speech recognition start failed:', err);
-      setIsListening(false);
-    }
-  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -234,25 +180,6 @@ export const ChatView: React.FC = () => {
     setTimeout(() => setCopiedMsgId(null), 2000);
   };
 
-  const filteredConversations = conversations.filter((c) => {
-    if (c.isSecret) return false;
-    if (!threadSearch.trim()) return true;
-    return c.title.toLowerCase().includes(threadSearch.toLowerCase());
-  });
-
-  const handleStartRename = (id: string, currentTitle: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingConvId(id);
-    setEditingTitle(currentTitle);
-  };
-
-  const handleSaveRename = (id: string) => {
-    if (editingTitle.trim()) {
-      renameConversation(id, editingTitle.trim());
-    }
-    setEditingConvId(null);
-  };
-
   const quickSearchSuggestions = [
     { label: 'Latest tech news', prompt: 'Summarize the latest major tech and AI breakthroughs today.' },
     { label: 'Design a marketing plan', prompt: 'Outline a go-to-market product launch marketing strategy.' },
@@ -262,86 +189,21 @@ export const ChatView: React.FC = () => {
 
   return (
     <div
-      className={`flex h-full min-h-screen w-full overflow-hidden transition-colors ${
+      className={`flex flex-col h-full w-full overflow-hidden transition-colors ${
         isLight ? 'bg-slate-50 text-slate-800' : 'bg-[#0B0E14] text-neutral-100'
       }`}
     >
-      {/* Optional Recent Conversations Panel */}
-      <aside
-        className={`${
-          isThreadsOpen ? 'w-72' : 'w-0'
-        } transition-all duration-200 shrink-0 overflow-hidden flex flex-col border-r ${
-          isLight
-            ? 'bg-white border-slate-200/80 text-slate-800'
-            : 'bg-[#0E121B] border-white/5 text-neutral-200'
-        }`}
-      >
-        <div className="p-3 border-b border-inherit flex items-center justify-between">
-          <span className="text-xs font-semibold">Conversations</span>
-          <button
-            onClick={() => createConversation()}
-            className="p-1 rounded-lg text-indigo-500 hover:text-indigo-600 transition-colors"
-            title="New Chat"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="p-2">
-          <input
-            type="text"
-            placeholder="Search threads..."
-            value={threadSearch}
-            onChange={(e) => setThreadSearch(e.target.value)}
-            className={`w-full px-2.5 py-1.5 text-xs rounded-xl border outline-none ${
-              isLight
-                ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                : 'bg-neutral-900 border-neutral-800 text-white focus:border-indigo-400'
-            }`}
-          />
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-          {filteredConversations.map((conv) => (
-            <div
-              key={conv.id}
-              onClick={() => setActiveConversationId(conv.id)}
-              className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-colors ${
-                activeConversationId === conv.id
-                  ? isLight
-                    ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                    : 'bg-indigo-600/20 text-indigo-300 font-medium'
-                  : isLight
-                  ? 'hover:bg-slate-100 text-slate-700'
-                  : 'hover:bg-neutral-900 text-neutral-300'
-              }`}
-            >
-              <span className="truncate">{conv.title}</span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteConversation(conv.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-red-500"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </aside>
-
       {/* Main Conversational Workspace */}
-      <div className="flex-1 flex flex-col h-full max-w-4xl mx-auto w-full min-w-0">
-        {/* Top Conversation Status Header */}
+      <div className="flex-1 flex flex-col h-full max-w-4xl mx-auto w-full min-w-0 overflow-hidden">
+        {/* Top Conversation Status Header: Fixed Non-Transparent with Chat Title */}
         <div
-          className={`px-4 py-2.5 border-b flex items-center justify-between text-xs transition-colors ${
+          className={`px-4 sm:px-6 py-3.5 border-b flex items-center justify-between text-xs sticky top-0 z-30 shadow-xs transition-colors shrink-0 ${
             isLight
-              ? 'border-slate-200/80 bg-white/80 text-slate-600'
-              : 'border-white/5 bg-[#0E121B]/60 text-neutral-400'
+              ? 'bg-white border-slate-200 text-slate-900'
+              : 'bg-[#0B0E14] border-white/10 text-neutral-100'
           }`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
               className={`md:hidden p-1.5 rounded-xl transition-colors ${
@@ -351,115 +213,45 @@ export const ChatView: React.FC = () => {
             >
               <Menu className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => setIsThreadsOpen(!isThreadsOpen)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors ${
-                isThreadsOpen
-                  ? isLight
-                    ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                    : 'bg-neutral-800 text-white'
-                  : isLight
-                  ? 'hover:bg-slate-100 text-slate-600'
-                  : 'hover:bg-neutral-900 text-neutral-300'
-              }`}
-              title="Toggle threads"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Threads</span>
-              <span className="text-[10px] font-mono opacity-60">({conversations.length})</span>
-            </button>
-
-            {/* Agent Switcher Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setIsAgentMenuOpen(!isAgentMenuOpen)}
-                className={`flex items-center gap-2 px-2.5 py-1 rounded-xl border transition-colors ${
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span
+                className={`p-1.5 rounded-xl border ${
                   isLight
-                    ? 'bg-white border-slate-200/80 text-slate-800 hover:border-slate-300'
-                    : 'bg-neutral-900/80 border-white/5 text-neutral-200 hover:border-white/10'
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                    : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
                 }`}
               >
-                <Bot className="w-3.5 h-3.5 text-indigo-400" />
-                <span className="font-semibold">{activeAgent.name}</span>
-                <span className="text-[10px] font-mono opacity-60">
-                  ({activeAgent.modelConfig.modelId})
-                </span>
-              </button>
-
-              {isAgentMenuOpen && (
-                <div
-                  className={`absolute left-0 top-full mt-1.5 w-64 rounded-2xl shadow-xl py-1 z-30 animate-in fade-in duration-100 ${
-                    isLight
-                      ? 'bg-white border border-slate-200 text-slate-800'
-                      : 'bg-[#0E121B] border border-white/10 text-neutral-100'
-                  }`}
-                >
-                  <div
-                    className={`px-3 py-1.5 border-b text-[10px] font-semibold uppercase tracking-wider ${
-                      isLight ? 'border-slate-100 text-slate-400' : 'border-neutral-800 text-neutral-400'
-                    }`}
-                  >
-                    Select Agent
-                  </div>
-                  {agents.map((agent) => (
-                    <button
-                      key={agent.id}
-                      onClick={() => {
-                        setSelectedAgentId(agent.id);
-                        setIsAgentMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between transition-colors ${
-                        agent.id === selectedAgentId
-                          ? isLight
-                            ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                            : 'bg-neutral-800 text-white font-medium'
-                          : isLight
-                          ? 'hover:bg-slate-50 text-slate-700'
-                          : 'hover:bg-neutral-900 text-neutral-300'
-                      }`}
-                    >
-                      <div>
-                        <p className="font-semibold">{agent.name}</p>
-                        <p className="text-[10px] opacity-60 truncate">{agent.tagline}</p>
-                      </div>
-                      {agent.id === selectedAgentId && <Check className="w-3.5 h-3.5 text-indigo-500" />}
-                    </button>
-                  ))}
-                </div>
-              )}
+                <MessageSquare className="w-4 h-4" />
+              </span>
+              <div className="min-w-0">
+                <h1 className="text-sm sm:text-base font-bold tracking-tight truncate">
+                  {activeConversation?.title || 'New Conversation'}
+                </h1>
+              </div>
             </div>
           </div>
 
-          {/* Context & Memory Indicators */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={() => setActiveTab('memories')}
-              className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-              title="Active Long-Term Memories"
+              onClick={() => createConversation()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition-all cursor-pointer"
+              title="Start a new chat"
             >
-              <Brain className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="font-mono text-[11px]">{memories.length} memories</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('visual_mode')}
-              className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
-              title="Visual Context & Multimodal"
-            >
-              <Eye className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden sm:inline">Visual Context</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">New Chat</span>
             </button>
           </div>
         </div>
 
         {/* Messages Scroll Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
+        <div className="relative flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar overscroll-contain">
           {messages.length === 0 ? (
             /* ========================================================
                IMAGE 1: "New Chat (Empty State)"
                Emblem + "Hello again, Danny 🔮" + 4 Filter Pills + "Try searching for:"
                ======================================================== */
             <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-6 max-w-lg mx-auto animate-in fade-in duration-200">
-              <div className="p-3.5 rounded-2xl bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 shadow-md">
+              <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 shadow-xs">
                 <AngelLogo size={46} glow={true} />
               </div>
 
@@ -563,14 +355,24 @@ export const ChatView: React.FC = () => {
               </div>
             </div>
           ) : (
-            /* Render Messages */
-            messages.map((message) => {
-              const isUser = message.role === 'user';
-              return (
-                <div
-                  key={message.id}
-                  className={`flex gap-3 text-sm ${isUser ? 'justify-end' : 'justify-start'}`}
-                >
+            /* Render Messages with Framer Motion Smooth Transition & Layout Animation */
+            <AnimatePresence initial={false}>
+              {messages.map((message) => {
+                const isUser = message.role === 'user';
+                return (
+                  <motion.div
+                    key={message.id}
+                    layout
+                    initial={{ opacity: 0, y: 14, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{
+                      duration: 0.24,
+                      ease: [0.22, 1, 0.36, 1],
+                      layout: { duration: 0.2 },
+                    }}
+                    className={`flex gap-3 text-sm ${isUser ? 'justify-end' : 'justify-start'}`}
+                  >
                   {!isUser && (
                     <div
                       className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
@@ -687,19 +489,20 @@ export const ChatView: React.FC = () => {
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               );
-            })
-          )}
+            })}
+          </AnimatePresence>
+        )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Console (Image 1 Bottom Dock) */}
+        {/* Input Console (Image 1 Bottom Dock) - Always 100% visible immediately */}
         <div
-          className={`p-3 md:p-4 border-t transition-colors ${
+          className={`sticky bottom-0 z-30 p-3 md:p-4 border-t transition-colors shrink-0 shadow-lg ${
             isLight
-              ? 'border-slate-200/80 bg-white/95'
-              : 'border-white/5 bg-[#0B0E14]/90'
+              ? 'border-slate-200 bg-white text-slate-900'
+              : 'border-white/10 bg-[#0B0E14] text-neutral-100'
           }`}
         >
           {/* Pending Attachments Strip */}
@@ -730,7 +533,7 @@ export const ChatView: React.FC = () => {
                 : 'bg-[#121622] border border-white/10 focus-within:border-indigo-500/60'
             }`}
           >
-            {/* File Attachment Trigger (+) */}
+            {/* File Attachment Trigger & Omnimodal Add Section */}
             <input
               type="file"
               ref={fileInputRef}
@@ -738,18 +541,47 @@ export const ChatView: React.FC = () => {
               multiple
               className="hidden"
             />
+
+            {/* Omnimodal Add Section Menu */}
+            <AddSectionMenu
+              isOpen={isAddSectionOpen}
+              onClose={() => setIsAddSectionOpen(false)}
+              onSelectUploadFile={() => fileInputRef.current?.click()}
+              onSelectCreateImage={(prefix) => {
+                setInput((prev) => prefix + prev);
+                textareaRef.current?.focus();
+              }}
+              onSelectConnector={(connectorName, tag) => {
+                setInput((prev) => tag + prev);
+                textareaRef.current?.focus();
+              }}
+              onSelectSkill={(skillName, directive) => {
+                setInput((prev) => directive + prev);
+                textareaRef.current?.focus();
+              }}
+              onSelectAddMemory={() => {
+                setActiveTab('memories');
+              }}
+              onSelectCreateTask={() => {
+                setActiveTab('tasks');
+              }}
+              isLight={isLight}
+            />
+
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className={`p-2 rounded-xl transition-colors shrink-0 ${
-                isLight
+              onClick={() => setIsAddSectionOpen(!isAddSectionOpen)}
+              className={`p-2 rounded-xl transition-all shrink-0 ${
+                isAddSectionOpen
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : isLight
                   ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
               }`}
-              title="Attach file or image"
-              aria-label="Attach file or image"
+              title="Add documents, connectors, images, and tools"
+              aria-label="Add to workspace"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className={`w-4 h-4 transition-transform duration-150 ${isAddSectionOpen ? 'rotate-45' : ''}`} />
             </button>
 
             {/* Visual Mode in Chat Bar */}
@@ -775,7 +607,7 @@ export const ChatView: React.FC = () => {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               rows={1}
-              placeholder={isListening ? 'Listening... speak into your microphone' : 'Message Angel...'}
+              placeholder={voiceDictation.isListening ? 'Listening... speak into your microphone' : 'Message Angel...'}
               className={`flex-1 bg-transparent border-0 resize-none text-xs sm:text-sm outline-none py-2 px-1 max-h-40 custom-scrollbar ${
                 isLight ? 'text-slate-900 placeholder-slate-400' : 'text-white placeholder-neutral-500'
               }`}
@@ -786,16 +618,16 @@ export const ChatView: React.FC = () => {
               type="button"
               onClick={toggleSpeechRecognition}
               className={`p-2 rounded-xl transition-all shrink-0 ${
-                isListening
+                voiceDictation.isListening
                   ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/40'
                   : isLight
                   ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/60'
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
               }`}
-              title={isListening ? 'Stop dictation' : 'Dictate hands-free (Speech to Text)'}
+              title={voiceDictation.isListening ? 'Stop dictation' : 'Dictate hands-free (Speech to Text)'}
               aria-label="Dictate message"
             >
-              <Mic className={`w-4 h-4 ${isListening ? 'animate-bounce' : ''}`} />
+              {voiceDictation.isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
 
             {/* Alternating Voice Mode vs Send Button */}
@@ -842,6 +674,22 @@ export const ChatView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog: Delete Thread */}
+      <ConfirmDialog
+        isOpen={!!convToDelete}
+        onClose={() => setConvToDelete(null)}
+        onConfirm={() => {
+          if (convToDelete) {
+            deleteConversation(convToDelete.id);
+            setConvToDelete(null);
+          }
+        }}
+        title="Delete Conversation Thread?"
+        message={`"${convToDelete?.title}" will be permanently erased.`}
+        confirmLabel="Delete Thread"
+        isDestructive={true}
+      />
     </div>
   );
 };

@@ -55,6 +55,121 @@ export const VoiceModeView: React.FC = () => {
     'Sol (Energetic)',
   ];
 
+  // Dynamic Waveform visualizer generator
+  const generateWavePath = (
+    width: number,
+    height: number,
+    phase: number,
+    volume: number,
+    freqFactor: number,
+    ampFactor: number
+  ) => {
+    const midY = height / 2;
+    const baseAmp = Math.max(2, (volume / 100) * 16 * ampFactor);
+    const points: string[] = [];
+
+    for (let x = 0; x <= width; x += 8) {
+      const normX = x / width;
+      const envelope = Math.sin(normX * Math.PI); // Window envelope
+      const rad = x * 0.05 * freqFactor + phase * 0.08;
+      const y = midY + Math.sin(rad) * baseAmp * envelope;
+      if (x === 0) {
+        points.push(`M ${x} ${y.toFixed(2)}`);
+      } else {
+        points.push(`L ${x} ${y.toFixed(2)}`);
+      }
+    }
+    return points.join(' ');
+  };
+
+  // Web Audio Analyser for live microphone input waveform
+  const [micAudioLevels, setMicAudioLevels] = useState<number[]>(new Array(24).fill(10));
+  const [inputVolume, setInputVolume] = useState<number>(0);
+
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isListening && !isMuted) {
+      let isMounted = true;
+
+      navigator.mediaDevices
+        ?.getUserMedia({ audio: true })
+        .then((stream) => {
+          if (!isMounted) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          micStreamRef.current = stream;
+          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioCtx) {
+            const ctx = new AudioCtx();
+            audioContextRef.current = ctx;
+            const src = ctx.createMediaStreamSource(stream);
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 64;
+            analyser.smoothingTimeConstant = 0.8;
+            src.connect(analyser);
+            analyserRef.current = analyser;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            const tick = () => {
+              if (!analyserRef.current || !isMounted) return;
+              analyserRef.current.getByteFrequencyData(dataArray);
+
+              let sum = 0;
+              const bars: number[] = [];
+              const step = Math.floor(bufferLength / 24) || 1;
+              for (let i = 0; i < 24; i++) {
+                const val = dataArray[i * step] || 0;
+                bars.push(Math.max(12, Math.min(100, Math.round((val / 255) * 100))));
+                sum += val;
+              }
+              const avg = sum / bufferLength;
+              setInputVolume(Math.min(100, Math.round((avg / 255) * 100)));
+              setMicAudioLevels(bars);
+              animationFrameRef.current = requestAnimationFrame(tick);
+            };
+            tick();
+          }
+        })
+        .catch((err) => {
+          console.warn('[VoiceMode] Mic stream for waveform not available:', err);
+        });
+
+      return () => {
+        isMounted = false;
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+        if (micStreamRef.current) {
+          micStreamRef.current.getTracks().forEach((t) => t.stop());
+          micStreamRef.current = null;
+        }
+        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+          audioContextRef.current.close().catch(() => {});
+          audioContextRef.current = null;
+        }
+      };
+    } else {
+      setInputVolume(0);
+      setMicAudioLevels(new Array(24).fill(10));
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((t) => t.stop());
+        micStreamRef.current = null;
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
+      }
+    }
+  }, [isListening, isMuted]);
+
   // Orbital wave animation loop
   useEffect(() => {
     if (!isListening && !isSpeaking) return;
@@ -311,23 +426,142 @@ export const VoiceModeView: React.FC = () => {
           </p>
         </div>
 
-        {/* Live Audio Visualizer Frequency Bars */}
-        <div className="flex items-center gap-1.5 h-10 px-4">
-          {[20, 45, 75, 30, 90, 60, 100, 70, 40, 85, 95, 55, 35, 80, 65, 40, 70, 30].map(
-            (val, idx) => (
-              <div
-                key={idx}
-                className="w-1 rounded-full transition-all duration-100 bg-gradient-to-t from-indigo-500 to-purple-500"
-                style={{
-                  height:
-                    isListening || isSpeaking
-                      ? `${Math.max(15, (val * (1 + Math.sin(pulsePhase * 0.15 + idx))) / 2)}%`
-                      : '10%',
-                  opacity: isListening || isSpeaking ? 0.9 : 0.25,
-                }}
+        {/* Subtle Waveform Visualizer for Active Audio Input */}
+        <div className="w-full max-w-md px-4 py-1">
+          <div
+            className={`relative h-16 flex items-center justify-center overflow-hidden rounded-2xl border transition-all ${
+              isLight
+                ? 'bg-gradient-to-r from-indigo-50/60 via-purple-50/40 to-pink-50/60 border-indigo-100 shadow-2xs'
+                : 'bg-gradient-to-r from-indigo-950/20 via-[#0E121E] to-purple-950/20 border-white/5 shadow-inner'
+            }`}
+          >
+            {/* Ambient waveform glow */}
+            <div
+              className={`absolute inset-0 transition-opacity duration-300 pointer-events-none ${
+                isListening && !isMuted && (inputVolume > 5 || isSpeaking)
+                  ? isLight
+                    ? 'bg-indigo-300/15'
+                    : 'bg-indigo-600/15'
+                  : 'opacity-0'
+              }`}
+            />
+
+            {/* Dynamic Multi-Wave SVG Waveforms */}
+            <svg
+              className="w-full h-full"
+              viewBox="0 0 320 64"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id="waveGradPrimary" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.85" />
+                  <stop offset="50%" stopColor="#a855f7" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#ec4899" stopOpacity="0.85" />
+                </linearGradient>
+                <linearGradient id="waveGradSecondary" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.35" />
+                  <stop offset="50%" stopColor="#6366f1" stopOpacity="0.45" />
+                  <stop offset="100%" stopColor="#a855f7" stopOpacity="0.35" />
+                </linearGradient>
+                <linearGradient id="waveGradTertiary" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#818cf8" stopOpacity="0.25" />
+                  <stop offset="50%" stopColor="#c084fc" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#f472b6" stopOpacity="0.25" />
+                </linearGradient>
+              </defs>
+
+              {/* Tertiary background wave */}
+              <path
+                d={generateWavePath(
+                  320,
+                  64,
+                  pulsePhase * 0.7,
+                  isListening && !isMuted ? (inputVolume > 0 ? inputVolume : 12) : 0,
+                  0.5,
+                  1.0
+                )}
+                fill="none"
+                stroke="url(#waveGradTertiary)"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                className="transition-all duration-75"
               />
-            )
-          )}
+
+              {/* Secondary background harmonic wave */}
+              <path
+                d={generateWavePath(
+                  320,
+                  64,
+                  pulsePhase * 1.1,
+                  isListening && !isMuted ? (inputVolume > 0 ? inputVolume : 20) : 0,
+                  0.8,
+                  1.5
+                )}
+                fill="none"
+                stroke="url(#waveGradSecondary)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                className="transition-all duration-75"
+              />
+
+              {/* Primary foreground resonant wave */}
+              <path
+                d={generateWavePath(
+                  320,
+                  64,
+                  pulsePhase * 1.4,
+                  isListening && !isMuted ? (inputVolume > 0 ? inputVolume : 28) : isSpeaking ? 35 : 0,
+                  1.1,
+                  2.2
+                )}
+                fill="none"
+                stroke="url(#waveGradPrimary)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                className="transition-all duration-75 filter drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]"
+              />
+            </svg>
+
+            {/* Live Audio Visualizer Frequency Bars overlay */}
+            <div className="absolute inset-0 flex items-center justify-between px-6 pointer-events-none opacity-45">
+              {micAudioLevels.map((lvl, idx) => (
+                <div
+                  key={idx}
+                  className="w-1 rounded-full bg-gradient-to-t from-indigo-500 to-purple-500 transition-all duration-75"
+                  style={{
+                    height: `${
+                      isListening && !isMuted
+                        ? Math.max(12, Math.min(90, lvl + Math.sin(pulsePhase * 0.1 + idx) * 8))
+                        : isSpeaking
+                        ? Math.max(15, (50 + Math.sin(pulsePhase * 0.15 + idx) * 30))
+                        : 8
+                    }%`,
+                    opacity: isListening && !isMuted ? 0.85 : isSpeaking ? 0.9 : 0.2,
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Input state badge indicator */}
+            <div className="absolute right-3 bottom-1.5 text-[9px] font-mono opacity-60 flex items-center gap-1.5 pointer-events-none">
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isListening && !isMuted
+                    ? inputVolume > 5
+                      ? 'bg-emerald-400 animate-ping'
+                      : 'bg-indigo-400 animate-pulse'
+                    : 'bg-neutral-500'
+                }`}
+              />
+              <span>
+                {isListening && !isMuted
+                  ? inputVolume > 5
+                    ? 'Audio Input Live'
+                    : 'Mic Listening...'
+                  : 'Mic Muted'}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Quick Suggestion Voice Prompts */}

@@ -10,18 +10,21 @@
   }
 
   .light {
-    --bg-primary: #f8f9fa;
+    --bg-primary: #f8fafc;
     --bg-secondary: #ffffff;
-    --border-color: #e5e7eb;
-    --text-primary: #111827;
-    --text-secondary: #6b7280;
+    --border-color: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
   }
 
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
-    font-family: 'Candara', 'Kandara', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
-    letter-spacing: -0.005em;
+    font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.015em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1), color 300ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
@@ -141,6 +144,38 @@
   color: #e5e5e5;
 }
 
+.light .markdown-body h1,
+.light .markdown-body h2,
+.light .markdown-body h3 {
+  color: #0f172a;
+}
+.light .markdown-body p,
+.light .markdown-body li {
+  color: #1e293b;
+}
+.light .markdown-body pre {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+.light .markdown-body code {
+  background-color: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+.light .markdown-body blockquote {
+  border-left-color: #94a3b8;
+  color: #475569;
+}
+.light .markdown-body th,
+.light .markdown-body td {
+  border-color: #e2e8f0;
+}
+.light .markdown-body th {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
 /* 3D and Glowing Effects */
 .perspective-1000 {
   perspective: 1000px;
@@ -242,12 +277,31 @@
 
 
 
-/* Shared blue/dark/neutral workspace language for operational modules.
-   Keeps Agents, Projects and Memories visually aligned with Media Studio/Schedule. */
+/* Universal Light Mode Typography & Color Hierarchy */
+.light {
+  color: #0f172a;
+}
+
+.light h1, .light h2, .light h3, .light h4, .light h5, .light h6 {
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+.light p {
+  color: #334155;
+}
+
+.light input, .light textarea, .light select {
+  color: #0f172a !important;
+}
+
+.light input::placeholder, .light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Stable workspace styling (No backdrop shifts or jumps between tabs) */
 .module-blue-theme {
-  background:
-    radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.10), transparent 32%),
-    radial-gradient(circle at 82% 8%, rgba(14, 116, 144, 0.08), transparent 28%);
+  background: transparent;
 }
 .module-blue-theme .bg-neutral-950,
 .module-blue-theme .bg-neutral-950\/60,
@@ -277,9 +331,7 @@
   color: #e2e8f0 !important;
 }
 .light .module-blue-theme {
-  background:
-    radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.06), transparent 32%),
-    radial-gradient(circle at 82% 8%, rgba(14, 116, 144, 0.05), transparent 28%);
+  background: transparent;
 }
 .light .module-blue-theme .bg-neutral-950,
 .light .module-blue-theme .bg-neutral-950\/60,
@@ -287,9 +339,9 @@
 .light .module-blue-theme .bg-neutral-950\/90,
 .light .module-blue-theme .bg-neutral-900,
 .light .module-blue-theme .bg-neutral-900\/80 {
-  background-color: #f8fafc !important;
+  background-color: #ffffff !important;
 }
 .light .module-blue-theme .bg-neutral-800,
 .light .module-blue-theme .bg-neutral-800\/80 {
-  background-color: #eef4fb !important;
+  background-color: #f1f5f9 !important;
 }

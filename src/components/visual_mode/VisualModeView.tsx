@@ -215,28 +215,39 @@ export const VisualModeView: React.FC = () => {
           audio: false,
         });
       } else {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: {
-            displaySurface: 'monitor',
-            width: { ideal: widthConstraint },
-            height: { ideal: heightConstraint },
-          },
-          audio: false,
-        });
+        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
+          throw new Error('Screen sharing is not supported by your browser or environment.');
+        }
+        try {
+          // Standard cross-browser invocation
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: false,
+          });
+        } catch (displayErr: any) {
+          if (displayErr.name === 'NotAllowedError' || displayErr.name === 'AbortError') {
+            console.info('[VisualMode] Screen sharing cancelled by user.');
+            return;
+          }
+          console.warn('[VisualMode] Standard getDisplayMedia failed, trying fallback:', displayErr);
+          stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        }
       }
 
       mediaStreamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          if (videoRef.current) {
-            videoRef.current.play().catch((e) => console.warn('[VisualMode] Play error:', e));
-            setFeedDimensions({
-              width: videoRef.current.videoWidth || widthConstraint,
-              height: videoRef.current.videoHeight || heightConstraint,
-            });
-          }
-        };
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        try {
+          await videoRef.current.play();
+        } catch (e) {
+          console.warn('[VisualMode] Video play error (ignoring autoplay policy):', e);
+        }
+        setFeedDimensions({
+          width: videoRef.current.videoWidth || 1280,
+          height: videoRef.current.videoHeight || 720,
+        });
       }
 
       setStreamSource(source);
@@ -481,13 +492,19 @@ export const VisualModeView: React.FC = () => {
       {/* Hidden processing canvas */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Top Header Bar (Image 4) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b pb-5 border-inherit">
+      {/* Top Header Bar - Fixed Non-Transparent */}
+      <div
+        className={`sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xs ${
+          isLight
+            ? 'bg-white border-slate-200 text-slate-900'
+            : 'bg-[#0B0E14] border-white/10 text-neutral-100'
+        }`}
+      >
         <div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setActiveTab('chat')}
-              className={`p-2 rounded-xl border transition-colors flex items-center gap-1.5 text-xs ${
+              className={`p-2 rounded-xl border transition-colors flex items-center gap-1.5 text-xs cursor-pointer ${
                 isLight
                   ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs'
                   : 'border-white/10 bg-neutral-900/60 hover:bg-neutral-800 text-neutral-300'
@@ -499,7 +516,7 @@ export const VisualModeView: React.FC = () => {
             </button>
             <div className="flex items-center gap-2.5">
               <AngelLogo size={28} glow={true} />
-              <h1 className="text-2xl font-bold tracking-tight">Visual Mode</h1>
+              <h1 className="text-xl font-bold tracking-tight">Multimedia Vision</h1>
               <span
                 className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
                   isActive
@@ -509,46 +526,14 @@ export const VisualModeView: React.FC = () => {
                     : 'bg-neutral-800 text-neutral-400 border-white/5'
                 }`}
               >
-                {isActive ? '● Live Stream Active' : '○ Pipeline Standby'}
+                {isActive ? 'Live Stream' : 'Standby'}
               </span>
             </div>
           </div>
-          <p className={`text-xs sm:text-sm mt-1 max-w-2xl ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-            Live camera input, screen interaction, region-of-interest cropping, and multimodal visual reasoning powered by Gemini 3.8 Flash.
-          </p>
         </div>
 
         {/* Top Control Actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Incognito Pill Button (Image 4) */}
-          <button
-            onClick={() => setIsIncognitoActive(!isIncognitoActive)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              isIncognitoActive
-                ? 'bg-indigo-600 border-indigo-500 text-white shadow-md'
-                : isLight
-                ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                : 'border-white/10 bg-neutral-900/60 hover:bg-neutral-800 text-neutral-300'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Incognito {isIncognitoActive ? 'ON' : ''}</span>
-          </button>
-
-          {/* Architecture Channels Drawer Toggle */}
-          <button
-            onClick={() => setIsChannelsModalOpen(true)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono transition-colors ${
-              isLight
-                ? 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                : 'border-white/10 bg-neutral-900/60 hover:bg-neutral-800 text-neutral-300'
-            }`}
-            title="Inspect Multimodal Channels Architecture"
-          >
-            <Layers className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Channels ({registeredChannels.length})</span>
-          </button>
-
           {!isActive ? (
             <div className="flex items-center gap-2">
               {/* Camera Trigger */}

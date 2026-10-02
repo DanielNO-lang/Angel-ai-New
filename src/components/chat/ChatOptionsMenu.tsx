@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 interface ChatOptionsMenuProps {
   conversationId: string;
@@ -55,6 +56,7 @@ export const ChatOptionsMenu: React.FC<ChatOptionsMenuProps> = ({
   const [newTitle, setNewTitle] = useState(conv?.title || '');
   const [isShareCopied, setIsShareCopied] = useState(false);
   const [isSecretSaved, setIsSecretSaved] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   // Click outside listener
   useEffect(() => {
@@ -252,8 +254,8 @@ export const ChatOptionsMenu: React.FC<ChatOptionsMenuProps> = ({
 
             {/* Delete chat */}
             <button
-              onClick={handleDelete}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-all ${
+              onClick={() => setIsDeleteConfirmOpen(true)}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                 isLight ? 'hover:bg-red-50 text-red-600' : 'hover:bg-red-500/10 text-red-400'
               }`}
             >
@@ -263,6 +265,16 @@ export const ChatOptionsMenu: React.FC<ChatOptionsMenuProps> = ({
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Conversation?"
+        message={`"${conv.title}" will be permanently removed.`}
+        confirmLabel="Delete Chat"
+        isDestructive={true}
+      />
     </div>
   );
 };

@@ -92,37 +92,34 @@ export const AssistantsView: React.FC = () => {
         isLight ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#0B0E14] text-neutral-100'
       }`}
     >
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 border-inherit">
-        <div>
-          <div className="flex items-center gap-2">
-            <span
-              className={`p-1.5 rounded-xl border ${
-                isLight
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
-                  : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-            </span>
-            <span
-              className={`text-xs font-mono uppercase tracking-wider ${
-                isLight ? 'text-indigo-600 font-semibold' : 'text-indigo-400'
-              }`}
-            >
-              Specialized Personas
-            </span>
+      {/* Fixed Non-Transparent Header */}
+      <div
+        className={`sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs ${
+          isLight
+            ? 'bg-white border-slate-200 text-slate-900'
+            : 'bg-[#0B0E14] border-white/10 text-neutral-100'
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          <span
+            className={`p-2 rounded-2xl border ${
+              isLight
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+          </span>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Assistants</h1>
+            <span className="text-[11px] font-mono opacity-60">Specialized Personas</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight mt-1">Assistants</h1>
-          <p className={`text-xs sm:text-sm mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-            Autonomous AI assistants tailored for specific tasks, frameworks, and workflows.
-          </p>
         </div>
 
         {/* Subtabs */}
         <div
           className={`flex items-center p-1 rounded-2xl border text-xs self-start sm:self-auto ${
-            isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-neutral-900/80 border-white/5'
+            isLight ? 'bg-slate-50 border-slate-200 shadow-xs' : 'bg-neutral-900/80 border-white/5'
           }`}
         >
           <button

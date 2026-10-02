@@ -48,6 +48,7 @@ import {
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { SUPABASE_SCHEMA_SQL } from '../../data/supabaseSchema';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 
 export type SettingsSubSection =
   | 'account'
@@ -86,6 +87,8 @@ export const SettingsView: React.FC = () => {
     signOut,
     activeSettingsSection,
     setActiveSettingsSection,
+    isFocusMode,
+    setIsFocusMode,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
@@ -94,6 +97,7 @@ export const SettingsView: React.FC = () => {
   const activeSection = activeSettingsSection;
   const setActiveSection = setActiveSettingsSection;
   const [isSaved, setIsSaved] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   // Profile form states
   const [profileName, setProfileName] = useState(userProfile.name || 'Daniel Nwachukwu');
@@ -256,30 +260,29 @@ export const SettingsView: React.FC = () => {
         isLight ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#0B0E14] text-neutral-100'
       }`}
     >
-      {/* Top Header */}
-      <div className="border-b pb-5 border-inherit">
-        <div className="flex items-center gap-2">
+      {/* Top Header - Fixed Non-Transparent */}
+      <div
+        className={`sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex items-center justify-between shadow-xs ${
+          isLight
+            ? 'bg-white border-slate-200 text-slate-900'
+            : 'bg-[#0B0E14] border-white/10 text-neutral-100'
+        }`}
+      >
+        <div className="flex items-center gap-3">
           <span
-            className={`p-1.5 rounded-xl border ${
+            className={`p-2 rounded-2xl border ${
               isLight
                 ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
                 : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
             }`}
           >
-            <SlidersHorizontal className="w-4 h-4" />
+            <SlidersHorizontal className="w-5 h-5" />
           </span>
-          <span
-            className={`text-xs font-mono uppercase tracking-wider ${
-              isLight ? 'text-indigo-600 font-semibold' : 'text-indigo-400'
-            }`}
-          >
-            Unified Control Hub
-          </span>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">Settings & Connections</h1>
+            <span className="text-[11px] font-mono opacity-60">System Configuration & Integration Control</span>
+          </div>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight mt-1">Settings</h1>
-        <p className={`text-xs sm:text-sm mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-          Categorized controls for personal identity, theme design, workspace behavior, and autonomous intelligence.
-        </p>
       </div>
 
       {/* Mobile Horizontal Sub-Navigation Scroller */}
@@ -419,7 +422,7 @@ export const SettingsView: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => alert('Your Angel Pro Plan is active and paid through September 2027.')}
+                  onClick={() => setIsSaved(true)}
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 shrink-0"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
@@ -758,6 +761,46 @@ export const SettingsView: React.FC = () => {
 
               {/* Toggles */}
               <div className="space-y-3 pt-3 border-t border-inherit">
+                <div className="flex items-center justify-between py-2 border-b border-inherit">
+                  <div>
+                    <span className="text-xs font-semibold block flex items-center gap-1.5">
+                      <span>Focus Mode (Deep Work)</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-semibold">New</span>
+                    </span>
+                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
+                      Hides the sidebar and minimizes the workspace header to eliminate distractions during deep work sessions.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={isFocusMode}
+                    onChange={(e) => setIsFocusMode(e.target.checked)}
+                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between py-2 border-b border-inherit">
+                  <div>
+                    <span className="text-xs font-semibold block">Interactive Workspace Tour</span>
+                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
+                      Revisit the guided walkthrough highlighting the sidebar, chat, and AI tools.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof window !== 'undefined' && (window as unknown as { startAngelTour?: () => void }).startAngelTour) {
+                        (window as unknown as { startAngelTour: () => void }).startAngelTour();
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
+                      isLight ? 'hover:bg-slate-100 border-slate-200 text-slate-700' : 'hover:bg-neutral-800 border-white/10 text-neutral-300'
+                    }`}
+                  >
+                    Start Tour
+                  </button>
+                </div>
+
                 <div className="flex items-center justify-between py-2 border-b border-inherit">
                   <div>
                     <span className="text-xs font-semibold block">Cosmic Ambient Glow Effects</span>
@@ -1288,12 +1331,8 @@ export const SettingsView: React.FC = () => {
                   Clear all cached conversations, custom agent personas, tasks, and memory entries to restore factory defaults.
                 </p>
                 <button
-                  onClick={() => {
-                    if (window.confirm('Reset all local Angel workspace data to factory defaults?')) {
-                      clearAllData();
-                    }
-                  }}
-                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
+                  onClick={() => setIsResetDialogOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Clear & Reset Local Storage</span>
@@ -1303,6 +1342,20 @@ export const SettingsView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Confirmation Dialog: Factory Reset */}
+      <ConfirmDialog
+        isOpen={isResetDialogOpen}
+        onClose={() => setIsResetDialogOpen(false)}
+        onConfirm={() => {
+          clearAllData();
+          setIsResetDialogOpen(false);
+        }}
+        title="Reset All Local Workspace Data?"
+        message="This will restore all conversations, agents, and workspace settings back to factory defaults. This action cannot be undone."
+        confirmLabel="Reset Everything"
+        isDestructive={true}
+      />
     </div>
   );
 };

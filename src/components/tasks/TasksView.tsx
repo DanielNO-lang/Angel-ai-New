@@ -18,6 +18,9 @@ import {
   Filter,
   Menu,
   MessageSquare,
+  Mic,
+  MicOff,
+  ArrowUpDown,
   Plus,
   Repeat,
   RotateCcw,
@@ -25,11 +28,16 @@ import {
   Sparkles,
   Tag,
   Trash2,
+  TrendingUp,
   X,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { Task, TaskPriority, TaskStatus } from '../../types';
 import { Button, EmptyState } from '../ui';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { TasksVelocityProgressBar } from './TasksVelocityProgressBar';
+import { TasksProductivityChart } from './TasksProductivityChart';
+import { useVoiceDictation } from '../../services/voice/useVoiceDictation';
 
 export const TasksView: React.FC = () => {
   const {
@@ -61,10 +69,85 @@ export const TasksView: React.FC = () => {
   const [filterPriority, setFilterPriority] = useState<string>('all');
   const [filterAgent, setFilterAgent] = useState<string>('all');
   const [filterRecurring, setFilterRecurring] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'priority' | 'dueDate' | 'title' | 'newest'>('priority');
+
+  // Animation and Voice Quick Add state
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [isQuickAddVoiceOpen, setIsQuickAddVoiceOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [voiceQuickAddToast, setVoiceQuickAddToast] = useState<string | null>(null);
 
   // Modals state
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  // Natural Language Voice Task Dictation Hook
+  const voiceDictation = useVoiceDictation({
+    onFinal: (finalText) => {
+      handleVoiceQuickAddTask(finalText);
+    },
+  });
+
+  const handleVoiceQuickAddTask = (spokenText: string) => {
+    if (!spokenText.trim()) return;
+
+    let detectedPriority: TaskPriority = 'medium';
+    const lower = spokenText.toLowerCase();
+
+    if (lower.includes('critical') || lower.includes('urgent') || lower.includes('asap')) {
+      detectedPriority = 'urgent';
+    } else if (lower.includes('high priority') || lower.includes('important')) {
+      detectedPriority = 'high';
+    } else if (lower.includes('low priority')) {
+      detectedPriority = 'low';
+    }
+
+    let detectedDueDate: string | undefined = undefined;
+    const now = new Date();
+    if (lower.includes('tomorrow')) {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(now.getDate() + 1);
+      detectedDueDate = tomorrow.toISOString().split('T')[0];
+    } else if (lower.includes('next week')) {
+      const nextWeek = new Date(now);
+      nextWeek.setDate(now.getDate() + 7);
+      detectedDueDate = nextWeek.toISOString().split('T')[0];
+    } else if (lower.includes('today') || lower.includes('tonight')) {
+      detectedDueDate = now.toISOString().split('T')[0];
+    }
+
+    let cleanTitle = spokenText
+      .replace(/\b(urgent|critical|high priority|low priority|medium priority|asap)\b/gi, '')
+      .replace(/\b(due tomorrow|due today|due next week|due tonight|by tomorrow|by Friday|by Monday)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanTitle) cleanTitle = spokenText.trim();
+    cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
+
+    createTask({
+      title: cleanTitle,
+      description: `Dictated via Quick Add Voice: "${spokenText}"`,
+      status: 'todo',
+      priority: detectedPriority,
+      dueDate: detectedDueDate,
+      subtasks: [],
+      tags: ['voice-dictated', 'quick-add'],
+      agentId: 'agent-chronos',
+    });
+
+    setVoiceQuickAddToast(`Created: "${cleanTitle}" (${detectedPriority} priority)`);
+    setTimeout(() => setVoiceQuickAddToast(null), 3000);
+    setIsQuickAddVoiceOpen(false);
+  };
+
+  const handleToggleTaskWithAnimation = (taskId: string) => {
+    setCompletingTaskId(taskId);
+    toggleTaskStatus(taskId);
+    setTimeout(() => {
+      setCompletingTaskId(null);
+    }, 600);
+  };
 
   // Form state
   const [title, setTitle] = useState('');
@@ -243,6 +326,22 @@ export const TasksView: React.FC = () => {
     return true;
   });
 
+  // Sorting pipeline
+  const sortedTasks = useMemo(() => {
+    const list = [...filteredTasks];
+    if (sortBy === 'priority') {
+      const order: Record<TaskPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+      return list.sort((a, b) => order[a.priority] - order[b.priority]);
+    }
+    if (sortBy === 'dueDate') {
+      return list.sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
+    }
+    if (sortBy === 'title') {
+      return list.sort((a, b) => a.title.localeCompare(b.title));
+    }
+    return list; // newest/default
+  }, [filteredTasks, sortBy]);
+
   const hasActiveFilters =
     searchQuery.trim() !== '' ||
     selectedTag !== 'all' ||
@@ -262,11 +361,161 @@ export const TasksView: React.FC = () => {
 
   return (
     <div
-      className={`module-blue-theme min-h-full px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6 transition-colors duration-150 animate-in fade-in duration-150 ${
-        isLight ? 'text-slate-800' : 'text-neutral-100'
+      className={`min-h-full px-3 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6 transition-colors duration-150 animate-in fade-in duration-150 ${
+        isLight ? 'bg-[#F8FAFC] text-slate-800' : 'bg-[#0B0E14] text-neutral-100'
       }`}
     >
-      <div className="max-w-5xl mx-auto space-y-4">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* ========================================================
+            FIXED NON-TRANSPARENT SECTION HEADER
+            ======================================================== */}
+        <div
+          className={`sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs ${
+            isLight
+              ? 'bg-white border-slate-200 text-slate-900'
+              : 'bg-[#0B0E14] border-white/10 text-neutral-100'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className={`p-2 rounded-2xl border ${
+                isLight
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                  : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+              }`}
+            >
+              <CheckSquare className="w-5 h-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight">Schedule</h1>
+                <span className="text-[11px] font-mono opacity-60">({tasks.length} tasks)</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Quick Add with Voice Dictation */}
+            <button
+              onClick={() => {
+                if (voiceDictation.isListening) {
+                  voiceDictation.stopListening();
+                  setIsQuickAddVoiceOpen(false);
+                } else {
+                  setIsQuickAddVoiceOpen(true);
+                  voiceDictation.startListening();
+                }
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all shadow-xs shrink-0 cursor-pointer ${
+                voiceDictation.isListening
+                  ? 'bg-red-500 text-white border-red-600 animate-pulse'
+                  : isLight
+                  ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'
+                  : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border-white/10'
+              }`}
+              title="Dictate new task using microphone (Voice Quick Add)"
+            >
+              {voiceDictation.isListening ? (
+                <>
+                  <MicOff className="w-4 h-4 text-white" />
+                  <span>Listening...</span>
+                </>
+              ) : (
+                <>
+                  <Mic className="w-4 h-4 text-indigo-500" />
+                  <span>Quick Add</span>
+                </>
+              )}
+            </button>
+
+            {/* Standard New Task Button */}
+            <button
+              id="btn-create-task"
+              onClick={openNewTaskModal}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-xs transition-all shrink-0 cursor-pointer transform-gpu hover:-translate-y-0.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>New Task</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Real-Time Recharts Productivity Dashboard */}
+        <TasksProductivityChart tasks={tasks} isLight={isLight} />
+
+        {/* Real-Time Supabase Project Velocity & Completion Progress Bar */}
+        <TasksVelocityProgressBar tasks={tasks} isLight={isLight} />
+
+        {/* Voice Quick Add Active Listening Banner */}
+        {isQuickAddVoiceOpen && (
+          <div
+            className={`p-4 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-2 duration-150 ${
+              isLight
+                ? 'bg-indigo-50/80 border-indigo-200 text-indigo-950'
+                : 'bg-indigo-950/30 border-indigo-500/30 text-indigo-100'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
+                <span className="text-xs font-bold uppercase tracking-wider font-mono">
+                  Voice Quick Add Dictation Active
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  voiceDictation.stopListening();
+                  setIsQuickAddVoiceOpen(false);
+                }}
+                className="text-neutral-400 hover:text-neutral-200"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs opacity-70 mb-2">
+              Speak naturally, e.g. "Prepare client demo by tomorrow urgent priority" or "Update documentation due Friday".
+            </p>
+            <div
+              className={`p-3 rounded-xl border text-xs font-mono min-h-[44px] flex items-center ${
+                isLight ? 'bg-white border-slate-200' : 'bg-neutral-900 border-white/10'
+              }`}
+            >
+              {voiceDictation.fullTranscript || (
+                <span className="opacity-40 italic">Listening for voice directive...</span>
+              )}
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-3">
+              <button
+                onClick={() => {
+                  voiceDictation.stopListening();
+                  setIsQuickAddVoiceOpen(false);
+                }}
+                className="px-3 py-1.5 rounded-xl text-xs opacity-60 hover:opacity-100"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  voiceDictation.stopListening();
+                  handleVoiceQuickAddTask(voiceDictation.fullTranscript);
+                }}
+                disabled={!voiceDictation.fullTranscript.trim()}
+                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold disabled:opacity-50"
+              >
+                Create Task Now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Ephemeral Voice Toast */}
+        {voiceQuickAddToast && (
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2 animate-in fade-in duration-150">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{voiceQuickAddToast}</span>
+          </div>
+        )}
+
         {/* ========================================================
             DEDICATED SEARCH & TAG FILTER CONTROL BAR
             ======================================================== */}
@@ -357,6 +606,29 @@ export const TasksView: React.FC = () => {
                 <option value="one_time">One-Time</option>
               </select>
 
+              {/* Sorting Toggle */}
+              <div
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs ${
+                  isLight
+                    ? 'bg-slate-50 border-slate-200 text-slate-700'
+                    : 'bg-neutral-900 border-white/10 text-neutral-300'
+                }`}
+                title="Sort tasks"
+              >
+                <ArrowUpDown className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span className="opacity-50 text-[10px]">Sort:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-transparent outline-none cursor-pointer text-xs font-medium"
+                >
+                  <option value="priority">Priority (Critical First)</option>
+                  <option value="dueDate">Due Date</option>
+                  <option value="title">Title (A-Z)</option>
+                  <option value="newest">Newest First</option>
+                </select>
+              </div>
+
               {hasActiveFilters && (
                 <button
                   onClick={resetFilters}
@@ -371,15 +643,6 @@ export const TasksView: React.FC = () => {
                   <span className="hidden sm:inline">Reset</span>
                 </button>
               )}
-
-              <button
-                id="btn-create-task"
-                onClick={openNewTaskModal}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-xs transition-all shrink-0 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>New Task</span>
-              </button>
             </div>
           </div>
 
@@ -497,12 +760,13 @@ export const TasksView: React.FC = () => {
               }
             />
           ) : (
-            filteredTasks.map((task) => {
+            sortedTasks.map((task) => {
               const assignedAgent = agents.find((a) => a.id === task.agentId);
               const isDone = task.status === 'completed';
               const isCancelled = task.status === 'cancelled';
               const completedSubtasks = task.subtasks.filter((s) => s.completed).length;
               const isHighlighted = highlightedTaskId === task.id;
+              const isAnimating = completingTaskId === task.id;
 
               return (
                 <div
@@ -524,10 +788,12 @@ export const TasksView: React.FC = () => {
                 >
                   <div className="flex items-start justify-between gap-3 sm:gap-4">
                     <div className="flex items-start gap-2.5 sm:gap-3 flex-1 min-w-0">
-                      {/* Status Toggle Checkbox Button */}
+                      {/* Status Toggle Checkbox Button with visual progress ring & completion celebration animation */}
                       <button
-                        onClick={() => toggleTaskStatus(task.id)}
-                        className={`mt-0.5 transition-colors shrink-0 ${
+                        onClick={() => handleToggleTaskWithAnimation(task.id)}
+                        className={`mt-0.5 transition-all duration-200 transform-gpu shrink-0 relative ${
+                          isAnimating ? 'scale-125' : 'hover:scale-110 active:scale-95'
+                        } ${
                           isDone
                             ? 'text-emerald-500'
                             : isLight
@@ -537,6 +803,9 @@ export const TasksView: React.FC = () => {
                         title={isDone ? 'Mark as incomplete' : 'Mark as complete'}
                       >
                         <CheckCircle2 className="w-5 h-5" />
+                        {isAnimating && (
+                          <span className="absolute -inset-1 rounded-full border-2 border-emerald-400 animate-ping pointer-events-none" />
+                        )}
                       </button>
 
                       <div className="space-y-1.5 flex-1 min-w-0">
@@ -556,20 +825,26 @@ export const TasksView: React.FC = () => {
                             {task.title}
                           </h3>
 
-                          {/* Priority Badge */}
-                          <span
-                            className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-md border shrink-0 ${
+                          {/* Priority Selector & Visual Indicator */}
+                          <select
+                            value={task.priority}
+                            onChange={(e) => updateTask(task.id, { priority: e.target.value as TaskPriority })}
+                            className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-md border outline-none cursor-pointer shrink-0 transition-colors ${
                               task.priority === 'urgent'
-                                ? 'bg-red-500/10 text-red-500 border-red-500/20 font-semibold'
+                                ? 'bg-red-500/10 text-red-500 border-red-500/30 font-bold'
                                 : task.priority === 'high'
-                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 font-semibold'
-                                : isLight
-                                ? 'bg-slate-100 text-slate-600 border-slate-200'
-                                : 'bg-neutral-900 text-neutral-400 border-neutral-800'
+                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/30 font-bold'
+                                : task.priority === 'low'
+                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-medium'
+                                : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-medium'
                             }`}
+                            title="Click to change priority (Urgent, High, Medium, Low)"
                           >
-                            {task.priority}
-                          </span>
+                            <option value="urgent">Urgent / Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                          </select>
 
                           {/* Status Transition Selector */}
                           <select
@@ -737,8 +1012,8 @@ export const TasksView: React.FC = () => {
 
                       {/* Delete Task */}
                       <button
-                        onClick={() => deleteTask(task.id)}
-                        className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                        onClick={() => setTaskToDelete(task)}
+                        className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
                         title="Delete task"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -988,6 +1263,22 @@ export const TasksView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Confirmation Dialog: Delete Task */}
+      <ConfirmDialog
+        isOpen={!!taskToDelete}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={() => {
+          if (taskToDelete) {
+            deleteTask(taskToDelete.id);
+            setTaskToDelete(null);
+          }
+        }}
+        title="Delete Task?"
+        message={`"${taskToDelete?.title}" will be permanently removed.`}
+        confirmLabel="Delete Task"
+        isDestructive={true}
+      />
     </div>
   );
 };

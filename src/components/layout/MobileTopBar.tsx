@@ -5,7 +5,7 @@
  * minimize controls, and active view indicator.
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Menu,
   Search,
@@ -22,6 +22,7 @@ import {
   Settings,
   Users,
   Sparkles,
+  WifiOff,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
@@ -38,6 +39,22 @@ export const MobileTopBar: React.FC = () => {
   } = useAngel();
 
   const isLight = settings.theme === 'light';
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const tabLabels: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
     chat: { label: 'Chat', icon: MessageSquare },
@@ -88,6 +105,12 @@ export const MobileTopBar: React.FC = () => {
               <TabIcon className="w-3 h-3 shrink-0" />
               <span className="truncate">{current.label}</span>
             </div>
+            {!isOnline && (
+              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-mono shrink-0">
+                <WifiOff className="w-3 h-3 animate-pulse" />
+                <span>Offline</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

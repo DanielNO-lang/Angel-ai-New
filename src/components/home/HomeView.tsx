@@ -24,6 +24,7 @@ import {
   Image as ImageIcon,
   Layers,
   MessageSquare,
+  Mic,
   Plus,
   Sparkles,
   Upload,
@@ -32,6 +33,9 @@ import {
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
+import { DailyDigest } from './DailyDigest';
+import { RecentActivityWidget } from './RecentActivityWidget';
+import { VoiceMemoModal } from './VoiceMemoModal';
 
 export const HomeView: React.FC = () => {
   const {
@@ -48,6 +52,7 @@ export const HomeView: React.FC = () => {
   const [promptText, setPromptText] = useState('');
   const [activePill, setActivePill] = useState<'chat' | 'image' | 'video' | 'web' | 'live' | 'agent'>('chat');
   const [homeTab, setHomeTab] = useState<'overview' | 'spotlight'>('overview');
+  const [isVoiceMemoOpen, setIsVoiceMemoOpen] = useState(false);
 
   // Dynamic random Angel greetings based on intelligence and time of day
   const greeting = useMemo(() => {
@@ -134,6 +139,9 @@ export const HomeView: React.FC = () => {
       case 'marketplace':
         setActiveTab('marketplace');
         break;
+      case 'voice_memo':
+        setIsVoiceMemoOpen(true);
+        break;
       default:
         setActiveTab('chat');
     }
@@ -201,12 +209,25 @@ export const HomeView: React.FC = () => {
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
               placeholder="Ask me anything..."
-              className={`w-full rounded-2xl px-5 py-4 pr-14 text-xs sm:text-sm outline-none transition-all shadow-inner ${
+              className={`w-full rounded-2xl px-5 py-4 pr-22 text-xs sm:text-sm outline-none transition-all shadow-inner ${
                 isLight
                   ? 'bg-white border border-slate-300/80 text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10'
                   : 'bg-neutral-950/90 border border-white/10 text-white placeholder-neutral-500 focus:border-indigo-500/70 focus:ring-1 focus:ring-indigo-500/50'
               }`}
             />
+            {/* Quick Voice Memo Trigger in Input Box */}
+            <button
+              type="button"
+              onClick={() => setIsVoiceMemoOpen(true)}
+              className={`absolute right-13 w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                isLight
+                  ? 'hover:bg-pink-50 text-slate-400 hover:text-pink-600'
+                  : 'hover:bg-pink-500/10 text-neutral-400 hover:text-pink-400'
+              }`}
+              title="Voice Memo — Record quick audio snippet & save as task"
+            >
+              <Mic className="w-4 h-4" />
+            </button>
             <button
               type="submit"
               disabled={!promptText.trim()}
@@ -219,6 +240,20 @@ export const HomeView: React.FC = () => {
 
           {/* Action Pills Row (no harsh lines, 3D pill hover) */}
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+            <button
+              type="button"
+              onClick={() => setIsVoiceMemoOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-all ${
+                isLight
+                  ? 'bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200'
+                  : 'bg-pink-950/40 hover:bg-pink-900/50 text-pink-300 border border-pink-500/30'
+              }`}
+              title="Capture quick audio snippet & save as task"
+            >
+              <Mic className="w-3.5 h-3.5 text-pink-500" />
+              <span>Voice Memo</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setActivePill('chat')}
@@ -380,7 +415,10 @@ export const HomeView: React.FC = () => {
       </div>
 
       {homeTab === 'overview' ? (
-        <>
+        <div className="space-y-6">
+          {/* Daily Digest & Briefing Component */}
+          <DailyDigest isLight={isLight} />
+
           {/* ========================================================
               3. "WHAT WOULD YOU LIKE TO DO?" 8-TOOL GRID + RIGHT COLUMN WIDGETS
               Dynamic 3D cards without harsh white outlines
@@ -612,6 +650,31 @@ export const HomeView: React.FC = () => {
                     Build and execute workflows
                   </p>
                 </div>
+
+                {/* 9. Voice Memo Quick Capture */}
+                <div
+                  onClick={() => setIsVoiceMemoOpen(true)}
+                  className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg sm:col-span-2 ${
+                    isLight
+                      ? 'bg-gradient-to-r from-pink-50/70 to-purple-50/70 border border-pink-200 hover:border-pink-300 shadow-2xs'
+                      : 'bg-gradient-to-r from-pink-950/20 to-purple-950/20 border border-pink-500/20 hover:border-pink-500/40 shadow-md shadow-black/40'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="w-9 h-9 rounded-xl bg-pink-500/20 flex items-center justify-center text-pink-500 mb-2 group-hover:scale-110 transition-transform">
+                      <Mic className="w-4 h-4" />
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-pink-500/20 text-pink-400 border border-pink-500/30">
+                      Quick Voice Capture
+                    </span>
+                  </div>
+                  <h3 className={`text-xs font-semibold mb-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Voice Memo to Task
+                  </h3>
+                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
+                    Record quick spoken audio snippets transcribed & automatically converted to schedule tasks with AI
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -716,96 +779,8 @@ export const HomeView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Recent Activity Feed */}
-              <div
-                className={`rounded-2xl p-5 space-y-3 transition-all ${
-                  isLight
-                    ? 'bg-white border border-slate-200/80 shadow-2xs'
-                    : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <h3
-                    className={`text-xs font-semibold ${
-                      isLight ? 'text-slate-900' : 'text-neutral-200'
-                    }`}
-                  >
-                    Recent Activity
-                  </h3>
-                  <button
-                    onClick={() => setActiveTab('tasks')}
-                    className="text-[11px] text-indigo-500 hover:text-indigo-600 font-medium"
-                  >
-                    View all →
-                  </button>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <div
-                    className={`flex items-center justify-between p-2 rounded-xl transition-colors ${
-                      isLight ? 'hover:bg-slate-50' : 'hover:bg-neutral-900/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <ImageIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                      <span className={`truncate ${isLight ? 'text-slate-700' : 'text-neutral-300'}`}>
-                        Image generated: Scenic mountain
-                      </span>
-                    </div>
-                    <span className={`text-[10px] font-mono shrink-0 ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
-                      2m
-                    </span>
-                  </div>
-
-                  <div
-                    className={`flex items-center justify-between p-2 rounded-xl transition-colors ${
-                      isLight ? 'hover:bg-slate-50' : 'hover:bg-neutral-900/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <Film className="w-3.5 h-3.5 text-pink-400 shrink-0" />
-                      <span className={`truncate ${isLight ? 'text-slate-700' : 'text-neutral-300'}`}>
-                        Video created: Product demo video
-                      </span>
-                    </div>
-                    <span className={`text-[10px] font-mono shrink-0 ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
-                      12m
-                    </span>
-                  </div>
-
-                  <div
-                    className={`flex items-center justify-between p-2 rounded-xl transition-colors ${
-                      isLight ? 'hover:bg-slate-50' : 'hover:bg-neutral-900/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      <span className={`truncate ${isLight ? 'text-slate-700' : 'text-neutral-300'}`}>
-                        Task completed: Market research
-                      </span>
-                    </div>
-                    <span className={`text-[10px] font-mono shrink-0 ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
-                      18m
-                    </span>
-                  </div>
-
-                  <div
-                    className={`flex items-center justify-between p-2 rounded-xl transition-colors ${
-                      isLight ? 'hover:bg-slate-50' : 'hover:bg-neutral-900/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <Layers className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-                      <span className={`truncate ${isLight ? 'text-slate-700' : 'text-neutral-300'}`}>
-                        Assistant installed: Productivity Coach
-                      </span>
-                    </div>
-                    <span className={`text-[10px] font-mono shrink-0 ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
-                      1h
-                    </span>
-                  </div>
-                </div>
-              </div>
+              {/* Real-time Dynamic Recent Activity Widget */}
+              <RecentActivityWidget isLight={isLight} />
             </div>
           </div>
 
@@ -1104,7 +1079,7 @@ export const HomeView: React.FC = () => {
               </div>
             </div>
           </div>
-        </>
+        </div>
       ) : (
         /* ========================================================
             SPOTLIGHT & NEWS VIEW (Image 6 & Desktop Light Inspiration)
@@ -1244,6 +1219,11 @@ export const HomeView: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Voice Memo Quick Task Recording Modal */}
+      <VoiceMemoModal
+        isOpen={isVoiceMemoOpen}
+        onClose={() => setIsVoiceMemoOpen(false)}
+      />
     </div>
   );
 };

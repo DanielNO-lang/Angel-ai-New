@@ -34,6 +34,7 @@ import {
   Layers,
   MessageSquare,
   Plus,
+  SquarePen,
   Search,
   Image as ImageIcon,
   Users,
@@ -54,7 +55,6 @@ import { AngelLogo } from '../ui/AngelLogo';
 import { WindowsShortcutBadge } from '../ui/WindowsShortcutBadge';
 import { UserProfileMenu } from './UserProfileMenu';
 import { ChatOptionsMenu } from '../chat/ChatOptionsMenu';
-import { MoreToolsModal } from '../modals/MoreToolsModal';
 import { SecretsModal } from '../modals/SecretsModal';
 
 export const Sidebar: React.FC = () => {
@@ -74,6 +74,8 @@ export const Sidebar: React.FC = () => {
     settings,
     isSignedIn,
     setIsAuthPageOpen,
+    isFocusMode,
+    isAgentProcessing,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
@@ -112,8 +114,6 @@ export const Sidebar: React.FC = () => {
   const [isUserProfileMenuOpen, setIsUserProfileMenuOpen] = useState(false);
   const [chatOptionsId, setChatOptionsId] = useState<string | null>(null);
   const [chatOptionsAnchor, setChatOptionsAnchor] = useState<{ top: number; left: number } | undefined>();
-  const [isMoreToolsModalOpen, setIsMoreToolsModalOpen] = useState(false);
-  const [moreToolsAnchor, setMoreToolsAnchor] = useState<{ top: number; left: number } | undefined>();
   const [isSecretsModalOpen, setIsSecretsModalOpen] = useState(false);
 
   // Section collapsed toggles
@@ -146,6 +146,14 @@ export const Sidebar: React.FC = () => {
     setActiveTab(tab);
     setMobileMenuOpen(false);
     setIsHoverExpanded(false);
+    // Ensure section starts from beginning of that section not where previous section stopped
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      mainEl.scrollTop = 0;
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
   };
 
   const handleNewChat = () => {
@@ -153,6 +161,13 @@ export const Sidebar: React.FC = () => {
     setActiveTab('chat');
     setMobileMenuOpen(false);
     setIsHoverExpanded(false);
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      mainEl.scrollTop = 0;
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
   };
 
   const handleSelectChat = (convId: string) => {
@@ -160,6 +175,13 @@ export const Sidebar: React.FC = () => {
     setActiveTab('chat');
     setMobileMenuOpen(false);
     setIsHoverExpanded(false);
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      mainEl.scrollTop = 0;
+    }
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
   };
 
   const handleMouseEnterRail = () => {
@@ -171,10 +193,12 @@ export const Sidebar: React.FC = () => {
 
   const handleMouseLeaveRail = () => {
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsHoverExpanded(false);
-    }, 180);
+    setIsHoverExpanded(false);
   };
+
+  if (isFocusMode) {
+    return null;
+  }
 
   return (
     <>
@@ -186,18 +210,20 @@ export const Sidebar: React.FC = () => {
         <div className="hidden md:block w-16 shrink-0 h-screen pointer-events-none" />
       )}
 
-      {/* Persistent Desktop Sidebar with Full Hover-Expansion when Collapsed */}
+      {/* Persistent Desktop Sidebar with Instant Hover-Expansion */}
       <motion.aside
         onMouseEnter={handleMouseEnterRail}
         onMouseLeave={handleMouseLeaveRail}
-        layout
+        initial={false}
         animate={{ width: effectiveExpanded ? 256 : 64 }}
-        transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.72, layout: { type: 'spring', stiffness: 500, damping: 38, mass: 0.65 } }}
+        transition={{
+          type: 'tween',
+          duration: 0.09,
+          ease: 'easeOut',
+        }}
         style={{ willChange: 'width', transform: 'translateZ(0)' }}
-        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-hidden ${
-          isSidebarCollapsed ? 'absolute left-0 top-0' : 'relative'
-        } ${
-          isHoverExpanded || !isSidebarCollapsed ? 'z-40 shadow-2xl' : 'z-30'
+        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden ${
+          isSidebarCollapsed ? 'fixed left-0 top-0 z-50 shadow-2xl' : 'relative z-30'
         } border-r ${
           isLight
             ? 'bg-white border-slate-200/90 text-slate-800 shadow-slate-300/40'
@@ -288,31 +314,59 @@ export const Sidebar: React.FC = () => {
           <button
             onClick={handleNewChat}
             title={!effectiveExpanded ? 'New Conversation' : undefined}
-            className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold tracking-tight transition-all duration-150 transform-gpu hover:-translate-y-0.5 shadow-xs ${
+            aria-label="New Conversation"
+            className={`flex items-center rounded-xl text-xs font-semibold tracking-tight transition-all duration-150 transform-gpu hover:-translate-y-0.5 shadow-xs cursor-pointer ${
+              !effectiveExpanded
+                ? 'w-10 h-10 mx-auto justify-center p-0'
+                : 'w-full px-3 py-2'
+            } ${
               isLight
                 ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 hover:border-slate-300'
                 : 'bg-[#141824] hover:bg-[#1C2132] text-white border border-white/5 hover:border-white/10'
-            } ${!effectiveExpanded ? 'px-2' : 'px-3'}`}
+            }`}
           >
-            <Plus className="w-4 h-4 text-indigo-500 shrink-0" />
-            {effectiveExpanded && <span>New Conversation</span>}
+            <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-3'}`}>
+              <div className="w-5 h-5 shrink-0 flex items-center justify-center">
+                <SquarePen className="w-4 h-4 text-indigo-500 shrink-0" />
+              </div>
+              {effectiveExpanded && <span className="truncate">New Conversation</span>}
+            </div>
           </button>
 
-          {/* Standalone Search Trigger Icon:
-              Transitions to a standalone icon when collapsed and persists this state during temporary mouse-over expansions */}
-          {isSidebarCollapsed && (
+          {/* Search Trigger: Full normal search bar when expanded (including temporary hover), standalone icon when collapsed */}
+          {!effectiveExpanded ? (
             <button
               onClick={() => openCommandPalette('all')}
               title="Search workspace (Win + K)"
               aria-label="Search workspace (Win + K)"
-              className={`w-full flex items-center justify-center py-2 rounded-xl text-xs font-medium transition-colors ${
+              className={`w-10 h-10 mx-auto flex items-center justify-center rounded-xl text-xs font-medium transition-colors ${
                 isLight
                   ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
               }`}
             >
-              <Search className="w-4 h-4 text-neutral-400 hover:text-indigo-400 transition-colors" />
+              <div className="w-5 h-5 shrink-0 flex items-center justify-center">
+                <Search className="w-4 h-4 text-neutral-400 hover:text-indigo-400 transition-colors" />
+              </div>
             </button>
+          ) : (
+            <div
+              onClick={() => openCommandPalette('all')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border text-xs cursor-pointer transition-colors shadow-2xs ${
+                isLight
+                  ? 'bg-slate-50 hover:bg-slate-100/90 border-slate-200 text-slate-500'
+                  : 'bg-[#121622] hover:bg-[#161B2A] border-white/5 text-neutral-400'
+              }`}
+              title="Search workspace (Win + K)"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-5 h-5 shrink-0 flex items-center justify-center">
+                  <Search className="w-4 h-4 text-indigo-400 shrink-0" />
+                </div>
+                <span className="truncate text-xs">Search...</span>
+              </div>
+              <WindowsShortcutBadge shortcut="K" />
+            </div>
           )}
 
           {/* Home Tool — Fixed & Unscrollable */}
@@ -320,7 +374,11 @@ export const Sidebar: React.FC = () => {
             <button
               onClick={() => handleNavClick('home')}
               title={!effectiveExpanded ? 'Home' : undefined}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+              className={`flex items-center rounded-xl text-xs font-medium transition-colors ${
+                !effectiveExpanded
+                  ? 'w-10 h-10 mx-auto justify-center p-0'
+                  : 'w-full px-3 py-2'
+              } ${
                 activeTab === 'home'
                   ? isLight
                     ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs'
@@ -328,18 +386,22 @@ export const Sidebar: React.FC = () => {
                   : isLight
                   ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50'
-              } ${!effectiveExpanded ? 'justify-center px-2 py-2.5' : ''}`}
+              }`}
             >
-              <Home
-                className={`w-4 h-4 shrink-0 ${
-                  activeTab === 'home'
-                    ? 'text-indigo-500'
-                    : isLight
-                    ? 'text-slate-400'
-                    : 'text-neutral-400'
-                }`}
-              />
-              {effectiveExpanded && <span>Home</span>}
+              <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-3'}`}>
+                <div className="w-5 h-5 shrink-0 flex items-center justify-center">
+                  <Home
+                    className={`w-4 h-4 shrink-0 ${
+                      activeTab === 'home'
+                        ? 'text-indigo-500'
+                        : isLight
+                        ? 'text-slate-400'
+                        : 'text-neutral-400'
+                    }`}
+                  />
+                </div>
+                {effectiveExpanded && <span className="truncate">Home</span>}
+              </div>
             </button>
           </div>
         </div>
@@ -349,7 +411,7 @@ export const Sidebar: React.FC = () => {
             With overscroll-contain preventing scroll chaining to right pane!
             Contains tools, chats, and More dropdown
             ======================================================== */}
-        <motion.div layoutScroll className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-3 custom-scrollbar overscroll-contain">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-3 custom-scrollbar overscroll-contain">
           {/* Main Navigation Tools */}
           <div className="space-y-0.5">
             {scrollableTools.map((tool) => {
@@ -367,7 +429,11 @@ export const Sidebar: React.FC = () => {
                     }
                   }}
                   title={!effectiveExpanded ? tool.label : undefined}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                  className={`flex items-center rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                    !effectiveExpanded
+                      ? 'w-10 h-10 mx-auto justify-center p-0'
+                      : 'w-full justify-between px-3 py-2'
+                  } ${
                     isActive
                       ? isLight
                         ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs'
@@ -375,21 +441,36 @@ export const Sidebar: React.FC = () => {
                       : isLight
                       ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50'
-                  } ${!effectiveExpanded ? 'justify-center px-2 py-2.5' : ''}`}
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Icon
-                      className={`w-4 h-4 shrink-0 ${
-                        isActive
-                          ? 'text-indigo-500'
-                          : isLight
-                          ? 'text-slate-400'
-                          : 'text-neutral-400'
-                      }`}
-                    />
-                    {effectiveExpanded && <span>{tool.label}</span>}
+                  <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-3'}`}>
+                    <div className="w-5 h-5 shrink-0 flex items-center justify-center relative">
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${
+                          isActive
+                            ? 'text-indigo-500'
+                            : isLight
+                            ? 'text-slate-400'
+                            : 'text-neutral-400'
+                        }`}
+                      />
+                      {/* Heartbeat pulse indicator for active agent background processing */}
+                      {tool.id === 'agent_lab' && isAgentProcessing && (
+                        <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2" title="AI Agent workflow actively processing">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.9)] animate-pulse"></span>
+                        </span>
+                      )}
+                    </div>
+                    {effectiveExpanded && <span className="truncate">{tool.label}</span>}
                   </div>
-                  {effectiveExpanded && tool.badge && (
+                  {effectiveExpanded && tool.id === 'agent_lab' && isAgentProcessing && (
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      Active
+                    </span>
+                  )}
+                  {effectiveExpanded && (!isAgentProcessing || tool.id !== 'agent_lab') && tool.badge && (
                     <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono bg-indigo-500/10 text-indigo-400">
                       {tool.badge}
                     </span>
@@ -398,16 +479,17 @@ export const Sidebar: React.FC = () => {
               );
             })}
 
-            {/* More Tools Trigger — Navigates to More page and opens popover by the side */}
+            {/* More Tools Trigger — Directly navigates to More tools display view */}
             <button
-              onClick={(e) => {
+              onClick={() => {
                 handleNavClick('more');
-                const rect = e.currentTarget.getBoundingClientRect();
-                setMoreToolsAnchor({ top: rect.top, left: rect.right + 8 });
-                setIsMoreToolsModalOpen(true);
               }}
               title={!effectiveExpanded ? 'More Tools' : undefined}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-colors ${
+              className={`flex items-center rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                !effectiveExpanded
+                  ? 'w-10 h-10 mx-auto justify-center p-0'
+                  : 'w-full justify-between px-3 py-2'
+              } ${
                 activeTab === 'more'
                   ? isLight
                     ? 'bg-indigo-50 text-indigo-700 font-semibold'
@@ -415,14 +497,49 @@ export const Sidebar: React.FC = () => {
                   : isLight
                   ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50'
-              } ${!effectiveExpanded ? 'justify-center px-2 py-2.5' : ''}`}
+              }`}
             >
-              <div className="flex items-center gap-3">
-                <MoreHorizontal className={`w-4 h-4 shrink-0 ${activeTab === 'more' ? 'text-indigo-500' : 'text-neutral-400'}`} />
+              <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-3'}`}>
+                <div className="w-5 h-5 shrink-0 flex items-center justify-center">
+                  <MoreHorizontal className={`w-4 h-4 shrink-0 ${activeTab === 'more' ? 'text-indigo-500' : 'text-neutral-400'}`} />
+                </div>
                 {effectiveExpanded && <span>More</span>}
               </div>
               {effectiveExpanded && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
             </button>
+
+            {/* When collapsed without hovering, display 1 single Chat icon consolidating Recent, Pinned, and Archive */}
+            {!effectiveExpanded && (
+              <div className="pt-1.5 mt-1 border-t border-inherit/40 flex justify-center">
+                <button
+                  onClick={() => handleNavClick('chat')}
+                  title="Chats"
+                  aria-label="Chats"
+                  className={`w-10 h-10 mx-auto flex items-center justify-center rounded-xl text-xs font-medium transition-colors cursor-pointer relative group ${
+                    activeTab === 'chat'
+                      ? isLight
+                        ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs'
+                        : 'bg-[#151926] text-white font-semibold border border-white/5 shadow-xs'
+                      : isLight
+                      ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50'
+                  }`}
+                >
+                  <MessageSquare
+                    className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${
+                      activeTab === 'chat'
+                        ? 'text-indigo-500'
+                        : isLight
+                        ? 'text-slate-400 group-hover:text-indigo-600'
+                        : 'text-neutral-400 group-hover:text-indigo-400'
+                    }`}
+                  />
+                  {conversations.length > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-white dark:ring-[#0B0E14]" />
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Conversations Section (Visible when expanded) */}
@@ -600,65 +717,6 @@ export const Sidebar: React.FC = () => {
               </div>
             </div>
           )}
-
-          {/* When Collapsed: Transform Conversation Sections into Standalone Icons */}
-          {!effectiveExpanded && (
-            <div className="space-y-2 pt-2 border-t border-inherit">
-              {/* Pinned Section Icon */}
-              {pinnedConversations.length > 0 && (
-                <button
-                  onClick={() => handleSelectChat(pinnedConversations[0].id)}
-                  title={`Pinned Chats (${pinnedConversations.length})`}
-                  className={`w-full flex items-center justify-center p-2 rounded-xl transition-all relative group ${
-                    isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-neutral-900 text-neutral-400'
-                  }`}
-                >
-                  <Pin className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
-                  <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-indigo-600 text-white text-[9px] font-mono flex items-center justify-center font-bold shadow-2xs">
-                    {pinnedConversations.length}
-                  </span>
-                </button>
-              )}
-
-              {/* Recent Section Icon */}
-              {recentConversations.length > 0 && (
-                <button
-                  onClick={() => handleSelectChat(recentConversations[0].id)}
-                  title={`Recent Chats (${recentConversations.length})`}
-                  className={`w-full flex items-center justify-center p-2 rounded-xl transition-all relative group ${
-                    activeTab === 'chat'
-                      ? isLight
-                        ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                        : 'bg-[#151926] text-white font-semibold'
-                      : isLight
-                      ? 'hover:bg-slate-100 text-slate-600'
-                      : 'hover:bg-neutral-900 text-neutral-400'
-                  }`}
-                >
-                  <MessageSquare className="w-4 h-4 text-neutral-400 group-hover:text-indigo-400 group-hover:scale-110 transition-transform" />
-                  <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-neutral-700 text-white text-[9px] font-mono flex items-center justify-center font-bold shadow-2xs">
-                    {recentConversations.length}
-                  </span>
-                </button>
-              )}
-
-              {/* Archived Section Icon */}
-              {archivedConversations.length > 0 && (
-                <button
-                  onClick={() => handleSelectChat(archivedConversations[0].id)}
-                  title={`Archived Chats (${archivedConversations.length})`}
-                  className={`w-full flex items-center justify-center p-2 rounded-xl transition-all relative group ${
-                    isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-neutral-900 text-neutral-400'
-                  }`}
-                >
-                  <Archive className="w-4 h-4 text-neutral-400 group-hover:text-indigo-400 group-hover:scale-110 transition-transform" />
-                  <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-neutral-700 text-white text-[9px] font-mono flex items-center justify-center font-bold shadow-2xs">
-                    {archivedConversations.length}
-                  </span>
-                </button>
-              )}
-            </div>
-          )}
         </div>
 
         {/* ========================================================
@@ -766,7 +824,7 @@ export const Sidebar: React.FC = () => {
             )}
           </button>
         </div>
-      </aside>
+      </motion.aside>
 
       {/* ========================================================
           MOBILE & TABLET SLIDE-IN SIDEBAR DRAWER
@@ -1073,18 +1131,6 @@ export const Sidebar: React.FC = () => {
           onOpenSecrets={() => setIsSecretsModalOpen(true)}
         />
       )}
-
-      {/* More Tools Modal — with anchorPosition side popover */}
-      <MoreToolsModal
-        isOpen={isMoreToolsModalOpen}
-        anchorPosition={moreToolsAnchor}
-        onClose={() => setIsMoreToolsModalOpen(false)}
-        onOpenSecrets={() => setIsSecretsModalOpen(true)}
-        onOpenMediaStudio={() => {
-          setActiveTab('media_studio');
-          setIsMoreToolsModalOpen(false);
-        }}
-      />
 
       {/* Secrets Vault Modal */}
       <SecretsModal

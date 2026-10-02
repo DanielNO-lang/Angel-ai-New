@@ -33,7 +33,7 @@ import { useAngel } from '../../context/AppContext';
 import { SecretsModal } from '../modals/SecretsModal';
 
 export const MoreToolsView: React.FC = () => {
-  const { settings, setActiveTab } = useAngel();
+  const { settings, setActiveTab, setActiveSettingsSection } = useAngel();
   const isLight = settings.theme === 'light';
   const [isSecretsOpen, setIsSecretsOpen] = useState(false);
 
@@ -43,7 +43,7 @@ export const MoreToolsView: React.FC = () => {
       title: 'Marketplace',
       desc: 'Discover and install pre-built agents, workflows, and integrations.',
       icon: Layers,
-      action: () => setActiveTab('assistants'),
+      action: () => setActiveTab('marketplace'),
       badge: 'Curated',
       color: 'indigo',
     },
@@ -67,7 +67,7 @@ export const MoreToolsView: React.FC = () => {
     },
     {
       id: 'multimodal',
-      title: 'Multimodal Vision',
+      title: 'Multimedia Vision',
       desc: 'Real-time webcam perception, screen recording, and visual OCR.',
       icon: Sparkles,
       action: () => setActiveTab('visual_mode'),
@@ -76,7 +76,7 @@ export const MoreToolsView: React.FC = () => {
     },
     {
       id: 'skills',
-      title: 'Skills & Functions',
+      title: 'Skills and Function',
       desc: 'Custom function calling tools, Python scripts, and live APIs.',
       icon: Zap,
       action: () => setActiveTab('agent_lab'),
@@ -85,10 +85,13 @@ export const MoreToolsView: React.FC = () => {
     },
     {
       id: 'plugins',
-      title: 'Plugins & Connectors',
+      title: 'Plugins and Connectors',
       desc: 'Google Workspace, GitHub, Supabase, and Zapier integrations.',
       icon: Puzzle,
-      action: () => setActiveTab('settings'),
+      action: () => {
+        setActiveSettingsSection('connections');
+        setActiveTab('settings');
+      },
       badge: 'API Links',
       color: 'emerald',
     },
@@ -97,13 +100,16 @@ export const MoreToolsView: React.FC = () => {
       title: 'Connections',
       desc: 'Database endpoints, webhook subscribers, and cloud proxies.',
       icon: Share2,
-      action: () => setActiveTab('settings'),
+      action: () => {
+        setActiveSettingsSection('connections');
+        setActiveTab('settings');
+      },
       badge: 'Network',
       color: 'rose',
     },
     {
       id: 'secrets',
-      title: 'Secrets Vault',
+      title: 'Secret Vault',
       desc: 'Passcode-protected private vault for confidential chats.',
       icon: Lock,
       action: () => setIsSecretsOpen(true),
@@ -127,30 +133,29 @@ export const MoreToolsView: React.FC = () => {
         isLight ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#0B0E14] text-neutral-100'
       }`}
     >
-      {/* Top Header */}
-      <div className="border-b pb-5 border-inherit">
-        <div className="flex items-center gap-2">
+      {/* Top Header - Fixed Non-Transparent */}
+      <div
+        className={`sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex items-center justify-between shadow-xs ${
+          isLight
+            ? 'bg-white border-slate-200 text-slate-900'
+            : 'bg-[#0B0E14] border-white/10 text-neutral-100'
+        }`}
+      >
+        <div className="flex items-center gap-3">
           <span
-            className={`p-1.5 rounded-xl border ${
+            className={`p-2 rounded-2xl border ${
               isLight
                 ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
                 : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
             }`}
           >
-            <Layers className="w-4 h-4" />
+            <Layers className="w-5 h-5" />
           </span>
-          <span
-            className={`text-xs font-mono uppercase tracking-wider ${
-              isLight ? 'text-indigo-600 font-semibold' : 'text-indigo-400'
-            }`}
-          >
-            System Modules
-          </span>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">More Tools & Extensions</h1>
+            <span className="text-[11px] font-mono opacity-60">System Modules & Utilities</span>
+          </div>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight mt-1">More Tools & Extensions</h1>
-        <p className={`text-xs sm:text-sm mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-          Extended capabilities, secure vaults, integrations, and workspace management.
-        </p>
       </div>
 
       {/* Grid of 9 Tools */}

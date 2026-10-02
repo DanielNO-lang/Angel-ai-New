@@ -15,6 +15,8 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { Conversation } from '../../types';
 
 interface SecretsModalProps {
   isOpen: boolean;
@@ -46,6 +48,7 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
   const [confirmPasscode, setConfirmPasscode] = useState('');
   const [changeSuccess, setChangeSuccess] = useState(false);
   const [isPasscodeVisible, setIsPasscodeVisible] = useState(false);
+  const [convToDelete, setConvToDelete] = useState<Conversation | null>(null);
 
   if (!isOpen) return null;
 
@@ -433,9 +436,9 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
 
                         {/* Delete secret chat */}
                         <button
-                          onClick={() => deleteConversation(conv.id)}
+                          onClick={() => setConvToDelete(conv)}
                           title="Delete permanently"
-                          className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -461,6 +464,22 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog: Delete Secret Conversation */}
+      <ConfirmDialog
+        isOpen={!!convToDelete}
+        onClose={() => setConvToDelete(null)}
+        onConfirm={() => {
+          if (convToDelete) {
+            deleteConversation(convToDelete.id);
+            setConvToDelete(null);
+          }
+        }}
+        title="Delete Secret Conversation?"
+        message={`"${convToDelete?.title}" will be permanently removed.`}
+        confirmLabel="Delete Conversation"
+        isDestructive={true}
+      />
     </div>
   );
 };

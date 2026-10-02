@@ -6,6 +6,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { conversationService } from '../services/ai';
+import { syncWorkspaceToIndexedDB } from '../services/db/offlineDb';
 import {
   INITIAL_AGENTS,
   INITIAL_CONVERSATIONS,
@@ -52,6 +53,15 @@ interface AppContextType {
   toggleWorkspaceMinimized: () => void;
   workspaceSizeMode: 'full' | 'half' | 'compact';
   setWorkspaceSizeMode: (mode: 'full' | 'half' | 'compact') => void;
+
+  // Focus Mode (Deep Work: hides sidebar and minimizes header)
+  isFocusMode: boolean;
+  setIsFocusMode: (focus: boolean) => void;
+  toggleFocusMode: () => void;
+
+  // Agent Background Processing Status (Heartbeat indicator)
+  isAgentProcessing: boolean;
+  setIsAgentProcessing: (processing: boolean) => void;
 
   // Global Command Palette & Search
   isCommandPaletteOpen: boolean;
@@ -128,6 +138,7 @@ interface AppContextType {
   setActiveProjectId: (id: string | null) => void;
   createProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
+  deleteProject: (id: string) => void;
 
   // Marketplace & Tools
   marketplaceItems: MarketplaceItem[];
@@ -187,7 +198,14 @@ function setStoredItem<T>(key: string, value: T): void {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<NavigationTab>('home');
+  const [activeTab, setActiveTabState] = useState<NavigationTab>(() =>
+    getStoredItem<NavigationTab>('active_tab', 'home')
+  );
+
+  const setActiveTab = (tab: NavigationTab) => {
+    setActiveTabState(tab);
+    setStoredItem('active_tab', tab);
+  };
   const [activeSettingsSection, setActiveSettingsSectionState] = useState<SettingsSubSection>(() =>
     getStoredItem<SettingsSubSection>('active_settings_section', 'account')
   );
@@ -311,12 +329,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })
   );
 
-  const [settings, setSettings] = useState<AngelSettings>(() =>
-    getStoredItem('settings', {
+  const [settings, setSettings] = useState<AngelSettings>(() => {
+    const defaultSettings: AngelSettings = {
       theme: 'dark',
       accentColor: 'indigo',
       fontSize: 'base',
       compactMode: false,
+      focusMode: false,
       personality: {
         tone: 'balanced',
         verbosity: 'balanced',
@@ -334,8 +353,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       zapier: {
         webhookEnabled: false,
       },
-    })
-  );
+    };
+
+    const saved = getStoredItem<AngelSettings>('settings', defaultSettings);
+    // Explicitly restore last theme preference from local storage
+    if (typeof localStorage !== 'undefined') {
+      const persistedTheme = localStorage.getItem('angel_theme') as ThemeMode;
+      if (persistedTheme && (persistedTheme === 'light' || persistedTheme === 'dark' || persistedTheme === 'system')) {
+        saved.theme = persistedTheme;
+      }
+    }
+    return saved;
+  });
+
+  // Focus Mode State (Deep Work: hides sidebar & minimizes header)
+  const [isFocusMode, setIsFocusModeState] = useState<boolean>(() => {
+    return getStoredItem<boolean>('angel_focus_mode', false);
+  });
+
+  const setIsFocusMode = (focus: boolean) => {
+    setIsFocusModeState(focus);
+    setStoredItem('angel_focus_mode', focus);
+    setSettings((prev) => ({ ...prev, focusMode: focus }));
+  };
+
+  const toggleFocusMode = () => {
+    setIsFocusMode(!isFocusMode);
+  };
+
+  // Agent Background Processing Status (Triggers heartbeat in Agent Lab tab)
+  const [isAgentProcessing, setIsAgentProcessing] = useState<boolean>(false);
 
   // Secrets Passcode state
   const [secretsPasscode, setSecretsPasscodeState] = useState<string>(() =>
@@ -358,7 +405,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAuthPageOpen, setIsAuthPageOpen] = useState<boolean>(false);
   const [authPageMode, setAuthPageMode] = useState<'signin' | 'signup'>('signin');
 
-  // Sync theme to HTML document
+  // Sync theme to HTML document and persist in localStorage
   useEffect(() => {
     const root = document.documentElement;
     const isDark =
@@ -370,6 +417,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       root.classList.remove('dark');
       root.classList.add('light');
+    }
+
+    if (typeof localStorage !== 'undefined' && settings.theme) {
+      localStorage.setItem('angel_theme', settings.theme);
     }
   }, [settings.theme]);
 
@@ -387,6 +438,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => setStoredItem('executions', executions), [executions]);
   useEffect(() => setStoredItem('visual_captures', visualCaptures), [visualCaptures]);
   useEffect(() => setStoredItem('settings', settings), [settings]);
+
+  // Sync to IndexedDB using Dexie.js for offline persistence
+  useEffect(() => {
+    syncWorkspaceToIndexedDB({
+      conversations,
+      messagesMap,
+      tasks,
+      memories,
+      projects,
+      agents,
+      activeTab,
+      theme: settings.theme,
+    });
+  }, [conversations, messagesMap, tasks, memories, projects, agents, activeTab, settings.theme]);
 
   // Fetch backend integration health
   const refreshIntegrations = async () => {
@@ -913,6 +978,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const deleteProject = (id: string) => {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+  };
+
   // Marketplace methods
   const installMarketplaceItem = (id: string) => {
     setMarketplaceItems((prev) =>
@@ -922,6 +991,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Agent Lab Execution Pipeline
   const runAgentExecution = async (agentId: string, prompt: string): Promise<AgentExecutionRecord> => {
+    setIsAgentProcessing(true);
     const agent = agents.find((a) => a.id === agentId) || agents[0];
     const executionRecord: AgentExecutionRecord = {
       id: `exec-${Date.now()}`,
@@ -1028,6 +1098,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
       setExecutions((prev) => prev.map((e) => (e.id === executionRecord.id ? errRecord : e)));
       return errRecord;
+    } finally {
+      setIsAgentProcessing(false);
     }
   };
 
@@ -1182,6 +1254,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleWorkspaceMinimized,
         workspaceSizeMode,
         setWorkspaceSizeMode,
+        isFocusMode,
+        setIsFocusMode,
+        toggleFocusMode,
+        isAgentProcessing,
+        setIsAgentProcessing,
         isCommandPaletteOpen,
         setIsCommandPaletteOpen,
         openCommandPalette,
@@ -1244,6 +1321,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveProjectId,
         createProject,
         updateProject,
+        deleteProject,
         marketplaceItems,
         availableTools,
         installMarketplaceItem,

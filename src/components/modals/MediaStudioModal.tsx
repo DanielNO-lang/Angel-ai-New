@@ -210,13 +210,6 @@ export const MediaStudioModal: React.FC<MediaStudioModalProps> = ({
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold tracking-tight">Trending</h3>
-              <button
-                onClick={() => alert('Viewing all trending prompts')}
-                className="text-[11px] text-indigo-500 hover:text-indigo-600 flex items-center gap-1 font-medium"
-              >
-                <span>View all</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -253,13 +246,6 @@ export const MediaStudioModal: React.FC<MediaStudioModalProps> = ({
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold tracking-tight">Popular Templates</h3>
-              <button
-                onClick={() => alert('Viewing all template layouts')}
-                className="text-[11px] text-indigo-500 hover:text-indigo-600 flex items-center gap-1 font-medium"
-              >
-                <span>View all</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
