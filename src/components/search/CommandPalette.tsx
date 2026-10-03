@@ -33,6 +33,8 @@ import {
   Zap,
   ArrowRight,
   Lock,
+  PenTool,
+  BarChart3,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { WindowsShortcutBadge } from '../ui/WindowsShortcutBadge';
@@ -545,7 +547,7 @@ export const CommandPalette: React.FC = () => {
 
                   <button
                     onClick={() => {
-                      setActiveTab('chat');
+                      setActiveTab('canvas');
                       closeCommandPalette();
                     }}
                     className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all ${
@@ -555,12 +557,46 @@ export const CommandPalette: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Archive className="w-4 h-4 text-indigo-400" />
-                      <span className="text-xs font-medium">Archived chats</span>
+                      <PenTool className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs font-medium">Canvas / Build Stage</span>
                     </div>
-                    <span className="text-[10px] font-mono opacity-60">
-                      {conversations.filter((c) => c.isArchived).length}
-                    </span>
+                    <span className="text-[10px] font-mono text-cyan-400">Workspace</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('data_analysis');
+                      closeCommandPalette();
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all ${
+                      isLight
+                        ? 'hover:bg-slate-100/80 text-slate-700 hover:text-slate-900'
+                        : 'hover:bg-neutral-850/80 text-neutral-300 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <BarChart3 className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs font-medium">Data Analysis Engine</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-blue-400">Engine</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('automation');
+                      closeCommandPalette();
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all ${
+                      isLight
+                        ? 'hover:bg-slate-100/80 text-slate-700 hover:text-slate-900'
+                        : 'hover:bg-neutral-850/80 text-neutral-300 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs font-medium">Event-Driven Automations</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-amber-400">Reactive</span>
                   </button>
                 </div>
               </div>

@@ -8,9 +8,16 @@ export type NavigationTab =
   | 'chat'
   | 'voice'
   | 'visual_mode'
+  | 'canvas'
+  | 'data_analysis'
+  | 'automation'
+  | 'skills'
+  | 'plugins'
   | 'agent_lab'
   | 'projects'
   | 'tasks'
+  | 'schedule'
+  | 'library'
   | 'memories'
   | 'media_studio'
   | 'assistants'
@@ -174,6 +181,14 @@ export interface Memory {
 
 export type ProjectStatus = 'active' | 'planning' | 'completed' | 'on_hold';
 
+export interface ProjectHistoryItem {
+  id: string;
+  action: string;
+  timestamp: string;
+  detail?: string;
+  userId?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -185,7 +200,11 @@ export interface Project {
   taskIds: string[];
   memoryIds: string[];
   conversationIds: string[];
+  workflowIds?: string[];
+  assetIds?: string[];
   goals: string[];
+  instructions?: string;
+  history?: ProjectHistoryItem[];
   startDate?: string;
   dueDate?: string;
   notes?: string;
@@ -193,8 +212,93 @@ export interface Project {
   updatedAt: string;
 }
 
+export type WorkflowTriggerType = 'manual' | 'schedule' | 'webhook' | 'task_event' | 'agent';
+
+export interface WorkflowTrigger {
+  type: WorkflowTriggerType;
+  config?: Record<string, unknown>;
+  scheduleCron?: string;
+  webhookPath?: string;
+}
+
+export interface WorkflowStep {
+  id: string;
+  name: string;
+  type:
+    | 'agent'
+    | 'tool'
+    | 'action'
+    | 'wait'
+    | 'condition'
+    | 'transform'
+    | 'notification'
+    | 'retry'
+    | 'completion';
+  agentId?: string;
+  toolName?: string;
+  config?: Record<string, unknown>;
+  action?: string;
+  condition?: string;
+  retryCount?: number;
+  timeoutSeconds?: number;
+}
+
+export interface Workflow {
+  id: string;
+  name: string;
+  codename?: string;
+  category: 'research' | 'code' | 'creative' | 'security' | 'operations' | 'general';
+  description: string;
+  tagline?: string;
+  version: string;
+  enabled: boolean;
+  trigger: WorkflowTrigger;
+  steps: WorkflowStep[];
+  stages?: string[];
+  permissions: string[];
+  projectId?: string;
+  agentId?: string;
+  systemInstructions?: string;
+  isTemplate?: boolean;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  lastExecutedAt?: string;
+  executionCount: number;
+}
+
+export interface ScheduledJob {
+  id: string;
+  title: string;
+  type: 'task_reminder' | 'agent_execution' | 'workflow' | 'automation';
+  scheduleType: 'one_time' | 'recurring';
+  runAt: string; // ISO
+  recurrence?: 'hourly' | 'daily' | 'weekly' | 'monthly' | 'custom_cron' | null;
+  cronExpression?: string;
+  timezone: string;
+  targetId?: string; // agentId, workflowId, taskId
+  payload?: Record<string, unknown>;
+  status: 'active' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  lastRunAt?: string;
+  nextRunAt?: string;
+  missedRuns: number;
+  retryCount: number;
+  maxRetries: number;
+  executionHistory: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type MarketplaceCategory = 'agents' | 'tools' | 'workflows' | 'templates';
 export type MarketplaceItemType = 'agent' | 'tool' | 'template' | 'integration' | 'workflow';
+
+export interface MarketplaceReview {
+  id: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
 
 export interface MarketplaceItem {
   id: string;
@@ -202,6 +306,8 @@ export interface MarketplaceItem {
   category: MarketplaceCategory;
   name: string;
   author: string;
+  authorAvatar?: string;
+  authorVerified?: boolean;
   description: string;
   rating: number;
   reviewCount: number;
@@ -209,10 +315,69 @@ export interface MarketplaceItem {
   tags: string[];
   isOfficial: boolean;
   version: string;
+  permissionsRequired?: string[];
+  compatibility?: string;
+  reviews?: MarketplaceReview[];
   configSchema?: Record<string, unknown>;
   icon: string;
   installed: boolean;
   featured?: boolean;
+}
+
+export type LibraryCategory =
+  | 'files'
+  | 'documents'
+  | 'media'
+  | 'references'
+  | 'materials'
+  | 'resources'
+  | 'assets'
+  | 'artifacts';
+
+export interface LibraryItem {
+  id: string;
+  title: string;
+  description?: string;
+  type: 'file' | 'document' | 'media' | 'reference' | 'material' | 'resource' | 'asset' | 'artifact';
+  category: LibraryCategory;
+  url?: string;
+  content?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  projectId?: string;
+  conversationId?: string;
+  tags: string[];
+  metadata?: Record<string, unknown>;
+  isFavorite?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssistantEntity {
+  id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  category: 'Engineering' | 'Research' | 'Vision' | 'Creative' | 'Operations' | 'Productivity';
+  version: string;
+  modelId: string;
+  systemInstructions: string;
+  avatarUrl?: string;
+  accentColor?: string;
+  permissions: {
+    readMemory: boolean;
+    writeTasks: boolean;
+    executeCode: boolean;
+    webAccess: boolean;
+    runTools: boolean;
+  };
+  allowedToolIds: string[];
+  memoryScope: 'shared' | 'isolated' | 'read_only';
+  isPublished: boolean;
+  isArchived: boolean;
+  executionCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ToolCategory = 'core' | 'memory' | 'tasks' | 'visual' | 'web' | 'automation';
@@ -261,6 +426,14 @@ export interface AgentExecutionRecord {
   startedAt: string;
   completedAt?: string;
   error?: string;
+  trigger?: 'manual' | 'schedule' | 'webhook' | 'composer' | 'agent';
+  workflowId?: string;
+  projectId?: string;
+  inputs?: Record<string, unknown> | string;
+  outputs?: Record<string, unknown> | string;
+  artifacts?: Array<{ id: string; name: string; type: string; url?: string }>;
+  durationMs?: number;
+  retryCount?: number;
 }
 
 export interface IntegrationService {
@@ -350,3 +523,366 @@ export interface CommandPaletteResultItem {
     action: (e: React.MouseEvent) => void;
   };
 }
+
+/* ========================================================
+   1. AUTOMATION PLATFORM MODELS
+   ======================================================== */
+export type AutomationTriggerEventType =
+  | 'task.created'
+  | 'task.completed'
+  | 'project.created'
+  | 'message.sent'
+  | 'webhook.received'
+  | 'scheduled.cron'
+  | 'data.analyzed'
+  | 'file.uploaded'
+  | 'manual.trigger';
+
+export type ConditionOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'contains'
+  | 'greater_than'
+  | 'less_than'
+  | 'exists'
+  | 'regex';
+
+export interface AutomationCondition {
+  id: string;
+  field: string; // e.g. "task.priority", "trigger.type"
+  operator: ConditionOperator;
+  value: any;
+  join?: 'and' | 'or';
+}
+
+export type AutomationStepType =
+  | 'agent_execution'
+  | 'tool_call'
+  | 'action'
+  | 'webhook'
+  | 'delay'
+  | 'branch';
+
+export interface AutomationStep {
+  id: string;
+  name: string;
+  type: AutomationStepType;
+  // For agent_execution
+  agentId?: string;
+  promptTemplate?: string;
+  // For tool_call
+  toolName?: string;
+  toolArgs?: Record<string, any>;
+  // For action
+  actionType?: 'create_task' | 'send_notification' | 'write_memory' | 'export_data' | 'update_project_status';
+  actionPayload?: Record<string, any>;
+  // For webhook (outbound)
+  webhookUrl?: string;
+  webhookMethod?: 'POST' | 'GET' | 'PUT';
+  webhookHeaders?: Record<string, string>;
+  // For delay & retry
+  delayMs?: number;
+  retryPolicy?: {
+    maxRetries: number;
+    backoffMs: number;
+  };
+  // For branching
+  branchConfig?: {
+    conditionField: string;
+    operator: ConditionOperator;
+    conditionValue: any;
+    thenStepIds: string[];
+    elseStepIds: string[];
+  };
+}
+
+export interface AutomationDefinition {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  trigger: {
+    type: AutomationTriggerEventType;
+    eventFilter?: Record<string, any>;
+    cronSchedule?: string; // e.g. "0 9 * * 1"
+    webhookPath?: string;
+  };
+  conditions: AutomationCondition[];
+  steps: AutomationStep[];
+  createdAt: string;
+  updatedAt: string;
+  tags?: string[];
+  ownerId?: string;
+}
+
+export interface AutomationStepExecutionLog {
+  stepId: string;
+  stepName: string;
+  stepType: AutomationStepType;
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  startedAt: string;
+  completedAt?: string;
+  inputs?: any;
+  outputs?: any;
+  error?: string;
+  decision?: string; // What Angel decided (branch or condition outcome)
+  retryCount?: number;
+}
+
+export interface AutomationExecutionRecord {
+  id: string;
+  automationId: string;
+  automationName: string;
+  triggerEvent: AutomationTriggerEventType;
+  triggerPayload: Record<string, any>;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  startedAt: string;
+  completedAt?: string;
+  durationMs: number;
+  stepLogs: AutomationStepExecutionLog[];
+  decisionSummary: string; // What triggered -> What Angel decided -> What ran -> Result
+  resultSummary?: string;
+  error?: string;
+}
+
+/* ========================================================
+   2. DATA ANALYSIS DEDICATED CAPABILITY MODELS
+   ======================================================== */
+export type DataColumnType = 'string' | 'number' | 'boolean' | 'date';
+
+export interface DataColumnMeta {
+  name: string;
+  type: DataColumnType;
+  sampleValues: any[];
+  nullCount: number;
+  uniqueCount: number;
+  stats?: {
+    min?: number;
+    max?: number;
+    mean?: number;
+    median?: number;
+    sum?: number;
+    stdDev?: number;
+  };
+}
+
+export interface Dataset {
+  id: string;
+  name: string;
+  description: string;
+  rowCount: number;
+  columnCount: number;
+  columns: DataColumnMeta[];
+  rawData: Record<string, any>[];
+  isSample: boolean; // Clearly distinguishes real user data from sample/demo data!
+  createdAt: string;
+  updatedAt: string;
+  tags: string[];
+  projectId?: string;
+}
+
+export interface DataFilterCondition {
+  id: string;
+  column: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than' | 'is_null' | 'is_not_null';
+  value: any;
+}
+
+export interface DataTransformConfig {
+  filters: DataFilterCondition[];
+  groupByColumn?: string;
+  aggregateColumn?: string;
+  aggregateFunction?: 'sum' | 'avg' | 'min' | 'max' | 'count';
+  sortByColumn?: string;
+  sortDirection?: 'asc' | 'desc';
+}
+
+export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'scatter';
+
+export interface DataChartConfig {
+  chartType: ChartType;
+  title: string;
+  xAxisColumn: string;
+  yAxisColumn: string;
+  seriesName?: string;
+  color?: string;
+}
+
+export interface DataInsightSummary {
+  headline: string;
+  keyFindings: string[];
+  anomaliesDetected: string[];
+  recommendations: string[];
+  calculatedMetrics: Record<string, number | string>;
+}
+
+/* ========================================================
+   3. CANVAS / BUILD WORKSPACE MODELS
+   ======================================================== */
+export type CanvasBlockType =
+  | 'markdown'
+  | 'code'
+  | 'data_table'
+  | 'artifact_preview'
+  | 'callout'
+  | 'system_architecture';
+
+export interface CanvasBlock {
+  id: string;
+  type: CanvasBlockType;
+  title?: string;
+  content: string; // Markdown text or code string or JSON serialized table
+  language?: string; // For code blocks: 'typescript' | 'javascript' | 'python' | 'html' | 'json' | 'sql'
+  output?: string; // Execution or evaluation output
+  meta?: Record<string, any>;
+}
+
+export interface CanvasVersion {
+  version: number;
+  timestamp: string;
+  title: string;
+  diffSummary?: string;
+  blocks: CanvasBlock[];
+}
+
+export interface CanvasArtifact {
+  id: string;
+  title: string;
+  type: 'document' | 'code' | 'data' | 'system_architecture' | 'workflow_spec';
+  blocks: CanvasBlock[];
+  version: number;
+  history: CanvasVersion[];
+  projectId?: string;
+  linkedConversationId?: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ========================================================
+   4. SKILLS SYSTEM MODELS
+   ======================================================== */
+export type SkillCategory =
+  | 'analysis'
+  | 'coding'
+  | 'research'
+  | 'productivity'
+  | 'multimodal'
+  | 'integration'
+  | 'custom';
+
+export type SkillPermission =
+  | 'network_access'
+  | 'filesystem_read'
+  | 'state_mutation'
+  | 'execute_code'
+  | 'sensitive_data';
+
+export interface SkillParameter {
+  type: 'string' | 'number' | 'boolean' | 'array';
+  description: string;
+  required?: boolean;
+  default?: any;
+}
+
+export interface SkillDefinition {
+  id: string;
+  name: string;
+  codename: string;
+  description: string;
+  author: string;
+  version: string;
+  category: SkillCategory;
+  icon: string;
+  instructions: string; // Executable cognitive prompt pattern
+  requiredTools: string[]; // Tool IDs required from Tool Registry
+  permissions: SkillPermission[];
+  modelRequirements?: {
+    minContext?: number;
+    visionRequired?: boolean;
+    recommendedModel?: string;
+    thinkingBudget?: number;
+  };
+  isActive: boolean;
+  isBuiltIn: boolean;
+  parametersSchema: Record<string, SkillParameter>;
+  testPrompts?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SkillTestExecution {
+  skillId: string;
+  timestamp: string;
+  inputParams: Record<string, any>;
+  toolsInvoked: Array<{ toolName: string; args: any; output: any; status: string }>;
+  outputResult: string;
+  durationMs: number;
+  success: boolean;
+}
+
+/* ========================================================
+   5. PLUGINS EXTENSIBILITY LAYER MODELS
+   ======================================================== */
+export type PluginStatus = 'active' | 'disabled' | 'error' | 'installing';
+
+export type PluginPermission =
+  | 'network_access'
+  | 'storage_read'
+  | 'storage_write'
+  | 'auth_delegation'
+  | 'tool_injection';
+
+export type PluginAuthType = 'none' | 'oauth2' | 'api_key' | 'webhook_secret';
+
+export interface PluginSettingField {
+  key: string;
+  label: string;
+  type: 'string' | 'password' | 'boolean' | 'select' | 'number';
+  options?: string[];
+  description?: string;
+  required?: boolean;
+  defaultValue?: any;
+}
+
+export interface PluginDefinition {
+  id: string;
+  name: string;
+  codename: string;
+  description: string;
+  version: string;
+  angelVersionCompat: string; // e.g. ">=1.0.0"
+  author: string;
+  homepageUrl?: string;
+  icon: string;
+  status: PluginStatus;
+  permissions: PluginPermission[];
+  authType: PluginAuthType;
+  authConfigured: boolean;
+  settingsSchema: PluginSettingField[];
+  settingsValues: Record<string, any>;
+  providedTools: string[]; // Tool IDs registered into the Tool Registry
+  providedSkills: string[]; // Skill IDs registered into Skills system
+  lifecycleHooks: {
+    onInstall?: boolean;
+    onActivate?: boolean;
+    onDeactivate?: boolean;
+  };
+  lastError?: string;
+  healthStatus: 'healthy' | 'warning' | 'error';
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ========================================================
+   6. ARCHITECTURAL BOUNDARY CLARITY MODEL
+   ======================================================== */
+export interface AngelArchitectureConcept {
+  concept: 'Skill' | 'Tool' | 'Plugin' | 'Integration' | 'Agent';
+  definition: string;
+  primaryRole: string;
+  inputOutput: string;
+  executionModel: string;
+  example: string;
+}
+

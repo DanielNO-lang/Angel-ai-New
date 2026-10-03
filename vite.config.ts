@@ -10,6 +10,7 @@ export default defineConfig(() => {
       react(),
       tailwindcss(),
       VitePWA({
+        injectRegister: null,
         registerType: 'autoUpdate',
         includeAssets: ['icon-192.svg', 'icon-512.svg', 'icon-maskable-512.svg'],
         manifest: {

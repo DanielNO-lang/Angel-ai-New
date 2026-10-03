@@ -23,12 +23,25 @@ import {
   Shield,
   MessageSquare,
   Check,
+  CheckSquare,
+  Brain,
+  Headphones,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
+import { voiceEngine } from '../../services/voice/voiceService';
 
 export const VoiceModeView: React.FC = () => {
-  const { settings, setActiveTab, isIncognitoActive, setIsIncognitoActive } = useAngel();
+  const {
+    settings,
+    setActiveTab,
+    isIncognitoActive,
+    setIsIncognitoActive,
+    createConversation,
+    sendMessage,
+    createTask,
+    createMemory,
+  } = useAngel();
   const isLight = settings.theme === 'light';
 
   // Voice state
@@ -36,8 +49,10 @@ export const VoiceModeView: React.FC = () => {
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isListening, setIsListening] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState('Nova (Balanced)');
+  const [selectedVoice, setSelectedVoice] = useState('Kore (Balanced)');
   const [showVoicePicker, setShowVoicePicker] = useState(false);
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [pulsePhase, setPulsePhase] = useState(0);
 
   // Transcript states
@@ -48,12 +63,16 @@ export const VoiceModeView: React.FC = () => {
   const recognitionRef = useRef<any>(null);
 
   const voices = [
-    'Nova (Balanced)',
-    'Alloy (Direct)',
-    'Echo (Calm)',
-    'Shimmer (Warm)',
-    'Sol (Energetic)',
+    'Kore (Balanced)',
+    'Puck (Direct)',
+    'Charon (Deep)',
+    'Fenrir (Authoritative)',
+    'Zephyr (Gentle)',
   ];
+
+  useEffect(() => {
+    voiceEngine.getAudioInputDevices().then(setAudioDevices).catch(() => {});
+  }, []);
 
   // Dynamic Waveform visualizer generator
   const generateWavePath = (
@@ -229,37 +248,85 @@ export const VoiceModeView: React.FC = () => {
     };
   }, [isMuted, isListening]);
 
-  // Text to Speech playback function
-  const speakAngelResponse = (text: string) => {
-    if (!isSpeakerOn || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.05;
-    utterance.pitch = 1.0;
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
+  // Text to Speech playback function with neural TTS and fallback
+  const speakAngelResponse = async (text: string) => {
+    if (!isSpeakerOn) return;
+    const voiceKey = selectedVoice.split(' ')[0];
+    await voiceEngine.speakText(
+      text,
+      voiceKey,
+      () => setIsSpeaking(true),
+      () => setIsSpeaking(false)
+    );
+  };
+
+  const handleProcessUserPrompt = async (prompt: string) => {
+    if (!prompt.trim()) return;
+    setTranscript(prompt);
+    setTranscriptHistory((prev) => [...prev, { sender: 'user', text: prompt }]);
+    voiceEngine.stopSpeaking();
+    setIsSpeaking(false);
+
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          systemInstruction:
+            'You are Angel, a calm, disciplined, concise conversational AI voice assistant. Respond conversationally in 1-2 natural, spoken sentences without markdown or asterisks.',
+          modelId: 'gemini-3.8-flash',
+        }),
+      });
+
+      const data = await res.json();
+      const response = data.text || `Processing your command across active agent pipelines.`;
+      setAngelResponse(response);
+      setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: response }]);
+      await speakAngelResponse(response);
+    } catch {
+      const fallback = `Autonomous agent pipeline dispatched for your command: "${prompt}".`;
+      setAngelResponse(fallback);
+      setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: fallback }]);
+      await speakAngelResponse(fallback);
+    }
   };
 
   const handleSimulatePrompt = (prompt: string) => {
-    setTranscript(prompt);
-    setTranscriptHistory((prev) => [...prev, { sender: 'user', text: prompt }]);
-
-    setTimeout(() => {
-      const response = `Analyzing your request: "${prompt}". Autonomous agent pipeline activated across workspace context.`;
-      setAngelResponse(response);
-      setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: response }]);
-      speakAngelResponse(response);
-    }, 700);
+    handleProcessUserPrompt(prompt);
   };
 
   const handleStopSpeaking = () => {
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
+    voiceEngine.stopSpeaking();
     setIsSpeaking(false);
-    setIsListening(false);
+  };
+
+  // Cross-system integrations
+  const handleSendToChat = () => {
+    const convId = createConversation(undefined, undefined, `Voice Session: ${transcript.slice(0, 24)}`);
+    setActiveTab('chat');
+    sendMessage(`[Voice Session Transcript]: "${transcript}"\n\n[Angel Response]: "${angelResponse}"`);
+  };
+
+  const handleSaveAsTask = () => {
+    createTask({
+      title: transcript.slice(0, 60) || 'Follow up from voice interaction',
+      description: `Originating voice transcript:\n"${transcript}"\n\nAngel Response:\n"${angelResponse}"`,
+      priority: 'medium',
+      status: 'todo',
+      subtasks: [],
+      tags: ['voice-memo', 'automated-task'],
+    });
+  };
+
+  const handleSaveAsMemory = () => {
+    createMemory({
+      title: `Voice Note: ${transcript.slice(0, 40)}`,
+      content: `Transcript: ${transcript}\nResponse: ${angelResponse}`,
+      type: 'conversation_derived',
+      confidence: 0.95,
+      tags: ['voice', 'oral-input'],
+    });
   };
 
   return (
@@ -584,6 +651,45 @@ export const VoiceModeView: React.FC = () => {
             </button>
           ))}
         </div>
+
+        {/* Cross-Workspace Action Buttons */}
+        {transcript && (
+          <div className="flex items-center gap-2 pt-2 animate-in fade-in duration-150">
+            <button
+              onClick={handleSendToChat}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-colors cursor-pointer ${
+                isLight
+                  ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  : 'bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Send to Chat</span>
+            </button>
+            <button
+              onClick={handleSaveAsTask}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-colors cursor-pointer ${
+                isLight
+                  ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  : 'bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10'
+              }`}
+            >
+              <CheckSquare className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Convert to Task</span>
+            </button>
+            <button
+              onClick={handleSaveAsMemory}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1.5 transition-colors cursor-pointer ${
+                isLight
+                  ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  : 'bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10'
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5 text-purple-400" />
+              <span>Save to Memory</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Bottom Controls Dock (Matching Image 3) */}

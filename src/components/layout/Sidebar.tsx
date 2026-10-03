@@ -48,6 +48,9 @@ import {
   Quote,
   X,
   LogIn,
+  PenTool,
+  BarChart3,
+  Zap,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { NavigationTab } from '../../types';
@@ -135,6 +138,9 @@ export const Sidebar: React.FC = () => {
     badge?: string;
   }> = [
     { id: 'agent_lab', label: 'Agent Lab', icon: Bot, tabTarget: 'agent_lab' },
+    { id: 'canvas', label: 'Canvas / Build', icon: PenTool, tabTarget: 'canvas' },
+    { id: 'data_analysis', label: 'Data Analysis', icon: BarChart3, tabTarget: 'data_analysis' },
+    { id: 'automation', label: 'Automations', icon: Zap, tabTarget: 'automation' },
     { id: 'projects', label: 'Projects', icon: FolderGit2, tabTarget: 'projects' },
     { id: 'tasks', label: 'Schedule', icon: Calendar, tabTarget: 'tasks' },
     { id: 'memories', label: 'Memory', icon: Brain, tabTarget: 'memories' },

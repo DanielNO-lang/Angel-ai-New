@@ -24,6 +24,13 @@ import {
   Trash2,
   Check,
   Search,
+  BookOpen,
+  Calendar,
+  PenTool,
+  BarChart3,
+  Zap,
+  Puzzle,
+  PlayCircle,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { NavigationTab, SettingsSubSection } from '../../types';
@@ -76,21 +83,28 @@ export const HeaderBreadcrumbs: React.FC<HeaderBreadcrumbsProps> = ({ isLight })
 
   // Tab Icon and Display Label Mapping
   const tabConfig: Record<NavigationTab, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
-    home: { label: 'Projects', icon: FolderGit2 },
-    chat: { label: 'Projects', icon: FolderGit2 },
-    voice: { label: 'Projects', icon: FolderGit2 },
-    visual_mode: { label: 'Projects', icon: FolderGit2 },
+    home: { label: 'Home', icon: Home },
+    chat: { label: 'Chat', icon: MessageSquare },
+    voice: { label: 'Voice Mode', icon: Mic },
+    visual_mode: { label: 'Visual Mode', icon: Eye },
+    canvas: { label: 'Canvas / Build', icon: PenTool },
+    data_analysis: { label: 'Data Analysis', icon: BarChart3 },
+    automation: { label: 'Automations', icon: Zap },
+    skills: { label: 'Skills Registry', icon: PlayCircle },
+    plugins: { label: 'Plugins', icon: Puzzle },
     agent_lab: { label: 'Agent Lab', icon: Cpu },
     projects: { label: 'Projects', icon: FolderGit2 },
     tasks: { label: 'Schedule', icon: CheckSquare },
+    schedule: { label: 'Schedule', icon: Calendar },
+    library: { label: 'Library', icon: BookOpen },
     memories: { label: 'Memory Vault', icon: Brain },
     media_studio: { label: 'Media Studio', icon: Palette },
-    assistants: { label: 'Projects', icon: FolderGit2 },
-    marketplace: { label: 'Projects', icon: FolderGit2 },
+    assistants: { label: 'Assistants', icon: Bot },
+    marketplace: { label: 'Marketplace', icon: Sparkles },
     settings: { label: 'Settings', icon: SlidersHorizontal },
     profile: { label: 'Profile', icon: SlidersHorizontal },
     recycle_bin: { label: 'Recycle Bin', icon: Trash2 },
-    more: { label: 'Projects', icon: FolderGit2 },
+    more: { label: 'More Tools', icon: Layers },
   };
 
   const currentTabInfo = tabConfig[activeTab] || { label: 'Projects', icon: FolderGit2 };

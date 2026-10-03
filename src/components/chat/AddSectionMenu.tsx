@@ -28,6 +28,8 @@ import {
   ChevronRight,
   Upload,
   Plus,
+  BarChart3,
+  PenTool,
 } from 'lucide-react';
 
 export interface AddSectionMenuProps {
@@ -39,6 +41,8 @@ export interface AddSectionMenuProps {
   onSelectSkill: (skillName: string, promptDirective: string) => void;
   onSelectAddMemory: () => void;
   onSelectCreateTask: () => void;
+  onSelectDataAnalysis?: () => void;
+  onSelectCanvas?: () => void;
   isLight: boolean;
 }
 
@@ -51,6 +55,8 @@ export const AddSectionMenu: React.FC<AddSectionMenuProps> = ({
   onSelectSkill,
   onSelectAddMemory,
   onSelectCreateTask,
+  onSelectDataAnalysis,
+  onSelectCanvas,
   isLight,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'connectors' | 'skills' | 'media'>('all');
@@ -95,6 +101,30 @@ export const AddSectionMenu: React.FC<AddSectionMenuProps> = ({
         onClose();
       },
       category: 'media',
+    },
+    {
+      id: 'open_canvas',
+      title: 'Canvas & Build Workspace',
+      desc: 'Open multi-block code and document workbench',
+      icon: PenTool,
+      color: 'text-cyan-500 bg-cyan-500/10',
+      action: () => {
+        if (onSelectCanvas) onSelectCanvas();
+        onClose();
+      },
+      category: 'media',
+    },
+    {
+      id: 'analyze_data',
+      title: 'Data Analysis & Charting',
+      desc: 'Inspect datasets, profile schema, and build charts',
+      icon: BarChart3,
+      color: 'text-blue-500 bg-blue-500/10',
+      action: () => {
+        if (onSelectDataAnalysis) onSelectDataAnalysis();
+        onClose();
+      },
+      category: 'skills',
     },
     {
       id: 'connector_github',

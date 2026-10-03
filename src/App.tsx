@@ -24,6 +24,12 @@ import { SettingsView } from './components/settings/SettingsView';
 import { AssistantsView } from './components/assistants/AssistantsView';
 import { MarketplaceView } from './components/marketplace/MarketplaceView';
 import { MoreToolsView } from './components/tools/MoreToolsView';
+import { LibraryView } from './components/library/LibraryView';
+import { CanvasView } from './components/canvas/CanvasView';
+import { DataAnalysisView } from './components/data_analysis/DataAnalysisView';
+import { AutomationView } from './components/automation/AutomationView';
+import { SkillsView } from './components/skills/SkillsView';
+import { PluginsView } from './components/plugins/PluginsView';
 import { CommandPalette } from './components/search/CommandPalette';
 import { BackdropLayer } from './components/ui/BackdropLayer';
 import { NetworkStatusToast } from './components/ui/NetworkStatusToast';
@@ -136,10 +142,23 @@ const WorkspaceContent: React.FC = () => {
         return <VoiceModeView />;
       case 'visual_mode':
         return <VisualModeView />;
+      case 'canvas':
+        return <CanvasView />;
+      case 'data_analysis':
+        return <DataAnalysisView />;
+      case 'automation':
+        return <AutomationView />;
+      case 'skills':
+        return <SkillsView />;
+      case 'plugins':
+        return <PluginsView />;
       case 'projects':
         return <ProjectsView />;
       case 'tasks':
+      case 'schedule':
         return <TasksView />;
+      case 'library':
+        return <LibraryView />;
       case 'agent_lab':
         return <AgentLabView />;
       case 'memories':

@@ -40,6 +40,8 @@ export interface ToolExecutionContext {
   createTask?: (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => void;
   updateTask?: (id: string, updates: Partial<Task>) => void;
   createMemory?: (memoryData: Omit<Memory, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  sessionToken?: string | null;
+  isGuest?: boolean;
 }
 
 export interface ToolExecutionResult {
@@ -47,15 +49,38 @@ export interface ToolExecutionResult {
   data: unknown;
   summary: string;
   error?: string;
+  executionDurationMs?: number;
 }
+
+export type ToolCategory =
+  | 'search'
+  | 'web'
+  | 'files'
+  | 'library'
+  | 'tasks'
+  | 'projects'
+  | 'memory'
+  | 'data_analysis'
+  | 'canvas'
+  | 'media'
+  | 'visual'
+  | 'github'
+  | 'vercel'
+  | 'automation'
+  | 'utility'
+  | 'workspace';
 
 export interface WorkspaceTool {
   id: string;
   name: string;
   description: string;
-  category: 'workspace' | 'tasks' | 'memory' | 'utility' | 'automation';
+  category: ToolCategory;
   inputSchema: ToolInputSchema;
   outputSchema: ToolOutputSchema;
+  permissions?: string[];
+  authRequired?: 'none' | 'user' | 'github' | 'vercel' | 'google';
+  isAvailable?: boolean;
+  unavailabilityReason?: string;
   execute: (input: Record<string, any>, context: ToolExecutionContext) => Promise<ToolExecutionResult>;
 }
 

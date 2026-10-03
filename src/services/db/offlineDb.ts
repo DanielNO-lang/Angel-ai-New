@@ -1,16 +1,37 @@
 /**
- * ANGEL AI — IndexedDB Offline Persistence Layer with Dexie.js
- * Persists application state, messages, conversations, and tasks
- * for seamless offline resilience complementing Supabase and LocalStorage.
+ * ANGEL AI — IndexedDB Offline Persistence & Synchronization Layer
+ * Upgrades Dexie schema with queued mutations, conflict recovery, and encrypted secret store.
  */
 
 import Dexie, { Table } from 'dexie';
-import { Conversation, Message, Task, Memory, Project, Agent } from '../../types';
+import { Conversation, Message, Task, Memory, Project, Agent, LibraryItem, AssistantEntity } from '../../types';
 
 export interface OfflineAppState {
   id: string;
   activeTab: string;
   theme: string;
+  syncStatus: 'synced' | 'syncing' | 'offline_queued' | 'error';
+  lastSyncedAt: string;
+  updatedAt: string;
+}
+
+export interface QueuedMutation {
+  id: string;
+  entityType: 'task' | 'memory' | 'project' | 'conversation' | 'message' | 'assistant' | 'library_item';
+  action: 'create' | 'update' | 'delete';
+  entityId: string;
+  payload: any;
+  clientTimestamp: string;
+  version: number;
+  retryCount: number;
+  status: 'pending' | 'syncing' | 'failed';
+  error?: string;
+}
+
+export interface EncryptedSecretRecord {
+  id: string;
+  category: 'chat' | 'credential' | 'env_var';
+  encryptedPayload: string; // JSON of EncryptedPayload
   updatedAt: string;
 }
 
@@ -21,17 +42,25 @@ export class AngelOfflineDatabase extends Dexie {
   memories!: Table<Memory, string>;
   projects!: Table<Project, string>;
   agents!: Table<Agent, string>;
+  libraryItems!: Table<LibraryItem, string>;
+  assistants!: Table<AssistantEntity, string>;
+  syncQueue!: Table<QueuedMutation, string>;
+  encryptedSecrets!: Table<EncryptedSecretRecord, string>;
   appState!: Table<OfflineAppState, string>;
 
   constructor() {
     super('AngelWorkspaceOfflineDB');
-    this.version(1).stores({
+    this.version(2).stores({
       conversations: 'id, agentId, projectId, updatedAt, pinned, isArchived',
       messages: 'id, conversationId, role, createdAt',
       tasks: 'id, status, priority, projectId, updatedAt',
-      memories: 'id, category, updatedAt',
+      memories: 'id, type, updatedAt, isPinned',
       projects: 'id, status, updatedAt',
       agents: 'id, status, updatedAt',
+      libraryItems: 'id, category, type, isFavorite, updatedAt',
+      assistants: 'id, category, updatedAt',
+      syncQueue: 'id, entityType, action, status, clientTimestamp',
+      encryptedSecrets: 'id, category, updatedAt',
       appState: 'id, updatedAt',
     });
   }
@@ -49,8 +78,11 @@ export async function syncWorkspaceToIndexedDB(payload: {
   memories?: Memory[];
   projects?: Project[];
   agents?: Agent[];
+  libraryItems?: LibraryItem[];
+  assistants?: AssistantEntity[];
   activeTab?: string;
   theme?: string;
+  syncStatus?: 'synced' | 'syncing' | 'offline_queued' | 'error';
 }): Promise<void> {
   try {
     const promises: Promise<unknown>[] = [];
@@ -82,12 +114,22 @@ export async function syncWorkspaceToIndexedDB(payload: {
       promises.push(offlineDb.agents.bulkPut(payload.agents));
     }
 
-    if (payload.activeTab || payload.theme) {
+    if (payload.libraryItems && payload.libraryItems.length > 0) {
+      promises.push(offlineDb.libraryItems.bulkPut(payload.libraryItems));
+    }
+
+    if (payload.assistants && payload.assistants.length > 0) {
+      promises.push(offlineDb.assistants.bulkPut(payload.assistants));
+    }
+
+    if (payload.activeTab || payload.theme || payload.syncStatus) {
       promises.push(
         offlineDb.appState.put({
           id: 'current_session',
           activeTab: payload.activeTab || 'home',
           theme: payload.theme || 'dark',
+          syncStatus: payload.syncStatus || 'synced',
+          lastSyncedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         })
       );

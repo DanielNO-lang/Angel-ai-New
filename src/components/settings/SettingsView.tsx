@@ -49,6 +49,7 @@ import {
 import { useAngel } from '../../context/AppContext';
 import { SUPABASE_SCHEMA_SQL } from '../../data/supabaseSchema';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { ConnectionsWorkspace } from '../connections/ConnectionsWorkspace';
 
 export type SettingsSubSection =
   | 'account'
@@ -1277,36 +1278,7 @@ export const SettingsView: React.FC = () => {
              ========================================================== */}
           {activeSection === 'connections' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-bold tracking-tight">Connections & Integrations</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Export Supabase PostgreSQL database schemas, inspect webhooks, and configure proxies.
-                </p>
-              </div>
-
-              {/* Supabase PostgreSQL Schema Exporter */}
-              <div className="p-5 rounded-3xl border border-inherit space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold flex items-center gap-2">
-                    <Database className="w-4 h-4 text-indigo-500" />
-                    <span>Supabase PostgreSQL Schema</span>
-                  </h3>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(SUPABASE_SCHEMA_SQL);
-                      setCopiedSql(true);
-                      setTimeout(() => setCopiedSql(false), 2000);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-500 transition-colors shadow-xs"
-                  >
-                    {copiedSql ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedSql ? 'Copied' : 'Copy SQL Schema'}</span>
-                  </button>
-                </div>
-                <p className="text-[11px] opacity-70">
-                  Execute this SQL in your Supabase SQL editor to create all tables and RLS security policies.
-                </p>
-              </div>
+              <ConnectionsWorkspace />
             </div>
           )}
 

@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { conversationService } from '../services/ai';
 import { syncWorkspaceToIndexedDB } from '../services/db/offlineDb';
+import { offlineSyncManager, SyncState } from '../services/db/offlineSyncManager';
 import {
   INITIAL_AGENTS,
   INITIAL_CONVERSATIONS,
@@ -15,12 +16,16 @@ import {
   INITIAL_PROJECTS,
   INITIAL_TASKS,
   AVAILABLE_TOOLS,
+  INITIAL_ASSISTANTS,
+  INITIAL_LIBRARY_ITEMS,
 } from '../data/seedData';
 import {
   Agent,
   AgentExecutionRecord,
   AngelSettings,
+  AssistantEntity,
   Conversation,
+  LibraryItem,
   MarketplaceItem,
   Memory,
   Message,
@@ -97,18 +102,43 @@ interface AppContextType {
   isIncognitoActive: boolean;
   setIsIncognitoActive: (active: boolean) => void;
   isSignedIn: boolean;
+  isGuest: boolean;
+  discardGuestSession: () => void;
+  syncStatus: 'synced' | 'syncing' | 'offline_queued' | 'error';
+  triggerManualSync: () => Promise<void>;
   isAuthPageOpen: boolean;
   setIsAuthPageOpen: (open: boolean) => void;
   authPageMode: 'signin' | 'signup';
   setAuthPageMode: (mode: 'signin' | 'signup') => void;
-  signIn: (email?: string, name?: string) => void;
-  signOut: () => void;
+  authError: string | null;
+  setAuthError: (err: string | null) => void;
+  sessionToken: string | null;
+  signIn: (email?: string, password?: string) => Promise<boolean>;
+  signUp: (email: string, password: string, name: string) => Promise<boolean>;
+  signOut: () => Promise<void>;
+  requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
   sendMessage: (content: string, attachments?: Message['attachments']) => Promise<void>;
 
   // User Profile
   userProfile: UserProfile;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
   toggleTheme: () => void;
+
+  // Library Items (Files, Documents, Media, References, Materials, Resources, Assets, Artifacts)
+  libraryItems: LibraryItem[];
+  createLibraryItem: (item: Omit<LibraryItem, 'id' | 'createdAt' | 'updatedAt'>) => LibraryItem;
+  updateLibraryItem: (id: string, updates: Partial<LibraryItem>) => void;
+  deleteLibraryItem: (id: string) => void;
+  toggleFavoriteLibraryItem: (id: string) => void;
+
+  // Assistants Lifecycle System
+  assistantsList: AssistantEntity[];
+  createAssistant: (asst: Omit<AssistantEntity, 'id' | 'createdAt' | 'updatedAt' | 'executionCount'>) => AssistantEntity;
+  updateAssistant: (id: string, updates: Partial<AssistantEntity>) => void;
+  deleteAssistant: (id: string) => void;
+  duplicateAssistant: (id: string) => AssistantEntity;
+  toggleArchiveAssistant: (id: string) => void;
+  togglePublishAssistant: (id: string) => void;
 
   // Agents
   agents: Agent[];
@@ -144,6 +174,9 @@ interface AppContextType {
   marketplaceItems: MarketplaceItem[];
   availableTools: ToolDefinition[];
   installMarketplaceItem: (id: string) => void;
+  uninstallMarketplaceItem: (id: string) => void;
+  addMarketplaceReview: (itemId: string, rating: number, comment: string) => void;
+  publishToMarketplace: (item: Omit<MarketplaceItem, 'id' | 'rating' | 'reviewCount' | 'installs' | 'installed'>) => MarketplaceItem;
 
   // Agent Executions
   executions: AgentExecutionRecord[];
@@ -314,20 +347,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>(() =>
     getStoredItem('marketplace', INITIAL_MARKETPLACE_ITEMS)
   );
-  const [availableTools] = useState<ToolDefinition[]>(AVAILABLE_TOOLS);
+  const [availableTools, setAvailableTools] = useState<ToolDefinition[]>(AVAILABLE_TOOLS);
+  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>(() =>
+    getStoredItem('library_items', INITIAL_LIBRARY_ITEMS)
+  );
+  const [assistantsList, setAssistantsList] = useState<AssistantEntity[]>(() =>
+    getStoredItem('assistants_list', INITIAL_ASSISTANTS)
+  );
   const [executions, setExecutions] = useState<AgentExecutionRecord[]>(() => getStoredItem('executions', []));
   const [visualCaptures, setVisualCaptures] = useState<VisualModeCapture[]>(() => getStoredItem('visual_captures', []));
 
-  const [userProfile, setUserProfile] = useState<UserProfile>(() =>
-    getStoredItem('user_profile', {
-      id: 'user_danny',
-      name: 'Danny Davis',
-      email: 'danielokohnwachukwu22@gmail.com',
-      initials: 'DD',
-      plan: 'Pro',
+  const [sessionToken, setSessionToken] = useState<string | null>(() => {
+    if (typeof localStorage !== 'undefined') {
+      const token = localStorage.getItem('angel_auth_token');
+      if (token && token !== 'undefined' && token !== 'guest') {
+        return token;
+      }
+    }
+    return null;
+  });
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('angel_auth_token')) {
+      return getStoredItem('user_profile', {
+        id: 'user_danny',
+        name: 'Danny Davis',
+        email: 'danielokohnwachukwu22@gmail.com',
+        initials: 'DD',
+        plan: 'Pro',
+        status: 'online',
+      });
+    }
+    return {
+      id: 'guest_user',
+      name: 'Guest User',
+      email: 'guest@angel.local',
+      initials: 'GU',
+      plan: 'Free',
       status: 'online',
-    })
-  );
+    };
+  });
 
   const [settings, setSettings] = useState<AngelSettings>(() => {
     const defaultSettings: AngelSettings = {
@@ -398,10 +458,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Incognito Mode State
   const [isIncognitoActive, setIsIncognitoActive] = useState<boolean>(false);
 
-  // Authentication State & Guest Mode
-  const [isSignedIn, setIsSignedIn] = useState<boolean>(() =>
-    getStoredItem('is_signed_in', true)
-  );
+  // Authentication State & Guest Mode (Real isolation)
+  const [isSignedIn, setIsSignedIn] = useState<boolean>(() => Boolean(sessionToken));
+  const isGuest = !isSignedIn;
+
+  // Offline Sync State
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline_queued' | 'error'>('synced');
+
+  useEffect(() => {
+    const unsub = offlineSyncManager.subscribe((state) => {
+      setSyncStatus(state);
+    });
+    return unsub;
+  }, []);
+
+  const triggerManualSync = async () => {
+    if (isGuest) return;
+    await offlineSyncManager.processQueue(sessionToken);
+  };
+
+  const discardGuestSession = () => {
+    setConversations(INITIAL_CONVERSATIONS);
+    setActiveConversationId('conv-welcome');
+    setMessagesMap({
+      'conv-welcome': [
+        {
+          id: `msg-${Date.now()}`,
+          conversationId: 'conv-welcome',
+          role: 'assistant',
+          content: 'Guest session reset. Your workspace is fresh and ephemeral.',
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+    setTasks(INITIAL_TASKS);
+    setMemories(INITIAL_MEMORIES);
+    setProjects(INITIAL_PROJECTS);
+  };
   const [isAuthPageOpen, setIsAuthPageOpen] = useState<boolean>(false);
   const [authPageMode, setAuthPageMode] = useState<'signin' | 'signup'>('signin');
 
@@ -438,6 +531,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => setStoredItem('executions', executions), [executions]);
   useEffect(() => setStoredItem('visual_captures', visualCaptures), [visualCaptures]);
   useEffect(() => setStoredItem('settings', settings), [settings]);
+  useEffect(() => setStoredItem('library_items', libraryItems), [libraryItems]);
+  useEffect(() => setStoredItem('assistants_list', assistantsList), [assistantsList]);
+
+  // Real backend session validation & scoped cloud data sync
+  useEffect(() => {
+    const token = sessionToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('angel_auth_token') : null);
+    if (!token) {
+      setIsSignedIn(false);
+      return;
+    }
+
+    fetch('/api/auth/session', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error('Unauthorized');
+      })
+      .then((data) => {
+        if (data.authenticated && data.profile) {
+          setIsSignedIn(true);
+          setUserProfile((prev) => ({
+            ...prev,
+            id: data.profile.id,
+            name: data.profile.name,
+            email: data.profile.email,
+            initials: data.profile.name.slice(0, 2).toUpperCase(),
+            status: 'online',
+          }));
+
+          // Pull scoped cloud persistence data
+          fetch('/api/user/cloud-data', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+            .then((r) => r.json())
+            .then((cloud) => {
+              if (cloud?.data) {
+                if (Array.isArray(cloud.data.tasks) && cloud.data.tasks.length > 0) setTasks(cloud.data.tasks);
+                if (Array.isArray(cloud.data.memories) && cloud.data.memories.length > 0) setMemories(cloud.data.memories);
+                if (Array.isArray(cloud.data.projects) && cloud.data.projects.length > 0) setProjects(cloud.data.projects);
+                if (Array.isArray(cloud.data.libraryItems) && cloud.data.libraryItems.length > 0) setLibraryItems(cloud.data.libraryItems);
+              }
+            })
+            .catch(() => {});
+        } else {
+          setIsSignedIn(false);
+        }
+      })
+      .catch(() => {
+        setIsSignedIn(false);
+      });
+  }, [sessionToken]);
 
   // Sync to IndexedDB using Dexie.js for offline persistence
   useEffect(() => {
@@ -448,10 +593,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       memories,
       projects,
       agents,
+      libraryItems,
+      assistants: assistantsList,
       activeTab,
       theme: settings.theme,
+      syncStatus,
     });
-  }, [conversations, messagesMap, tasks, memories, projects, agents, activeTab, settings.theme]);
+  }, [conversations, messagesMap, tasks, memories, projects, agents, libraryItems, assistantsList, activeTab, settings.theme, syncStatus]);
 
   // Fetch backend integration health
   const refreshIntegrations = async () => {
@@ -551,30 +699,112 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const signIn = (email = 'danielokohnwachukwu22@gmail.com', name = 'Danny Davis') => {
-    const initials = name
-      .split(' ')
-      .map((n) => n[0])
-      .filter(Boolean)
-      .join('')
-      .substring(0, 2)
-      .toUpperCase();
-    const updatedUser: UserProfile = {
-      id: 'user_danny',
-      name,
-      email,
-      initials: initials || 'DD',
-      plan: 'Pro',
-      status: 'online',
-    };
-    setUserProfile(updatedUser);
-    setStoredItem('user_profile', updatedUser);
-    setIsSignedIn(true);
-    setStoredItem('is_signed_in', true);
-    setIsAuthPageOpen(false);
+  const signIn = async (email = 'danielokohnwachukwu22@gmail.com', password = 'Angel2026!'): Promise<boolean> => {
+    setAuthError(null);
+    try {
+      const res = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to sign in');
+      }
+
+      setSessionToken(data.token);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('angel_auth_token', data.token);
+      }
+
+      const initials = (data.profile.name || email)
+        .split(' ')
+        .map((n: string) => n[0])
+        .filter(Boolean)
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+
+      const updatedUser: UserProfile = {
+        id: data.profile.id,
+        name: data.profile.name,
+        email: data.profile.email,
+        initials: initials || 'DD',
+        plan: 'Pro',
+        status: 'online',
+        avatarUrl: data.profile.avatarUrl,
+      };
+
+      setUserProfile(updatedUser);
+      setIsSignedIn(true);
+      setIsAuthPageOpen(false);
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setAuthError(msg);
+      return false;
+    }
   };
 
-  const signOut = () => {
+  const signUp = async (email: string, password: string, name: string): Promise<boolean> => {
+    setAuthError(null);
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Registration failed');
+      }
+
+      setSessionToken(data.token);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('angel_auth_token', data.token);
+      }
+
+      const initials = (name || email)
+        .split(' ')
+        .map((n: string) => n[0])
+        .filter(Boolean)
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+
+      const updatedUser: UserProfile = {
+        id: data.profile.id,
+        name: data.profile.name,
+        email: data.profile.email,
+        initials: initials || 'NU',
+        plan: 'Pro',
+        status: 'online',
+      };
+
+      setUserProfile(updatedUser);
+      setIsSignedIn(true);
+      setIsAuthPageOpen(false);
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setAuthError(msg);
+      return false;
+    }
+  };
+
+  const signOut = async () => {
+    if (sessionToken) {
+      fetch('/api/auth/signout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      }).catch(() => {});
+    }
+
+    setSessionToken(null);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('angel_auth_token');
+    }
+
     const guestUser: UserProfile = {
       id: 'user_guest',
       name: 'Guest User',
@@ -584,10 +814,110 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'offline',
     };
     setUserProfile(guestUser);
-    setStoredItem('user_profile', guestUser);
     setIsSignedIn(false);
-    setStoredItem('is_signed_in', false);
     setIsAuthPageOpen(false);
+  };
+
+  const requestPasswordRecovery = async (email: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await fetch('/api/auth/recovery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      return await res.json();
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : 'Network error requesting recovery.',
+      };
+    }
+  };
+
+  // Library operations
+  const createLibraryItem = (itemData: Omit<LibraryItem, 'id' | 'createdAt' | 'updatedAt'>): LibraryItem => {
+    const newId = `lib-${Date.now()}`;
+    const now = new Date().toISOString();
+    const newItem: LibraryItem = {
+      ...itemData,
+      id: newId,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setLibraryItems((prev) => [newItem, ...prev]);
+    return newItem;
+  };
+
+  const updateLibraryItem = (id: string, updates: Partial<LibraryItem>) => {
+    setLibraryItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item))
+    );
+  };
+
+  const deleteLibraryItem = (id: string) => {
+    setLibraryItems((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const toggleFavoriteLibraryItem = (id: string) => {
+    setLibraryItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, isFavorite: !item.isFavorite } : item))
+    );
+  };
+
+  // Assistant lifecycle operations
+  const createAssistant = (asstData: Omit<AssistantEntity, 'id' | 'createdAt' | 'updatedAt' | 'executionCount'>): AssistantEntity => {
+    const newId = `asst-${Date.now()}`;
+    const now = new Date().toISOString();
+    const newAsst: AssistantEntity = {
+      ...asstData,
+      id: newId,
+      executionCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setAssistantsList((prev) => [newAsst, ...prev]);
+    return newAsst;
+  };
+
+  const updateAssistant = (id: string, updates: Partial<AssistantEntity>) => {
+    setAssistantsList((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a))
+    );
+  };
+
+  const deleteAssistant = (id: string) => {
+    setAssistantsList((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const duplicateAssistant = (id: string): AssistantEntity => {
+    const target = assistantsList.find((a) => a.id === id);
+    if (!target) throw new Error('Assistant not found');
+    const newId = `asst-${Date.now()}`;
+    const now = new Date().toISOString();
+    const duplicated: AssistantEntity = {
+      ...target,
+      id: newId,
+      name: `${target.name} (Copy)`,
+      version: '1.0.0',
+      executionCount: 0,
+      isPublished: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setAssistantsList((prev) => [duplicated, ...prev]);
+    return duplicated;
+  };
+
+  const toggleArchiveAssistant = (id: string) => {
+    setAssistantsList((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, isArchived: !a.isArchived, updatedAt: new Date().toISOString() } : a))
+    );
+  };
+
+  const togglePublishAssistant = (id: string) => {
+    setAssistantsList((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, isPublished: !a.isPublished, updatedAt: new Date().toISOString() } : a))
+    );
   };
 
   const updateUserProfile = (updates: Partial<UserProfile>) => {
@@ -984,9 +1314,112 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Marketplace methods
   const installMarketplaceItem = (id: string) => {
+    const item = marketplaceItems.find((m) => m.id === id);
+    if (!item) return;
+
+    // Toggle installed state
     setMarketplaceItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, installed: !item.installed } : item))
+      prev.map((it) => (it.id === id ? { ...it, installed: true, installs: it.installs + 1 } : it))
     );
+
+    // If it's a tool, actually add to availableTools!
+    if (item.type === 'tool' || item.category === 'tools') {
+      const toolId = item.id.replace('item-tool-', '').replace('item-', '');
+      const existing = availableTools.find((t) => t.id === toolId);
+      if (!existing) {
+        const newTool: ToolDefinition = {
+          id: toolId,
+          name: item.name,
+          description: item.description,
+          category: 'automation',
+          parameters: {},
+          requiresPermission: false,
+          authType: 'none',
+          isAvailable: true,
+        };
+        setAvailableTools((prev) => [...prev, newTool]);
+        // Register in Angel Core agent
+        setAgents((prev) =>
+          prev.map((a) =>
+            a.id === 'angel-core' && !a.tools.includes(toolId)
+              ? { ...a, tools: [...a.tools, toolId] }
+              : a
+          )
+        );
+      }
+    } else if (item.type === 'agent' || item.category === 'agents') {
+      // If it's an agent, actually register in agents!
+      const agentId = item.id.replace('item-agent-', 'agent-');
+      if (!agents.some((a) => a.id === agentId)) {
+        createAgent({
+          name: item.name,
+          codename: item.name.toUpperCase().slice(0, 8),
+          tagline: item.description.slice(0, 60),
+          description: item.description,
+          systemInstructions: `You are ${item.name}, installed from the Angel Marketplace. Fulfill your role with accuracy and precision.`,
+          modelConfig: {
+            provider: 'gemini',
+            modelId: 'gemini-3.8-flash',
+            temperature: 0.7,
+            maxTokens: 4096,
+          },
+          tools: ['web_search', 'memory_search'],
+          permissions: ['workspace_read'],
+          memoryAccess: { canRead: true, canWrite: false, types: ['saved_knowledge'] },
+          executionMode: 'assisted',
+          status: 'active',
+          ownerId: 'user_default',
+          avatarIcon: 'Bot',
+        });
+      }
+    }
+  };
+
+  const uninstallMarketplaceItem = (id: string) => {
+    setMarketplaceItems((prev) =>
+      prev.map((it) => (it.id === id ? { ...it, installed: false } : it))
+    );
+  };
+
+  const addMarketplaceReview = (itemId: string, rating: number, comment: string) => {
+    const reviewId = `rev-${Date.now()}`;
+    const newRev = {
+      id: reviewId,
+      userName: userProfile.name || 'Anonymous User',
+      rating,
+      comment,
+      createdAt: new Date().toISOString(),
+    };
+    setMarketplaceItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== itemId) return it;
+        const currentReviews = it.reviews || [];
+        const updatedReviews = [newRev, ...currentReviews];
+        const avg = updatedReviews.reduce((sum, r) => sum + r.rating, 0) / updatedReviews.length;
+        return {
+          ...it,
+          reviews: updatedReviews,
+          reviewCount: it.reviewCount + 1,
+          rating: Number(avg.toFixed(1)),
+        };
+      })
+    );
+  };
+
+  const publishToMarketplace = (itemData: Omit<MarketplaceItem, 'id' | 'rating' | 'reviewCount' | 'installs' | 'installed'>): MarketplaceItem => {
+    const newId = `item-custom-${Date.now()}`;
+    const newItem: MarketplaceItem = {
+      ...itemData,
+      id: newId,
+      rating: 5.0,
+      reviewCount: 1,
+      installs: 1,
+      installed: true,
+      author: userProfile.name || 'Danny Davis',
+      authorVerified: true,
+    };
+    setMarketplaceItems((prev) => [newItem, ...prev]);
+    return newItem;
   };
 
   // Agent Lab Execution Pipeline
@@ -1290,16 +1723,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isIncognitoActive,
         setIsIncognitoActive,
         isSignedIn,
+        isGuest,
+        discardGuestSession,
+        syncStatus,
+        triggerManualSync,
         isAuthPageOpen,
         setIsAuthPageOpen,
         authPageMode,
         setAuthPageMode,
+        authError,
+        setAuthError,
+        sessionToken,
         signIn,
+        signUp,
         signOut,
+        requestPasswordRecovery,
         sendMessage,
         userProfile,
         updateUserProfile,
         toggleTheme,
+        libraryItems,
+        createLibraryItem,
+        updateLibraryItem,
+        deleteLibraryItem,
+        toggleFavoriteLibraryItem,
+        assistantsList,
+        createAssistant,
+        updateAssistant,
+        deleteAssistant,
+        duplicateAssistant,
+        toggleArchiveAssistant,
+        togglePublishAssistant,
         agents,
         selectedAgentId,
         setSelectedAgentId,
@@ -1325,6 +1779,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         marketplaceItems,
         availableTools,
         installMarketplaceItem,
+        uninstallMarketplaceItem,
+        addMarketplaceReview,
+        publishToMarketplace,
         executions,
         runAgentExecution,
         visualCaptures,

@@ -188,7 +188,11 @@ export const Header: React.FC = () => {
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-2">
           {/* Guest Auth CTAs (Visible when not signed in) */}
           {!isSignedIn ? (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                <span>Guest Mode (Ephemeral)</span>
+              </div>
               <button
                 onClick={() => {
                   setAuthPageMode('signin');

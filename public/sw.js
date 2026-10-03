@@ -1,9 +1,15 @@
 /**
- * ANGEL AI — Progressive Web App Service Worker
- * Provides offline navigation resilience, asset caching, and standalone PWA installability.
+ * ANGEL AI — Progressive Web App Service Worker (Canonical Strategy)
+ * Provides:
+ * - High-speed offline navigation resilience
+ * - Cache recovery & auto-cleanup of stale code assets
+ * - Network-first for JavaScript/TypeScript application code so stale code is never served indefinitely
+ * - Stale-while-revalidate for read-only metadata APIs (/api/models, /api/ai/providers)
+ * - Standalone PWA installability with complete manifest asset caching
+ * - Interactive SKIP_WAITING update coordination
  */
 
-const CACHE_NAME = 'angel-ai-v3';
+const CACHE_NAME = 'angel-ai-v4';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
@@ -20,11 +26,11 @@ self.addEventListener('install', (event) => {
       .open(CACHE_NAME)
       .then((cache) => cache.addAll(PRECACHE_ASSETS))
       .then(() => self.skipWaiting())
-      .catch((err) => console.warn('[PWA SW] Precache warning:', err))
+      .catch((err) => console.warn('[PWA SW] Precache notice:', err))
   );
 });
 
-// Activate: clean up old caches
+// Activate: clean up old caches deterministically
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
@@ -33,25 +39,48 @@ self.addEventListener('activate', (event) => {
         Promise.all(
           cacheNames
             .filter((name) => name !== CACHE_NAME)
-            .map((name) => caches.delete(name))
+            .map((name) => {
+              console.log('[PWA SW] Purging stale cache:', name);
+              return caches.delete(name);
+            })
         )
       )
       .then(() => self.clients.claim())
   );
 });
 
-// Fetch: Network-first for API and dynamic resources, stale-while-revalidate for static assets
+// Fetch: Strategy routing
 self.addEventListener('fetch', (event) => {
-  // Ignore non-GET and chrome-extension/internal schemes
+  // Ignore non-GET and internal browser schemes
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // Bypass API calls or streaming endpoints
+  // Safe read-only API caching (Stale-While-Revalidate for offline model/provider discovery)
+  if (url.pathname === '/api/models' || url.pathname === '/api/ai/providers') {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        const fetchPromise = fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const clone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+            }
+            return networkResponse;
+          })
+          .catch(() => cachedResponse);
+
+        return cachedResponse || fetchPromise;
+      })
+    );
+    return;
+  }
+
+  // Bypass all other API calls or streaming SSE endpoints
   if (url.pathname.startsWith('/api') || url.pathname.includes('/sse')) {
     return;
   }
 
-  // HTML navigation: Network-first with cache fallback
+  // HTML navigation: Network-first with cache fallback to /index.html
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() =>
@@ -61,8 +90,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Scripts, source files, and assets: Network-first to always run latest compiled code
-  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.ts') || url.pathname.startsWith('/src') || url.pathname.startsWith('/assets')) {
+  // Scripts, styles, and assets: Network-first to ALWAYS run latest compiled code without stale stalls
+  if (
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.ts') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.startsWith('/src') ||
+    url.pathname.startsWith('/assets')
+  ) {
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
@@ -77,7 +112,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: Stale-while-revalidate
+  // Static assets (images, icons, fonts): Stale-while-revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)
@@ -101,7 +136,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Skip waiting listener
+// Update coordination listener
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

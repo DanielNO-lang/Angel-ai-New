@@ -8,14 +8,20 @@
  *  - Automation & Webhook Dispatch Architecture
  */
 
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { executeAgentPipeline } from './server/orchestrator';
 import { providerRegistry } from './server/providers';
-import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase } from './server/supabase_service';
+import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
 import { automationService, AutomationEventType } from './server/services/automationService';
 import { dispatchZapierEvent } from './server/zapier_service';
+import { authService } from './server/services/authService';
+import { mediaService } from './server/services/mediaService';
+import { voiceService } from './server/services/voiceService';
+import { intelligenceService } from './server/services/intelligenceService';
+import { githubService } from './server/services/githubService';
+import { vercelService } from './server/services/vercelService';
 
 export interface CreateAppOptions {
   isServerless?: boolean;
@@ -25,6 +31,30 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   const app = express();
 
   app.use(express.json({ limit: '25mb' }));
+
+  // Security Headers
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    next();
+  });
+
+  // Rate Limiting Map
+  const ipCounters = new Map<string, { count: number; resetAt: number }>();
+  const rateLimit = (maxRequests: number = 60) => (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || 'client';
+    const now = Date.now();
+    const entry = ipCounters.get(ip);
+    if (!entry || now > entry.resetAt) {
+      ipCounters.set(ip, { count: 1, resetAt: now + 60000 });
+      return next();
+    }
+    if (entry.count >= maxRequests) {
+      return res.status(429).json({ error: 'Too many requests. Please slow down.' });
+    }
+    entry.count++;
+    next();
+  };
 
   // ============================================================================
   // API ROUTES
@@ -145,6 +175,161 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       res.json(result);
     } catch (err) {
       console.error('[API /api/supabase/sync Error]', err);
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/supabase/sync-all', async (req: Request, res: Response) => {
+    try {
+      const result = await syncAllEntitiesToSupabase(req.body || {});
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/supabase/ddl', (_req: Request, res: Response) => {
+    res.type('text/plain').send(getSupabaseDDL());
+  });
+
+  // ============================================================================
+  // MODEL CATALOG & CAPABILITY ROUTING
+  // ============================================================================
+
+  app.get('/api/models', (_req: Request, res: Response) => {
+    res.json(providerRegistry.getModelCatalog());
+  });
+
+  // ============================================================================
+  // GITHUB REAL INTEGRATION ENDPOINTS
+  // ============================================================================
+
+  app.get('/api/integrations/github/test', async (_req: Request, res: Response) => {
+    const result = await githubService.testConnection();
+    res.json(result);
+  });
+
+  app.get('/api/integrations/github/repo_details', async (req: Request, res: Response) => {
+    const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
+    const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
+    try {
+      const details = await githubService.getRepoDetails(owner, repo);
+      res.json(details);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/integrations/github/list_branches', async (req: Request, res: Response) => {
+    const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
+    const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
+    try {
+      const branches = await githubService.listBranches(owner, repo);
+      res.json(branches);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/integrations/github/list_files', async (req: Request, res: Response) => {
+    const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
+    const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
+    const path = (req.query.path as string) || '';
+    const branch = req.query.branch as string | undefined;
+    try {
+      const files = await githubService.listFiles(owner, repo, path, branch);
+      res.json(files);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/integrations/github/file_content', async (req: Request, res: Response) => {
+    const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
+    const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
+    const path = req.query.path as string;
+    const branch = req.query.branch as string | undefined;
+    if (!path) return res.status(400).json({ error: 'path is required' });
+    try {
+      const content = await githubService.getFileContent(owner, repo, path, branch);
+      res.json(content);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/integrations/github/list_issues', async (req: Request, res: Response) => {
+    const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
+    const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
+    try {
+      const issues = await githubService.listIssues(owner, repo);
+      res.json(issues);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/integrations/github/create_issue', async (req: Request, res: Response) => {
+    const { owner, repo, title, body } = req.body || {};
+    if (!title) return res.status(400).json({ error: 'title is required' });
+    try {
+      const issue = await githubService.createIssue(
+        owner || process.env.GITHUB_REPO_OWNER || 'angel-ai',
+        repo || process.env.GITHUB_REPO_NAME || 'angel-workspace',
+        title,
+        body || ''
+      );
+      res.json(issue);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/integrations/github/list_prs', async (req: Request, res: Response) => {
+    const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
+    const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
+    try {
+      const prs = await githubService.listPullRequests(owner, repo);
+      res.json(prs);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // ============================================================================
+  // VERCEL REAL INTEGRATION ENDPOINTS
+  // ============================================================================
+
+  app.get('/api/integrations/vercel/test', async (_req: Request, res: Response) => {
+    const result = await vercelService.testConnection();
+    res.json(result);
+  });
+
+  app.get('/api/integrations/vercel/projects', async (_req: Request, res: Response) => {
+    try {
+      const projects = await vercelService.listProjects();
+      res.json(projects);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/integrations/vercel/deployments', async (req: Request, res: Response) => {
+    try {
+      const projectId = req.query.projectId as string | undefined;
+      const deployments = await vercelService.listDeployments(projectId);
+      res.json(deployments);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/integrations/vercel/trigger_deploy', async (req: Request, res: Response) => {
+    try {
+      const { projectId } = req.body || {};
+      const result = await vercelService.triggerRedeployment(projectId);
+      res.json(result);
+    } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
   });
@@ -449,6 +634,190 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       { overrideUrl }
     );
     res.json(result);
+  });
+
+  // ============================================================================
+  // AUTHENTICATION & USER DATA OWNERSHIP
+  // ============================================================================
+
+  app.post('/api/auth/signup', async (req: Request, res: Response) => {
+    try {
+      const { email, password, name } = req.body || {};
+      const result = await authService.signUp(email, password, name);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/auth/signin', async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body || {};
+      const result = await authService.signIn(email, password);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(401).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/auth/signout', (req: Request, res: Response) => {
+    const token = req.headers.authorization;
+    authService.signOut(token);
+    res.json({ success: true, message: 'Signed out successfully' });
+  });
+
+  app.get('/api/auth/session', (req: Request, res: Response) => {
+    const token = req.headers.authorization;
+    const user = authService.authenticateToken(token);
+    if (!user) {
+      return res.status(401).json({ authenticated: false, error: 'Session expired or invalid' });
+    }
+    res.json({ authenticated: true, profile: authService.toProfileDTO(user) });
+  });
+
+  app.post('/api/auth/recovery', (req: Request, res: Response) => {
+    const { email } = req.body || {};
+    const result = authService.requestRecovery(email);
+    res.json(result);
+  });
+
+  app.put('/api/auth/profile', (req: Request, res: Response) => {
+    const token = req.headers.authorization;
+    const user = authService.authenticateToken(token);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+      const updated = authService.updateProfile(user.id, req.body || {});
+      res.json({ success: true, profile: updated });
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/user/cloud-data', (req: Request, res: Response) => {
+    const token = req.headers.authorization;
+    const user = authService.authenticateToken(token);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized: Sign in required for cloud persistence' });
+    }
+    const data = authService.getUserCloudData(user.id);
+    res.json({ success: true, data });
+  });
+
+  app.post('/api/user/cloud-data', (req: Request, res: Response) => {
+    const token = req.headers.authorization;
+    const user = authService.authenticateToken(token);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized: Sign in required for cloud persistence' });
+    }
+    const data = authService.saveUserCloudData(user.id, req.body || {});
+    res.json({ success: true, data });
+  });
+
+  // ============================================================================
+  // MEDIA STUDIO & GENERATION ENGINE
+  // ============================================================================
+
+  app.get('/api/media/artifacts', (req: Request, res: Response) => {
+    const { category, projectId, taskId, search } = req.query as Record<string, string>;
+    const artifacts = mediaService.listArtifacts({ category, projectId, taskId, search });
+    res.json({ artifacts, count: artifacts.length });
+  });
+
+  app.get('/api/media/artifacts/:id', (req: Request, res: Response) => {
+    const artifact = mediaService.getArtifact(req.params.id);
+    if (!artifact) {
+      return res.status(404).json({ error: 'Artifact not found' });
+    }
+    res.json(artifact);
+  });
+
+  app.post('/api/media/generate-image', async (req: Request, res: Response) => {
+    const { prompt } = req.body || {};
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'prompt is required' });
+    }
+    try {
+      const artifact = await mediaService.generateImage(req.body);
+      res.json(artifact);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/media/generate-video', async (req: Request, res: Response) => {
+    const { prompt } = req.body || {};
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'prompt is required' });
+    }
+    try {
+      const artifact = await mediaService.generateVideo(req.body);
+      res.json(artifact);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/media/edit', async (req: Request, res: Response) => {
+    const { baseImageBase64, prompt } = req.body || {};
+    if (!baseImageBase64 || !prompt) {
+      return res.status(400).json({ error: 'baseImageBase64 and prompt are required' });
+    }
+    try {
+      const artifact = await mediaService.editImage(req.body);
+      res.json(artifact);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.delete('/api/media/artifacts/:id', (req: Request, res: Response) => {
+    const deleted = mediaService.deleteArtifact(req.params.id);
+    res.json({ success: deleted });
+  });
+
+  // ============================================================================
+  // VOICE & AUDIO INTELLIGENCE
+  // ============================================================================
+
+  app.post('/api/voice/transcribe', async (req: Request, res: Response) => {
+    const { base64Audio } = req.body || {};
+    if (!base64Audio) {
+      return res.status(400).json({ error: 'base64Audio is required' });
+    }
+    try {
+      const result = await voiceService.transcribeAudio(req.body);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/voice/tts', async (req: Request, res: Response) => {
+    const { text, voiceName, stylePrompt } = req.body || {};
+    if (!text) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+    try {
+      const result = await voiceService.synthesizeSpeech({ text, voiceName, stylePrompt });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // ============================================================================
+  // INTELLIGENCE CONTEXT PIPELINE
+  // ============================================================================
+
+  app.post('/api/intelligence/build-context', (req: Request, res: Response) => {
+    try {
+      const built = intelligenceService.buildContext(req.body || { query: '' });
+      res.json(built);
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
   });
 
   return app;

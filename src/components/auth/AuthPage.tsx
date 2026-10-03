@@ -34,6 +34,10 @@ export const AuthPage: React.FC = () => {
     authPageMode,
     setAuthPageMode,
     signIn,
+    signUp,
+    requestPasswordRecovery,
+    authError,
+    setAuthError,
     settings,
   } = useAngel();
 
@@ -42,6 +46,8 @@ export const AuthPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const [isClipPlaying, setIsClipPlaying] = useState(true);
   const [clipSeconds, setClipSeconds] = useState(0);
 
@@ -56,18 +62,56 @@ export const AuthPage: React.FC = () => {
 
   if (!isAuthPageOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalEmail = email.trim() || 'danielokohnwachukwu22@gmail.com';
-    const finalName = name.trim() || (authPageMode === 'signup' ? 'New User' : 'Danny Davis');
-    signIn(finalEmail, finalName);
+    setRecoveryMessage(null);
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setAuthError('Please enter a valid email address.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setAuthError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    if (authPageMode === 'signup') {
+      const cleanName = name.trim() || cleanEmail.split('@')[0];
+      await signUp(cleanEmail, password, cleanName);
+    } else {
+      await signIn(cleanEmail, password);
+    }
+    setIsSubmitting(false);
   };
 
-  const handleGoogleSignIn = () => {
-    signIn('danielokohnwachukwu22@gmail.com', 'Danny Davis');
+  const handleDemoSignIn = async () => {
+    setIsSubmitting(true);
+    await signIn('danielokohnwachukwu22@gmail.com', 'Angel2026!');
+    setIsSubmitting(false);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setIsSubmitting(true);
+    await signIn('danielokohnwachukwu22@gmail.com', 'Angel2026!');
+    setIsSubmitting(false);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setAuthError('Please enter your email address first to reset password.');
+      return;
+    }
+    const res = await requestPasswordRecovery(email.trim());
+    setRecoveryMessage(res.message);
   };
 
   const handleContinueAsGuest = () => {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('angel_auth_token');
+      localStorage.setItem('angel_is_guest', 'true');
+    }
     setIsAuthPageOpen(false);
   };
 
@@ -162,6 +206,25 @@ export const AuthPage: React.FC = () => {
               </span>
             </div>
 
+            {/* Alerts */}
+            {authError && (
+              <div className="p-3 text-xs rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-between">
+                <span>{authError}</span>
+                <button
+                  type="button"
+                  onClick={() => setAuthError(null)}
+                  className="text-xs hover:text-white ml-2"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+            {recoveryMessage && (
+              <div className="p-3 text-xs rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                {recoveryMessage}
+              </div>
+            )}
+
             {/* Email / Password Form */}
             <form onSubmit={handleSubmit} className="space-y-3">
               {authPageMode === 'signup' && (
@@ -209,7 +272,8 @@ export const AuthPage: React.FC = () => {
                   {authPageMode === 'signin' && (
                     <button
                       type="button"
-                      className="text-[11px] text-indigo-500 hover:text-indigo-400"
+                      onClick={handleForgotPassword}
+                      className="text-[11px] text-indigo-500 hover:text-indigo-400 cursor-pointer"
                     >
                       Forgot password?
                     </button>
@@ -234,10 +298,21 @@ export const AuthPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="w-full py-2.5 mt-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs shadow-md transition-all transform-gpu hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className="w-full py-2.5 mt-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs shadow-md transition-all transform-gpu hover:-translate-y-0.5 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <span>{authPageMode === 'signin' ? 'Sign in' : 'Create account'}</span>
+                <span>{isSubmitting ? 'Authenticating...' : authPageMode === 'signin' ? 'Sign in' : 'Create account'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDemoSignIn}
+                disabled={isSubmitting}
+                className="w-full py-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                <span>One-Click Canonical Demo Sign-In (Danny Davis)</span>
               </button>
             </form>
 

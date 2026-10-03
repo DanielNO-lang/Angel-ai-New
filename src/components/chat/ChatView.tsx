@@ -39,13 +39,15 @@ import {
   Video,
   Wrench,
   X,
+  PenTool,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
-import { Attachment, Conversation } from '../../types';
+import { Attachment, Conversation, CanvasBlock } from '../../types';
 import { AngelLogo } from '../ui/AngelLogo';
 import { AddSectionMenu } from './AddSectionMenu';
 import { useVoiceDictation } from '../../services/voice/useVoiceDictation';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
+import { getSavedCanvases, saveCanvases, setActiveCanvasId } from '../../services/canvas/canvasService';
 
 export const ChatView: React.FC = () => {
   const {
@@ -178,6 +180,31 @@ export const ChatView: React.FC = () => {
     navigator.clipboard.writeText(text);
     setCopiedMsgId(id);
     setTimeout(() => setCopiedMsgId(null), 2000);
+  };
+
+  const handleOpenInCanvas = (content: string) => {
+    const isCode = content.includes('```') || content.includes('function') || content.includes('import ') || content.includes('interface ');
+    const cleanContent = content.replace(/^```[a-zA-Z]*\n?|```$/g, '');
+    const newBlock: CanvasBlock = {
+      id: `block-from-chat-${Date.now()}`,
+      type: isCode ? 'code' : 'markdown',
+      title: isCode ? 'Code Artifact (from Chat)' : 'Document Extract (from Chat)',
+      content: cleanContent,
+      language: isCode ? 'typescript' : undefined,
+    };
+
+    const savedCanvases = getSavedCanvases();
+    const activeTargetCanvas = savedCanvases[0];
+    if (activeTargetCanvas) {
+      const updated = {
+        ...activeTargetCanvas,
+        blocks: [...activeTargetCanvas.blocks, newBlock],
+        updatedAt: new Date().toISOString(),
+      };
+      saveCanvases(savedCanvases.map((c) => (c.id === updated.id ? updated : c)));
+      setActiveCanvasId(updated.id);
+    }
+    setActiveTab('canvas');
   };
 
   const quickSearchSuggestions = [
@@ -468,9 +495,20 @@ export const ChatView: React.FC = () => {
                       <span className="inline-block w-1.5 h-3 ml-1 bg-indigo-500 animate-pulse" />
                     )}
 
-                    {/* Copy Button */}
+                    {/* Copy & Canvas Action Buttons */}
                     {!isUser && !message.isStreaming && message.content && (
                       <div className="absolute right-2 -bottom-3 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                        <button
+                          onClick={() => handleOpenInCanvas(message.content)}
+                          className={`p-1 rounded-md shadow-md border ${
+                            isLight
+                              ? 'bg-white border-slate-200 text-cyan-600 hover:text-cyan-800'
+                              : 'bg-neutral-900 border-neutral-800 text-cyan-400 hover:text-cyan-300'
+                          }`}
+                          title="Open extract in Canvas / Build"
+                        >
+                          <PenTool className="w-3 h-3" />
+                        </button>
                         <button
                           onClick={() => handleCopy(message.id, message.content)}
                           className={`p-1 rounded-md shadow-md border ${
@@ -564,6 +602,12 @@ export const ChatView: React.FC = () => {
               }}
               onSelectCreateTask={() => {
                 setActiveTab('tasks');
+              }}
+              onSelectDataAnalysis={() => {
+                setActiveTab('data_analysis');
+              }}
+              onSelectCanvas={() => {
+                setActiveTab('canvas');
               }}
               isLight={isLight}
             />

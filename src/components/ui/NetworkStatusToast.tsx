@@ -17,6 +17,7 @@ export const NetworkStatusToast: React.FC = () => {
   });
   const [showToast, setShowToast] = useState<boolean>(false);
   const [swReady, setSwReady] = useState<boolean>(false);
+  const [updateAvailable, setUpdateAvailable] = useState<boolean>(false);
 
   useEffect(() => {
     // Check service worker status
@@ -38,16 +39,32 @@ export const NetworkStatusToast: React.FC = () => {
       return () => clearTimeout(timer);
     };
 
+    const handlePwaUpdate = () => {
+      setUpdateAvailable(true);
+      setShowToast(true);
+    };
+
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
+    window.addEventListener('angel-pwa-update-ready', handlePwaUpdate);
 
     return () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
+      window.removeEventListener('angel-pwa-update-ready', handlePwaUpdate);
     };
   }, []);
 
-  if (!showToast && !isOffline) {
+  const handleApplyUpdate = () => {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        reg?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+        window.location.reload();
+      });
+    }
+  };
+
+  if (!showToast && !isOffline && !updateAvailable) {
     return null;
   }
 
@@ -59,7 +76,9 @@ export const NetworkStatusToast: React.FC = () => {
     >
       <div
         className={`flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-2xl backdrop-blur-xl transition-all ${
-          isOffline
+          updateAvailable
+            ? 'bg-purple-950/90 border-purple-500/40 text-purple-200 shadow-purple-900/30'
+            : isOffline
             ? isLight
               ? 'bg-amber-50/95 border-amber-300 text-amber-950 shadow-amber-500/10'
               : 'bg-amber-950/90 border-amber-500/40 text-amber-200 shadow-amber-900/30'
@@ -70,7 +89,9 @@ export const NetworkStatusToast: React.FC = () => {
       >
         <div
           className={`p-2 rounded-xl shrink-0 ${
-            isOffline
+            updateAvailable
+              ? 'bg-purple-500/20 text-purple-300'
+              : isOffline
               ? isLight
                 ? 'bg-amber-100 text-amber-700'
                 : 'bg-amber-500/20 text-amber-300'
@@ -79,15 +100,17 @@ export const NetworkStatusToast: React.FC = () => {
               : 'bg-emerald-500/20 text-emerald-300'
           }`}
         >
-          {isOffline ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
+          {updateAvailable ? <Database className="w-4 h-4 text-purple-300" /> : isOffline ? <WifiOff className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
         </div>
 
         <div className="flex-1 min-w-0 pr-2">
           <p className="text-xs font-semibold tracking-tight">
-            {isOffline ? 'You are offline' : 'Connection restored'}
+            {updateAvailable ? 'New Angel Version Available' : isOffline ? 'You are offline' : 'Connection restored'}
           </p>
           <p className="text-[11px] opacity-80 flex items-center gap-1.5 mt-0.5 truncate">
-            {isOffline ? (
+            {updateAvailable ? (
+              <span>Reload to run the latest compiled app code</span>
+            ) : isOffline ? (
               <>
                 <Database className="w-3 h-3 shrink-0" />
                 <span>
@@ -102,15 +125,24 @@ export const NetworkStatusToast: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowToast(false)}
-          className={`p-1.5 rounded-lg opacity-60 hover:opacity-100 transition-opacity shrink-0 ${
-            isOffline ? 'hover:bg-amber-500/20' : 'hover:bg-emerald-500/20'
-          }`}
-          aria-label="Dismiss network alert"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
+        {updateAvailable ? (
+          <button
+            onClick={handleApplyUpdate}
+            className="px-3 py-1 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold cursor-pointer shadow-xs transition-colors shrink-0"
+          >
+            Reload
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowToast(false)}
+            className={`p-1.5 rounded-lg opacity-60 hover:opacity-100 transition-opacity shrink-0 ${
+              isOffline ? 'hover:bg-amber-500/20' : 'hover:bg-emerald-500/20'
+            }`}
+            aria-label="Dismiss network alert"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
