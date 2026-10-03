@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import {ErrorBoundary} from './components/ui/ErrorBoundary';
 import './index.css';
+import './final-ui-overrides.css';
 
 // PWA Service Worker Registration (Unified lifecycle with update detection)
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -10,7 +11,6 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
     navigator.serviceWorker
       .register('/sw.js')
       .then((reg) => {
-        // Check for updates
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
           if (newWorker) {
@@ -27,7 +27,6 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
         console.warn('[Angel AI PWA] Service Worker registration failed:', err);
       });
 
-    // Handle controller change (reloaded after skipWaiting)
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!refreshing) {
