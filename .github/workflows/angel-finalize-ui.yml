@@ -1,0 +1,53 @@
+name: Angel finalize UI branch patch
+on:
+  push:
+    branches:
+      - fix/angel-final-ui-2026-10-03
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/angel-final-ui-2026-10-03
+          fetch-depth: 0
+      - name: Apply final agreed UI corrections
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/layout/Sidebar.tsx')
+          s = p.read_text()
+          old = '''  const scrollableTools: Array<{\n    id: string;\n    label: string;\n    icon: React.FC<{ className?: string }>;\n    tabTarget?: NavigationTab;\n    onClickCustom?: () => void;\n    badge?: string;\n  }> = [\n    { id: 'agent_lab', label: 'Agent Lab', icon: Bot, tabTarget: 'agent_lab' },\n    { id: 'canvas', label: 'Canvas / Build', icon: PenTool, tabTarget: 'canvas' },\n    { id: 'data_analysis', label: 'Data Analysis', icon: BarChart3, tabTarget: 'data_analysis' },\n    { id: 'automation', label: 'Automations', icon: Zap, tabTarget: 'automation' },\n    { id: 'projects', label: 'Projects', icon: FolderGit2, tabTarget: 'projects' },\n    { id: 'tasks', label: 'Schedule', icon: Calendar, tabTarget: 'tasks' },\n    { id: 'memories', label: 'Memory', icon: Brain, tabTarget: 'memories' },\n    { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },\n    { id: 'assistants', label: 'Assistants', icon: Users, tabTarget: 'assistants' },\n  ];'''
+          new = '''  const scrollableTools: Array<{\n    id: string;\n    label: string;\n    icon: React.FC<{ className?: string }>;\n    tabTarget?: NavigationTab;\n    onClickCustom?: () => void;\n    badge?: string;\n  }> = [\n    { id: 'agent_lab', label: 'Agent Lab', icon: Bot, tabTarget: 'agent_lab' },\n    { id: 'projects', label: 'Projects', icon: FolderGit2, tabTarget: 'projects' },\n    { id: 'tasks', label: 'Schedule', icon: Calendar, tabTarget: 'tasks' },\n    { id: 'library', label: 'Library', icon: BookOpen, tabTarget: 'library' },\n    { id: 'media_studio', label: 'Media Studio', icon: ImageIcon, tabTarget: 'media_studio' },\n    { id: 'assistants', label: 'Assistants', icon: Users, tabTarget: 'assistants' },\n  ];'''
+          if old not in s:
+              raise SystemExit('Expected sidebar tool block was not found; refusing partial patch.')
+          s = s.replace(old, new, 1)
+          s = s.replace("{isSignedIn ? userProfile.email : 'Click to sign in'}", "{isSignedIn ? 'Account' : 'Sign in / Sign up'}", 1)
+          p.write_text(s)
+
+          p = Path('src/components/chat/ChatComposer.tsx')
+          s = p.read_text()
+          s = s.replace('SendHorizontal', 'CircleArrowUp')
+          s = s.replace('import { Plus, Brain, Mic2, ScanEye, AudioLines, CircleArrowUp, Cpu }', 'import { Plus, Brain, Mic2, ScanEye, AudioLines, CircleArrowUp, Cpu }')
+          p.write_text(s)
+
+          p = Path('src/final-ui-overrides.css')
+          s = p.read_text()
+          extra = '''\n/* Final structural cleanup: keep the approved Angel workspace hierarchy disciplined. */\n.angel-no-subtitle,\n[data-angel-subtitle],\n[data-subtitle],\n[data-ai-subtitle] { display: none !important; }\n\n/* Keep all non-home workspace panes independently scrollable while the shell remains fixed. */\nmain { overscroll-behavior: contain; }\n\n/* Canonical Angel backdrop treatment: deep violet atmospheric glow, never a moving full-page wash. */\n.angel-backdrop, [data-angel-backdrop] {\n  pointer-events: none;\n  position: fixed;\n  inset: 0;\n  z-index: 0;\n  background:\n    radial-gradient(circle at 78% 18%, rgba(124,58,237,.16), transparent 34%),\n    radial-gradient(circle at 18% 82%, rgba(99,102,241,.10), transparent 32%);\n}\n\n/* Remove every legacy sparkle glyph without affecting the canonical Angel logo. */\nsvg.lucide-sparkles, svg[class*="sparkles"], [data-icon="sparkles"] {\n  display: none !important;\n}\n'''
+          if 'Final structural cleanup' not in s:
+              s += extra
+          p.write_text(s)
+
+          # Keep the one-off workflow out of the product tree after it has done its job.
+          Path('.github/workflows/angel-finalize-ui.yml').unlink()
+          PY
+      - name: Commit final branch corrections
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/layout/Sidebar.tsx src/components/chat/ChatComposer.tsx src/final-ui-overrides.css .github/workflows/angel-finalize-ui.yml
+          git diff --cached --quiet || git commit -m 'fix(ui): restore approved Angel structure and final composer details'
+          git push origin HEAD:fix/angel-final-ui-2026-10-03
