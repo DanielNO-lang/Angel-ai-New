@@ -7,7 +7,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { AppProvider, useAngel } from './context/AppContext';
-import { SidebarFinal as Sidebar } from './components/layout/SidebarFinal';
+import { SidebarCanonical as Sidebar } from './components/layout/SidebarCanonical';
 import { Header } from './components/layout/Header';
 import { AuthPage } from './components/auth/AuthPage';
 import { HomeView } from './components/home/HomeView';
@@ -129,35 +129,19 @@ const WorkspaceContent: React.FC = () => {
         <Sidebar />
         <div className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative transition-all duration-300 ease-in-out ${workspaceSizeMode === 'half' ? 'max-w-4xl mx-auto shadow-2xl border-x border-inherit' : 'w-full'}`}>
           <WorkspaceStageControls />
-          {isWorkspaceMinimized ? (
-            <WorkspaceMinimizedView />
-          ) : (
-            <>
-              {activeTab === 'home' ? <Header /> : <MobileTopBar />}
-              <main ref={mainScrollRef} className={`flex-1 min-h-0 ${activeTab === 'chat' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto overscroll-contain custom-scrollbar'}`}>
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 8, filter: 'blur(2px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: -6, filter: 'blur(1px)' }}
-                    transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                    className={activeTab === 'chat' ? 'h-full flex flex-col flex-1 min-h-0' : 'min-h-full'}
-                  >
-                    {renderActiveView()}
-                  </motion.div>
-                </AnimatePresence>
-              </main>
-            </>
-          )}
+          {isWorkspaceMinimized ? <WorkspaceMinimizedView /> : <>
+            {activeTab === 'home' ? <Header /> : <MobileTopBar />}
+            <main ref={mainScrollRef} className={`flex-1 min-h-0 ${activeTab === 'chat' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto overscroll-contain custom-scrollbar'}`}>
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div key={activeTab} initial={{ opacity: 0, y: 8, filter: 'blur(2px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: -6, filter: 'blur(1px)' }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }} className={activeTab === 'chat' ? 'h-full flex flex-col flex-1 min-h-0' : 'min-h-full'}>
+                  {renderActiveView()}
+                </motion.div>
+              </AnimatePresence>
+            </main>
+          </>}
         </div>
       </div>
-      {isFocusMode && (
-        <button onClick={toggleFocusMode} className={`fixed bottom-5 left-5 z-40 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xl border transition-all cursor-pointer animate-in fade-in duration-150 ${isLight ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200 shadow-slate-400/20' : 'bg-[#151926] hover:bg-neutral-800 text-white border-white/10 shadow-black/80'}`} title="Exit Focus Mode (Escape or Click)">
-          <Maximize2 className="w-3.5 h-3.5 text-indigo-400" />
-          <span>Exit Focus Mode</span>
-        </button>
-      )}
+      {isFocusMode && <button onClick={toggleFocusMode} className={`fixed bottom-5 left-5 z-40 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shadow-xl border transition-all cursor-pointer animate-in fade-in duration-150 ${isLight ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200 shadow-slate-400/20' : 'bg-[#151926] hover:bg-neutral-800 text-white border-white/10 shadow-black/80'}`} title="Exit Focus Mode (Escape or Click)"><Maximize2 className="w-3.5 h-3.5 text-indigo-400" /><span>Exit Focus Mode</span></button>}
       <NetworkStatusToast />
       <OnboardingTour />
       <CommandPalette />
@@ -167,9 +151,5 @@ const WorkspaceContent: React.FC = () => {
 };
 
 export default function App() {
-  return (
-    <AppProvider>
-      <WorkspaceContent />
-    </AppProvider>
-  );
+  return <AppProvider><WorkspaceContent /></AppProvider>;
 }
