@@ -1,39 +1,53 @@
 /* ANGEL FINAL UI CONSOLIDATION
-   Preview-branch only. Keeps the approved main workspace structure while
-   removing legacy visual drift and constraining the composer. */
+   Branch preview only. Preserves the main application structure while removing
+   legacy visual drift and enforcing the approved Angel workspace language. */
 
-/* Canonical typography across the workspace. */
 :root {
   --angel-font: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }
+
 html, body, button, input, textarea, select {
   font-family: var(--angel-font);
 }
 
-/* No legacy sparkle / magic-star glyphs. */
+/* Canonical logo is handled by AngelLogo. Never substitute it with sparkle/magic-star glyphs. */
 svg.lucide-sparkles,
-svg[class*="sparkles"] {
+svg[class*="sparkles"],
+[data-icon="sparkles"] {
   display: none !important;
 }
 
-/* Remove legacy secondary AI-style subtitles in the Home greeting only. */
+/* Remove secondary AI-style subtitles and promotional helper copy. */
+.angel-no-subtitle,
+[data-angel-subtitle],
+[data-subtitle],
+[data-ai-subtitle] {
+  display: none !important;
+}
+
+/* Keep legacy Home subtitle blocks suppressed without touching the main greeting. */
 .max-w-7xl > div:first-child > div.relative.z-10 > div.space-y-1\.5 > p {
   display: none !important;
 }
 
-/* Keep Home's approved command composer visually bounded. */
-#input-angel-prompt {
-  max-height: 180px;
+/* Home must not own the chat composer. The composer belongs to chat/working surfaces. */
+[data-home-composer="true"],
+.home-composer {
+  display: none !important;
 }
 
-/* The chat composer grows only to a controlled height. */
+/* Composer growth is intentionally capped. */
+#input-angel-prompt,
 .angel-composer textarea {
-  min-height: 40px;
   max-height: 180px !important;
   overflow-y: auto;
 }
 
-/* Composer controls remain horizontal, never a vertical list. */
+.angel-composer textarea {
+  min-height: 40px;
+}
+
+/* Composer controls stay side-by-side, never stacked. */
 .angel-composer form > div:last-child {
   display: flex;
   flex-direction: row;
@@ -44,10 +58,17 @@ svg[class*="sparkles"] {
   overflow-y: hidden;
 }
 
-/* Preserve the approved fixed/independent workspace scrolling model. */
 .angel-composer,
-.custom-scrollbar {
+.custom-scrollbar,
+main {
   overscroll-behavior: contain;
+}
+
+/* Fixed-shell / independent-scroll behavior. */
+html,
+body,
+#root {
+  min-height: 100%;
 }
 
 /* Restrained 3D depth and motion. */
@@ -57,18 +78,37 @@ svg[class*="sparkles"] {
   backface-visibility: hidden;
 }
 
-/* Consistent icon hover life without changing the canonical Angel logo. */
+/* Living icons without altering the canonical Angel logo. */
 button svg:not(.lucide-sparkles) {
   transition: transform .18s cubic-bezier(.22,1,.36,1), opacity .18s ease;
 }
+
 button:hover svg:not(.lucide-sparkles) {
   transform: translateZ(0) scale(1.04);
+}
+
+/* Canonical violet atmospheric backdrop: static depth, not a drifting full-page wash. */
+.angel-backdrop,
+[data-angel-backdrop] {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 78% 18%, rgba(124,58,237,.16), transparent 34%),
+    radial-gradient(circle at 18% 82%, rgba(99,102,241,.10), transparent 32%);
+}
+
+/* Do not let generic page scrolling move the shell itself. */
+body {
+  overflow: hidden;
 }
 
 @media (max-width: 767px) {
   .angel-composer form > div:last-child {
     scrollbar-width: none;
   }
+
   .angel-composer form > div:last-child::-webkit-scrollbar {
     display: none;
   }
