@@ -518,7 +518,7 @@ export const VisualModeView: React.FC = () => {
               <AngelLogo size={28} glow={true} />
               <h1 className="text-xl font-bold tracking-tight">Multimedia Vision</h1>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                   isActive
                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                     : isLight
@@ -563,7 +563,7 @@ export const VisualModeView: React.FC = () => {
           ) : (
             <div className="flex items-center gap-3">
               <div
-                className={`hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl border text-[11px] font-mono ${
+                className={`hidden sm:flex items-center gap-2 px-3 py-1 rounded-xl border text-[11px] font-medium ${
                   isLight
                     ? 'bg-slate-100 border-slate-200 text-slate-700'
                     : 'bg-neutral-900 border-white/10 text-neutral-300'
@@ -671,14 +671,14 @@ export const VisualModeView: React.FC = () => {
               {/* Active Overlay Status Badges */}
               {isActive && (
                 <>
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-neutral-950/80 backdrop-blur-xs border border-neutral-800 text-[11px] font-mono text-neutral-300 flex items-center gap-2 pointer-events-none">
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-neutral-950/80 backdrop-blur-xs border border-neutral-800 text-[11px] font-medium text-neutral-300 flex items-center gap-2 pointer-events-none">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                     <span className="capitalize">{streamSource} Stream</span>
                   </div>
 
                   {/* Region Select Active Badge */}
                   {isRegionSelectMode && (
-                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-md bg-neutral-900/90 backdrop-blur-xs border border-neutral-700 text-[11px] font-mono text-neutral-200 flex items-center gap-1.5 pointer-events-none">
+                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-md bg-neutral-900/90 backdrop-blur-xs border border-neutral-700 text-[11px] font-medium text-neutral-200 flex items-center gap-1.5 pointer-events-none">
                       <MousePointer className="w-3 h-3 text-neutral-400" />
                       <span>Drag to select Region of Interest</span>
                     </div>
@@ -695,7 +695,7 @@ export const VisualModeView: React.FC = () => {
                       }}
                       className="absolute border-2 border-neutral-100 bg-neutral-100/10 pointer-events-none transition-none shadow-sm"
                     >
-                      <div className="absolute -top-5 left-0 px-1.5 py-0.5 bg-neutral-950 text-neutral-200 text-[9px] font-mono rounded border border-neutral-800 whitespace-nowrap">
+                      <div className="absolute -top-5 left-0 px-1.5 py-0.5 bg-neutral-950 text-neutral-200 text-[9px] font-medium rounded border border-neutral-800 whitespace-nowrap">
                         ROI: {Math.round(selectedRegion.width)}×{Math.round(selectedRegion.height)}
                       </div>
                     </div>
@@ -723,7 +723,7 @@ export const VisualModeView: React.FC = () => {
                         setCropOnly(false);
                       }
                     }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono transition-colors ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors ${
                       isRegionSelectMode
                         ? 'bg-indigo-600 border-indigo-500 text-white'
                         : isLight
@@ -737,7 +737,7 @@ export const VisualModeView: React.FC = () => {
 
                   {/* Crop to Region Checkbox */}
                   {selectedRegion && (
-                    <label className="flex items-center gap-1.5 text-[11px] font-mono cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-[11px] font-medium cursor-pointer">
                       <input
                         type="checkbox"
                         checked={cropOnly}
@@ -755,7 +755,7 @@ export const VisualModeView: React.FC = () => {
                         setSelectedRegion(null);
                         setCropOnly(false);
                       }}
-                      className="text-[11px] font-mono text-red-500 hover:underline"
+                      className="text-[11px] font-medium text-red-500 hover:underline"
                     >
                       Clear ROI
                     </button>
@@ -771,7 +771,7 @@ export const VisualModeView: React.FC = () => {
                         setSelectedDeviceId(e.target.value);
                         startStream('camera', e.target.value);
                       }}
-                      className={`border rounded-xl px-2 py-1 text-[11px] font-mono outline-none ${
+                      className={`border rounded-xl px-2 py-1 text-[11px] font-medium outline-none ${
                         isLight
                           ? 'bg-slate-50 border-slate-200 text-slate-800'
                           : 'bg-neutral-900 border-white/10 text-neutral-200'
@@ -786,7 +786,7 @@ export const VisualModeView: React.FC = () => {
                   )}
 
                   {/* Periodic Auto-Sampling Toggle */}
-                  <div className="flex items-center gap-1.5 text-[11px] font-mono opacity-80">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium opacity-80">
                     <Repeat className="w-3 h-3" />
                     <label className="flex items-center gap-1 cursor-pointer">
                       <input
@@ -828,10 +828,10 @@ export const VisualModeView: React.FC = () => {
             {/* Intent Selector Buttons */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-wider opacity-60">
+                <span className="text-[11px] font-medium uppercase tracking-wider opacity-60">
                   Perception Intent & Focus
                 </span>
-                <span className="text-[10px] font-mono text-indigo-500">
+                <span className="text-[10px] font-medium text-indigo-500">
                   Gemini 3.8 Flash Multimodal
                 </span>
               </div>
@@ -924,17 +924,17 @@ export const VisualModeView: React.FC = () => {
               </div>
 
               {isAnalyzing ? (
-                <span className="text-[10px] font-mono text-indigo-400 flex items-center gap-1.5 animate-pulse">
+                <span className="text-[10px] font-medium text-indigo-400 flex items-center gap-1.5 animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                   Multimodal Synthesis...
                 </span>
               ) : isLastAnalysisPendingConfig ? (
-                <span className="text-[10px] font-mono text-amber-500 flex items-center gap-1">
+                <span className="text-[10px] font-medium text-amber-500 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   Pending Configuration
                 </span>
               ) : lastAnalysis ? (
-                <span className="text-[10px] font-mono text-emerald-500 flex items-center gap-1">
+                <span className="text-[10px] font-medium text-emerald-500 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   Analysis Verified
                 </span>
@@ -951,7 +951,7 @@ export const VisualModeView: React.FC = () => {
             {/* Last Captured Frame Snapshot Thumbnail */}
             {lastCapturedImage && (
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] font-mono text-neutral-500">
+                <div className="flex items-center justify-between text-[10px] font-medium text-neutral-500">
                   <span>LAST CAPTURED FRAME</span>
                   <span>{cropOnly && selectedRegion ? 'Region of Interest (Cropped)' : 'Full Viewport'}</span>
                 </div>
@@ -977,7 +977,7 @@ export const VisualModeView: React.FC = () => {
 
                   {/* Cross-Module Workspace Bridges Toolbar */}
                   <div className="pt-3 border-t border-inherit space-y-2">
-                    <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 block">
+                    <span className="text-[10px] font-medium uppercase tracking-wider opacity-60 block">
                       Bridge Context to Workspace
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -1027,7 +1027,7 @@ export const VisualModeView: React.FC = () => {
                     {/* Copy Output Button */}
                     <button
                       onClick={handleCopyAnalysis}
-                      className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border text-[11px] font-mono transition-colors ${
+                      className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border text-[11px] font-medium transition-colors ${
                         isLight
                           ? 'border-slate-200 text-slate-600 hover:bg-slate-50'
                           : 'border-white/5 text-neutral-400 hover:text-white hover:bg-neutral-800'
@@ -1069,10 +1069,10 @@ export const VisualModeView: React.FC = () => {
             {/* Analysis History Reel */}
             {analysisHistory.length > 1 && (
               <div className="pt-3 border-t border-neutral-800/80">
-                <span className="text-[10px] font-mono uppercase text-neutral-500 block mb-1.5">
+                <span className="text-[10px] font-medium uppercase text-neutral-500 block mb-1.5">
                   Recent Visual Inspections ({analysisHistory.length})
                 </span>
-                <div className="space-y-1.5 max-h-28 overflow-y-auto custom-scrollbar text-[11px] font-mono">
+                <div className="space-y-1.5 max-h-28 overflow-y-auto custom-scrollbar text-[11px] font-medium">
                   {analysisHistory.map((item) => (
                     <div
                       key={item.id}
@@ -1135,13 +1135,13 @@ export const VisualModeView: React.FC = () => {
                         <span className="text-xs font-semibold text-neutral-100">
                           {channel.name}
                         </span>
-                        <span className="text-[10px] font-mono text-neutral-500">
+                        <span className="text-[10px] font-medium text-neutral-500">
                           ({channel.type})
                         </span>
                       </div>
 
                       <span
-                        className={`text-[10px] font-mono px-2 py-0.5 rounded border uppercase ${
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded border uppercase ${
                           isActive
                             ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800'
                             : isPending
@@ -1158,13 +1158,13 @@ export const VisualModeView: React.FC = () => {
                     </p>
 
                     {channel.statusReason && (
-                      <div className="text-[11px] font-mono text-neutral-500">
+                      <div className="text-[11px] font-medium text-neutral-500">
                         Status Note: <span className="text-neutral-400">{channel.statusReason}</span>
                       </div>
                     )}
 
                     {channel.configKeysRequired && channel.configKeysRequired.length > 0 && (
-                      <div className="text-[11px] font-mono text-neutral-500">
+                      <div className="text-[11px] font-medium text-neutral-500">
                         Required Config:{' '}
                         <code className="text-neutral-300 bg-neutral-900 px-1 py-0.5 rounded">
                           {channel.configKeysRequired.join(', ')}
@@ -1176,7 +1176,7 @@ export const VisualModeView: React.FC = () => {
                       {channel.capabilities.map((cap) => (
                         <span
                           key={cap}
-                          className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-900 text-neutral-400 border border-neutral-800"
+                          className="text-[10px] font-medium px-2 py-0.5 rounded bg-neutral-900 text-neutral-400 border border-neutral-800"
                         >
                           {cap}
                         </span>

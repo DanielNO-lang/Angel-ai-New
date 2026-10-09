@@ -153,6 +153,33 @@ create table if not exists public.agent_executions (
   error text
 );
 
+-- 10. Workflows Table (Persistent Multi-Step Agent Chains & Triggers)
+create table if not exists public.workflows (
+  id text primary key,
+  user_id uuid references auth.users(id) on delete cascade,
+  name text not null,
+  description text,
+  codename text,
+  category text default 'general',
+  version text default '1.0.0',
+  enabled boolean default true,
+  trigger jsonb not null default '{"type": "manual"}'::jsonb,
+  conditions jsonb default '[]'::jsonb,
+  steps jsonb not null default '[]'::jsonb,
+  execution_chain jsonb default '[]'::jsonb,
+  stages text[] default '{}',
+  permissions text[] default '{}',
+  project_id uuid references public.projects(id) on delete set null,
+  agent_id text references public.agents(id) on delete set null,
+  system_instructions text,
+  is_template boolean default false,
+  tags text[] default '{}',
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null,
+  last_executed_at timestamptz,
+  execution_count integer default 0
+);
+
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- Strict isolation ensuring users only access their personal data
@@ -166,6 +193,7 @@ alter table public.messages enable row level security;
 alter table public.memories enable row level security;
 alter table public.tasks enable row level security;
 alter table public.agent_executions enable row level security;
+alter table public.workflows enable row level security;
 
 -- Profiles: Users can view and update their own profile
 create policy "Users can view own profile" on public.profiles
@@ -201,11 +229,16 @@ create policy "Users can manage own tasks" on public.tasks
 create policy "Users can manage own executions" on public.agent_executions
   for all using (auth.uid() = user_id);
 
+-- Workflows
+create policy "Users can manage own workflows" on public.workflows
+  for all using (auth.uid() = user_id or is_template = true);
+
 -- Performance Indexes
 create index if not exists idx_conversations_user on public.conversations(user_id, updated_at desc);
 create index if not exists idx_messages_conv on public.messages(conversation_id, created_at asc);
 create index if not exists idx_tasks_user_status on public.tasks(user_id, status);
 create index if not exists idx_memories_user_type on public.memories(user_id, type);
+create index if not exists idx_workflows_user on public.workflows(user_id, updated_at desc);
 `;
 
 export interface SupabaseConfigStatus {

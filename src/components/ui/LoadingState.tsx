@@ -30,7 +30,7 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
       aria-live="polite"
     >
       <Loader2 className={`${spinnerSize} animate-spin text-neutral-300`} />
-      {message && <p className="text-xs font-mono text-neutral-400 tracking-tight">{message}</p>}
+      {message && <p className="text-xs font-medium text-neutral-400 tracking-tight">{message}</p>}
     </div>
   );
 };

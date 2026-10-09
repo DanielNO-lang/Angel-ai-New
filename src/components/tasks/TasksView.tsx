@@ -389,7 +389,7 @@ export const TasksView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight">Schedule</h1>
-                <span className="text-[11px] font-mono opacity-60">({tasks.length} tasks)</span>
+                <span className="text-[11px] font-medium opacity-60">({tasks.length} tasks)</span>
               </div>
             </div>
           </div>
@@ -458,7 +458,7 @@ export const TasksView: React.FC = () => {
             <div className="flex items-center justify-between gap-3 mb-2">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-                <span className="text-xs font-bold uppercase tracking-wider font-mono">
+                <span className="text-xs font-bold uppercase tracking-wider font-medium">
                   Voice Quick Add Dictation Active
                 </span>
               </div>
@@ -476,7 +476,7 @@ export const TasksView: React.FC = () => {
               Speak naturally, e.g. "Prepare client demo by tomorrow urgent priority" or "Update documentation due Friday".
             </p>
             <div
-              className={`p-3 rounded-xl border text-xs font-mono min-h-[44px] flex items-center ${
+              className={`p-3 rounded-xl border text-xs font-medium min-h-[44px] flex items-center ${
                 isLight ? 'bg-white border-slate-200' : 'bg-neutral-900 border-white/10'
               }`}
             >
@@ -649,7 +649,7 @@ export const TasksView: React.FC = () => {
           {/* Quick Tag Filter Chips Bar */}
           {allUniqueTags.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap pt-2.5 border-t border-inherit text-xs">
-              <span className="text-[11px] font-mono opacity-60 mr-1 flex items-center gap-1 shrink-0">
+              <span className="text-[11px] font-medium opacity-60 mr-1 flex items-center gap-1 shrink-0">
                 <Tag className="w-3 h-3 text-indigo-400" />
                 <span>Tags:</span>
               </span>
@@ -673,7 +673,7 @@ export const TasksView: React.FC = () => {
                   <button
                     key={tag}
                     onClick={() => setSelectedTag(isSelected ? 'all' : tag)}
-                    className={`px-2.5 py-0.5 rounded-lg text-xs font-mono transition-all flex items-center gap-1 ${
+                    className={`px-2.5 py-0.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1 ${
                       isSelected
                         ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
                         : isLight
@@ -724,7 +724,7 @@ export const TasksView: React.FC = () => {
           </div>
 
           {/* Results Counter */}
-          <div className="text-[11px] font-mono opacity-60 shrink-0 self-end sm:self-center">
+          <div className="text-[11px] font-medium opacity-60 shrink-0 self-end sm:self-center">
             Showing <span className="font-semibold text-indigo-500">{filteredTasks.length}</span> of{' '}
             {tasks.length} tasks
           </div>
@@ -829,7 +829,7 @@ export const TasksView: React.FC = () => {
                           <select
                             value={task.priority}
                             onChange={(e) => updateTask(task.id, { priority: e.target.value as TaskPriority })}
-                            className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-md border outline-none cursor-pointer shrink-0 transition-colors ${
+                            className={`text-[10px] font-medium uppercase px-2 py-0.5 rounded-md border outline-none cursor-pointer shrink-0 transition-colors ${
                               task.priority === 'urgent'
                                 ? 'bg-red-500/10 text-red-500 border-red-500/30 font-bold'
                                 : task.priority === 'high'
@@ -850,7 +850,7 @@ export const TasksView: React.FC = () => {
                           <select
                             value={task.status}
                             onChange={(e) => handleStatusChange(task.id, e.target.value as TaskStatus)}
-                            className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-lg border outline-none cursor-pointer shrink-0 ${
+                            className={`text-[10px] font-medium uppercase px-2 py-0.5 rounded-lg border outline-none cursor-pointer shrink-0 ${
                               isLight
                                 ? 'bg-slate-50 border-slate-200 text-slate-700'
                                 : 'bg-neutral-950 border-neutral-800 text-neutral-400'
@@ -866,7 +866,7 @@ export const TasksView: React.FC = () => {
                           {/* Recurring Schedule Badge */}
                           {task.recurring && (
                             <span
-                              className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md border shrink-0 ${
+                              className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border shrink-0 ${
                                 isLight
                                   ? 'bg-slate-100 border-slate-200 text-slate-700'
                                   : 'bg-neutral-950 border-neutral-800 text-neutral-300'
@@ -880,7 +880,7 @@ export const TasksView: React.FC = () => {
                           {/* Deadline / Due Date */}
                           {task.dueDate && (
                             <span
-                              className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-md border shrink-0 ${
+                              className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border shrink-0 ${
                                 isLight
                                   ? 'bg-slate-100 border-slate-200 text-slate-600'
                                   : 'bg-neutral-950 border-neutral-800 text-neutral-400'
@@ -912,7 +912,7 @@ export const TasksView: React.FC = () => {
                                 : 'bg-neutral-950/60 border-neutral-800/80'
                             }`}
                           >
-                            <div className="flex items-center justify-between text-[11px] font-mono opacity-60">
+                            <div className="flex items-center justify-between text-[11px] font-medium opacity-60">
                               <span>
                                 Subtasks ({completedSubtasks}/{task.subtasks.length})
                               </span>
@@ -947,7 +947,7 @@ export const TasksView: React.FC = () => {
                         )}
 
                         {/* Tags & Completion date */}
-                        <div className="flex items-center gap-2.5 pt-1 text-[10px] font-mono opacity-70 flex-wrap">
+                        <div className="flex items-center gap-2.5 pt-1 text-[10px] font-medium opacity-70 flex-wrap">
                           {task.tags && task.tags.length > 0 && (
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {task.tags.map((t) => (
@@ -973,7 +973,7 @@ export const TasksView: React.FC = () => {
                       {/* Assigned Agent Pill */}
                       {assignedAgent && (
                         <div
-                          className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] font-mono ${
+                          className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-[11px] font-medium ${
                             isLight
                               ? 'bg-slate-100 border-slate-200 text-slate-700'
                               : 'bg-neutral-950 border-neutral-800 text-neutral-300'
@@ -1129,7 +1129,7 @@ export const TasksView: React.FC = () => {
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-mono outline-none border ${
+                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-medium outline-none border ${
                       isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900 border-white/10'
                     }`}
                   />

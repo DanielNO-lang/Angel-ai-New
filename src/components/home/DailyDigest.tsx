@@ -17,7 +17,7 @@ import {
   Bot,
   Zap,
   FolderGit2,
-  Sparkles,
+  Flame,
   CheckSquare,
   AlertCircle,
   Plus,
@@ -76,12 +76,12 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-inherit">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white shadow-md">
-            <Sparkles className="w-5 h-5" />
+            <Flame className="w-5 h-5 text-amber-300" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-bold tracking-tight">Daily Digest & Briefing</h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold border border-indigo-500/20">
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold border border-indigo-500/20">
                 {todayDate}
               </span>
             </div>
@@ -94,7 +94,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
         {/* Global Velocity Pill */}
         <div className="flex items-center gap-3 self-start sm:self-center">
           <div className="text-right">
-            <div className="text-[11px] font-mono opacity-60">Completion Rate</div>
+            <div className="text-[11px] font-medium opacity-60">Completion Rate</div>
             <div className="text-xs font-bold text-indigo-400">{completionRate}% ({completedTasks.length}/{tasks.length})</div>
           </div>
           <div className="w-12 h-12 rounded-full border-4 border-indigo-500/20 flex items-center justify-center relative">
@@ -104,7 +104,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
                 clipPath: `polygon(50% 50%, -50% -50%, ${completionRate}% -50%, ${completionRate}% ${completionRate}%)`,
               }}
             />
-            <span className="text-[11px] font-bold font-mono">{completionRate}%</span>
+            <span className="text-[11px] font-bold font-medium">{completionRate}%</span>
           </div>
         </div>
       </div>
@@ -150,7 +150,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
                   </button>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold truncate">{t.title}</p>
-                    <div className="flex items-center gap-1.5 mt-1 text-[10px] font-mono">
+                    <div className="flex items-center gap-1.5 mt-1 text-[10px] font-medium">
                       <span
                         className={`px-1.5 py-0.2 rounded font-semibold uppercase ${
                           t.priority === 'urgent'
@@ -204,7 +204,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-semibold truncate">{m.title}</p>
-                    <span className="text-[9px] font-mono px-1 rounded bg-pink-500/10 text-pink-400 shrink-0">
+                    <span className="text-[9px] font-medium px-1 rounded bg-pink-500/10 text-pink-400 shrink-0">
                       {m.type.replace('_', ' ')}
                     </span>
                   </div>
@@ -247,7 +247,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
                   {agents.slice(0, 4).map((a) => (
                     <span
                       key={a.id}
-                      className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                      className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
                     >
                       {a.name}
                     </span>
@@ -267,7 +267,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
                   <div className="flex items-center justify-between text-xs font-semibold">
                     <span className="truncate">{ex.agentName}</span>
                     <span
-                      className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase ${
+                      className={`text-[9px] font-medium px-1.5 py-0.5 rounded uppercase ${
                         ex.status === 'completed'
                           ? 'bg-emerald-500/10 text-emerald-400'
                           : ex.status === 'executing'

@@ -140,7 +140,7 @@ export const ProjectsView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight">Projects</h1>
-                <span className="text-[11px] font-mono opacity-60">({projects.length} active)</span>
+                <span className="text-[11px] font-medium opacity-60">({projects.length} active)</span>
               </div>
             </div>
           </div>
@@ -204,7 +204,7 @@ export const ProjectsView: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>{proj.name}</h3>
                       <span
-                        className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                        className={`text-[10px] font-medium uppercase px-2 py-0.5 rounded border ${
                           isLight
                             ? 'bg-slate-100 border-slate-200 text-slate-600'
                             : 'bg-[#0E121B] border-white/5 text-neutral-400'
@@ -219,7 +219,7 @@ export const ProjectsView: React.FC = () => {
 
                     {/* Visual Progress Bar */}
                     <div className="mt-3 space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-mono">
+                      <div className="flex items-center justify-between text-[10px] font-medium">
                         <span className="opacity-60">Completion</span>
                         <span className="font-semibold text-indigo-400">{progressPct}%</span>
                       </div>
@@ -231,7 +231,7 @@ export const ProjectsView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className={`flex items-center justify-between mt-2.5 text-[10px] font-mono ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
+                    <div className={`flex items-center justify-between mt-2.5 text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
                         <span>{proj.dueDate ? `Due ${proj.dueDate}` : 'Active milestone'}</span>
@@ -329,7 +329,7 @@ export const ProjectsView: React.FC = () => {
                       }`}
                     >
                       <span className="font-semibold">{agent.name}</span>
-                      <span className={`text-[10px] font-mono ${isLight ? 'text-purple-600' : 'text-neutral-500'}`}>
+                      <span className={`text-[10px] font-medium ${isLight ? 'text-purple-600' : 'text-neutral-500'}`}>
                         {agent.codename}
                       </span>
                     </div>
@@ -376,7 +376,7 @@ export const ProjectsView: React.FC = () => {
                       }`}
                     >
                       <span className="truncate">{t.title}</span>
-                      <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded border ${
+                      <span className={`text-[10px] font-medium uppercase px-2 py-0.5 rounded border ${
                         isLight
                           ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                           : 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20'
@@ -451,7 +451,7 @@ export const ProjectsView: React.FC = () => {
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-mono border outline-none ${
+                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-medium border outline-none ${
                       isLight
                         ? 'bg-slate-50 border-slate-200 text-slate-800'
                         : 'bg-[#0E121B] border-white/10 text-neutral-200'
@@ -464,7 +464,7 @@ export const ProjectsView: React.FC = () => {
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-mono border outline-none ${
+                    className={`w-full rounded-xl px-3 py-1.5 text-xs font-medium border outline-none ${
                       isLight
                         ? 'bg-slate-50 border-slate-200 text-slate-800'
                         : 'bg-[#0E121B] border-white/10 text-neutral-200'

@@ -25,6 +25,8 @@ import { AssistantsView } from './components/assistants/AssistantsView';
 import { MarketplaceView } from './components/marketplace/MarketplaceView';
 import { MoreToolsView } from './components/tools/MoreToolsView';
 import { LibraryView } from './components/library/LibraryView';
+import { IncognitoView } from './components/chat/IncognitoView';
+import { GuestGateBanner } from './components/auth/GuestGateBanner';
 import { CanvasView } from './components/canvas/CanvasView';
 import { DataAnalysisView } from './components/data_analysis/DataAnalysisView';
 import { AutomationView } from './components/automation/AutomationView';
@@ -46,7 +48,10 @@ const WorkspaceContent: React.FC = () => {
     activeTab,
     setActiveTab,
     settings,
+    isSignedIn,
     isIncognitoActive,
+    setIsAuthPageOpen,
+    setAuthPageMode,
     isWorkspaceMinimized,
     workspaceSizeMode,
     openCommandPalette,
@@ -56,15 +61,21 @@ const WorkspaceContent: React.FC = () => {
   } = useAngel();
   const isLight = settings.theme === 'light';
 
-  // Section Scroll Anchor: Reset scroll position to top whenever active section changes
+  // Section Scroll Anchor: Reset scroll position to top whenever active section changes or clicked
   const mainScrollRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (mainScrollRef.current) {
-      mainScrollRef.current.scrollTop = 0;
-    }
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    }
+    const handleScrollToTop = () => {
+      if (mainScrollRef.current) {
+        mainScrollRef.current.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      }
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      }
+    };
+
+    handleScrollToTop();
+    window.addEventListener('angel-return-to-top', handleScrollToTop);
+    return () => window.removeEventListener('angel-return-to-top', handleScrollToTop);
   }, [activeTab]);
 
   // Global Keyboard Shortcuts Manager
@@ -133,6 +144,20 @@ const WorkspaceContent: React.FC = () => {
   }, [openCommandPalette, setActiveTab, toggleSidebar]);
 
   const renderActiveView = () => {
+    // 1. Incognito Mode: dedicated isolated page comprising only the chats and chat bar
+    if (isIncognitoActive) {
+      return <IncognitoView />;
+    }
+
+    // 2. Guest user redirection: directly redirect to sign-in modal for locked features
+    if (!isSignedIn && (activeTab === 'library' || activeTab === 'projects' || activeTab === 'agent_lab' || activeTab === 'tasks' || activeTab === 'schedule' || activeTab === 'more' || activeTab === 'memories')) {
+      setTimeout(() => {
+        setAuthPageMode('signin');
+        setIsAuthPageOpen(true);
+      }, 0);
+      return <HomeView />;
+    }
+
     switch (activeTab) {
       case 'home':
         return <HomeView />;
@@ -184,9 +209,11 @@ const WorkspaceContent: React.FC = () => {
   return (
     <div
       className={`relative flex min-h-screen font-sans antialiased selection:bg-indigo-600/30 selection:text-white transition-all duration-300 ease-in-out ${
-        isLight
-          ? 'light text-slate-900 bg-white'
-          : 'dark text-neutral-100 bg-[#0B0E14]'
+        settings.theme === 'light'
+          ? 'light text-slate-900 bg-transparent'
+          : settings.theme === 'midnight'
+          ? 'midnight dark text-white bg-transparent'
+          : 'dark text-neutral-100 bg-transparent'
       } ${
         settings.fontSize === 'sm'
           ? 'text-xs'

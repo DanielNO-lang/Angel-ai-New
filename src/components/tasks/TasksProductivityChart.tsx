@@ -126,7 +126,7 @@ export const TasksProductivityChart: React.FC<TasksProductivityChartProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-xs font-mono">
+        <div className="flex items-center gap-4 text-xs font-medium">
           <div>
             <span className="opacity-60 text-[10px] block">Velocity Rate</span>
             <span className="font-bold text-indigo-400">{overallRate}% overall</span>
@@ -147,7 +147,7 @@ export const TasksProductivityChart: React.FC<TasksProductivityChartProps> = ({
             <span className="font-semibold uppercase tracking-wider text-[11px] opacity-70">
               7-Day Completion Activity
             </span>
-            <span className="text-[10px] font-mono text-indigo-400">
+            <span className="text-[10px] font-medium text-indigo-400">
               Completed Tasks per Day
             </span>
           </div>
@@ -191,7 +191,7 @@ export const TasksProductivityChart: React.FC<TasksProductivityChartProps> = ({
                           }`}
                         >
                           <div className="font-bold">{label} ({data.dateKey})</div>
-                          <div className="text-indigo-400 mt-1 font-mono">
+                          <div className="text-indigo-400 mt-1 font-medium">
                             Completed: {data.completed} tasks
                           </div>
                           <div className="text-neutral-400 text-[10px]">
@@ -223,7 +223,7 @@ export const TasksProductivityChart: React.FC<TasksProductivityChartProps> = ({
               <span className="font-semibold uppercase tracking-wider text-[11px] opacity-70">
                 Pending by Priority
               </span>
-              <span className="text-[10px] font-mono opacity-50">Distribution</span>
+              <span className="text-[10px] font-medium opacity-50">Distribution</span>
             </div>
 
             <div className="h-28 w-full">
@@ -265,7 +265,7 @@ export const TasksProductivityChart: React.FC<TasksProductivityChartProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-inherit text-[10px] font-mono">
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-inherit text-[10px] font-medium">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-red-500" />
               <span>Urgent: {priorityBreakdown[0].count}</span>

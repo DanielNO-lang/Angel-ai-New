@@ -10,7 +10,7 @@ import {
   BarChart3,
   Upload,
   Table as TableIcon,
-  Sparkles,
+  Activity,
   Download,
   Filter,
   CheckCircle2,
@@ -245,8 +245,8 @@ Please provide a deep strategic breakdown and recommend the next operational ste
       title: `Dataset: ${currentDataset.name}`,
       description: currentDataset.description,
       type: 'document',
-      category: 'data',
-      size: `${Math.round(csvContent.length / 1024)} KB`,
+      category: 'resources',
+      sizeBytes: csvContent.length,
       tags: [...currentDataset.tags, 'dataset', 'analysis'],
     });
     setStatusMessage(`Saved "${currentDataset.name}" to workspace Library!`);
@@ -287,6 +287,8 @@ Please provide a deep strategic breakdown and recommend the next operational ste
       title: `Investigate Data Outlier: ${currentDataset.name}`,
       description: anomalyText,
       priority: 'high',
+      status: 'todo',
+      subtasks: [],
       tags: ['data-investigation', 'anomaly'],
     });
     setStatusMessage('Created task for data investigation!');
@@ -321,7 +323,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dedicated Data Analysis Engine</h1>
                 {currentDataset && (
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold border ${
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium font-semibold border ${
                       currentDataset.isSample
                         ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                         : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
@@ -366,7 +368,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
         {/* Status Toast */}
         {statusMessage && (
           <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs flex items-center gap-2 animate-in fade-in">
-            <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
+            <Activity className="w-4 h-4 text-blue-400 shrink-0" />
             <span>{statusMessage}</span>
           </div>
         )}
@@ -470,7 +472,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                 />
               </div>
 
-              <div className="flex items-center gap-3 text-xs font-mono text-neutral-400">
+              <div className="flex items-center gap-3 text-xs font-medium text-neutral-400">
                 <span>
                   Showing {paginatedRows.length} of {processedRows.length} records
                 </span>
@@ -498,7 +500,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
 
             {/* Scrollable Data Table */}
             <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left text-xs font-mono border-collapse">
+              <table className="w-full text-left text-xs font-medium border-collapse">
                 <thead>
                   <tr
                     className={`border-b ${
@@ -578,8 +580,8 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm font-mono text-blue-400">{col.name}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-blue-500/10 text-blue-300 uppercase">
+                    <span className="font-bold text-sm font-medium text-blue-400">{col.name}</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/10 text-blue-300 uppercase">
                       {col.type}
                     </span>
                   </div>
@@ -598,7 +600,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                   </div>
 
                   {col.stats && (
-                    <div className="pt-2 border-t border-white/5 space-y-1 text-[11px] font-mono">
+                    <div className="pt-2 border-t border-white/5 space-y-1 text-[11px] font-medium">
                       <div className="flex justify-between text-neutral-400">
                         <span>Min / Max:</span>
                         <span>
@@ -618,7 +620,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                     </div>
                   )}
 
-                  <div className="text-[10px] text-neutral-500 font-mono truncate">
+                  <div className="text-[10px] text-neutral-500 font-medium truncate">
                     Samples: {col.sampleValues.join(', ')}
                   </div>
                 </div>
@@ -639,7 +641,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
               }`}
             >
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-neutral-400 font-mono">Chart Type:</span>
+                <span className="text-xs font-bold text-neutral-400 font-medium">Chart Type:</span>
                 {(['bar', 'line', 'area', 'pie', 'scatter'] as ChartType[]).map((type) => (
                   <button
                     key={type}
@@ -659,7 +661,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
 
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 text-xs">
-                  <span className="font-mono text-neutral-400">X-Axis:</span>
+                  <span className="font-medium text-neutral-400">X-Axis:</span>
                   <select
                     value={selectedXCol}
                     onChange={(e) => setSelectedXCol(e.target.value)}
@@ -676,7 +678,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                 </div>
 
                 <div className="flex items-center gap-1.5 text-xs">
-                  <span className="font-mono text-neutral-400">Y-Axis:</span>
+                  <span className="font-medium text-neutral-400">Y-Axis:</span>
                   <select
                     value={selectedYCol}
                     onChange={(e) => setSelectedYCol(e.target.value)}
@@ -707,7 +709,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                   <h3 className="font-bold text-base">
                     {selectedYCol} by {selectedXCol}
                   </h3>
-                  <span className="text-xs font-mono text-neutral-400">
+                  <span className="text-xs font-medium text-neutral-400">
                     Real data points plotted from {chartData.length} records (no fabricated values)
                   </span>
                 </div>
@@ -830,7 +832,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                 </span>
                 <div>
                   <h2 className="text-lg font-bold">{insights.headline}</h2>
-                  <span className="text-xs text-neutral-400 font-mono">
+                  <span className="text-xs text-neutral-400 font-medium">
                     Deterministic statistical aggregation + executive narrative synthesis
                   </span>
                 </div>
@@ -840,7 +842,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                 {Object.entries(insights.calculatedMetrics).map(([k, v]) => (
                   <div key={k} className="p-3 rounded-2xl bg-black/20 border border-white/5">
-                    <span className="text-[10px] font-mono text-neutral-400 block truncate">{k}</span>
+                    <span className="text-[10px] font-medium text-neutral-400 block truncate">{k}</span>
                     <span className="text-base font-bold text-white mt-0.5 block truncate">
                       {typeof v === 'number' ? v.toLocaleString() : v}
                     </span>
@@ -857,7 +859,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                   isLight ? 'bg-white border-slate-200' : 'bg-[#10141E] border-white/10'
                 }`}
               >
-                <span className="text-xs font-bold font-mono text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                <span className="text-xs font-bold font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4" />
                   Key Empirical Findings
                 </span>
@@ -877,7 +879,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                   isLight ? 'bg-white border-slate-200' : 'bg-[#10141E] border-white/10'
                 }`}
               >
-                <span className="text-xs font-bold font-mono text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                <span className="text-xs font-bold font-medium text-amber-400 uppercase tracking-wider flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4" />
                   Detected Outliers & Variance Anomalies
                 </span>
@@ -1010,7 +1012,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase font-mono block mb-1">
+                <label className="text-xs font-bold text-neutral-400 uppercase font-medium block mb-1">
                   Dataset Name
                 </label>
                 <input
@@ -1025,7 +1027,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
               </div>
 
               <div className="flex items-center gap-3 text-xs">
-                <span className="font-bold text-neutral-400 font-mono">Format:</span>
+                <span className="font-bold text-neutral-400 font-medium">Format:</span>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="radio"
@@ -1047,7 +1049,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
               </div>
 
               <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase font-mono block mb-1">
+                <label className="text-xs font-bold text-neutral-400 uppercase font-medium block mb-1">
                   Raw Content
                 </label>
                 <textarea
@@ -1059,7 +1061,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                   }
                   value={uploadText}
                   onChange={(e) => setUploadText(e.target.value)}
-                  className={`w-full p-3 rounded-2xl border font-mono text-xs outline-none ${
+                  className={`w-full p-3 rounded-2xl border font-medium text-xs outline-none ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                   }`}
                 />

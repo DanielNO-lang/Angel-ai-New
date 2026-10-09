@@ -215,7 +215,7 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
             </div>
             <div>
               <h2 className="text-sm font-semibold tracking-tight">Cryptographic Secrets Vault</h2>
-              <p className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+              <p className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                 {isUnlocked ? 'AES-GCM 256-bit Unlocked' : 'PBKDF2 Key Derivation Protected'}
               </p>
             </div>
@@ -289,7 +289,7 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
             </div>
 
             {errorMessage && <p className="text-xs text-red-500 font-medium">{errorMessage}</p>}
-            {isLoading && <p className="text-xs text-purple-400 font-mono">Deriving cryptographic key...</p>}
+            {isLoading && <p className="text-xs text-purple-400 font-medium">Deriving cryptographic key...</p>}
 
             {/* Keypad */}
             <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto pt-2">
@@ -367,7 +367,7 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
                       <span className="text-xs font-medium text-neutral-200 truncate">{chat.title}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono text-neutral-500">
+                      <span className="text-[10px] font-medium text-neutral-500">
                         {new Date(chat.updatedAt).toLocaleDateString()}
                       </span>
                       <button

@@ -99,7 +99,7 @@ export const ProjectsActivityChart: React.FC<ProjectsActivityChartProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-xs font-mono">
+        <div className="flex items-center gap-4 text-xs font-medium">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-indigo-500" />
             <span className="opacity-70">Agent Executions</span>
@@ -145,10 +145,10 @@ export const ProjectsActivityChart: React.FC<ProjectsActivityChartProps> = ({
                     >
                       <div className="font-bold">{label} ({data.dateKey})</div>
                       <div className="text-indigo-400 mt-1">
-                        Agent Executions: <span className="font-mono font-bold">{data.agentRuns}</span>
+                        Agent Executions: <span className="font-medium font-bold">{data.agentRuns}</span>
                       </div>
                       <div className="text-emerald-400">
-                        Tasks Completed: <span className="font-mono font-bold">{data.tasksCompleted}</span>
+                        Tasks Completed: <span className="font-medium font-bold">{data.tasksCompleted}</span>
                       </div>
                     </div>
                   );

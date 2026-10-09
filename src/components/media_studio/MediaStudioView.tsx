@@ -252,7 +252,7 @@ export const MediaStudioView: React.FC = () => {
             </span>
             <div>
               <h1 className="text-xl font-bold tracking-tight">Media Studio</h1>
-              <span className="text-[11px] font-mono opacity-60">
+              <span className="text-[11px] font-medium opacity-60">
                 Model-Backed Multimodal Image & Video Synthesis Engine
               </span>
             </div>
@@ -308,7 +308,7 @@ export const MediaStudioView: React.FC = () => {
                       <Sparkles className="w-3.5 h-3.5 text-purple-400" />
                       <span>{activeTabMode === 'video' ? 'Video Narrative Prompt' : 'Synthesis Prompt'}</span>
                     </label>
-                    <span className="text-[10px] font-mono text-neutral-400">
+                    <span className="text-[10px] font-medium text-neutral-400">
                       {activeTabMode === 'video' ? 'veo-3.1-lite-generate-preview' : selectedModel}
                     </span>
                   </div>
@@ -340,7 +340,7 @@ export const MediaStudioView: React.FC = () => {
                           key={r}
                           type="button"
                           onClick={() => setAspectRatio(r)}
-                          className={`flex-1 py-1.5 text-xs rounded-xl border font-mono transition-colors cursor-pointer ${
+                          className={`flex-1 py-1.5 text-xs rounded-xl border font-medium transition-colors cursor-pointer ${
                             aspectRatio === r
                               ? 'bg-purple-600 text-white border-purple-500 font-semibold'
                               : isLight
@@ -431,12 +431,12 @@ export const MediaStudioView: React.FC = () => {
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400 font-mono">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400 font-medium">
                     Live Synthesis Stage
                   </h3>
                   {currentJob && (
                     <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                         currentJob.status === 'completed'
                           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                           : currentJob.status === 'failed'
@@ -498,7 +498,7 @@ export const MediaStudioView: React.FC = () => {
                                 style={{ width: `${currentJob.progress}%` }}
                               />
                             </div>
-                            <span className="text-[10px] font-mono text-neutral-400">{currentJob.progress}%</span>
+                            <span className="text-[10px] font-medium text-neutral-400">{currentJob.progress}%</span>
                           </div>
                         )}
                       </div>
@@ -594,7 +594,7 @@ export const MediaStudioView: React.FC = () => {
                 isLight ? 'bg-white border-slate-200' : 'bg-[#10141E] border-white/10'
               }`}
             >
-              <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 font-mono mb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 font-medium mb-3">
                 Selected Source Image
               </h3>
               {editSourceImage ? (
@@ -617,7 +617,7 @@ export const MediaStudioView: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold">Stored Artifacts & Generation Reel</h3>
-            <span className="text-xs font-mono text-neutral-400">{artifacts.length} Assets Registered</span>
+            <span className="text-xs font-medium text-neutral-400">{artifacts.length} Assets Registered</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -635,7 +635,7 @@ export const MediaStudioView: React.FC = () => {
                       alt={art.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <span className="absolute top-2 left-2 text-[10px] font-mono px-2 py-0.5 rounded-md bg-black/60 text-white">
+                    <span className="absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-md bg-black/60 text-white">
                       {art.aspectRatio}
                     </span>
                   </div>

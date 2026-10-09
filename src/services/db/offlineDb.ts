@@ -4,20 +4,20 @@
  */
 
 import Dexie, { Table } from 'dexie';
-import { Conversation, Message, Task, Memory, Project, Agent, LibraryItem, AssistantEntity } from '../../types';
+import { Conversation, Message, Task, Memory, Project, Agent, LibraryItem, AssistantEntity, Workflow } from '../../types';
 
 export interface OfflineAppState {
   id: string;
   activeTab: string;
   theme: string;
-  syncStatus: 'synced' | 'syncing' | 'offline_queued' | 'error';
+  syncStatus: 'synced' | 'syncing' | 'offline_queued' | 'error' | 'offline';
   lastSyncedAt: string;
   updatedAt: string;
 }
 
 export interface QueuedMutation {
   id: string;
-  entityType: 'task' | 'memory' | 'project' | 'conversation' | 'message' | 'assistant' | 'library_item';
+  entityType: 'task' | 'memory' | 'project' | 'conversation' | 'message' | 'assistant' | 'library_item' | 'workflow' | 'agent' | 'setting';
   action: 'create' | 'update' | 'delete';
   entityId: string;
   payload: any;
@@ -41,6 +41,7 @@ export class AngelOfflineDatabase extends Dexie {
   tasks!: Table<Task, string>;
   memories!: Table<Memory, string>;
   projects!: Table<Project, string>;
+  workflows!: Table<Workflow, string>;
   agents!: Table<Agent, string>;
   libraryItems!: Table<LibraryItem, string>;
   assistants!: Table<AssistantEntity, string>;
@@ -63,10 +64,125 @@ export class AngelOfflineDatabase extends Dexie {
       encryptedSecrets: 'id, category, updatedAt',
       appState: 'id, updatedAt',
     });
+    this.version(3).stores({
+      conversations: 'id, agentId, projectId, updatedAt, pinned, isArchived',
+      messages: 'id, conversationId, role, createdAt',
+      tasks: 'id, status, priority, projectId, updatedAt',
+      memories: 'id, type, updatedAt, isPinned',
+      projects: 'id, status, updatedAt',
+      workflows: 'id, category, enabled, updatedAt',
+      agents: 'id, status, updatedAt',
+      libraryItems: 'id, category, type, isFavorite, updatedAt',
+      assistants: 'id, category, updatedAt',
+      syncQueue: 'id, entityType, action, status, clientTimestamp',
+      encryptedSecrets: 'id, category, updatedAt',
+      appState: 'id, updatedAt',
+    });
   }
 }
 
 export const offlineDb = new AngelOfflineDatabase();
+
+/**
+ * Load complete offline workspace snapshots from IndexedDB
+ */
+export async function loadWorkspaceFromIndexedDB(): Promise<{
+  conversations: Conversation[];
+  messagesMap: Record<string, Message[]>;
+  tasks: Task[];
+  memories: Memory[];
+  projects: Project[];
+  workflows: Workflow[];
+  agents: Agent[];
+  libraryItems: LibraryItem[];
+  assistants: AssistantEntity[];
+  appState: OfflineAppState | null;
+}> {
+  try {
+    const [
+      conversations,
+      allMessages,
+      tasks,
+      memories,
+      projects,
+      workflows,
+      agents,
+      libraryItems,
+      assistants,
+      appStateRecords,
+    ] = await Promise.all([
+      offlineDb.conversations.toArray(),
+      offlineDb.messages.toArray(),
+      offlineDb.tasks.toArray(),
+      offlineDb.memories.toArray(),
+      offlineDb.projects.toArray(),
+      offlineDb.workflows.toArray(),
+      offlineDb.agents.toArray(),
+      offlineDb.libraryItems.toArray(),
+      offlineDb.assistants.toArray(),
+      offlineDb.appState.toArray(),
+    ]);
+
+    const messagesMap: Record<string, Message[]> = {};
+    for (const msg of allMessages) {
+      if (!messagesMap[msg.conversationId]) {
+        messagesMap[msg.conversationId] = [];
+      }
+      messagesMap[msg.conversationId].push(msg);
+    }
+
+    return {
+      conversations,
+      messagesMap,
+      tasks,
+      memories,
+      projects,
+      workflows,
+      agents,
+      libraryItems,
+      assistants,
+      appState: appStateRecords[0] || null,
+    };
+  } catch (error) {
+    console.warn('[OfflineDB] Error loading workspace from IndexedDB:', error);
+    return {
+      conversations: [],
+      messagesMap: {},
+      tasks: [],
+      memories: [],
+      projects: [],
+      workflows: [],
+      agents: [],
+      libraryItems: [],
+      assistants: [],
+      appState: null,
+    };
+  }
+}
+
+/**
+ * Clears all local workspace IndexedDB tables cleanly (used during Workspace Reset)
+ */
+export async function clearAllLocalIndexedDB(): Promise<void> {
+  try {
+    await Promise.all([
+      offlineDb.conversations.clear(),
+      offlineDb.messages.clear(),
+      offlineDb.tasks.clear(),
+      offlineDb.memories.clear(),
+      offlineDb.projects.clear(),
+      offlineDb.workflows.clear(),
+      offlineDb.agents.clear(),
+      offlineDb.libraryItems.clear(),
+      offlineDb.assistants.clear(),
+      offlineDb.syncQueue.clear(),
+      offlineDb.encryptedSecrets.clear(),
+      offlineDb.appState.clear(),
+    ]);
+  } catch (error) {
+    console.warn('[OfflineDB] Error clearing IndexedDB tables:', error);
+  }
+}
 
 /**
  * Synchronize full workspace memory snapshots to IndexedDB
@@ -77,12 +193,13 @@ export async function syncWorkspaceToIndexedDB(payload: {
   tasks?: Task[];
   memories?: Memory[];
   projects?: Project[];
+  workflows?: Workflow[];
   agents?: Agent[];
   libraryItems?: LibraryItem[];
   assistants?: AssistantEntity[];
   activeTab?: string;
   theme?: string;
-  syncStatus?: 'synced' | 'syncing' | 'offline_queued' | 'error';
+  syncStatus?: 'synced' | 'syncing' | 'offline_queued' | 'error' | 'offline';
 }): Promise<void> {
   try {
     const promises: Promise<unknown>[] = [];
@@ -108,6 +225,10 @@ export async function syncWorkspaceToIndexedDB(payload: {
 
     if (payload.projects && payload.projects.length > 0) {
       promises.push(offlineDb.projects.bulkPut(payload.projects));
+    }
+
+    if (payload.workflows && payload.workflows.length > 0) {
+      promises.push(offlineDb.workflows.bulkPut(payload.workflows));
     }
 
     if (payload.agents && payload.agents.length > 0) {

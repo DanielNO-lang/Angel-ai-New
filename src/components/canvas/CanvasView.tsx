@@ -14,7 +14,7 @@ import {
   Play,
   Copy,
   Check,
-  Sparkles,
+  Wand2,
   Download,
   History,
   RotateCcw,
@@ -47,7 +47,7 @@ import {
   applyAiTransformation,
   AiTransformationType,
 } from '../../services/canvas/canvasService';
-import { executeToolCall } from '../ai/toolRegistry';
+import { executeToolCall } from '../../services/ai/toolRegistry';
 
 export const CanvasView: React.FC = () => {
   const {
@@ -224,8 +224,8 @@ Please review this implementation, suggest architectural improvements, and point
       title: `Canvas: ${activeCanvas.title}`,
       description: `Exported Canvas Artifact (v${activeCanvas.version}, ${activeCanvas.blocks.length} blocks).`,
       type: 'document',
-      category: 'canvas',
-      size: `${Math.round(fullDoc.length / 1024)} KB`,
+      category: 'artifacts',
+      sizeBytes: fullDoc.length,
       tags: [...activeCanvas.tags, 'canvas', 'build'],
     });
     setStatusMessage(`Saved "${activeCanvas.title}" into Library!`);
@@ -263,7 +263,7 @@ Please review this implementation, suggest architectural improvements, and point
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Canvas & Build Workspace</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                   Version {activeCanvas?.version || 1}
                 </span>
               </div>
@@ -327,7 +327,7 @@ Please review this implementation, suggest architectural improvements, and point
         {/* Status Toast */}
         {statusMessage && (
           <div className="p-3 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs flex items-center gap-2 animate-in fade-in">
-            <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
+            <Wand2 className="w-4 h-4 text-cyan-400 shrink-0" />
             <span>{statusMessage}</span>
           </div>
         )}
@@ -349,7 +349,7 @@ Please review this implementation, suggest architectural improvements, and point
               ))}
             </select>
 
-            <span className="text-xs font-mono text-neutral-400">
+            <span className="text-xs font-medium text-neutral-400">
               {activeCanvas?.blocks.length || 0} Blocks
             </span>
           </div>
@@ -397,7 +397,7 @@ Please review this implementation, suggest architectural improvements, and point
               ======================================================== */}
           {(activeViewMode === 'editor' || activeViewMode === 'split') && (
             <div className="space-y-4">
-              <span className="text-xs font-bold font-mono text-cyan-400 uppercase tracking-wider block">
+              <span className="text-xs font-bold font-medium text-cyan-400 uppercase tracking-wider block">
                 Structured Block Working Area
               </span>
 
@@ -411,7 +411,7 @@ Please review this implementation, suggest architectural improvements, and point
                   {/* Block Header */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-mono uppercase bg-cyan-500/10 text-cyan-300">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-medium uppercase bg-cyan-500/10 text-cyan-300">
                         {block.type}
                       </span>
                       <input
@@ -433,7 +433,7 @@ Please review this implementation, suggest architectural improvements, and point
                       {block.type === 'code' && (
                         <button
                           onClick={() => handleRunCodeBlock(block)}
-                          className="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-[11px] font-mono font-semibold flex items-center gap-1 cursor-pointer"
+                          className="px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-[11px] font-medium font-semibold flex items-center gap-1 cursor-pointer"
                         >
                           <Play className="w-3 h-3" />
                           Run
@@ -463,10 +463,10 @@ Please review this implementation, suggest architectural improvements, and point
                   </div>
 
                   {/* AI Quick Transform Palette */}
-                  <div className="flex items-center gap-1 flex-wrap pt-1 text-[10px] font-mono text-neutral-400">
+                  <div className="flex items-center gap-1 flex-wrap pt-1 text-[10px] font-medium text-neutral-400">
                     <span className="flex items-center gap-1 text-cyan-400">
-                      <Sparkles className="w-3 h-3" />
-                      AI:
+                      <Wand2 className="w-3 h-3" />
+                      Refine:
                     </span>
                     <button
                       onClick={() => handleAiTransformBlock(block, 'summarize')}
@@ -509,7 +509,7 @@ Please review this implementation, suggest architectural improvements, and point
                     rows={block.type === 'code' ? 7 : 5}
                     value={block.content}
                     onChange={(e) => handleBlockChange(block.id, e.target.value)}
-                    className={`w-full p-3 rounded-xl border text-xs outline-none custom-scrollbar font-mono ${
+                    className={`w-full p-3 rounded-xl border text-xs outline-none custom-scrollbar font-medium ${
                       isLight
                         ? 'bg-slate-50 border-slate-200 text-slate-900 focus:border-cyan-500'
                         : 'bg-black/40 border-white/10 text-neutral-200 focus:border-cyan-400'
@@ -518,7 +518,7 @@ Please review this implementation, suggest architectural improvements, and point
 
                   {/* Execution Output Panel if present */}
                   {block.output && (
-                    <div className="p-3 rounded-xl bg-black/50 border border-white/5 font-mono text-[11px] text-emerald-300">
+                    <div className="p-3 rounded-xl bg-black/50 border border-white/5 font-medium text-[11px] text-emerald-300">
                       <span className="text-[10px] uppercase font-bold text-neutral-500 block mb-1">
                         Execution Console:
                       </span>
@@ -535,7 +535,7 @@ Please review this implementation, suggest architectural improvements, and point
               ======================================================== */}
           {(activeViewMode === 'preview' || activeViewMode === 'split') && (
             <div className="space-y-4">
-              <span className="text-xs font-bold font-mono text-emerald-400 uppercase tracking-wider block">
+              <span className="text-xs font-bold font-medium text-emerald-400 uppercase tracking-wider block">
                 Live Rendered Artifact Preview
               </span>
 
@@ -546,7 +546,7 @@ Please review this implementation, suggest architectural improvements, and point
               >
                 <div>
                   <h2 className="text-xl font-bold tracking-tight">{activeCanvas?.title}</h2>
-                  <span className="text-xs font-mono text-neutral-400">
+                  <span className="text-xs font-medium text-neutral-400">
                     Compiled Preview • Last updated: {new Date(activeCanvas?.updatedAt || '').toLocaleTimeString()}
                   </span>
                 </div>
@@ -557,7 +557,7 @@ Please review this implementation, suggest architectural improvements, and point
                       {block.title && <h3 className="font-bold text-sm text-cyan-400">{block.title}</h3>}
 
                       {block.type === 'code' ? (
-                        <div className="rounded-2xl bg-black/60 border border-white/10 overflow-hidden font-mono text-xs">
+                        <div className="rounded-2xl bg-black/60 border border-white/10 overflow-hidden font-medium text-xs">
                           <div className="px-3 py-1.5 bg-white/5 border-b border-white/5 flex justify-between text-[10px] text-neutral-400">
                             <span>{block.language || 'typescript'}</span>
                             <span>{block.content.split('\n').length} lines</span>
@@ -571,7 +571,7 @@ Please review this implementation, suggest architectural improvements, and point
                           {block.content}
                         </div>
                       ) : block.type === 'data_table' ? (
-                        <div className="p-3 rounded-xl bg-black/40 border border-white/5 text-xs font-mono">
+                        <div className="p-3 rounded-xl bg-black/40 border border-white/5 text-xs font-medium">
                           <pre className="overflow-x-auto text-emerald-300">{block.content}</pre>
                         </div>
                       ) : (

@@ -17,7 +17,7 @@ import {
   VolumeX,
   Radio,
   X,
-  Sparkles,
+  Flame,
   RefreshCw,
   Sliders,
   Shield,
@@ -26,6 +26,9 @@ import {
   CheckSquare,
   Brain,
   Headphones,
+  Monitor,
+  Camera,
+  CameraOff,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
@@ -59,6 +62,73 @@ export const VoiceModeView: React.FC = () => {
   const [transcript, setTranscript] = useState('');
   const [angelResponse, setAngelResponse] = useState("I'm listening. Ask me anything, or instruct me to run an agent workflow.");
   const [transcriptHistory, setTranscriptHistory] = useState<Array<{ sender: 'user' | 'angel'; text: string }>>([]);
+
+  // Live Multimodal Video / Screen Stream attached to Voice Mode
+  const [videoStreamMode, setVideoStreamMode] = useState<'off' | 'camera' | 'screen'>('off');
+  const videoFeedRef = useRef<HTMLVideoElement>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+
+  const stopVideoStream = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    if (videoFeedRef.current) {
+      videoFeedRef.current.srcObject = null;
+    }
+    setVideoStreamMode('off');
+  };
+
+  const handleToggleCamera = async () => {
+    if (videoStreamMode === 'camera') {
+      stopVideoStream();
+      return;
+    }
+    try {
+      stopVideoStream();
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        mediaStreamRef.current = stream;
+        if (videoFeedRef.current) {
+          videoFeedRef.current.srcObject = stream;
+        }
+      }
+      setVideoStreamMode('camera');
+    } catch {
+      setVideoStreamMode('camera');
+    }
+  };
+
+  const handleToggleScreenShare = async () => {
+    if (videoStreamMode === 'screen') {
+      stopVideoStream();
+      return;
+    }
+    try {
+      stopVideoStream();
+      if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        mediaStreamRef.current = stream;
+        if (videoFeedRef.current) {
+          videoFeedRef.current.srcObject = stream;
+        }
+        stream.getVideoTracks()[0].onended = () => {
+          stopVideoStream();
+        };
+      }
+      setVideoStreamMode('screen');
+    } catch {
+      setVideoStreamMode('screen');
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
 
   const recognitionRef = useRef<any>(null);
 
@@ -343,7 +413,7 @@ export const VoiceModeView: React.FC = () => {
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-bold tracking-tight">Voice Mode</h2>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-full flex items-center gap-1.5 ${
+                className={`text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1.5 ${
                   isSpeaking
                     ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
                     : isListening
@@ -381,7 +451,7 @@ export const VoiceModeView: React.FC = () => {
                 : 'bg-neutral-900/80 border-white/10 text-neutral-300 hover:bg-neutral-850'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <Flame className="w-3.5 h-3.5 text-amber-400" />
             <span>Incognito {isIncognitoActive ? 'ON' : ''}</span>
           </button>
 
@@ -409,10 +479,36 @@ export const VoiceModeView: React.FC = () => {
         </div>
       )}
 
-      {/* Center 3D Acoustic Orb & Waveform Stage (Image 3) */}
+      {/* Center 3D Acoustic Orb & Live Vision Stage */}
       <div className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 space-y-6">
+        {/* Live Multimodal Video / Screen Stream Viewport (When Active) */}
+        {videoStreamMode !== 'off' && (
+          <div className="relative w-full max-w-lg aspect-video rounded-3xl overflow-hidden border border-indigo-500/30 shadow-2xl bg-black animate-in zoom-in-95 duration-200">
+            <video
+              ref={videoFeedRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+            />
+            {/* Live Indicator Overlay */}
+            <div className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[11px] font-semibold text-cyan-300">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span>LIVE VISION • {videoStreamMode === 'camera' ? 'Camera Feed' : 'Screen Share'}</span>
+            </div>
+            {/* Close Video Stream Button */}
+            <button
+              onClick={stopVideoStream}
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 hover:bg-red-600/80 border border-white/10 text-white transition-colors"
+              title="Stop video feed"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Outer 3D Orbital Soundwave Ring */}
-        <div className="relative flex items-center justify-center">
+        <div className={`relative flex items-center justify-center ${videoStreamMode !== 'off' ? 'scale-75 transition-transform' : ''}`}>
           {/* Pulsating ambient halo */}
           <div
             className={`absolute w-72 h-72 sm:w-96 sm:h-96 rounded-full blur-3xl transition-opacity duration-700 pointer-events-none ${
@@ -610,7 +706,7 @@ export const VoiceModeView: React.FC = () => {
             </div>
 
             {/* Input state badge indicator */}
-            <div className="absolute right-3 bottom-1.5 text-[9px] font-mono opacity-60 flex items-center gap-1.5 pointer-events-none">
+            <div className="absolute right-3 bottom-1.5 text-[9px] font-medium opacity-60 flex items-center gap-1.5 pointer-events-none">
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
                   isListening && !isMuted
@@ -753,6 +849,38 @@ export const VoiceModeView: React.FC = () => {
           >
             {isSpeakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5 text-neutral-500" />}
             <span>{isSpeakerOn ? 'Speaker' : 'Muted'}</span>
+          </button>
+
+          {/* Live Camera Video Feed Toggle */}
+          <button
+            onClick={handleToggleCamera}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-medium transition-colors ${
+              videoStreamMode === 'camera'
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                : isLight
+                ? 'hover:bg-slate-100 text-slate-700'
+                : 'hover:bg-neutral-800 text-neutral-300'
+            }`}
+            title={videoStreamMode === 'camera' ? 'Stop camera feed' : 'Start camera video feed'}
+          >
+            <Camera className={`w-5 h-5 ${videoStreamMode === 'camera' ? 'text-cyan-400 animate-pulse' : ''}`} />
+            <span>Camera</span>
+          </button>
+
+          {/* Live Screen Share Toggle */}
+          <button
+            onClick={handleToggleScreenShare}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl text-[10px] font-medium transition-colors ${
+              videoStreamMode === 'screen'
+                ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+                : isLight
+                ? 'hover:bg-slate-100 text-slate-700'
+                : 'hover:bg-neutral-800 text-neutral-300'
+            }`}
+            title={videoStreamMode === 'screen' ? 'Stop sharing screen' : 'Share screen'}
+          >
+            <Monitor className={`w-5 h-5 ${videoStreamMode === 'screen' ? 'text-indigo-400 animate-pulse' : ''}`} />
+            <span>Screen</span>
           </button>
 
           {/* Switch Voice Dropdown */}

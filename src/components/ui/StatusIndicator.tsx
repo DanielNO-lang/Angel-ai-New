@@ -43,7 +43,7 @@ export const StatusIndicator: React.FC<StatusIndicatorProps> = ({
   };
 
   return (
-    <div className={`inline-flex items-center gap-1.5 text-xs text-neutral-300 font-mono ${className}`}>
+    <div className={`inline-flex items-center gap-1.5 text-xs text-neutral-300 font-medium ${className}`}>
       <span className={`rounded-full shrink-0 ${dotColor[status]} ${dotSize[size]}`} />
       <span>{label || defaultLabel[status]}</span>
     </div>

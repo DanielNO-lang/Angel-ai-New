@@ -9,7 +9,7 @@ import {
   Sliders,
   Settings,
   HelpCircle,
-  Sparkles,
+  Flame,
   FileText,
   Download,
   Command,
@@ -110,7 +110,7 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
               className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white text-xs font-semibold shadow-md transition-all group"
             >
               <div className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                <Flame className="w-3.5 h-3.5 text-amber-300" />
                 <span>Try Plus Free</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />

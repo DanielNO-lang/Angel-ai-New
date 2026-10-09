@@ -898,7 +898,6 @@ export async function executeToolCall(
     tasks: [],
     memories: [],
     projects: [],
-    agents: [],
   };
   const result = await toolRegistry.executeTool(name, args, ctx);
   return {

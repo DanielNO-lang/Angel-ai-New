@@ -61,7 +61,7 @@ export const ProfileView: React.FC = () => {
             <User className="w-4 h-4" />
           </span>
           <span
-            className={`text-xs font-mono uppercase tracking-wider ${
+            className={`text-xs font-medium uppercase tracking-wider ${
               isLight ? 'text-indigo-600 font-semibold' : 'text-indigo-400'
             }`}
           >
@@ -257,7 +257,7 @@ export const ProfileView: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span>Monthly Quota</span>
-                    <span className="font-mono text-emerald-500">Unlimited Multi-Agent Autonomy</span>
+                    <span className="font-medium text-emerald-500">Unlimited Multi-Agent Autonomy</span>
                   </div>
                 </div>
               </div>

@@ -195,7 +195,7 @@ export const AssistantsView: React.FC = () => {
             </span>
             <div>
               <h1 className="text-xl font-bold tracking-tight">Assistants Lifecycle System</h1>
-              <span className="text-[11px] font-mono opacity-60">
+              <span className="text-[11px] font-medium opacity-60">
                 Configure, Version, Test, Publish & Monitor AI Personas
               </span>
             </div>
@@ -263,14 +263,14 @@ export const AssistantsView: React.FC = () => {
                         <div>
                           <h4 className="text-xs font-bold leading-tight flex items-center gap-1.5">
                             <span>{asst.name}</span>
-                            <span className="text-[10px] font-mono opacity-50">v{asst.version}</span>
+                            <span className="text-[10px] font-medium opacity-50">v{asst.version}</span>
                           </h4>
-                          <span className="text-[10px] text-neutral-400 font-mono">{asst.category}</span>
+                          <span className="text-[10px] text-neutral-400 font-medium">{asst.category}</span>
                         </div>
                       </div>
 
                       {asst.isPublished && (
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400">
+                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400">
                           Published
                         </span>
                       )}
@@ -299,10 +299,10 @@ export const AssistantsView: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-bold">{selectedAssistant.name}</h2>
-                    <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-white/10 text-neutral-300">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/10 text-neutral-300">
                       v{selectedAssistant.version}
                     </span>
-                    <span className="text-xs font-mono text-purple-400">({selectedAssistant.modelId})</span>
+                    <span className="text-xs font-medium text-purple-400">({selectedAssistant.modelId})</span>
                   </div>
                   <p className="text-xs text-neutral-400 mt-0.5">{selectedAssistant.tagline}</p>
                 </div>
@@ -365,7 +365,7 @@ export const AssistantsView: React.FC = () => {
                       onChange={(e) =>
                         updateAssistant(selectedAssistant.id, { systemInstructions: e.target.value })
                       }
-                      className={`w-full p-3 text-xs rounded-xl border outline-none font-mono leading-relaxed ${
+                      className={`w-full p-3 text-xs rounded-xl border outline-none font-medium leading-relaxed ${
                         isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'
                       }`}
                     />
@@ -405,7 +405,7 @@ export const AssistantsView: React.FC = () => {
                             }`}
                           >
                             <span>{perm.label}</span>
-                            <span className="text-[10px] font-mono">{isGranted ? '✓' : '—'}</span>
+                            <span className="text-[10px] font-medium">{isGranted ? '✓' : '—'}</span>
                           </button>
                         );
                       })}
@@ -436,7 +436,7 @@ export const AssistantsView: React.FC = () => {
                               <div className="font-semibold">{tool.name}</div>
                               <div className="text-[10px] text-neutral-400 truncate max-w-xs">{tool.description}</div>
                             </div>
-                            <span className="text-xs font-bold font-mono">{isAllowed ? '✓' : '+'}</span>
+                            <span className="text-xs font-bold font-medium">{isAllowed ? '✓' : '+'}</span>
                           </div>
                         );
                       })}
@@ -456,7 +456,7 @@ export const AssistantsView: React.FC = () => {
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold">Interactive Sandbox Session</span>
                       {testLatencyMs && (
-                        <span className="font-mono text-[10px] text-emerald-400">{testLatencyMs}ms response latency</span>
+                        <span className="font-medium text-[10px] text-emerald-400">{testLatencyMs}ms response latency</span>
                       )}
                     </div>
 
@@ -483,7 +483,7 @@ export const AssistantsView: React.FC = () => {
 
                   {testOutput && (
                     <div
-                      className={`p-4 rounded-2xl border text-xs font-mono leading-relaxed whitespace-pre-wrap ${
+                      className={`p-4 rounded-2xl border text-xs font-medium leading-relaxed whitespace-pre-wrap ${
                         isLight ? 'bg-slate-100 text-slate-800' : 'bg-black/40 border-white/10 text-neutral-200'
                       }`}
                     >
@@ -514,12 +514,12 @@ export const AssistantsView: React.FC = () => {
                         >
                           <div>
                             <div className="font-semibold">{exec.taskPrompt}</div>
-                            <div className="text-[10px] text-neutral-400 font-mono">
+                            <div className="text-[10px] text-neutral-400 font-medium">
                               Tools: {exec.toolsUsed.join(', ') || 'none'}
                             </div>
                           </div>
                           <span
-                            className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                               exec.status === 'completed'
                                 ? 'bg-emerald-500/10 text-emerald-400'
                                 : 'bg-rose-500/10 text-rose-400'
@@ -675,7 +675,7 @@ export const AssistantsView: React.FC = () => {
                   placeholder="You are an expert SRE incident commander. Prioritize uptime, verify runbooks..."
                   value={newInstructions}
                   onChange={(e) => setNewInstructions(e.target.value)}
-                  className={`w-full px-3 py-2 text-xs rounded-xl border outline-none font-mono ${
+                  className={`w-full px-3 py-2 text-xs rounded-xl border outline-none font-medium ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'
                   }`}
                 />

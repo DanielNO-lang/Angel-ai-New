@@ -28,7 +28,7 @@ import {
   Save,
   Trash2,
   Copy,
-  Sparkles,
+  Flame,
   LogOut,
   Mail,
   CreditCard,
@@ -45,11 +45,13 @@ import {
   Clock,
   Briefcase,
   AlertTriangle,
+  Download,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { SUPABASE_SCHEMA_SQL } from '../../data/supabaseSchema';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConnectionsWorkspace } from '../connections/ConnectionsWorkspace';
+import { UserProfileSettings } from './UserProfileSettings';
 
 export type SettingsSubSection =
   | 'account'
@@ -90,6 +92,8 @@ export const SettingsView: React.FC = () => {
     setActiveSettingsSection,
     isFocusMode,
     setIsFocusMode,
+    exportWorkspaceData,
+    lastAutosavedAt,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
@@ -255,6 +259,22 @@ export const SettingsView: React.FC = () => {
     setTimeout(() => setIsSaved(false), 2000);
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportSuccess, setIsExportSuccess] = useState(false);
+
+  const handleExportWorkspace = async () => {
+    setIsExporting(true);
+    try {
+      await exportWorkspaceData();
+      setIsExportSuccess(true);
+      setTimeout(() => setIsExportSuccess(false), 2500);
+    } catch (e) {
+      console.warn('Workspace export error:', e);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div
       className={`min-h-full p-4 sm:p-6 lg:p-8 space-y-6 transition-colors duration-150 ${
@@ -281,7 +301,7 @@ export const SettingsView: React.FC = () => {
           </span>
           <div>
             <h1 className="text-xl font-bold tracking-tight">Settings & Connections</h1>
-            <span className="text-[11px] font-mono opacity-60">System Configuration & Integration Control</span>
+            <span className="text-[11px] font-medium opacity-60">System Configuration & Integration Control</span>
           </div>
         </div>
       </div>
@@ -321,10 +341,10 @@ export const SettingsView: React.FC = () => {
           }`}
         >
           <div className="px-2 pt-1 pb-1 flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase tracking-wider opacity-60">
+            <span className="text-[10px] font-medium uppercase tracking-wider opacity-60">
               Categorized Navigation
             </span>
-            <span className="text-[10px] font-mono text-indigo-500 font-semibold">
+            <span className="text-[10px] font-medium text-indigo-500 font-semibold">
               Angel Core
             </span>
           </div>
@@ -426,7 +446,7 @@ export const SettingsView: React.FC = () => {
                   onClick={() => setIsSaved(true)}
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 shrink-0"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                  <Flame className="w-3.5 h-3.5 text-amber-300" />
                   <span>Manage Subscription</span>
                 </button>
               </div>
@@ -479,7 +499,7 @@ export const SettingsView: React.FC = () => {
                         <div className="text-[10px] opacity-60">{userProfile.email}</div>
                       </div>
                     </div>
-                    <span className="text-[10px] font-mono text-emerald-500 font-semibold flex items-center gap-1">
+                    <span className="text-[10px] font-medium text-emerald-500 font-semibold flex items-center gap-1">
                       <Check className="w-3 h-3" /> Connected
                     </span>
                   </div>
@@ -496,7 +516,7 @@ export const SettingsView: React.FC = () => {
                         <div className="text-[10px] opacity-60">github.com/{profileHandle}</div>
                       </div>
                     </div>
-                    <span className="text-[10px] font-mono text-emerald-500 font-semibold flex items-center gap-1">
+                    <span className="text-[10px] font-medium text-emerald-500 font-semibold flex items-center gap-1">
                       <Check className="w-3 h-3" /> Connected
                     </span>
                   </div>
@@ -527,147 +547,7 @@ export const SettingsView: React.FC = () => {
               SUBSECTION 2: PROFILE (Categorized under Personal & Identity)
              ========================================================== */}
           {activeSection === 'profile' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-bold tracking-tight">Personal Profile</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Your public identifier, avatar monogram, biographical summary, and role description.
-                </p>
-              </div>
-
-              {/* Avatar Monogram Banner */}
-              <div
-                className={`p-5 rounded-3xl border flex items-center gap-4 ${
-                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/60 border-white/5'
-                }`}
-              >
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-bold text-white text-xl shadow-lg ring-4 ring-indigo-500/20">
-                    {profileName
-                      .split(' ')
-                      .map((w) => w[0])
-                      .join('')
-                      .slice(0, 2)
-                      .toUpperCase() || 'DN'}
-                  </div>
-                  <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-inherit bg-emerald-500" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold">{profileName}</h3>
-                  <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                    @{profileHandle} • {profileRole}
-                  </p>
-                </div>
-              </div>
-
-              {/* Profile Details Form */}
-              <form onSubmit={handleSaveProfile} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block opacity-80">Full Name</label>
-                    <input
-                      type="text"
-                      value={profileName}
-                      onChange={(e) => setProfileName(e.target.value)}
-                      className={`w-full px-3.5 py-2 rounded-xl text-xs border outline-none transition-colors ${
-                        isLight
-                          ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                          : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                      }`}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block opacity-80">Display Handle</label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-2 text-xs opacity-50">@</span>
-                      <input
-                        type="text"
-                        value={profileHandle}
-                        onChange={(e) => setProfileHandle(e.target.value)}
-                        className={`w-full pl-7 pr-3.5 py-2 rounded-xl text-xs border outline-none transition-colors ${
-                          isLight
-                            ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                            : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block opacity-80">Email Address</label>
-                    <input
-                      type="email"
-                      value={profileEmail}
-                      onChange={(e) => setProfileEmail(e.target.value)}
-                      className={`w-full px-3.5 py-2 rounded-xl text-xs border outline-none transition-colors ${
-                        isLight
-                          ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                          : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                      }`}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold block opacity-80">Professional Role</label>
-                    <input
-                      type="text"
-                      value={profileRole}
-                      onChange={(e) => setProfileRole(e.target.value)}
-                      className={`w-full px-3.5 py-2 rounded-xl text-xs border outline-none transition-colors ${
-                        isLight
-                          ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                          : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                      }`}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold block opacity-80">Biographical Summary</label>
-                  <textarea
-                    rows={2}
-                    value={profileBio}
-                    onChange={(e) => setProfileBio(e.target.value)}
-                    className={`w-full px-3.5 py-2 rounded-xl text-xs border outline-none resize-none transition-colors ${
-                      isLight
-                        ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                        : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                    }`}
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold block opacity-80">Timezone</label>
-                  <select
-                    value={profileTimezone}
-                    onChange={(e) => setProfileTimezone(e.target.value)}
-                    className={`w-full max-w-sm px-3.5 py-2 rounded-xl text-xs border outline-none transition-colors ${
-                      isLight
-                        ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                        : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                    }`}
-                  >
-                    <option value="UTC-07:00 (Pacific Time)">UTC-07:00 (Pacific Time - Los Angeles)</option>
-                    <option value="UTC-05:00 (Eastern Time)">UTC-05:00 (Eastern Time - New York)</option>
-                    <option value="UTC+00:00 (GMT / London)">UTC+00:00 (GMT - London)</option>
-                    <option value="UTC+01:00 (Central European)">UTC+01:00 (CET - Berlin / Paris)</option>
-                    <option value="UTC+08:00 (Singapore / Beijing)">UTC+08:00 (SGT - Singapore)</option>
-                    <option value="UTC+09:00 (Tokyo)">UTC+09:00 (JST - Tokyo)</option>
-                  </select>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-md transition-all flex items-center gap-1.5"
-                  >
-                    {isProfileSaved ? <Check className="w-4 h-4 text-emerald-300" /> : <Save className="w-4 h-4" />}
-                    <span>{isProfileSaved ? 'Profile updated!' : 'Save Profile'}</span>
-                  </button>
-                </div>
-              </form>
-            </div>
+            <UserProfileSettings />
           )}
 
           {/* ==========================================================
@@ -766,7 +646,7 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <span className="text-xs font-semibold block flex items-center gap-1.5">
                       <span>Focus Mode (Deep Work)</span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-semibold">New</span>
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-semibold">New</span>
                     </span>
                     <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                       Hides the sidebar and minimizes the workspace header to eliminate distractions during deep work sessions.
@@ -848,47 +728,7 @@ export const SettingsView: React.FC = () => {
               </div>
 
               {/* Theme Mode Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Dark Mode Card */}
-                <button
-                  type="button"
-                  onClick={() => updateSettings({ theme: 'dark' })}
-                  className={`p-4 rounded-3xl border text-left transition-all relative overflow-hidden ${
-                    settings.theme === 'dark'
-                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md'
-                      : 'border-inherit hover:border-indigo-400/40 opacity-70 hover:opacity-100'
-                  } bg-[#0A0D15] text-white`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <Moon className="w-5 h-5 text-indigo-400" />
-                    {settings.theme === 'dark' && <Check className="w-4 h-4 text-emerald-400" />}
-                  </div>
-                  <h4 className="text-xs font-bold">Cosmic Dark</h4>
-                  <p className="text-[10px] text-neutral-400 mt-0.5 leading-relaxed">
-                    Near-black charcoal base with deep-indigo and violet atmospheric glow orbs.
-                  </p>
-                </button>
-
-                {/* Light Mode Card */}
-                <button
-                  type="button"
-                  onClick={() => updateSettings({ theme: 'light' })}
-                  className={`p-4 rounded-3xl border text-left transition-all relative overflow-hidden ${
-                    settings.theme === 'light'
-                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md'
-                      : 'border-inherit hover:border-indigo-400/40 opacity-70 hover:opacity-100'
-                  } bg-[#F9FAFD] text-slate-900`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <Sun className="w-5 h-5 text-amber-500" />
-                    {settings.theme === 'light' && <Check className="w-4 h-4 text-emerald-500" />}
-                  </div>
-                  <h4 className="text-xs font-bold">Radiant Light</h4>
-                  <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                    Off-white lavender base with subtle atmospheric indigo aura and gentle mist.
-                  </p>
-                </button>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {/* System Auto Card */}
                 <button
                   type="button"
@@ -908,6 +748,73 @@ export const SettingsView: React.FC = () => {
                     Automatically match your operating system's day and night preferences.
                   </p>
                 </button>
+
+                {/* Light Mode Card */}
+                <button
+                  type="button"
+                  onClick={() => updateSettings({ theme: 'light' })}
+                  className={`p-4 rounded-3xl border text-left transition-all relative overflow-hidden ${
+                    settings.theme === 'light'
+                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md'
+                      : 'border-inherit hover:border-indigo-400/40 opacity-70 hover:opacity-100'
+                  } bg-[#F9FAFD] text-slate-900`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <Sun className="w-5 h-5 text-amber-500" />
+                    {settings.theme === 'light' && <Check className="w-4 h-4 text-emerald-500" />}
+                  </div>
+                  <h4 className="text-xs font-bold">Radiant Light</h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+                    Crisp off-white canvas with gentle indigo tones and maximum readability.
+                  </p>
+                </button>
+
+                {/* Dark Mode Card */}
+                <button
+                  type="button"
+                  onClick={() => updateSettings({ theme: 'dark' })}
+                  className={`p-4 rounded-3xl border text-left transition-all relative overflow-hidden ${
+                    settings.theme === 'dark'
+                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md'
+                      : 'border-inherit hover:border-indigo-400/40 opacity-70 hover:opacity-100'
+                  } bg-[#0A0D15] text-white`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <Moon className="w-5 h-5 text-indigo-400" />
+                    {settings.theme === 'dark' && <Check className="w-4 h-4 text-emerald-400" />}
+                  </div>
+                  <h4 className="text-xs font-bold">Cosmic Dark</h4>
+                  <p className="text-[10px] text-neutral-400 mt-0.5 leading-relaxed">
+                    Refined charcoal base with deep indigo and violet glass auras.
+                  </p>
+                </button>
+
+                {/* Midnight High-Contrast Card */}
+                <button
+                  type="button"
+                  onClick={() => updateSettings({ theme: 'midnight' })}
+                  className={`p-4 rounded-3xl border text-left transition-all relative overflow-hidden ${
+                    settings.theme === 'midnight'
+                      ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-md'
+                      : 'border-inherit hover:border-cyan-400/40 opacity-70 hover:opacity-100'
+                  } bg-[#000000] text-white`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded-full bg-cyan-400 flex items-center justify-center text-[9px] font-bold text-black">
+                        M
+                      </div>
+                      <span className="text-[9px] font-medium uppercase px-1.5 py-0.2 rounded bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                        OLED
+                      </span>
+                    </div>
+                    {settings.theme === 'midnight' && <Check className="w-4 h-4 text-cyan-400" />}
+                  </div>
+                  <h4 className="text-xs font-bold">Midnight</h4>
+                  <p className="text-[10px] text-neutral-300 mt-0.5 leading-relaxed">
+                    Pure high-contrast black with sharp electric accents and zero backlight glare.
+                  </p>
+                </button>
               </div>
 
               {/* Atmospheric Backdrop Lighting Treatment */}
@@ -919,7 +826,7 @@ export const SettingsView: React.FC = () => {
                       Adjust the fixed atmospheric glow orbs rendered beneath the interface (z-index: 0)
                     </p>
                   </div>
-                  <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">
+                  <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">
                     {backdropIntensity}
                   </span>
                 </div>
@@ -1071,6 +978,44 @@ export const SettingsView: React.FC = () => {
                     className="w-4 h-4 accent-indigo-600 cursor-pointer"
                   />
                 </div>
+              </div>
+
+              {/* Workspace Data Export & Persistence */}
+              <div
+                className={`p-4 rounded-2xl border space-y-2.5 ${
+                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/60 border-white/5'
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-bold flex items-center gap-2">
+                      <Download className="w-4 h-4 text-indigo-500" />
+                      <span>Workspace Data Export (JSON)</span>
+                    </h4>
+                    <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                      Download a structured JSON backup containing your tasks, memories, chat history, projects, and workflow definitions.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleExportWorkspace}
+                    disabled={isExporting}
+                    className="self-start sm:self-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
+                  >
+                    {isExportSuccess ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Download className="w-3.5 h-3.5" />}
+                    <span>{isExportSuccess ? 'Exported!' : isExporting ? 'Exporting...' : 'Export JSON'}</span>
+                  </button>
+                </div>
+                {lastAutosavedAt && (
+                  <div
+                    className={`text-[10px] ${
+                      isLight ? 'text-slate-400' : 'text-neutral-500'
+                    } flex items-center gap-1.5 pt-1.5 border-t border-inherit/40`}
+                  >
+                    <Clock className="w-3 h-3 text-indigo-400" />
+                    <span>Centralized autosave active — Last snapshot: {new Date(lastAutosavedAt).toLocaleTimeString()}</span>
+                  </div>
+                )}
               </div>
 
               {/* Save workspace changes button */}
@@ -1302,13 +1247,28 @@ export const SettingsView: React.FC = () => {
                 <p className="text-xs opacity-80 leading-relaxed">
                   Clear all cached conversations, custom agent personas, tasks, and memory entries to restore factory defaults.
                 </p>
-                <button
-                  onClick={() => setIsResetDialogOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Clear & Reset Local Storage</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <button
+                    onClick={() => setIsResetDialogOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Clear & Reset Local Storage</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportWorkspace}
+                    disabled={isExporting}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1.5 border cursor-pointer ${
+                      isLight
+                        ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                        : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+                    }`}
+                  >
+                    {isExportSuccess ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Download className="w-3.5 h-3.5" />}
+                    <span>{isExportSuccess ? 'Exported!' : isExporting ? 'Exporting...' : 'Backup Workspace (JSON)'}</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}

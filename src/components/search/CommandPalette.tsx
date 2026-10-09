@@ -483,7 +483,7 @@ export const CommandPalette: React.FC = () => {
               {cat.label}
             </button>
           ))}
-          <span className="text-[10px] font-mono opacity-40 ml-auto hidden sm:inline">
+          <span className="text-[10px] font-medium opacity-40 ml-auto hidden sm:inline">
             Tab to cycle
           </span>
         </div>
@@ -520,7 +520,7 @@ export const CommandPalette: React.FC = () => {
                       <Clock className="w-4 h-4 text-indigo-400" />
                       <span className="text-xs font-medium">Recent chats</span>
                     </div>
-                    <span className="text-[10px] font-mono opacity-60">
+                    <span className="text-[10px] font-medium opacity-60">
                       {conversations.filter((c) => !c.pinned && !c.isArchived).length}
                     </span>
                   </button>
@@ -540,7 +540,7 @@ export const CommandPalette: React.FC = () => {
                       <Pin className="w-4 h-4 text-indigo-400 fill-indigo-400/30" />
                       <span className="text-xs font-medium">Pinned chats</span>
                     </div>
-                    <span className="text-[10px] font-mono opacity-60">
+                    <span className="text-[10px] font-medium opacity-60">
                       {conversations.filter((c) => c.pinned).length}
                     </span>
                   </button>
@@ -560,7 +560,7 @@ export const CommandPalette: React.FC = () => {
                       <PenTool className="w-4 h-4 text-cyan-400" />
                       <span className="text-xs font-medium">Canvas / Build Stage</span>
                     </div>
-                    <span className="text-[10px] font-mono text-cyan-400">Workspace</span>
+                    <span className="text-[10px] font-medium text-cyan-400">Workspace</span>
                   </button>
 
                   <button
@@ -578,7 +578,7 @@ export const CommandPalette: React.FC = () => {
                       <BarChart3 className="w-4 h-4 text-blue-400" />
                       <span className="text-xs font-medium">Data Analysis Engine</span>
                     </div>
-                    <span className="text-[10px] font-mono text-blue-400">Engine</span>
+                    <span className="text-[10px] font-medium text-blue-400">Engine</span>
                   </button>
 
                   <button
@@ -596,7 +596,7 @@ export const CommandPalette: React.FC = () => {
                       <Zap className="w-4 h-4 text-amber-400" />
                       <span className="text-xs font-medium">Event-Driven Automations</span>
                     </div>
-                    <span className="text-[10px] font-mono text-amber-400">Reactive</span>
+                    <span className="text-[10px] font-medium text-amber-400">Reactive</span>
                   </button>
                 </div>
               </div>
@@ -683,7 +683,7 @@ export const CommandPalette: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <p className="text-xs font-semibold truncate">{item.title}</p>
                             {isSelected && (
-                              <span className="text-[10px] font-mono text-indigo-400 shrink-0">
+                              <span className="text-[10px] font-medium text-indigo-400 shrink-0">
                                 ↵ Enter
                               </span>
                             )}
@@ -702,7 +702,7 @@ export const CommandPalette: React.FC = () => {
                               {item.tags.slice(0, 3).map((tg) => (
                                 <span
                                   key={tg}
-                                  className={`text-[9px] font-mono px-1 py-0.2 rounded ${
+                                  className={`text-[9px] font-medium px-1 py-0.2 rounded ${
                                     isLight
                                       ? 'bg-slate-100 text-slate-600'
                                       : 'bg-white/5 text-neutral-400'
@@ -717,7 +717,7 @@ export const CommandPalette: React.FC = () => {
                       </div>
 
                       <span
-                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
+                        className={`text-[9px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
                           isSelected
                             ? 'bg-indigo-600/20 text-indigo-300 font-semibold'
                             : isLight
@@ -761,7 +761,7 @@ export const CommandPalette: React.FC = () => {
                 : 'Win+K (Global Search) • Alt+1..6 (Navigate)'}
             </span>
           </div>
-          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0 font-mono text-[10px]">
+          <div className="flex items-center gap-2 self-end sm:self-auto shrink-0 font-medium text-[10px]">
             <WindowsShortcutBadge shortcut="K" />
             <span>Esc exit</span>
           </div>

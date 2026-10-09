@@ -212,7 +212,25 @@ export interface Project {
   updatedAt: string;
 }
 
+export type SyncStatus = 'syncing' | 'synced' | 'offline' | 'error' | 'offline_queued';
+
 export type WorkflowTriggerType = 'manual' | 'schedule' | 'webhook' | 'task_event' | 'agent';
+
+export interface WorkflowCondition {
+  id: string;
+  field: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'greater_than' | 'less_than' | 'is_empty' | 'is_not_empty' | 'exists';
+  value: unknown;
+  join?: 'and' | 'or';
+}
+
+export interface WorkflowExecutionChainStep {
+  stepId: string;
+  order: number;
+  onSuccess?: 'next' | 'stop' | string;
+  onFailure?: 'retry' | 'skip' | 'stop' | string;
+  retryCount?: number;
+}
 
 export interface WorkflowTrigger {
   type: WorkflowTriggerType;
@@ -246,6 +264,8 @@ export interface WorkflowStep {
 export interface Workflow {
   id: string;
   name: string;
+  userId?: string;
+  ownerId?: string;
   codename?: string;
   category: 'research' | 'code' | 'creative' | 'security' | 'operations' | 'general';
   description: string;
@@ -253,7 +273,9 @@ export interface Workflow {
   version: string;
   enabled: boolean;
   trigger: WorkflowTrigger;
+  conditions?: WorkflowCondition[];
   steps: WorkflowStep[];
+  executionChain?: WorkflowExecutionChainStep[];
   stages?: string[];
   permissions: string[];
   projectId?: string;
@@ -459,7 +481,7 @@ export interface VisualModeCapture {
   region?: { x: number; y: number; width: number; height: number };
 }
 
-export type ThemeMode = 'dark' | 'light' | 'system';
+export type ThemeMode = 'dark' | 'light' | 'system' | 'midnight';
 export type AccentColor = 'blue' | 'indigo' | 'purple' | 'emerald' | 'rose' | 'amber';
 export type FontSize = 'sm' | 'base' | 'lg' | 'xl';
 
@@ -471,6 +493,9 @@ export interface UserProfile {
   plan: 'Free' | 'Pro' | 'Enterprise';
   status: 'online' | 'away' | 'offline';
   avatarUrl?: string;
+  title?: string;
+  bio?: string;
+  timezone?: string;
 }
 
 export interface AngelSettings {

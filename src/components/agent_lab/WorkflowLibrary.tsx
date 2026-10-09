@@ -305,7 +305,7 @@ export const WorkflowLibrary: React.FC<WorkflowLibraryProps> = ({
                         </div>
                         <div>
                           <h4 className="text-xs font-bold tracking-tight">{template.name}</h4>
-                          <p className={`text-[10px] font-mono opacity-60 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                          <p className={`text-[10px] font-medium opacity-60 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                             {template.codename} • ~{template.estimatedRuntime}
                           </p>
                         </div>
@@ -324,7 +324,7 @@ export const WorkflowLibrary: React.FC<WorkflowLibraryProps> = ({
                         {template.stages.slice(0, 4).map((stg, i) => (
                           <span
                             key={stg}
-                            className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md border ${
+                            className={`text-[9px] font-medium px-1.5 py-0.5 rounded-md border ${
                               isLight
                                 ? 'bg-slate-50 border-slate-200 text-slate-600'
                                 : 'bg-white/5 border-white/5 text-neutral-400'
@@ -343,7 +343,7 @@ export const WorkflowLibrary: React.FC<WorkflowLibraryProps> = ({
                       {template.tags.slice(0, 2).map((tg) => (
                         <span
                           key={tg}
-                          className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400"
+                          className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400"
                         >
                           {tg}
                         </span>

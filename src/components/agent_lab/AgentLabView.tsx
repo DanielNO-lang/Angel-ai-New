@@ -72,6 +72,7 @@ export const AgentLabView: React.FC = () => {
     executions,
     runAgentExecution,
     settings,
+    createWorkflow,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
@@ -268,7 +269,8 @@ export const AgentLabView: React.FC = () => {
     >
       <div className="max-w-6xl mx-auto space-y-6">
         {/* ========================================================
-            FIXED / STICKY HEADER (100% Opaque Non-Transparent Bar)
+            DEDICATED DYNAMIC CLEAN HEADER
+            Neatly aligned, uncluttered, focused on majors
             ======================================================== */}
         <div
           className={`sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs ${
@@ -277,76 +279,77 @@ export const AgentLabView: React.FC = () => {
               : 'bg-[#0B0E14] border-white/10 text-neutral-100'
           }`}
         >
+          {/* Title & Major Headline */}
           <div className="flex items-center gap-3">
             <span
-              className={`p-2 rounded-2xl border backdrop-blur-md ${
+              className={`p-2 rounded-xl border ${
                 isLight
-                  ? 'bg-indigo-50/80 border-indigo-200 text-indigo-600'
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
                   : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
               }`}
             >
               <Bot className="w-5 h-5" />
             </span>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight">Agent Lab</h1>
-              {/* Real-time Non-Intrusive Status Indicator */}
-              <div
-                className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono border backdrop-blur-md ${
-                  isLight
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80'
-                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                }`}
-                title="Real-time connectivity: Gemini 3.8 Flash (18ms) • 8/8 Agents Operational"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-semibold">Online</span>
-                <span className="opacity-40">•</span>
-                <span className="opacity-80">8/8 Agents</span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg sm:text-xl font-bold tracking-tight">Agent Lab</h1>
+                <span
+                  className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+                    isLight
+                      ? 'bg-slate-100 text-slate-600 border-slate-200'
+                      : 'bg-white/5 text-neutral-300 border-white/10'
+                  }`}
+                >
+                  {agents.length} Workers
+                </span>
               </div>
+              <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                Automated deterministic workers & execution pipelines
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Workflow Library Modal Trigger */}
+          {/* Clean Action Cluster */}
+          <div className="flex items-center gap-2">
+            {/* Streamlined Library & History Secondary Toggles */}
             <button
               onClick={() => setIsWorkflowLibraryModalOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold backdrop-blur-md transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
                 isLight
-                  ? 'bg-white/80 border-slate-200 text-slate-700 hover:bg-slate-100/80'
-                  : 'bg-neutral-900/80 border-white/10 text-neutral-300 hover:bg-neutral-800'
+                  ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  : 'bg-neutral-900 border-white/10 text-neutral-300 hover:bg-neutral-800'
               }`}
-              title="Browse pre-built workflow templates"
+              title="Browse workflow templates"
             >
               <Layers className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Workflow Library</span>
+              <span>Library</span>
             </button>
 
-            {/* Session History Sidebar Trigger */}
             <button
               onClick={() => setIsSessionHistoryOpen(!isSessionHistoryOpen)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold backdrop-blur-md transition-all cursor-pointer shadow-2xs ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
                 isSessionHistoryOpen
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                  ? 'bg-indigo-600 text-white border-indigo-600'
                   : isLight
-                  ? 'bg-white/80 border-slate-200 text-slate-700 hover:bg-slate-50'
-                  : 'bg-neutral-900/80 border-white/10 text-neutral-300 hover:bg-neutral-800'
+                  ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  : 'bg-neutral-900 border-white/10 text-neutral-300 hover:bg-neutral-800'
               }`}
-              title="Open Session History & Decision Traces"
+              title="View session history"
             >
               <History className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Session History</span>
+              <span>History</span>
               {executions.length > 0 && (
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-400">
+                <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-400">
                   {executions.length}
                 </span>
               )}
             </button>
 
-            {/* New Worker Button */}
+            {/* Primary Action: New Worker */}
             <button
               id="btn-create-worker"
               onClick={openCreateModal}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-xs transition-all shrink-0 transform-gpu hover:-translate-y-0.5 cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>New Worker</span>
@@ -355,33 +358,28 @@ export const AgentLabView: React.FC = () => {
         </div>
 
         {/* ========================================================
-            DIRECT UNIFIED WORKSPACE (No Split Screen)
+            DIRECT WORKSPACE CONTENT (FOCUSED ON MAJORS)
             ======================================================== */}
         <div className="space-y-6">
           {/* Worker Selector Deck */}
           <div
-            className={`p-4 rounded-2xl border space-y-3.5 shadow-2xs ${
+            className={`p-4 rounded-2xl border space-y-3 shadow-2xs ${
               isLight
                 ? 'bg-white border-slate-200/90 text-slate-800'
                 : 'bg-[#121620] border-white/5 text-neutral-100'
             }`}
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span
-                  className={`text-xs font-semibold uppercase tracking-wider ${
-                    isLight ? 'text-slate-500' : 'text-neutral-400'
-                  }`}
-                >
-                  Active Workers ({filteredAgents.length})
-                </span>
-                <span className="text-[10px] font-mono opacity-60">
-                  Total: {agents.length}
-                </span>
-              </div>
+              <span
+                className={`text-xs font-semibold uppercase tracking-wider ${
+                  isLight ? 'text-slate-500' : 'text-neutral-400'
+                }`}
+              >
+                Configured Workers ({filteredAgents.length})
+              </span>
 
               {/* Search Input */}
-              <div className="relative w-full sm:w-72">
+              <div className="relative w-full sm:w-64">
                 <Search
                   className={`w-3.5 h-3.5 absolute left-3 top-2.5 ${
                     isLight ? 'text-slate-400' : 'text-neutral-500'
@@ -401,30 +399,34 @@ export const AgentLabView: React.FC = () => {
               </div>
             </div>
 
-            {/* Workers Carousel Strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+            {/* Clean Responsive Worker Cards (2-4 cols, major headlines clear) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
               {filteredAgents.map((agent) => {
                 const isSelected = agent.id === activeAgent?.id;
                 return (
                   <button
                     key={agent.id}
                     onClick={() => setSelectedAgentId(agent.id)}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                       isSelected
                         ? isLight
                           ? 'bg-indigo-50/90 border-indigo-400 ring-2 ring-indigo-200 shadow-xs text-slate-900'
-                          : 'bg-[#181D2E] border-indigo-500/50 text-white shadow-xs ring-1 ring-indigo-500/30'
+                          : 'bg-[#181D2E] border-indigo-500/60 text-white shadow-xs ring-1 ring-indigo-500/30'
                         : isLight
                         ? 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 hover:bg-slate-50'
                         : 'bg-[#0E121B] border-white/5 hover:border-white/10 text-neutral-300'
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-1 w-full mb-1.5">
-                      <Bot className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-indigo-500' : 'text-neutral-400'}`} />
-                      <span className={`w-1.5 h-1.5 rounded-full ${agent.status === 'active' ? 'bg-emerald-500' : 'bg-neutral-500'}`} />
+                    <div className="flex items-center justify-between gap-1 w-full mb-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Bot className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-500' : 'text-neutral-400'}`} />
+                        <span className="text-xs font-semibold truncate">{agent.name}</span>
+                      </div>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${agent.status === 'active' ? 'bg-emerald-500' : 'bg-neutral-500'}`} />
                     </div>
-                    <span className="text-xs font-semibold truncate block w-full">{agent.name}</span>
-                    <span className="text-[10px] font-mono opacity-60 truncate block w-full mt-0.5">{agent.codename}</span>
+                    <span className="text-[11px] font-medium opacity-60 truncate block w-full pl-6">
+                      {agent.codename}
+                    </span>
                   </button>
                 );
               })}
@@ -452,7 +454,7 @@ export const AgentLabView: React.FC = () => {
                       <h2 className="text-lg font-bold tracking-tight">
                         {activeAgent.name}
                       </h2>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded border border-inherit opacity-70">
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded border border-inherit opacity-70">
                         {activeAgent.codename}
                       </span>
                     </div>
@@ -500,7 +502,7 @@ export const AgentLabView: React.FC = () => {
                 </div>
 
                 {/* Worker Mode & Properties Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-mono">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs font-medium">
                   <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200/80' : 'bg-white/5 border-white/5'}`}>
                     <span className="opacity-60 block text-[10px] uppercase">Execution Mode</span>
                     <span className="font-semibold text-indigo-500">
@@ -538,7 +540,7 @@ export const AgentLabView: React.FC = () => {
                     </h3>
                   </div>
                   {isRunningPipeline && (
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold animate-pulse">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold animate-pulse">
                       Running Stage {activeStageIndex + 1} of 9...
                     </span>
                   )}
@@ -648,13 +650,13 @@ export const AgentLabView: React.FC = () => {
                       Execution Activity & Trace Logs
                     </h3>
                   </div>
-                  <span className="text-[10px] font-mono opacity-60">
+                  <span className="text-[10px] font-medium opacity-60">
                     Live Session Stream
                   </span>
                 </div>
 
                 <div
-                  className={`p-3.5 rounded-xl border font-mono text-[11px] max-h-56 overflow-y-auto space-y-1.5 custom-scrollbar ${
+                  className={`p-3.5 rounded-xl border font-medium text-[11px] max-h-56 overflow-y-auto space-y-1.5 custom-scrollbar ${
                     isLight
                       ? 'bg-slate-900 text-slate-200 border-slate-800'
                       : 'bg-black/60 text-neutral-300 border-white/5'
@@ -688,6 +690,41 @@ export const AgentLabView: React.FC = () => {
         executions={executions}
         onRerun={handleRerunWorkflow}
         onFork={handleForkWorkflow}
+      />
+
+      {/* Workflow Library Repository Modal */}
+      <WorkflowLibrary
+        isOpen={isWorkflowLibraryModalOpen}
+        onClose={() => setIsWorkflowLibraryModalOpen(false)}
+        isLight={isLight}
+        onImportWorkflow={(template: WorkflowTemplate) => {
+          createWorkflow({
+            name: template.name,
+            codename: template.codename,
+            category: template.category,
+            tagline: template.tagline,
+            description: template.description,
+            version: '1.0.0',
+            enabled: true,
+            trigger: { type: 'manual' },
+            conditions: [],
+            steps: template.stages.map((st, i) => ({
+              id: `step-${i + 1}`,
+              name: st,
+              type: i === 0 ? 'tool' : 'action',
+            })),
+            executionChain: template.stages.map((st, i) => ({
+              stepId: `step-${i + 1}`,
+              order: i + 1,
+              onSuccess: i === template.stages.length - 1 ? 'stop' : 'next',
+              onFailure: 'stop',
+            })),
+            stages: template.stages,
+            permissions: template.permissions,
+            systemInstructions: template.systemInstructions,
+            tags: template.tags,
+          });
+        }}
       />
 
       {/* ========================================================
@@ -739,7 +776,7 @@ export const AgentLabView: React.FC = () => {
                     value={formCodename}
                     onChange={(e) => setFormCodename(e.target.value)}
                     placeholder="e.g., worker-chronos"
-                    className={`w-full p-2.5 rounded-xl border outline-none font-mono ${
+                    className={`w-full p-2.5 rounded-xl border outline-none font-medium ${
                       isLight
                         ? 'bg-slate-50 border-slate-200 text-slate-800'
                         : 'bg-neutral-900 border-white/10 text-neutral-100'

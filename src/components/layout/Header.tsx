@@ -17,7 +17,7 @@ import {
   Bell,
   Menu,
   Moon,
-  Sparkles,
+  Flame,
   Sun,
   EyeOff,
   Check,
@@ -28,6 +28,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
+import { NotificationCenter } from './NotificationCenter';
 
 interface BatteryManager extends EventTarget {
   charging: boolean;
@@ -118,7 +119,7 @@ export const Header: React.FC = () => {
       >
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-          <span className="text-[11px] font-mono uppercase tracking-wider font-semibold opacity-80">
+          <span className="text-[11px] font-medium uppercase tracking-wider font-semibold opacity-80">
             Focus Mode • Deep Work Session
           </span>
         </div>
@@ -126,7 +127,7 @@ export const Header: React.FC = () => {
         <div className="flex items-center gap-3">
           {/* Battery Status in Focus Mode */}
           <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono ${
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${
               isPowerSaving
                 ? 'bg-amber-500/20 text-amber-500'
                 : 'bg-inherit text-inherit opacity-75'
@@ -189,10 +190,6 @@ export const Header: React.FC = () => {
           {/* Guest Auth CTAs (Visible when not signed in) */}
           {!isSignedIn ? (
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                <span>Guest Mode (Ephemeral)</span>
-              </div>
               <button
                 onClick={() => {
                   setAuthPageMode('signin');
@@ -217,19 +214,19 @@ export const Header: React.FC = () => {
               </button>
             </div>
           ) : (
-            /* Upgrade CTA Button (replacing Try Plus Free) */
+            /* Upgrade CTA Button */
             <button
               onClick={() => triggerToast('Upgrade to Angel Enterprise for unlimited concurrent agents')}
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-md shadow-indigo-500/20 backdrop-blur-md transition-all transform-gpu hover:-translate-y-0.5 cursor-pointer"
             >
               <span>Upgrade</span>
-              <Sparkles className="w-3 h-3 text-yellow-300" />
+              <Flame className="w-3 h-3 text-amber-300" />
             </button>
           )}
 
           {/* Battery Status Indicator & Power-Saving Monitor */}
           <div
-            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-mono transition-colors backdrop-blur-md cursor-help ${
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors backdrop-blur-md cursor-help ${
               isPowerSaving
                 ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
                 : isLight
@@ -265,24 +262,8 @@ export const Header: React.FC = () => {
             )}
           </button>
 
-          {/* Notification Bell */}
-          <button
-            onClick={() => {
-              setHasUnreadNotification(false);
-              triggerToast('All notifications are up to date');
-            }}
-            className={`relative p-2 rounded-xl transition-colors backdrop-blur-md ${
-              isLight
-                ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/70'
-                : 'text-neutral-400 hover:text-white hover:bg-white/10'
-            }`}
-            title="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            {hasUnreadNotification && (
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-indigo-500/20" />
-            )}
-          </button>
+          {/* Interactive Notification Center */}
+          <NotificationCenter />
 
           {/* Incognito Icon */}
           <button

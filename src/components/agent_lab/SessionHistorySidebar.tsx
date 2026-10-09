@@ -130,7 +130,7 @@ export const SessionHistorySidebar: React.FC<SessionHistorySidebarProps> = ({
                         </span>
                       </div>
                       <span
-                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded border uppercase shrink-0 ${
+                        className={`text-[9px] font-medium px-1.5 py-0.5 rounded border uppercase shrink-0 ${
                           isCompleted
                             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                             : isFailed
@@ -146,7 +146,7 @@ export const SessionHistorySidebar: React.FC<SessionHistorySidebarProps> = ({
                       "{record.taskPrompt}"
                     </p>
 
-                    <div className="flex items-center justify-between text-[10px] font-mono opacity-60 pt-1">
+                    <div className="flex items-center justify-between text-[10px] font-medium opacity-60 pt-1">
                       <span>{record.startedAt ? new Date(record.startedAt).toLocaleTimeString() : 'Recent'}</span>
                       <div className="flex items-center gap-1">
                         <span>{record.logs?.length || 0} trace steps</span>
@@ -189,12 +189,12 @@ export const SessionHistorySidebar: React.FC<SessionHistorySidebarProps> = ({
 
                       {/* Decision Traces & Logs View */}
                       <div className="space-y-1.5">
-                        <span className="text-[10px] font-mono uppercase tracking-wider opacity-60 flex items-center gap-1">
+                        <span className="text-[10px] font-medium uppercase tracking-wider opacity-60 flex items-center gap-1">
                           <Terminal className="w-3 h-3 text-indigo-400" />
                           Decision Traces
                         </span>
 
-                        <div className={`p-2.5 rounded-xl border space-y-2 text-[11px] font-mono max-h-48 overflow-y-auto custom-scrollbar ${
+                        <div className={`p-2.5 rounded-xl border space-y-2 text-[11px] font-medium max-h-48 overflow-y-auto custom-scrollbar ${
                           isLight ? 'bg-slate-50 border-slate-200/80 text-slate-700' : 'bg-black/40 border-white/5 text-neutral-300'
                         }`}>
                           {record.logs && record.logs.length > 0 ? (
@@ -218,12 +218,12 @@ export const SessionHistorySidebar: React.FC<SessionHistorySidebarProps> = ({
                       {/* Tools Used Badge List */}
                       {record.toolsUsed && record.toolsUsed.length > 0 && (
                         <div className="space-y-1">
-                          <span className="text-[10px] font-mono opacity-60 block">Tools Executed:</span>
+                          <span className="text-[10px] font-medium opacity-60 block">Tools Executed:</span>
                           <div className="flex items-center gap-1 flex-wrap">
                             {record.toolsUsed.map((tool) => (
                               <span
                                 key={tool}
-                                className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                                className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
                               >
                                 {tool}
                               </span>

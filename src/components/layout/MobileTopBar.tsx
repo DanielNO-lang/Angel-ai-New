@@ -21,7 +21,7 @@ import {
   Eye,
   Settings,
   Users,
-  Sparkles,
+  Flame,
   WifiOff,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
@@ -69,7 +69,7 @@ export const MobileTopBar: React.FC = () => {
     settings: { label: 'Settings', icon: Settings },
   };
 
-  const current = tabLabels[activeTab] || { label: 'Angel', icon: Sparkles };
+  const current = tabLabels[activeTab] || { label: 'Angel', icon: Flame };
   const TabIcon = current.icon;
 
   return (
@@ -106,7 +106,7 @@ export const MobileTopBar: React.FC = () => {
               <span className="truncate">{current.label}</span>
             </div>
             {!isOnline && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-mono shrink-0">
+              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-medium shrink-0">
                 <WifiOff className="w-3 h-3 animate-pulse" />
                 <span>Offline</span>
               </div>

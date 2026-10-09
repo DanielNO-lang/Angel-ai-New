@@ -185,7 +185,7 @@ export const LibraryView: React.FC = () => {
             </span>
             <div>
               <h1 className="text-xl font-bold tracking-tight">Library</h1>
-              <span className="text-[11px] font-mono opacity-60">
+              <span className="text-[11px] font-medium opacity-60">
                 Unified Workspace Assets, Documents & Durable Artifacts
               </span>
             </div>
@@ -349,7 +349,7 @@ export const LibraryView: React.FC = () => {
                         >
                           <Icon className="w-4 h-4" />
                         </span>
-                        <span className="text-[10px] uppercase font-mono tracking-wider opacity-60">
+                        <span className="text-[10px] uppercase font-medium tracking-wider opacity-60">
                           {item.category}
                         </span>
                       </div>
@@ -409,7 +409,7 @@ export const LibraryView: React.FC = () => {
                   >
                     <div className="flex items-center gap-2">
                       {linkedProj && (
-                        <span className="flex items-center gap-1 font-mono text-[10px] text-indigo-400">
+                        <span className="flex items-center gap-1 font-medium text-[10px] text-indigo-400">
                           <FolderGit2 className="w-3 h-3" />
                           {linkedProj.name.slice(0, 12)}
                         </span>
@@ -490,11 +490,11 @@ export const LibraryView: React.FC = () => {
 
                     <div className="flex items-center gap-4 shrink-0">
                       {linkedProj && (
-                        <span className="hidden sm:inline-flex text-[10px] text-indigo-400 font-mono">
+                        <span className="hidden sm:inline-flex text-[10px] text-indigo-400 font-medium">
                           {linkedProj.name}
                         </span>
                       )}
-                      <span className="text-[11px] text-neutral-400 font-mono">
+                      <span className="text-[11px] text-neutral-400 font-medium">
                         {(item.sizeBytes ? item.sizeBytes / 1024 : 1).toFixed(1)} KB
                       </span>
                       <div className="flex items-center gap-1">
@@ -536,7 +536,7 @@ export const LibraryView: React.FC = () => {
           >
             <div className="space-y-5">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-400">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-indigo-400">
                   {selectedItem.category} Artifact
                 </span>
                 <button
@@ -563,7 +563,7 @@ export const LibraryView: React.FC = () => {
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold">Content</label>
                   <pre
-                    className={`p-3.5 rounded-xl text-xs font-mono overflow-x-auto whitespace-pre-wrap ${
+                    className={`p-3.5 rounded-xl text-xs font-medium overflow-x-auto whitespace-pre-wrap ${
                       isLight ? 'bg-slate-100 text-slate-800' : 'bg-white/5 text-neutral-200'
                     }`}
                   >
@@ -574,7 +574,7 @@ export const LibraryView: React.FC = () => {
 
               {/* Metadata Grid */}
               <div
-                className={`p-4 rounded-2xl border space-y-2 text-xs font-mono ${
+                className={`p-4 rounded-2xl border space-y-2 text-xs font-medium ${
                   isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                 }`}
               >
@@ -712,7 +712,7 @@ export const LibraryView: React.FC = () => {
                   placeholder="Paste or write document content here..."
                   value={newContent}
                   onChange={(e) => setNewContent(e.target.value)}
-                  className={`w-full px-3 py-2 text-xs rounded-xl border outline-none font-mono ${
+                  className={`w-full px-3 py-2 text-xs rounded-xl border outline-none font-medium ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10 text-white'
                   }`}
                 />

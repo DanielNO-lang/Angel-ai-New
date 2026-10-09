@@ -19,7 +19,7 @@ export const WindowsShortcutBadge: React.FC<WindowsShortcutBadgeProps> = ({
 
   return (
     <kbd
-      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono tracking-wide select-none ${
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium tracking-wide select-none ${
         isLight
           ? 'bg-slate-100 text-slate-600 border border-slate-200 shadow-2xs'
           : 'bg-neutral-900/90 text-neutral-300 border border-neutral-800/80 shadow-2xs'

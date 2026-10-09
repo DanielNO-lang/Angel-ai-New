@@ -14,7 +14,7 @@ import {
   AlertCircle,
   Play,
   RotateCcw,
-  Sparkles,
+  Flame,
   Bot,
   Wrench,
   Shield,
@@ -123,7 +123,7 @@ export const SkillsView: React.FC = () => {
       author: 'You (Workspace Author)',
       version: '1.0.0',
       category: newCategory,
-      icon: 'Sparkles',
+      icon: 'Flame',
       instructions: newInstructions.trim(),
       requiredTools: newSelectedTools,
       permissions: ['filesystem_read'],
@@ -179,7 +179,7 @@ export const SkillsView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Skills & Cognitive Capabilities</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
                   {skills.length} Registered Skills
                 </span>
               </div>
@@ -234,7 +234,7 @@ export const SkillsView: React.FC = () => {
         {/* Status Notice Toast */}
         {statusNotice && (
           <div className="p-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs flex items-center gap-2 animate-in fade-in">
-            <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+            <Flame className="w-4 h-4 text-purple-400 shrink-0" />
             <span>{statusNotice}</span>
           </div>
         )}
@@ -285,7 +285,7 @@ export const SkillsView: React.FC = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm">{skill.name}</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-purple-500/10 text-purple-300">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-300">
                             v{skill.version}
                           </span>
                         </div>
@@ -304,7 +304,7 @@ export const SkillsView: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                    <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-medium text-neutral-400">
                       <span>Tools: {skill.requiredTools.join(', ')}</span>
                       <span className="text-[10px] uppercase font-bold text-neutral-500">{skill.category}</span>
                     </div>
@@ -322,7 +322,7 @@ export const SkillsView: React.FC = () => {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
-                    <span className="text-xs font-mono font-semibold text-purple-400 uppercase tracking-wider">
+                    <span className="text-xs font-medium font-semibold text-purple-400 uppercase tracking-wider">
                       Cognitive Specification • {selectedSkill.codename}
                     </span>
                     <h2 className="text-lg font-bold">{selectedSkill.name}</h2>
@@ -342,17 +342,17 @@ export const SkillsView: React.FC = () => {
 
                 {/* Instructions Prompt Pattern */}
                 <div className="space-y-2">
-                  <span className="text-xs font-bold font-mono text-purple-400 uppercase tracking-wider block">
+                  <span className="text-xs font-bold font-medium text-purple-400 uppercase tracking-wider block">
                     Cognitive System Instructions
                   </span>
-                  <div className="p-4 rounded-2xl bg-black/40 border border-white/10 font-mono text-xs text-neutral-300 whitespace-pre-line leading-relaxed">
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/10 font-medium text-xs text-neutral-300 whitespace-pre-line leading-relaxed">
                     {selectedSkill.instructions}
                   </div>
                 </div>
 
                 {/* Declared Tool Dependencies */}
                 <div className="space-y-2">
-                  <span className="text-xs font-bold font-mono text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="text-xs font-bold font-medium text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
                     <Wrench className="w-4 h-4 text-purple-400" />
                     Required Tools ({selectedSkill.requiredTools.length})
                   </span>
@@ -360,7 +360,7 @@ export const SkillsView: React.FC = () => {
                     {selectedSkill.requiredTools.map((tool) => (
                       <span
                         key={tool}
-                        className="px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono text-xs"
+                        className="px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-300 font-medium text-xs"
                       >
                         {tool}
                       </span>
@@ -370,7 +370,7 @@ export const SkillsView: React.FC = () => {
 
                 {/* Declared Permissions */}
                 <div className="space-y-2">
-                  <span className="text-xs font-bold font-mono text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="text-xs font-bold font-medium text-neutral-400 uppercase tracking-wider flex items-center gap-1.5">
                     <Shield className="w-4 h-4 text-emerald-400" />
                     Security Permissions Scopes
                   </span>
@@ -378,7 +378,7 @@ export const SkillsView: React.FC = () => {
                     {selectedSkill.permissions.map((perm) => (
                       <span
                         key={perm}
-                        className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-mono text-xs"
+                        className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-medium text-xs"
                       >
                         {perm}
                       </span>
@@ -388,7 +388,7 @@ export const SkillsView: React.FC = () => {
 
                 {/* Model Requirements */}
                 {selectedSkill.modelRequirements && (
-                  <div className="p-3 rounded-2xl bg-black/20 border border-white/5 flex items-center justify-between text-xs font-mono text-neutral-400">
+                  <div className="p-3 rounded-2xl bg-black/20 border border-white/5 flex items-center justify-between text-xs font-medium text-neutral-400">
                     <span>Recommended Model: {selectedSkill.modelRequirements.recommendedModel}</span>
                     <span>Min Context: {selectedSkill.modelRequirements.minContext?.toLocaleString()} tokens</span>
                   </div>
@@ -409,7 +409,7 @@ export const SkillsView: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-[10px] font-mono font-bold text-purple-400 uppercase">
+                <span className="text-[10px] font-medium font-bold text-purple-400 uppercase">
                   Interactive Execution Simulator
                 </span>
                 <h2 className="text-lg font-bold">Testing: {selectedSkill.name}</h2>
@@ -430,13 +430,13 @@ export const SkillsView: React.FC = () => {
 
             {/* Parameter Input Fields */}
             <div className="space-y-3 p-4 rounded-2xl bg-black/20 border border-white/5">
-              <span className="text-xs font-bold font-mono text-neutral-400 uppercase block">
+              <span className="text-xs font-bold font-medium text-neutral-400 uppercase block">
                 Input Parameters
               </span>
 
               {Object.entries(selectedSkill.parametersSchema).map(([paramName, schema]) => (
                 <div key={paramName} className="space-y-1">
-                  <label className="text-xs font-mono text-neutral-300 flex items-center justify-between">
+                  <label className="text-xs font-medium text-neutral-300 flex items-center justify-between">
                     <span>{paramName} {schema.required && <span className="text-rose-400">*</span>}</span>
                     <span className="text-[10px] text-neutral-500">{schema.description}</span>
                   </label>
@@ -446,7 +446,7 @@ export const SkillsView: React.FC = () => {
                     onChange={(e) =>
                       setTestInputParams({ ...testInputParams, [paramName]: e.target.value })
                     }
-                    className={`w-full px-3 py-2 rounded-xl border text-xs outline-none font-mono ${
+                    className={`w-full px-3 py-2 rounded-xl border text-xs outline-none font-medium ${
                       isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/10 text-white'
                     }`}
                   />
@@ -457,18 +457,18 @@ export const SkillsView: React.FC = () => {
             {/* Test Execution Output */}
             {testExecutionResult && (
               <div className="space-y-4 pt-2">
-                <span className="text-xs font-bold font-mono text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                <span className="text-xs font-bold font-medium text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4" />
                   Live Execution Trace ({testExecutionResult.durationMs}ms)
                 </span>
 
                 {/* Tool Invocations */}
                 <div className="space-y-2">
-                  <span className="text-[11px] font-mono text-neutral-400">Tools Invoked:</span>
+                  <span className="text-[11px] font-medium text-neutral-400">Tools Invoked:</span>
                   {testExecutionResult.toolsInvoked.map((t, idx) => (
                     <div
                       key={idx}
-                      className="p-3 rounded-xl bg-black/40 border border-white/5 font-mono text-xs flex items-center justify-between"
+                      className="p-3 rounded-xl bg-black/40 border border-white/5 font-medium text-xs flex items-center justify-between"
                     >
                       <span className="text-purple-300 font-bold">{t.toolName}</span>
                       <span className="text-emerald-400 text-[10px] uppercase font-bold">{t.status}</span>
@@ -477,7 +477,7 @@ export const SkillsView: React.FC = () => {
                 </div>
 
                 {/* Synthesized Output */}
-                <div className="p-4 rounded-2xl bg-black/50 border border-white/10 font-mono text-xs text-neutral-200 space-y-2">
+                <div className="p-4 rounded-2xl bg-black/50 border border-white/10 font-medium text-xs text-neutral-200 space-y-2">
                   <span className="text-[10px] font-bold text-neutral-400 uppercase block">
                     Synthesized Cognitive Output:
                   </span>
@@ -508,7 +508,7 @@ export const SkillsView: React.FC = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase font-mono block mb-1">
+                <label className="text-xs font-bold text-neutral-400 uppercase font-medium block mb-1">
                   Skill Name
                 </label>
                 <input
@@ -523,7 +523,7 @@ export const SkillsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase font-mono block mb-1">
+                <label className="text-xs font-bold text-neutral-400 uppercase font-medium block mb-1">
                   Cognitive System Instructions
                 </label>
                 <textarea
@@ -531,7 +531,7 @@ export const SkillsView: React.FC = () => {
                   placeholder="You are an expert... When analyzing... 1. Inspect schema. 2. Verify constraints. 3. Formulate output."
                   value={newInstructions}
                   onChange={(e) => setNewInstructions(e.target.value)}
-                  className={`w-full p-3 rounded-2xl border font-mono text-xs outline-none ${
+                  className={`w-full p-3 rounded-2xl border font-medium text-xs outline-none ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/5 border-white/10'
                   }`}
                 />

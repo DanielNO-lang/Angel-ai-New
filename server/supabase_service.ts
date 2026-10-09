@@ -341,6 +341,36 @@ export async function syncAllEntitiesToSupabase(payload: SyncPayload): Promise<S
       if (!error) counts.libraryItems = formattedLib.length;
     }
 
+    // 5. Sync Workflows
+    if (payload.workflows && payload.workflows.length > 0) {
+      const formattedWfs = payload.workflows.map((w: any) => ({
+        id: w.id,
+        name: w.name,
+        description: w.description || '',
+        codename: w.codename || null,
+        category: w.category || 'general',
+        version: w.version || '1.0.0',
+        enabled: w.enabled ?? true,
+        trigger: w.trigger || { type: 'manual' },
+        conditions: w.conditions || [],
+        steps: w.steps || [],
+        execution_chain: w.executionChain || [],
+        stages: w.stages || [],
+        permissions: w.permissions || [],
+        project_id: w.projectId || null,
+        agent_id: w.agentId || null,
+        system_instructions: w.systemInstructions || null,
+        is_template: w.isTemplate ?? false,
+        tags: w.tags || [],
+        created_at: w.createdAt || new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_executed_at: w.lastExecutedAt || null,
+        execution_count: w.executionCount ?? 0,
+      }));
+      const { error } = await supabase.from('workflows').upsert(formattedWfs, { onConflict: 'id' });
+      if (!error) counts.workflows = formattedWfs.length;
+    }
+
     return {
       success: true,
       syncedCounts: counts,
@@ -469,5 +499,36 @@ CREATE TABLE IF NOT EXISTS library_items (
 ALTER TABLE library_items ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage own library items" ON library_items
   FOR ALL USING (auth.uid() = user_id);
+
+-- 6. Workflows Table
+CREATE TABLE IF NOT EXISTS workflows (
+  id TEXT PRIMARY KEY,
+  user_id UUID REFERENCES auth.users ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  codename TEXT,
+  category TEXT DEFAULT 'general',
+  version TEXT DEFAULT '1.0.0',
+  enabled BOOLEAN DEFAULT TRUE,
+  trigger JSONB NOT NULL DEFAULT '{"type": "manual"}'::jsonb,
+  conditions JSONB DEFAULT '[]'::jsonb,
+  steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+  execution_chain JSONB DEFAULT '[]'::jsonb,
+  stages TEXT[] DEFAULT '{}',
+  permissions TEXT[] DEFAULT '{}',
+  project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+  agent_id TEXT REFERENCES agents(id) ON DELETE SET NULL,
+  system_instructions TEXT,
+  is_template BOOLEAN DEFAULT FALSE,
+  tags TEXT[] DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  last_executed_at TIMESTAMPTZ,
+  execution_count INTEGER DEFAULT 0
+);
+
+ALTER TABLE workflows ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage own workflows" ON workflows
+  FOR ALL USING (auth.uid() = user_id OR is_template = true);
   `.trim();
 }

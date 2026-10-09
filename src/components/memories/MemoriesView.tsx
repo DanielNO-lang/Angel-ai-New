@@ -633,7 +633,7 @@ export const MemoriesView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight">Memory Bank</h1>
-                <span className="text-[11px] font-mono opacity-60">({memories.length} entries)</span>
+                <span className="text-[11px] font-medium opacity-60">({memories.length} entries)</span>
               </div>
             </div>
           </div>
@@ -697,10 +697,10 @@ export const MemoriesView: React.FC = () => {
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-                <span className="text-xs font-bold uppercase tracking-wider font-mono">
+                <span className="text-xs font-bold uppercase tracking-wider font-medium">
                   {isRecordingAudio ? 'MediaRecorder Active Recording' : 'Audio Note Captured'}
                 </span>
-                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-400">
+                <span className="text-xs font-medium font-semibold px-2 py-0.5 rounded-md bg-pink-500/20 text-pink-400">
                   {formatAudioTime(audioRecordingSeconds)}
                 </span>
               </div>
@@ -725,7 +725,7 @@ export const MemoriesView: React.FC = () => {
                     style={{ height: `${Math.max(15, lvl)}%` }}
                   />
                 ))}
-                <span className="text-[11px] opacity-70 ml-2 font-mono">
+                <span className="text-[11px] opacity-70 ml-2 font-medium">
                   Listening to microphone stream with browser MediaRecorder...
                 </span>
               </div>
@@ -733,7 +733,7 @@ export const MemoriesView: React.FC = () => {
 
             {/* Live speech transcript box */}
             <div
-              className={`p-3 rounded-xl border text-xs font-mono min-h-[44px] flex items-center ${
+              className={`p-3 rounded-xl border text-xs font-medium min-h-[44px] flex items-center ${
                 isLight ? 'bg-white border-slate-200' : 'bg-neutral-900 border-white/10'
               }`}
             >
@@ -757,7 +757,7 @@ export const MemoriesView: React.FC = () => {
                   {isPlayingPreview ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 ml-0.5" />}
                 </button>
                 <span className="text-[11px] font-medium">Listen to recorded audio note</span>
-                <span className="text-[10px] opacity-60 font-mono ml-auto">
+                <span className="text-[10px] opacity-60 font-medium ml-auto">
                   {formatAudioTime(audioRecordingSeconds)}
                 </span>
               </div>
@@ -842,7 +842,7 @@ export const MemoriesView: React.FC = () => {
               >
                 <span>{tab.label}</span>
                 <span
-                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
                     activeFilter === tab.id
                       ? isLight
                         ? 'bg-indigo-100/80 text-indigo-800'
@@ -888,11 +888,11 @@ export const MemoriesView: React.FC = () => {
 
             <div className="flex items-center gap-2 w-full sm:w-auto text-xs">
               {searchQuery && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
                   Fuzzy: {filteredMemories.length} match{filteredMemories.length === 1 ? '' : 'es'}
                 </span>
               )}
-              <span className={`text-[11px] font-mono whitespace-nowrap ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>Agent Filter:</span>
+              <span className={`text-[11px] font-medium whitespace-nowrap ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>Agent Filter:</span>
               <select
                 value={selectedAgentFilter}
                 onChange={(e) => setSelectedAgentFilter(e.target.value)}
@@ -954,7 +954,7 @@ export const MemoriesView: React.FC = () => {
                     <div className="flex items-center gap-2 flex-wrap">
                       {/* Classification Badge */}
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-mono border ${meta.badgeClass}`}
+                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium border ${meta.badgeClass}`}
                       >
                         {meta.icon}
                         <span>{meta.label}</span>
@@ -965,7 +965,7 @@ export const MemoriesView: React.FC = () => {
 
                       {/* Associated Agent Pill if not already in badge */}
                       {boundAgent && mem.type !== 'agent_memory' && (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono ${
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium ${
                           isLight
                             ? 'bg-slate-100 border-slate-200 text-slate-600'
                             : 'bg-neutral-950 border-neutral-800 text-neutral-400'
@@ -977,7 +977,7 @@ export const MemoriesView: React.FC = () => {
 
                       {/* Associated Project Pill if not already in badge */}
                       {boundProject && mem.type !== 'project_context' && (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono ${
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium ${
                           isLight
                             ? 'bg-slate-100 border-slate-200 text-slate-600'
                             : 'bg-neutral-950 border-neutral-800 text-neutral-400'
@@ -989,7 +989,7 @@ export const MemoriesView: React.FC = () => {
 
                       {/* Confidence Rating */}
                       {mem.confidence !== undefined && (
-                        <span className={`text-[10px] font-mono ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
+                        <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                           Confidence: {Math.round(mem.confidence * 100)}%
                         </span>
                       )}
@@ -1037,7 +1037,7 @@ export const MemoriesView: React.FC = () => {
                               <span>Recorded Voice Note</span>
                             </span>
                             {mem.audioDuration ? (
-                              <span className="opacity-60 font-mono text-[10px]">
+                              <span className="opacity-60 font-medium text-[10px]">
                                 {formatAudioTime(mem.audioDuration)}
                               </span>
                             ) : null}
@@ -1061,7 +1061,7 @@ export const MemoriesView: React.FC = () => {
                     )}
 
                     {/* Meta Footer: Source, Tags, Timestamps */}
-                    <div className={`flex items-center gap-3 pt-2 text-[10px] font-mono flex-wrap border-t ${
+                    <div className={`flex items-center gap-3 pt-2 text-[10px] font-medium flex-wrap border-t ${
                       isLight ? 'border-slate-100 text-slate-400' : 'border-neutral-850 text-neutral-500'
                     }`}>
                       {mem.source && (

@@ -8,7 +8,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   ChevronRight,
   ChevronDown,
-  Sparkles,
+  Flame,
   MessageSquare,
   Mic,
   Eye,
@@ -100,7 +100,7 @@ export const HeaderBreadcrumbs: React.FC<HeaderBreadcrumbsProps> = ({ isLight })
     memories: { label: 'Memory Vault', icon: Brain },
     media_studio: { label: 'Media Studio', icon: Palette },
     assistants: { label: 'Assistants', icon: Bot },
-    marketplace: { label: 'Marketplace', icon: Sparkles },
+    marketplace: { label: 'Marketplace', icon: Flame },
     settings: { label: 'Settings', icon: SlidersHorizontal },
     profile: { label: 'Profile', icon: SlidersHorizontal },
     recycle_bin: { label: 'Recycle Bin', icon: Trash2 },
@@ -143,7 +143,7 @@ export const HeaderBreadcrumbs: React.FC<HeaderBreadcrumbsProps> = ({ isLight })
         title="Go to Home"
       >
         <span className="p-0.5 rounded-md bg-indigo-500/10 text-indigo-500 group-hover:scale-105 transition-transform">
-          <Sparkles className="w-3 h-3 text-indigo-500" />
+          <Flame className="w-3 h-3 text-indigo-500" />
         </span>
         <span className="hidden sm:inline font-semibold tracking-tight">Angel</span>
       </button>
@@ -224,10 +224,10 @@ export const HeaderBreadcrumbs: React.FC<HeaderBreadcrumbsProps> = ({ isLight })
                 }`}
               >
                 <div className="px-2.5 py-1.5 border-b border-inherit mb-1 flex items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase tracking-wider opacity-60">
+                  <span className="text-[10px] font-medium uppercase tracking-wider opacity-60">
                     Jump to Sub-Section
                   </span>
-                  <span className="text-[10px] font-mono text-indigo-500 font-semibold">
+                  <span className="text-[10px] font-medium text-indigo-500 font-semibold">
                     12 Modules
                   </span>
                 </div>

@@ -26,7 +26,7 @@ import {
   MessageSquare,
   Mic,
   Plus,
-  Sparkles,
+  Flame,
   Upload,
   UserPlus,
   Zap,
@@ -35,7 +35,7 @@ import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
 import { DailyDigest } from './DailyDigest';
 import { RecentActivityWidget } from './RecentActivityWidget';
-import { VoiceMemoModal } from './VoiceMemoModal';
+import { RandomQuoteCard } from '../ui/RandomQuoteCard';
 
 export const HomeView: React.FC = () => {
   const {
@@ -45,6 +45,9 @@ export const HomeView: React.FC = () => {
     conversations,
     userProfile,
     settings,
+    isSignedIn,
+    setIsAuthPageOpen,
+    setAuthPageMode,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
@@ -52,7 +55,15 @@ export const HomeView: React.FC = () => {
   const [promptText, setPromptText] = useState('');
   const [activePill, setActivePill] = useState<'chat' | 'image' | 'video' | 'web' | 'live' | 'agent'>('chat');
   const [homeTab, setHomeTab] = useState<'overview' | 'spotlight'>('overview');
-  const [isVoiceMemoOpen, setIsVoiceMemoOpen] = useState(false);
+
+  const requireAuthOrAction = (action: () => void) => {
+    if (!isSignedIn) {
+      setAuthPageMode('signin');
+      setIsAuthPageOpen(true);
+      return;
+    }
+    action();
+  };
 
   // Dynamic random Angel greetings based on intelligence and time of day
   const greeting = useMemo(() => {
@@ -139,9 +150,6 @@ export const HomeView: React.FC = () => {
       case 'marketplace':
         setActiveTab('marketplace');
         break;
-      case 'voice_memo':
-        setIsVoiceMemoOpen(true);
-        break;
       default:
         setActiveTab('chat');
     }
@@ -209,25 +217,12 @@ export const HomeView: React.FC = () => {
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
               placeholder="Ask me anything..."
-              className={`w-full rounded-2xl px-5 py-4 pr-22 text-xs sm:text-sm outline-none transition-all shadow-inner ${
+              className={`w-full rounded-2xl px-5 py-4 pr-14 text-xs sm:text-sm outline-none transition-all shadow-inner ${
                 isLight
                   ? 'bg-white border border-slate-300/80 text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10'
                   : 'bg-neutral-950/90 border border-white/10 text-white placeholder-neutral-500 focus:border-indigo-500/70 focus:ring-1 focus:ring-indigo-500/50'
               }`}
             />
-            {/* Quick Voice Memo Trigger in Input Box */}
-            <button
-              type="button"
-              onClick={() => setIsVoiceMemoOpen(true)}
-              className={`absolute right-13 w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                isLight
-                  ? 'hover:bg-pink-50 text-slate-400 hover:text-pink-600'
-                  : 'hover:bg-pink-500/10 text-neutral-400 hover:text-pink-400'
-              }`}
-              title="Voice Memo — Record quick audio snippet & save as task"
-            >
-              <Mic className="w-4 h-4" />
-            </button>
             <button
               type="submit"
               disabled={!promptText.trim()}
@@ -240,20 +235,6 @@ export const HomeView: React.FC = () => {
 
           {/* Action Pills Row (no harsh lines, 3D pill hover) */}
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setIsVoiceMemoOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-all ${
-                isLight
-                  ? 'bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200'
-                  : 'bg-pink-950/40 hover:bg-pink-900/50 text-pink-300 border border-pink-500/30'
-              }`}
-              title="Capture quick audio snippet & save as task"
-            >
-              <Mic className="w-3.5 h-3.5 text-pink-500" />
-              <span>Voice Memo</span>
-            </button>
-
             <button
               type="button"
               onClick={() => setActivePill('chat')}
@@ -406,7 +387,7 @@ export const HomeView: React.FC = () => {
         </div>
 
         <span
-          className={`text-[11px] font-mono ${
+          className={`text-[11px] font-medium ${
             isLight ? 'text-slate-400' : 'text-neutral-400'
           }`}
         >
@@ -650,31 +631,6 @@ export const HomeView: React.FC = () => {
                     Build and execute workflows
                   </p>
                 </div>
-
-                {/* 9. Voice Memo Quick Capture */}
-                <div
-                  onClick={() => setIsVoiceMemoOpen(true)}
-                  className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg sm:col-span-2 ${
-                    isLight
-                      ? 'bg-gradient-to-r from-pink-50/70 to-purple-50/70 border border-pink-200 hover:border-pink-300 shadow-2xs'
-                      : 'bg-gradient-to-r from-pink-950/20 to-purple-950/20 border border-pink-500/20 hover:border-pink-500/40 shadow-md shadow-black/40'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-pink-500/20 flex items-center justify-center text-pink-500 mb-2 group-hover:scale-110 transition-transform">
-                      <Mic className="w-4 h-4" />
-                    </div>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-pink-500/20 text-pink-400 border border-pink-500/30">
-                      Quick Voice Capture
-                    </span>
-                  </div>
-                  <h3 className={`text-xs font-semibold mb-0.5 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                    Voice Memo to Task
-                  </h3>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
-                    Record quick spoken audio snippets transcribed & automatically converted to schedule tasks with AI
-                  </p>
-                </div>
               </div>
             </div>
 
@@ -726,7 +682,7 @@ export const HomeView: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <span className={`text-[10px] font-mono ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
+                    <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
                       2m
                     </span>
                   </div>
@@ -749,7 +705,7 @@ export const HomeView: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <span className={`text-[10px] font-mono ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
+                    <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
                       4m
                     </span>
                   </div>
@@ -772,7 +728,7 @@ export const HomeView: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <span className={`text-[10px] font-mono ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
+                    <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
                       1m
                     </span>
                   </div>
@@ -908,7 +864,7 @@ export const HomeView: React.FC = () => {
                     <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
                       Assistant Creator
                     </span>
-                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <Flame className="w-3.5 h-3.5 text-amber-400" />
                   </div>
                   <p className={`text-[11px] mb-3 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                     Build custom personas.
@@ -1132,34 +1088,8 @@ export const HomeView: React.FC = () => {
               </div>
             </div>
 
-            {/* Inspiring Artwork Quote Card (Desktop Light & Dark, Image 5 & 6) */}
-            <div
-              className={`rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden ${
-                isLight
-                  ? 'bg-gradient-to-br from-amber-50/70 via-rose-50/50 to-orange-50/60 border border-amber-200/60 text-slate-800'
-                  : 'bg-gradient-to-br from-[#121620] via-neutral-900 to-[#181D2A] border border-white/5 text-neutral-200'
-              }`}
-            >
-              <div className="space-y-2 relative z-10">
-                <span className="text-2xl text-indigo-400 font-serif">“</span>
-                <p className="text-xs italic leading-relaxed font-medium">
-                  {isLight
-                    ? 'Better ideas build a brighter future.'
-                    : 'The future belongs to those who believe in the beauty of their dreams.'}
-                </p>
-                <p className={`text-[11px] font-semibold ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  {isLight ? '— Angel Inspiration' : '— Eleanor Roosevelt'}
-                </p>
-              </div>
-              <div
-                className={`mt-4 pt-4 border-t flex items-center justify-between text-[11px] ${
-                  isLight ? 'border-amber-200/60 text-slate-500' : 'border-neutral-800 text-neutral-400'
-                }`}
-              >
-                <span>Angel Daily Spark</span>
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              </div>
-            </div>
+            {/* Dynamic Inspiring Artwork Quote Card with Shuffle */}
+            <RandomQuoteCard />
           </div>
 
           {/* Latest News Feed */}
@@ -1179,7 +1109,7 @@ export const HomeView: React.FC = () => {
                   isLight ? 'bg-slate-50' : 'bg-neutral-950/60'
                 }`}
               >
-                <span className="text-[10px] text-blue-500 font-mono">INDUSTRY UPDATE</span>
+                <span className="text-[10px] text-blue-500 font-medium">INDUSTRY UPDATE</span>
                 <h4 className={`font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
                   Gemini 3.8 Flash Benchmarks
                 </h4>
@@ -1193,7 +1123,7 @@ export const HomeView: React.FC = () => {
                   isLight ? 'bg-slate-50' : 'bg-neutral-950/60'
                 }`}
               >
-                <span className="text-[10px] text-purple-500 font-mono">ARCHITECTURE</span>
+                <span className="text-[10px] text-purple-500 font-medium">ARCHITECTURE</span>
                 <h4 className={`font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
                   Supabase RLS & Cloud Sync
                 </h4>
@@ -1207,7 +1137,7 @@ export const HomeView: React.FC = () => {
                   isLight ? 'bg-slate-50' : 'bg-neutral-950/60'
                 }`}
               >
-                <span className="text-[10px] text-emerald-500 font-mono">SECURITY</span>
+                <span className="text-[10px] text-emerald-500 font-medium">SECURITY</span>
                 <h4 className={`font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
                   Hardware Vault & Encrypted Secrets
                 </h4>
@@ -1219,11 +1149,6 @@ export const HomeView: React.FC = () => {
           </div>
         </div>
       )}
-      {/* Voice Memo Quick Task Recording Modal */}
-      <VoiceMemoModal
-        isOpen={isVoiceMemoOpen}
-        onClose={() => setIsVoiceMemoOpen(false)}
-      />
     </div>
   );
 };

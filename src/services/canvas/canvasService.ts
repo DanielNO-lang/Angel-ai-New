@@ -84,7 +84,7 @@ export const INITIAL_CANVASES: CanvasArtifact[] = [
         type: 'code',
         title: 'React Component Source',
         language: 'typescript',
-        content: `import React from 'react';\n\ninterface MetricCardProps {\n  title: string;\n  value: string | number;\n  change: string;\n  isPositive: boolean;\n}\n\nexport const MetricCard: React.FC<MetricCardProps> = ({ title, value, change, isPositive }) => (\n  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">\n    <span className="text-xs text-neutral-400 font-mono uppercase">{title}</span>\n    <div className="text-2xl font-bold mt-1">{value}</div>\n    <div className={\`text-xs mt-1 \${isPositive ? 'text-emerald-400' : 'text-rose-400'}\`}>\n      {change}\n    </div>\n  </div>\n);`,
+        content: `import React from 'react';\n\ninterface MetricCardProps {\n  title: string;\n  value: string | number;\n  change: string;\n  isPositive: boolean;\n}\n\nexport const MetricCard: React.FC<MetricCardProps> = ({ title, value, change, isPositive }) => (\n  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">\n    <span className="text-xs text-neutral-400 font-medium uppercase">{title}</span>\n    <div className="text-2xl font-bold mt-1">{value}</div>\n    <div className={\`text-xs mt-1 \${isPositive ? 'text-emerald-400' : 'text-rose-400'}\`}>\n      {change}\n    </div>\n  </div>\n);`,
         output: 'Component compiled cleanly with zero TypeScript errors.',
       },
     ],

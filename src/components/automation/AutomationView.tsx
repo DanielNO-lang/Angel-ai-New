@@ -17,7 +17,7 @@ import {
   ArrowRight,
   GitBranch,
   RotateCcw,
-  Sparkles,
+  Flame,
   Share2,
   Filter,
   Layers,
@@ -206,7 +206,7 @@ export const AutomationView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Event-Driven Automation Engine</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   Event Stream Active
                 </span>
               </div>
@@ -262,7 +262,7 @@ export const AutomationView: React.FC = () => {
         {/* Status Notice Toast */}
         {statusNotice && (
           <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2 animate-in fade-in">
-            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <Flame className="w-4 h-4 text-amber-400 shrink-0" />
             <span>{statusNotice}</span>
           </div>
         )}
@@ -274,7 +274,7 @@ export const AutomationView: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column: Automation Cards */}
             <div className="lg:col-span-5 space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 font-mono">
+              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 font-medium">
                 Active Automation Pipelines
               </span>
 
@@ -299,7 +299,7 @@ export const AutomationView: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm">{auto.name}</span>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
                               auto.enabled
                                 ? 'bg-emerald-500/10 text-emerald-400'
                                 : 'bg-neutral-500/10 text-neutral-400'
@@ -324,7 +324,7 @@ export const AutomationView: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                    <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-medium text-neutral-400">
                       <span className="flex items-center gap-1.5">
                         <Zap className="w-3.5 h-3.5 text-amber-400" />
                         Trigger: {auto.trigger.type}
@@ -346,7 +346,7 @@ export const AutomationView: React.FC = () => {
                 {/* Header Action Row */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
-                    <span className="text-xs font-mono font-semibold text-amber-400 uppercase tracking-wider">
+                    <span className="text-xs font-medium font-semibold text-amber-400 uppercase tracking-wider">
                       Workflow Pipeline Inspector
                     </span>
                     <h2 className="text-lg font-bold">{selectedAutomation.name}</h2>
@@ -379,11 +379,11 @@ export const AutomationView: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold font-mono flex items-center gap-2 text-amber-400">
+                    <span className="text-xs font-bold font-medium flex items-center gap-2 text-amber-400">
                       <Zap className="w-4 h-4" />
                       1. Trigger Event Contract
                     </span>
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300">
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300">
                       {selectedAutomation.trigger.type}
                     </span>
                   </div>
@@ -397,7 +397,7 @@ export const AutomationView: React.FC = () => {
                         {selectedAutomation.conditions.map((cond, idx) => (
                           <div
                             key={cond.id}
-                            className="px-2.5 py-1.5 rounded-lg bg-black/20 font-mono text-[11px] flex items-center gap-2"
+                            className="px-2.5 py-1.5 rounded-lg bg-black/20 font-medium text-[11px] flex items-center gap-2"
                           >
                             <Filter className="w-3 h-3 text-amber-400" />
                             <span>
@@ -417,7 +417,7 @@ export const AutomationView: React.FC = () => {
 
                 {/* Workflow Execution Steps */}
                 <div className="space-y-3">
-                  <span className="text-xs font-bold font-mono uppercase tracking-wider text-neutral-400 flex items-center gap-2">
+                  <span className="text-xs font-bold font-medium uppercase tracking-wider text-neutral-400 flex items-center gap-2">
                     <Layers className="w-4 h-4" />
                     2. Workflow Step Chain ({selectedAutomation.steps.length} Steps)
                   </span>
@@ -433,19 +433,19 @@ export const AutomationView: React.FC = () => {
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-mono font-bold flex items-center justify-center">
+                              <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-medium font-bold flex items-center justify-center">
                                 {idx + 1}
                               </span>
                               <span className="text-xs font-bold">{step.name}</span>
                             </div>
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 uppercase opacity-70">
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/5 uppercase opacity-70">
                               {step.type}
                             </span>
                           </div>
 
                           {/* Step Details according to type */}
                           {step.type === 'agent_execution' && (
-                            <div className="text-xs text-neutral-400 space-y-1 bg-black/20 p-2.5 rounded-xl font-mono text-[11px]">
+                            <div className="text-xs text-neutral-400 space-y-1 bg-black/20 p-2.5 rounded-xl font-medium text-[11px]">
                               <div className="flex items-center gap-1.5 text-indigo-400 font-bold">
                                 <Bot className="w-3 h-3" />
                                 Agent: {step.agentId || 'core'}
@@ -455,7 +455,7 @@ export const AutomationView: React.FC = () => {
                           )}
 
                           {step.type === 'action' && (
-                            <div className="text-xs text-neutral-400 space-y-1 bg-black/20 p-2.5 rounded-xl font-mono text-[11px]">
+                            <div className="text-xs text-neutral-400 space-y-1 bg-black/20 p-2.5 rounded-xl font-medium text-[11px]">
                               <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
                                 <Bell className="w-3 h-3" />
                                 Action: {step.actionType}
@@ -467,7 +467,7 @@ export const AutomationView: React.FC = () => {
                           )}
 
                           {step.type === 'branch' && step.branchConfig && (
-                            <div className="text-xs text-neutral-400 space-y-1 bg-black/20 p-2.5 rounded-xl font-mono text-[11px]">
+                            <div className="text-xs text-neutral-400 space-y-1 bg-black/20 p-2.5 rounded-xl font-medium text-[11px]">
                               <div className="flex items-center gap-1.5 text-cyan-400 font-bold">
                                 <GitBranch className="w-3 h-3" />
                                 Branch Condition: {step.branchConfig.conditionField}{' '}
@@ -481,7 +481,7 @@ export const AutomationView: React.FC = () => {
                           )}
 
                           {step.type === 'webhook' && (
-                            <div className="text-xs text-neutral-400 space-y-1 bg-black/20 p-2.5 rounded-xl font-mono text-[11px]">
+                            <div className="text-xs text-neutral-400 space-y-1 bg-black/20 p-2.5 rounded-xl font-medium text-[11px]">
                               <div className="flex items-center gap-1.5 text-rose-400 font-bold">
                                 <Share2 className="w-3 h-3" />
                                 Webhook: {step.webhookMethod || 'POST'} {step.webhookUrl || '(Settings Default)'}
@@ -511,7 +511,7 @@ export const AutomationView: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left list of runs */}
             <div className="lg:col-span-5 space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 font-mono">
+              <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 font-medium">
                 Recent Automation Runs ({history.length})
               </span>
 
@@ -551,7 +551,7 @@ export const AutomationView: React.FC = () => {
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-xs">{run.automationName}</span>
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
                             run.status === 'completed'
                               ? 'bg-emerald-500/10 text-emerald-400'
                               : run.status === 'failed'
@@ -562,7 +562,7 @@ export const AutomationView: React.FC = () => {
                           {run.status.toUpperCase()}
                         </span>
                       </div>
-                      <div className="mt-2 flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                      <div className="mt-2 flex items-center justify-between text-[11px] font-medium text-neutral-400">
                         <span>Event: {run.triggerEvent}</span>
                         <span>{run.durationMs}ms</span>
                       </div>
@@ -581,17 +581,17 @@ export const AutomationView: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-mono text-amber-400 font-bold uppercase">
+                    <span className="text-[10px] font-medium text-amber-400 font-bold uppercase">
                       Audit Trace Breakdown
                     </span>
                     <h2 className="text-base font-bold">{selectedRun.automationName}</h2>
-                    <span className="text-[11px] text-neutral-400 font-mono">
+                    <span className="text-[11px] text-neutral-400 font-medium">
                       Run ID: {selectedRun.id} • Started: {new Date(selectedRun.startedAt).toLocaleTimeString()}
                     </span>
                   </div>
 
                   <span
-                    className={`px-3 py-1 rounded-xl text-xs font-mono font-bold ${
+                    className={`px-3 py-1 rounded-xl text-xs font-medium font-bold ${
                       selectedRun.status === 'completed'
                         ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                         : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
@@ -603,11 +603,11 @@ export const AutomationView: React.FC = () => {
 
                 {/* 1. What Triggered */}
                 <div className="p-4 rounded-2xl bg-black/20 border border-white/5 space-y-2">
-                  <span className="text-xs font-mono font-bold text-amber-400 flex items-center gap-1.5">
+                  <span className="text-xs font-medium font-bold text-amber-400 flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5" />
                     1. WHAT TRIGGERED THE AUTOMATION
                   </span>
-                  <div className="text-xs font-mono text-neutral-300">
+                  <div className="text-xs font-medium text-neutral-300">
                     <div>Event: <span className="text-amber-300 font-bold">{selectedRun.triggerEvent}</span></div>
                     <pre className="mt-2 p-2 rounded-xl bg-black/40 text-[11px] overflow-x-auto text-neutral-400">
                       {JSON.stringify(selectedRun.triggerPayload, null, 2)}
@@ -617,16 +617,16 @@ export const AutomationView: React.FC = () => {
 
                 {/* 2. What Angel Decided */}
                 <div className="p-4 rounded-2xl bg-black/20 border border-white/5 space-y-2">
-                  <span className="text-xs font-mono font-bold text-indigo-400 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" />
+                  <span className="text-xs font-medium font-bold text-indigo-400 flex items-center gap-1.5">
+                    <Flame className="w-3.5 h-3.5" />
                     2. WHAT ANGEL DECIDED
                   </span>
-                  <p className="text-xs font-mono text-neutral-300">{selectedRun.decisionSummary}</p>
+                  <p className="text-xs font-medium text-neutral-300">{selectedRun.decisionSummary}</p>
                 </div>
 
                 {/* 3. What Ran */}
                 <div className="space-y-3">
-                  <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1.5">
+                  <span className="text-xs font-medium font-bold text-emerald-400 flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5" />
                     3. WHAT RAN ({selectedRun.stepLogs.length} Execution Steps)
                   </span>
@@ -635,7 +635,7 @@ export const AutomationView: React.FC = () => {
                     {selectedRun.stepLogs.map((log, idx) => (
                       <div
                         key={log.stepId}
-                        className={`p-3 rounded-xl border text-xs font-mono space-y-1.5 ${
+                        className={`p-3 rounded-xl border text-xs font-medium space-y-1.5 ${
                           log.status === 'completed'
                             ? 'bg-emerald-500/5 border-emerald-500/20'
                             : 'bg-rose-500/5 border-rose-500/20'
@@ -661,7 +661,7 @@ export const AutomationView: React.FC = () => {
 
                 {/* 4. What Completed / Result Summary */}
                 <div className="p-4 rounded-2xl bg-black/20 border border-white/5 space-y-1">
-                  <span className="text-xs font-mono font-bold text-neutral-400">
+                  <span className="text-xs font-medium font-bold text-neutral-400">
                     4. FINAL EXECUTION RESULT
                   </span>
                   <p className="text-xs text-neutral-200">{selectedRun.resultSummary}</p>
@@ -689,7 +689,7 @@ export const AutomationView: React.FC = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase font-mono block mb-1">
+                <label className="text-xs font-bold text-neutral-400 uppercase font-medium block mb-1">
                   Workflow Name
                 </label>
                 <input
@@ -706,7 +706,7 @@ export const AutomationView: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase font-mono block mb-1">
+                <label className="text-xs font-bold text-neutral-400 uppercase font-medium block mb-1">
                   Description & Purpose
                 </label>
                 <textarea
@@ -724,7 +724,7 @@ export const AutomationView: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase font-mono block mb-1">
+                  <label className="text-xs font-bold text-neutral-400 uppercase font-medium block mb-1">
                     Trigger Event
                   </label>
                   <select
@@ -746,7 +746,7 @@ export const AutomationView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-neutral-400 uppercase font-mono block mb-1">
+                  <label className="text-xs font-bold text-neutral-400 uppercase font-medium block mb-1">
                     Condition Matcher
                   </label>
                   <div className="flex gap-2">

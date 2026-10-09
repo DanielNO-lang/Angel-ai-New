@@ -213,7 +213,7 @@ export const ConnectionsWorkspace: React.FC = () => {
           <div className="flex items-center gap-2">
             <Radio className="w-5 h-5 text-indigo-400" />
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Connections & Integrations</h1>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
               Verified Pipeline
             </span>
           </div>
@@ -287,7 +287,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Github className="w-4 h-4 text-indigo-400" />
                   Authentication Status
                 </span>
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${ghStatus?.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${ghStatus?.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
                   {ghStatus?.success ? 'Connected' : 'Token Required'}
                 </span>
               </div>
@@ -315,7 +315,7 @@ export const ConnectionsWorkspace: React.FC = () => {
               <p className="text-xs text-neutral-400 line-clamp-2">
                 {ghRepo?.description || 'Personal AI workspace and agent platform.'}
               </p>
-              <div className="flex items-center gap-3 text-[11px] font-mono text-neutral-500 pt-2">
+              <div className="flex items-center gap-3 text-[11px] font-medium text-neutral-500 pt-2">
                 <span>★ {ghRepo?.stars || 0} stars</span>
                 <span>•</span>
                 <span>{ghBranches.length} branches</span>
@@ -355,9 +355,9 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Folder className="w-4 h-4 text-indigo-400" />
                   Repository File Structure ({ghFiles.length})
                 </span>
-                <span className="text-[10px] font-mono text-neutral-500">Root Directory</span>
+                <span className="text-[10px] font-medium text-neutral-500">Root Directory</span>
               </div>
-              <div className="space-y-1 max-h-56 overflow-y-auto custom-scrollbar text-xs font-mono">
+              <div className="space-y-1 max-h-56 overflow-y-auto custom-scrollbar text-xs font-medium">
                 {ghFiles.map((file) => (
                   <div
                     key={file.path}
@@ -381,7 +381,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Terminal className="w-4 h-4 text-purple-400" />
                   GitHub Issues & Backlog ({ghIssues.length})
                 </span>
-                <span className="text-[10px] font-mono text-neutral-500">State: Open</span>
+                <span className="text-[10px] font-medium text-neutral-500">State: Open</span>
               </div>
               <div className="space-y-1.5 max-h-56 overflow-y-auto custom-scrollbar text-xs">
                 {ghIssues.length === 0 ? (
@@ -391,11 +391,11 @@ export const ConnectionsWorkspace: React.FC = () => {
                     <div key={issue.id} className="p-2.5 rounded-xl bg-neutral-950/60 border border-white/5 space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-neutral-200 truncate">#{issue.number} {issue.title}</span>
-                        <span className="text-[10px] font-mono text-emerald-400">@{issue.author}</span>
+                        <span className="text-[10px] font-medium text-emerald-400">@{issue.author}</span>
                       </div>
                       <div className="flex items-center gap-1 flex-wrap">
                         {issue.labels.map((l: string) => (
-                          <span key={l} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-white/5">
+                          <span key={l} className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-white/5">
                             {l}
                           </span>
                         ))}
@@ -411,10 +411,10 @@ export const ConnectionsWorkspace: React.FC = () => {
           {selectedFileContent && (
             <div className="p-4 rounded-2xl border border-indigo-500/30 bg-neutral-950 space-y-2">
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="text-xs font-mono font-semibold text-indigo-400">File Inspection Preview</span>
+                <span className="text-xs font-medium font-semibold text-indigo-400">File Inspection Preview</span>
                 <button onClick={() => setSelectedFileContent(null)} className="text-xs text-neutral-400 hover:text-white">Close</button>
               </div>
-              <pre className="text-xs font-mono text-neutral-300 max-h-48 overflow-y-auto custom-scrollbar p-2 bg-neutral-900/80 rounded-xl">
+              <pre className="text-xs font-medium text-neutral-300 max-h-48 overflow-y-auto custom-scrollbar p-2 bg-neutral-900/80 rounded-xl">
                 {selectedFileContent}
               </pre>
             </div>
@@ -432,7 +432,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Globe className="w-4 h-4 text-blue-400" />
                   Vercel Connection
                 </span>
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${vercelStatus?.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${vercelStatus?.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
                   {vercelStatus?.success ? 'Connected' : 'Token Configured'}
                 </span>
               </div>
@@ -460,7 +460,7 @@ export const ConnectionsWorkspace: React.FC = () => {
               <div className="text-xs text-neutral-400">
                 Framework: <code className="bg-neutral-950 px-1 py-0.5 rounded text-neutral-300">vite</code>
               </div>
-              <div className="text-[11px] font-mono text-neutral-500 pt-2">
+              <div className="text-[11px] font-medium text-neutral-500 pt-2">
                 Project ID: {vercelProjects[0]?.id || 'prj_angel_default'}
               </div>
             </div>
@@ -473,7 +473,7 @@ export const ConnectionsWorkspace: React.FC = () => {
               <p className="text-xs text-neutral-400 leading-relaxed">
                 Tokens are stored on server-side runtime secrets. Client browser never has access to VERCEL_TOKEN credentials.
               </p>
-              <span className="text-[10px] font-mono text-emerald-400 block pt-1">
+              <span className="text-[10px] font-medium text-emerald-400 block pt-1">
                 ✓ Serverless Proxy Routing Active
               </span>
             </div>
@@ -486,7 +486,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                 <Layers className="w-4 h-4 text-blue-400" />
                 Recent Vercel Production Deployments
               </span>
-              <span className="text-[10px] font-mono text-neutral-500">{vercelDeployments.length} logged</span>
+              <span className="text-[10px] font-medium text-neutral-500">{vercelDeployments.length} logged</span>
             </div>
             <div className="space-y-2">
               {vercelDeployments.map((d) => (
@@ -495,16 +495,16 @@ export const ConnectionsWorkspace: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${d.state === 'READY' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                       <span className="font-semibold text-neutral-200">{d.commitMessage || d.name}</span>
-                      <span className="text-[10px] font-mono text-neutral-500">({d.state})</span>
+                      <span className="text-[10px] font-medium text-neutral-500">({d.state})</span>
                     </div>
                     {d.url && (
-                      <a href={d.url} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline flex items-center gap-1 text-[11px] font-mono">
+                      <a href={d.url} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline flex items-center gap-1 text-[11px] font-medium">
                         <span>{d.url}</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
                   </div>
-                  <span className="text-[10px] font-mono text-neutral-500">
+                  <span className="text-[10px] font-medium text-neutral-500">
                     {new Date(d.created).toLocaleDateString()}
                   </span>
                 </div>
@@ -524,7 +524,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Database className="w-4 h-4 text-emerald-400" />
                   PostgreSQL Sync Engine
                 </span>
-                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${supabaseStats?.isSupabaseConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${supabaseStats?.isSupabaseConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
                   {supabaseStats?.isSupabaseConnected ? 'Live Database' : 'Local Fallback'}
                 </span>
               </div>
@@ -552,7 +552,7 @@ export const ConnectionsWorkspace: React.FC = () => {
               <div className="text-xs text-neutral-400">
                 Rating: <strong className="text-emerald-400">{supabaseStats?.velocityRating || 'Optimal'}</strong>
               </div>
-              <div className="text-[11px] font-mono text-neutral-500 pt-1">
+              <div className="text-[11px] font-medium text-neutral-500 pt-1">
                 Burn-down rate: {supabaseStats?.burnDownRate || '2.4 tasks/day'}
               </div>
             </div>
@@ -565,7 +565,7 @@ export const ConnectionsWorkspace: React.FC = () => {
               <p className="text-xs text-neutral-400 leading-relaxed">
                 All cloud tables enforce user isolation with <code className="bg-neutral-950 px-1 py-0.5 rounded text-neutral-300">auth.uid() = user_id</code>.
               </p>
-              <span className="text-[10px] font-mono text-emerald-400 block pt-1">
+              <span className="text-[10px] font-medium text-emerald-400 block pt-1">
                 ✓ RLS Policies Active
               </span>
             </div>
@@ -579,9 +579,9 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Terminal className="w-4 h-4 text-emerald-400" />
                   PostgreSQL DDL Migration Script
                 </span>
-                <span className="text-[10px] font-mono text-neutral-500">Supabase SQL Editor Ready</span>
+                <span className="text-[10px] font-medium text-neutral-500">Supabase SQL Editor Ready</span>
               </div>
-              <pre className="text-xs font-mono text-neutral-300 max-h-56 overflow-y-auto custom-scrollbar p-3 bg-neutral-950 rounded-xl">
+              <pre className="text-xs font-medium text-neutral-300 max-h-56 overflow-y-auto custom-scrollbar p-3 bg-neutral-950 rounded-xl">
                 {ddlCode}
               </pre>
             </div>
@@ -602,11 +602,11 @@ export const ConnectionsWorkspace: React.FC = () => {
                 Dispatches real-time HMAC-signed webhooks to Zapier, Make.com, or custom automation endpoints.
               </p>
               <div className="space-y-2">
-                <label className="text-[11px] font-mono text-neutral-400 block">Select Event Trigger:</label>
+                <label className="text-[11px] font-medium text-neutral-400 block">Select Event Trigger:</label>
                 <select
                   value={testEventName}
                   onChange={(e) => setTestEventName(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-neutral-950 border border-white/10 text-xs font-mono text-neutral-200"
+                  className="w-full p-2.5 rounded-xl bg-neutral-950 border border-white/10 text-xs font-medium text-neutral-200"
                 >
                   <option value="task.created">task.created</option>
                   <option value="task.completed">task.completed</option>
@@ -630,7 +630,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                 Dispatch Receipt & Payload
               </span>
               {webhookReceipt ? (
-                <pre className="text-xs font-mono text-neutral-300 max-h-48 overflow-y-auto custom-scrollbar p-3 bg-neutral-950 rounded-xl">
+                <pre className="text-xs font-medium text-neutral-300 max-h-48 overflow-y-auto custom-scrollbar p-3 bg-neutral-950 rounded-xl">
                   {JSON.stringify(webhookReceipt, null, 2)}
                 </pre>
               ) : (
@@ -657,7 +657,7 @@ export const ConnectionsWorkspace: React.FC = () => {
             {['Google Drive (Files & References)', 'Google Calendar (Schedule Sync)', 'Google Docs (Document Export)', 'Google Sheets (Data Analysis)'].map((scope) => (
               <div key={scope} className="p-3 rounded-xl bg-neutral-950/60 border border-white/5 flex items-center justify-between">
                 <span className="text-neutral-300">{scope}</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-800 text-neutral-400">OAuth Ready</span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-neutral-800 text-neutral-400">OAuth Ready</span>
               </div>
             ))}
           </div>

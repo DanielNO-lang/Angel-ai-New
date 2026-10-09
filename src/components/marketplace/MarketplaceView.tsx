@@ -168,7 +168,7 @@ export const MarketplaceView: React.FC = () => {
             </span>
             <div>
               <h1 className="text-xl font-bold tracking-tight">Marketplace Ecosystem</h1>
-              <span className="text-[11px] font-mono opacity-60">
+              <span className="text-[11px] font-medium opacity-60">
                 Verified Agents, Live Tools, Automation Workflows & Extensions
               </span>
             </div>
@@ -282,17 +282,17 @@ export const MarketplaceView: React.FC = () => {
                         <Icon className="w-5 h-5" />
                       </span>
                       <div>
-                        <div className="text-[10px] font-mono text-neutral-400 flex items-center gap-1">
+                        <div className="text-[10px] font-medium text-neutral-400 flex items-center gap-1">
                           <span>{item.author}</span>
                           {(item.isOfficial || item.authorVerified) && (
                             <CheckCircle2 className="w-3 h-3 text-emerald-400 inline" />
                           )}
                         </div>
-                        <span className="text-[10px] font-mono opacity-50">v{item.version}</span>
+                        <span className="text-[10px] font-medium opacity-50">v{item.version}</span>
                       </div>
                     </div>
 
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
                       Angel v1.0+
                     </span>
                   </div>
@@ -332,7 +332,7 @@ export const MarketplaceView: React.FC = () => {
                       <span className="text-[11px] opacity-60">({item.reviewCount} reviews)</span>
                     </button>
 
-                    <span className="text-[11px] font-mono">{item.installs} installs</span>
+                    <span className="text-[11px] font-medium">{item.installs} installs</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -370,7 +370,7 @@ export const MarketplaceView: React.FC = () => {
                   </div>
 
                   {reportedItemId === item.id && (
-                    <div className="text-[10px] text-amber-400 font-mono text-center">
+                    <div className="text-[10px] text-amber-400 font-medium text-center">
                       Report submitted to moderation review queue.
                     </div>
                   )}

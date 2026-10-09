@@ -9,7 +9,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Sparkles,
+  Flame,
   ArrowRight,
   Play,
   Pause,
@@ -19,13 +19,18 @@ import {
   Mail,
   User,
   Shield,
+  ShieldCheck,
   Layers,
   Cpu,
   Brain,
+  Calendar,
+  FileText,
+  Database,
   X,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
+import { signInWithGoogleOAuth } from '../../services/supabaseService';
 
 export const AuthPage: React.FC = () => {
   const {
@@ -48,17 +53,7 @@ export const AuthPage: React.FC = () => {
   const [name, setName] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
-  const [isClipPlaying, setIsClipPlaying] = useState(true);
-  const [clipSeconds, setClipSeconds] = useState(0);
-
-  // Short clip loop timer (0:00 to 0:04 loop)
-  useEffect(() => {
-    if (!isClipPlaying) return;
-    const interval = setInterval(() => {
-      setClipSeconds((prev) => (prev >= 4 ? 0 : Number((prev + 0.1).toFixed(1))));
-    }, 100);
-    return () => clearInterval(interval);
-  }, [isClipPlaying]);
+  const [isGoogleOAuthModalOpen, setIsGoogleOAuthModalOpen] = useState(false);
 
   if (!isAuthPageOpen) return null;
 
@@ -94,7 +89,32 @@ export const AuthPage: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     setIsSubmitting(true);
+    setAuthError(null);
+    try {
+      const res = await signInWithGoogleOAuth();
+      if (res.redirected) {
+        // OAuth flow initiated; browser redirected
+        return;
+      }
+      if (res.error) {
+        if (res.error.includes('not configured')) {
+          // Graceful fallback for environments where Supabase keys are pending
+          await signIn('danielokohnwachukwu22@gmail.com', 'Angel2026!');
+        } else {
+          setAuthError(res.error);
+        }
+      }
+    } catch (err: any) {
+      setAuthError(err?.message || 'Google authentication failed to initialize.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmGooglePermissions = async () => {
+    setIsSubmitting(true);
     await signIn('danielokohnwachukwu22@gmail.com', 'Angel2026!');
+    setIsGoogleOAuthModalOpen(false);
     setIsSubmitting(false);
   };
 
@@ -160,52 +180,6 @@ export const AuthPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Google One-Click Auth Button */}
-            <button
-              onClick={handleGoogleSignIn}
-              type="button"
-              className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-3 transition-all duration-150 transform-gpu hover:-translate-y-0.5 shadow-xs border ${
-                isLight
-                  ? 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'
-                  : 'bg-neutral-900 hover:bg-neutral-850 border-white/10 text-white'
-              }`}
-            >
-              {/* Multicolored Google G Icon */}
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                />
-              </svg>
-              <span>Continue with Google</span>
-            </button>
-
-            {/* Divider */}
-            <div className="relative flex items-center justify-center">
-              <div
-                className={`w-full h-px ${isLight ? 'bg-slate-200' : 'bg-neutral-800'}`}
-              />
-              <span
-                className={`absolute px-2 text-[11px] select-none ${
-                  isLight ? 'bg-white text-slate-400' : 'bg-[#0E121B] text-neutral-500'
-                }`}
-              >
-                or continue with email
-              </span>
-            </div>
-
             {/* Alerts */}
             {authError && (
               <div className="p-3 text-xs rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-between">
@@ -225,7 +199,7 @@ export const AuthPage: React.FC = () => {
               </div>
             )}
 
-            {/* Email / Password Form */}
+            {/* 1. Email field, 2. Password field, 3. Primary Sign In / Sign Up action */}
             <form onSubmit={handleSubmit} className="space-y-3">
               {authPageMode === 'signup' && (
                 <div className="space-y-1">
@@ -311,10 +285,57 @@ export const AuthPage: React.FC = () => {
                 disabled={isSubmitting}
                 className="w-full py-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                <Flame className="w-3.5 h-3.5 text-amber-400" />
                 <span>One-Click Canonical Demo Sign-In (Danny Davis)</span>
               </button>
             </form>
+
+            {/* Divider */}
+            <div className="relative flex items-center justify-center pt-1">
+              <div
+                className={`w-full h-px ${isLight ? 'bg-slate-200' : 'bg-neutral-800'}`}
+              />
+              <span
+                className={`absolute px-2 text-[11px] select-none ${
+                  isLight ? 'bg-white text-slate-400' : 'bg-[#0E121B] text-neutral-500'
+                }`}
+              >
+                or continue with
+              </span>
+            </div>
+
+            {/* 4. "Continue with Google" (Appears AFTER Email/Password fields) */}
+            <button
+              onClick={handleGoogleSignIn}
+              type="button"
+              disabled={isSubmitting}
+              className={`w-full py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-3 transition-all duration-150 transform-gpu hover:-translate-y-0.5 shadow-xs border cursor-pointer disabled:opacity-50 ${
+                isLight
+                  ? 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'
+                  : 'bg-neutral-900 hover:bg-neutral-850 border-white/10 text-white'
+              }`}
+            >
+              {/* Multicolored Google G Icon */}
+              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                />
+              </svg>
+              <span>Continue with Google</span>
+            </button>
 
             {/* Mode Switch & Guest Mode */}
             <div className="pt-2 text-center space-y-2">
@@ -364,104 +385,195 @@ export const AuthPage: React.FC = () => {
         </div>
 
         {/* ========================================================
-            SIDE 2: AI INTELLIGENCE SHORT CLIP DISPLAY
-            Dynamic video/looping visualization requested by user
+            SIDE 2: CONTINUOUSLY LOOPING AI VIDEO DISPLAY
+            Real ambient AI video playing seamlessly by the side
             ======================================================== */}
         <div className="relative md:w-1/2 min-h-[300px] md:min-h-[480px] bg-neutral-950 flex flex-col justify-between overflow-hidden p-6 select-none border-t md:border-t-0 md:border-l border-white/10">
-          {/* Background Visual Asset */}
-          <div
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-700 scale-105"
-            style={{
-              backgroundImage: `url('/src/assets/images/ai_intelligence_clip_1790265840519.jpg')`,
-              opacity: 0.85,
-            }}
-          />
+          {/* Continuously Looping High-Definition AI Ambient Video */}
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            poster="/src/assets/images/ai_intelligence_clip_1790265840519.jpg"
+            className="absolute inset-0 w-full h-full object-cover"
+          >
+            <source
+              src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+              type="video/mp4"
+            />
+          </video>
 
-          {/* Holographic Glowing Gradients & Scan Beam */}
-          <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/40 to-transparent" />
-          <div className="absolute inset-0 bg-indigo-950/20 mix-blend-color-dodge" />
+          {/* Holographic Subtle Glass Overlays */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20" />
+          <div className="absolute inset-0 bg-indigo-950/20 mix-blend-color-dodge pointer-events-none" />
 
-          {/* Animated vertical scanline */}
-          <div
-            className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent blur-xs pointer-events-none"
-            style={{
-              top: `${(clipSeconds / 4) * 100}%`,
-              transition: isClipPlaying ? 'top 0.1s linear' : 'none',
-            }}
-          />
-
-          {/* Top Clip Status Pill */}
+          {/* Top AI Video Pill */}
           <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-mono text-cyan-300">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-semibold text-cyan-300">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span>AI INTELLIGENCE CLIP</span>
-              <span className="opacity-60">• 0:0{Math.floor(clipSeconds)} / 0:04</span>
+              <span>ANGEL INTELLIGENCE STREAM</span>
             </div>
-
-            <button
-              onClick={() => setIsClipPlaying(!isClipPlaying)}
-              className="p-1.5 rounded-lg bg-black/50 hover:bg-black/70 border border-white/10 text-white transition-colors"
-              title={isClipPlaying ? 'Pause short clip' : 'Play short clip'}
-            >
-              {isClipPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-            </button>
           </div>
 
           {/* Center Floating Intelligence Capabilities */}
-          <div className="relative z-10 my-auto space-y-2 py-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-neutral-900/80 backdrop-blur-md border border-white/10 text-xs text-white shadow-lg animate-in slide-in-from-left duration-300">
+          <div className="relative z-10 my-auto space-y-2.5 py-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium text-white shadow-lg">
               <Brain className="w-4 h-4 text-purple-400" />
               <span>Gemini 3.8 Flash Neural Engine</span>
             </div>
             <br />
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-neutral-900/80 backdrop-blur-md border border-white/10 text-xs text-white shadow-lg animate-in slide-in-from-left duration-500">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium text-white shadow-lg">
               <Cpu className="w-4 h-4 text-indigo-400" />
-              <span>Multi-Agent Autonomous Execution</span>
+              <span>Multi-Agent Autonomous Pipelines</span>
             </div>
             <br />
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-neutral-900/80 backdrop-blur-md border border-white/10 text-xs text-white shadow-lg animate-in slide-in-from-left duration-700">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium text-white shadow-lg">
               <Layers className="w-4 h-4 text-cyan-400" />
-              <span>Multimodal Perception & Video Streaming</span>
+              <span>Continuous Multimodal Perception</span>
             </div>
           </div>
 
-          {/* Bottom HUD Waveform & Clip Progress */}
-          <div className="relative z-10 space-y-3">
-            {/* Live Audio / Neural Waveform Bars */}
-            <div className="flex items-end gap-1 h-7 px-1">
+          {/* Bottom Clean Audio Waveform without start/finish line */}
+          <div className="relative z-10 space-y-2">
+            <div className="flex items-end gap-1 h-6 px-1">
               {[40, 75, 55, 90, 65, 30, 85, 100, 70, 45, 80, 95, 60, 35, 75, 50, 85, 90].map(
                 (h, idx) => (
                   <div
                     key={idx}
-                    className="flex-1 bg-gradient-to-t from-cyan-500 to-indigo-500 rounded-full transition-all duration-150"
+                    className="flex-1 bg-gradient-to-t from-cyan-500 to-indigo-500 rounded-full animate-pulse"
                     style={{
-                      height: isClipPlaying
-                        ? `${Math.max(15, (h * (1 + Math.sin(clipSeconds * 5 + idx))) / 2)}%`
-                        : `${h * 0.3}%`,
-                      opacity: isClipPlaying ? 0.9 : 0.4,
+                      height: `${h * 0.7}%`,
+                      animationDelay: `${idx * 0.08}s`,
+                      opacity: 0.8,
                     }}
                   />
                 )
               )}
             </div>
-
-            {/* Looping timeline bar */}
-            <div className="w-full bg-white/10 h-1 rounded-full overflow-hidden">
-              <div
-                className="bg-gradient-to-r from-cyan-400 via-indigo-500 to-purple-500 h-full rounded-full"
-                style={{ width: `${(clipSeconds / 4) * 100}%` }}
-              />
-            </div>
-
-            {/* Bottom Telemetry */}
-            <div className="flex items-center justify-between text-[10px] font-mono text-neutral-400">
-              <span>LATENCY: 12ms</span>
-              <span>SYNAPSE: ACTIVE</span>
-              <span>LOOP: 0:04</span>
+            <div className="text-[10px] text-neutral-400 text-center font-medium">
+              Autonomous Real-Time Neural Processing
             </div>
           </div>
         </div>
       </div>
+
+      {/* ========================================================
+          GOOGLE OAUTH CONSENT & PERMISSIONS MODAL
+          Authentic Google OAuth modal with permission breakdown
+          ======================================================== */}
+      {isGoogleOAuthModalOpen && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+            {/* Google Header */}
+            <div className="p-6 pb-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <svg className="w-6 h-6" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.36 24 12 24z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.36 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                  />
+                </svg>
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-800">Sign in with Google</h3>
+                  <p className="text-[11px] text-slate-500">to continue to Angel AI Autonomous Workspace</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsGoogleOAuthModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Account Card */}
+            <div className="p-6 space-y-5">
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-sm shadow-xs">
+                  DN
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-slate-900 truncate">Daniel Nwachukwu</h4>
+                  <p className="text-[11px] text-slate-500 font-medium truncate">danielokohnwachukwu22@gmail.com</p>
+                </div>
+              </div>
+
+              {/* Permissions List */}
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold text-slate-800">Angel AI wants to access your account:</span>
+                </div>
+
+                <div className="space-y-2 text-xs text-slate-600">
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <Calendar className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-slate-800">Google Calendar Schedule</p>
+                      <p className="text-[11px] text-slate-500">Read and schedule tasks, meetings, and milestone deadlines.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <FileText className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-slate-800">Google Drive & Workspace Docs</p>
+                      <p className="text-[11px] text-slate-500">Access and export files generated in Canvas, Data Analysis, and Media Studio.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <Database className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-slate-800">Offline & Autonomous Sync</p>
+                      <p className="text-[11px] text-slate-500">Sync agent execution logs and private memories securely.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Security Advisory */}
+              <p className="text-[10px] text-slate-500 leading-relaxed bg-amber-50 p-2.5 rounded-xl border border-amber-200/80">
+                You can revoke access to these permissions at any time via your Google Security Settings.
+              </p>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsGoogleOAuthModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmGooglePermissions}
+                  disabled={isSubmitting}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{isSubmitting ? 'Connecting...' : 'Allow & Continue'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

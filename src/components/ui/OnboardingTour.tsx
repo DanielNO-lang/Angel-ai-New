@@ -148,7 +148,7 @@ export const OnboardingTour: React.FC = () => {
             <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
               <StepIcon className="w-4 h-4" />
             </span>
-            <span className="text-[11px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-semibold">
+            <span className="text-[11px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-semibold">
               {step.badge} • Step {currentStep + 1} of {TOUR_STEPS.length}
             </span>
           </div>

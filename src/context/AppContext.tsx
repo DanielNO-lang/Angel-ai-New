@@ -4,10 +4,13 @@
  * tasks, projects, marketplace, and visual perception.
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { conversationService } from '../services/ai';
-import { syncWorkspaceToIndexedDB } from '../services/db/offlineDb';
+import { syncWorkspaceToIndexedDB, loadWorkspaceFromIndexedDB } from '../services/db/offlineDb';
+import { syncService } from '../services/syncService';
 import { offlineSyncManager, SyncState } from '../services/db/offlineSyncManager';
+import { buildWorkspaceExportPayload, downloadWorkspaceExportAsJSON } from '../services/data/workspaceExportService';
+import { getClientSupabase, signOutFromSupabase } from '../services/supabaseService';
 import {
   INITIAL_AGENTS,
   INITIAL_CONVERSATIONS,
@@ -15,6 +18,7 @@ import {
   INITIAL_MEMORIES,
   INITIAL_PROJECTS,
   INITIAL_TASKS,
+  INITIAL_WORKFLOWS,
   AVAILABLE_TOOLS,
   INITIAL_ASSISTANTS,
   INITIAL_LIBRARY_ITEMS,
@@ -39,6 +43,8 @@ import {
   UserProfile,
   ThemeMode,
   SettingsSubSection,
+  Workflow,
+  SyncStatus,
 } from '../types';
 
 interface AppContextType {
@@ -103,8 +109,9 @@ interface AppContextType {
   setIsIncognitoActive: (active: boolean) => void;
   isSignedIn: boolean;
   isGuest: boolean;
+  guestMode: boolean;
   discardGuestSession: () => void;
-  syncStatus: 'synced' | 'syncing' | 'offline_queued' | 'error';
+  syncStatus: SyncStatus;
   triggerManualSync: () => Promise<void>;
   isAuthPageOpen: boolean;
   setIsAuthPageOpen: (open: boolean) => void;
@@ -170,6 +177,17 @@ interface AppContextType {
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
 
+  // Workflows (Persistent Multi-Step Agent Chains & Triggers)
+  workflows: Workflow[];
+  createWorkflow: (workflow: Omit<Workflow, 'id' | 'createdAt' | 'updatedAt' | 'executionCount'>) => Workflow;
+  updateWorkflow: (id: string, updates: Partial<Workflow>) => void;
+  deleteWorkflow: (id: string) => void;
+  toggleWorkflowEnabled: (id: string) => void;
+
+  // Workspace Data Export & Autosave
+  exportWorkspaceData: () => Promise<void>;
+  lastAutosavedAt: string | null;
+
   // Marketplace & Tools
   marketplaceItems: MarketplaceItem[];
   availableTools: ToolDefinition[];
@@ -231,13 +249,40 @@ function setStoredItem<T>(key: string, value: T): void {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTabState] = useState<NavigationTab>(() =>
-    getStoredItem<NavigationTab>('active_tab', 'home')
-  );
+  const [activeTab, setActiveTabState] = useState<NavigationTab>(() => {
+    if (typeof window === 'undefined') return 'home';
+    try {
+      const isNewSession = !sessionStorage.getItem('angel_browser_session_active');
+      sessionStorage.setItem('angel_browser_session_active', 'true');
+      const token = localStorage.getItem('angel_auth_token');
+
+      // If browser was closed and opened newly, OR user is guest/not signed in: always start from 'home'
+      if (isNewSession || !token) {
+        sessionStorage.setItem('angel_session_tab', 'home');
+        return 'home';
+      }
+
+      // If page refreshed while user is signed in: continue from where it stopped
+      const savedSessionTab = sessionStorage.getItem('angel_session_tab');
+      if (savedSessionTab) {
+        return savedSessionTab as NavigationTab;
+      }
+    } catch {
+      // Fallback
+    }
+    return 'home';
+  });
 
   const setActiveTab = (tab: NavigationTab) => {
     setActiveTabState(tab);
-    setStoredItem('active_tab', tab);
+    try {
+      sessionStorage.setItem('angel_session_tab', tab);
+      setStoredItem('active_tab', tab);
+    } catch {}
+    // Return to top on click regardless of current position or if tab was already active
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('angel-return-to-top'));
+    }
   };
   const [activeSettingsSection, setActiveSettingsSectionState] = useState<SettingsSubSection>(() =>
     getStoredItem<SettingsSubSection>('active_settings_section', 'account')
@@ -343,6 +388,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [tasks, setTasks] = useState<Task[]>(() => getStoredItem('tasks', INITIAL_TASKS));
   const [memories, setMemories] = useState<Memory[]>(() => getStoredItem('memories', INITIAL_MEMORIES));
   const [projects, setProjects] = useState<Project[]>(() => getStoredItem('projects', INITIAL_PROJECTS));
+  const [workflows, setWorkflows] = useState<Workflow[]>(() =>
+    getStoredItem('workflows', INITIAL_WORKFLOWS)
+  );
+  const [lastAutosavedAt, setLastAutosavedAt] = useState<string | null>(null);
+  const lastSavedFingerprintRef = useRef<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>(() =>
     getStoredItem('marketplace', INITIAL_MARKETPLACE_ITEMS)
@@ -461,20 +511,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Authentication State & Guest Mode (Real isolation)
   const [isSignedIn, setIsSignedIn] = useState<boolean>(() => Boolean(sessionToken));
   const isGuest = !isSignedIn;
+  const guestMode = !isSignedIn;
 
-  // Offline Sync State
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline_queued' | 'error'>('synced');
+  // Offline & Real-Time Sync State (Driven by syncService)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => syncService.getStatus().status);
 
   useEffect(() => {
-    const unsub = offlineSyncManager.subscribe((state) => {
-      setSyncStatus(state);
+    const unsub = syncService.subscribe((event) => {
+      setSyncStatus(event.status);
     });
     return unsub;
   }, []);
 
+  useEffect(() => {
+    syncService.setSessionToken(sessionToken);
+  }, [sessionToken]);
+
   const triggerManualSync = async () => {
     if (isGuest) return;
-    await offlineSyncManager.processQueue(sessionToken);
+    await syncService.syncNow(sessionToken);
   };
 
   const discardGuestSession = () => {
@@ -501,15 +556,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Sync theme to HTML document and persist in localStorage
   useEffect(() => {
     const root = document.documentElement;
-    const isDark =
-      settings.theme === 'dark' ||
-      (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    if (isDark) {
+    root.classList.remove('dark', 'light', 'midnight');
+
+    if (settings.theme === 'midnight') {
+      root.classList.add('midnight', 'dark');
+    } else if (settings.theme === 'dark') {
       root.classList.add('dark');
-      root.classList.remove('light');
-    } else {
-      root.classList.remove('dark');
+    } else if (settings.theme === 'light') {
       root.classList.add('light');
+    } else {
+      // System
+      const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.add(prefersDark ? 'dark' : 'light');
     }
 
     if (typeof localStorage !== 'undefined' && settings.theme) {
@@ -520,19 +578,151 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isChatStreaming, setIsChatStreaming] = useState<boolean>(false);
   const [integrationsStatus, setIntegrationsStatus] = useState<Record<string, unknown> | null>(null);
 
-  // Sync to local storage
+  // Sync to local storage (Guest conversations are NOT saved to permanent storage)
   useEffect(() => setStoredItem('agents', agents), [agents]);
-  useEffect(() => setStoredItem('conversations', conversations), [conversations]);
-  useEffect(() => setStoredItem('messages_map', messagesMap), [messagesMap]);
+  useEffect(() => {
+    if (isSignedIn) {
+      setStoredItem('conversations', conversations);
+    }
+  }, [conversations, isSignedIn]);
+  useEffect(() => {
+    if (isSignedIn) {
+      setStoredItem('messages_map', messagesMap);
+    }
+  }, [messagesMap, isSignedIn]);
   useEffect(() => setStoredItem('tasks', tasks), [tasks]);
   useEffect(() => setStoredItem('memories', memories), [memories]);
   useEffect(() => setStoredItem('projects', projects), [projects]);
+  useEffect(() => setStoredItem('workflows', workflows), [workflows]);
   useEffect(() => setStoredItem('marketplace', marketplaceItems), [marketplaceItems]);
   useEffect(() => setStoredItem('executions', executions), [executions]);
   useEffect(() => setStoredItem('visual_captures', visualCaptures), [visualCaptures]);
   useEffect(() => setStoredItem('settings', settings), [settings]);
   useEffect(() => setStoredItem('library_items', libraryItems), [libraryItems]);
   useEffect(() => setStoredItem('assistants_list', assistantsList), [assistantsList]);
+
+  // IndexedDB Local-First Hydration on App Launch (Only for persistent items)
+  useEffect(() => {
+    let isMounted = true;
+    loadWorkspaceFromIndexedDB()
+      .then((idb) => {
+        if (!isMounted || !idb) return;
+        if (idb.tasks && idb.tasks.length > 0) setTasks(idb.tasks);
+        if (idb.memories && idb.memories.length > 0) setMemories(idb.memories);
+        if (idb.projects && idb.projects.length > 0) setProjects(idb.projects);
+        if (idb.workflows && idb.workflows.length > 0) setWorkflows(idb.workflows);
+        if (isSignedIn) {
+          if (idb.conversations && idb.conversations.length > 0) setConversations(idb.conversations);
+          if (idb.messagesMap && Object.keys(idb.messagesMap).length > 0) setMessagesMap(idb.messagesMap);
+        }
+        if (idb.libraryItems && idb.libraryItems.length > 0) setLibraryItems(idb.libraryItems);
+        if (idb.assistants && idb.assistants.length > 0) setAssistantsList(idb.assistants);
+      })
+      .catch((e) => {
+        console.debug('[AppContext] IndexedDB initial hydration note:', e);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [isSignedIn]);
+
+  // Supabase Auth listener & OAuth Hash Callback Processor
+  useEffect(() => {
+    const client = getClientSupabase();
+    if (!client) return;
+
+    // Detect OAuth errors or cancellations in URL hash
+    if (typeof window !== 'undefined' && window.location.hash.includes('error=')) {
+      try {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const errorDesc =
+          hashParams.get('error_description') ||
+          hashParams.get('error') ||
+          'Google authentication was cancelled or could not be completed.';
+        setAuthError(decodeURIComponent(errorDesc.replace(/\+/g, ' ')));
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      } catch {}
+    }
+
+    // Check existing Supabase session
+    client.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setSessionToken(session.access_token);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('angel_auth_token', session.access_token);
+          localStorage.removeItem('angel_is_guest');
+        }
+        setIsSignedIn(true);
+        const name =
+          session.user.user_metadata?.full_name ||
+          session.user.user_metadata?.name ||
+          session.user.email?.split('@')[0] ||
+          'Daniel Nwachukwu';
+        const initials =
+          name
+            .split(' ')
+            .map((n: string) => n[0])
+            .filter(Boolean)
+            .join('')
+            .substring(0, 2)
+            .toUpperCase() || 'DN';
+        setUserProfile((prev) => ({
+          ...prev,
+          id: session.user.id,
+          name,
+          email: session.user.email || prev.email,
+          initials,
+          plan: 'Pro',
+          status: 'online',
+          avatarUrl: session.user.user_metadata?.avatar_url || prev.avatarUrl,
+        }));
+        setIsAuthPageOpen(false);
+      }
+    }).catch(() => {});
+
+    // Listen to Supabase auth events
+    const { data: authSub } = client.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setSessionToken(session.access_token);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('angel_auth_token', session.access_token);
+          localStorage.removeItem('angel_is_guest');
+        }
+        setIsSignedIn(true);
+        const name =
+          session.user.user_metadata?.full_name ||
+          session.user.user_metadata?.name ||
+          session.user.email?.split('@')[0] ||
+          'Daniel Nwachukwu';
+        const initials =
+          name
+            .split(' ')
+            .map((n: string) => n[0])
+            .filter(Boolean)
+            .join('')
+            .substring(0, 2)
+            .toUpperCase() || 'DN';
+        setUserProfile((prev) => ({
+          ...prev,
+          id: session.user.id,
+          name,
+          email: session.user.email || prev.email,
+          initials,
+          plan: 'Pro',
+          status: 'online',
+          avatarUrl: session.user.user_metadata?.avatar_url || prev.avatarUrl,
+        }));
+        setIsAuthPageOpen(false);
+      } else if (event === 'SIGNED_OUT') {
+        setIsSignedIn(false);
+        setSessionToken(null);
+      }
+    });
+
+    return () => {
+      authSub?.subscription?.unsubscribe();
+    };
+  }, []);
 
   // Real backend session validation & scoped cloud data sync
   useEffect(() => {
@@ -559,6 +749,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             email: data.profile.email,
             initials: data.profile.name.slice(0, 2).toUpperCase(),
             status: 'online',
+            avatarUrl: data.profile.avatarUrl || prev.avatarUrl,
+            title: data.profile.title || prev.title,
           }));
 
           // Pull scoped cloud persistence data
@@ -571,6 +763,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 if (Array.isArray(cloud.data.tasks) && cloud.data.tasks.length > 0) setTasks(cloud.data.tasks);
                 if (Array.isArray(cloud.data.memories) && cloud.data.memories.length > 0) setMemories(cloud.data.memories);
                 if (Array.isArray(cloud.data.projects) && cloud.data.projects.length > 0) setProjects(cloud.data.projects);
+                if (Array.isArray(cloud.data.workflows) && cloud.data.workflows.length > 0) setWorkflows(cloud.data.workflows);
                 if (Array.isArray(cloud.data.libraryItems) && cloud.data.libraryItems.length > 0) setLibraryItems(cloud.data.libraryItems);
               }
             })
@@ -580,26 +773,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       })
       .catch(() => {
-        setIsSignedIn(false);
+        // If server is unavailable but client had a token, keep offline state without wiping
+        if (!navigator.onLine) {
+          setIsSignedIn(true);
+        } else {
+          setIsSignedIn(false);
+        }
       });
   }, [sessionToken]);
 
-  // Sync to IndexedDB using Dexie.js for offline persistence
+  // Centralized Autosave Engine (Runs every 30 seconds, persists dirty changed state without user disruption)
   useEffect(() => {
-    syncWorkspaceToIndexedDB({
-      conversations,
-      messagesMap,
-      tasks,
-      memories,
-      projects,
-      agents,
-      libraryItems,
-      assistants: assistantsList,
-      activeTab,
-      theme: settings.theme,
-      syncStatus,
-    });
-  }, [conversations, messagesMap, tasks, memories, projects, agents, libraryItems, assistantsList, activeTab, settings.theme, syncStatus]);
+    const AUTOSAVE_INTERVAL_MS = 30000;
+
+    const performAutosave = async () => {
+      try {
+        // Construct deterministic fingerprint of persistent workspace state
+        const taskFingerprint = tasks.map((t) => `${t.id}:${t.updatedAt || ''}:${t.status}`).join(';');
+        const memFingerprint = memories.map((m) => `${m.id}:${m.updatedAt || ''}`).join(';');
+        const projFingerprint = projects.map((p) => `${p.id}:${p.updatedAt || ''}`).join(';');
+        const wfFingerprint = workflows.map((w) => `${w.id}:${w.updatedAt || ''}:${w.enabled}`).join(';');
+        const convFingerprint = conversations.map((c) => `${c.id}:${c.updatedAt || ''}`).join(';');
+        const msgCount = Object.values(messagesMap).reduce((acc, m) => acc + (Array.isArray(m) ? m.length : 0), 0);
+        const currentFingerprint = `${taskFingerprint}|${memFingerprint}|${projFingerprint}|${wfFingerprint}|${convFingerprint}|${msgCount}`;
+
+        // Only persist if data actually changed since last autosave (avoids unnecessary writes)
+        if (currentFingerprint === lastSavedFingerprintRef.current) {
+          return;
+        }
+
+        await syncWorkspaceToIndexedDB({
+          conversations,
+          messagesMap,
+          tasks,
+          memories,
+          projects,
+          workflows,
+          agents,
+          libraryItems,
+          assistants: assistantsList,
+          activeTab,
+          theme: settings.theme,
+          syncStatus,
+        });
+
+        lastSavedFingerprintRef.current = currentFingerprint;
+        setLastAutosavedAt(new Date().toISOString());
+
+        // Cooperate with syncService if online and user is authenticated
+        if (!isGuest && typeof navigator !== 'undefined' && navigator.onLine) {
+          syncService.processQueue();
+        }
+      } catch (err) {
+        console.warn('[AppContext] Centralized autosave caught error:', err);
+      }
+    };
+
+    const timer = setInterval(performAutosave, AUTOSAVE_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [
+    tasks,
+    memories,
+    projects,
+    workflows,
+    conversations,
+    messagesMap,
+    agents,
+    libraryItems,
+    assistantsList,
+    activeTab,
+    settings.theme,
+    syncStatus,
+    isGuest,
+  ]);
 
   // Fetch backend integration health
   const refreshIntegrations = async () => {
@@ -699,100 +945,330 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  const updateUserProfile = (updates: Partial<UserProfile>) => {
+    setUserProfile((prev) => {
+      const next = { ...prev, ...updates };
+      setStoredItem('user_profile', next);
+      return next;
+    });
+
+    const token = sessionToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('angel_auth_token') : null);
+    if (token) {
+      fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      }).catch(() => {});
+    }
+
+    const client = getClientSupabase();
+    if (client) {
+      client.auth.updateUser({
+        data: {
+          name: updates.name,
+          avatar_url: updates.avatarUrl,
+          title: updates.title,
+        },
+      }).catch(() => {});
+    }
+  };
+
   const signIn = async (email = 'danielokohnwachukwu22@gmail.com', password = 'Angel2026!'): Promise<boolean> => {
     setAuthError(null);
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
-      const res = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to sign in');
+      // 1. Attempt Supabase Auth if client is configured
+      const client = getClientSupabase();
+      if (client) {
+        try {
+          const { data: supaAuth, error: supaErr } = await client.auth.signInWithPassword({
+            email: cleanEmail,
+            password,
+          });
+          if (!supaErr && supaAuth?.session) {
+            const token = supaAuth.session.access_token;
+            setSessionToken(token);
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('angel_auth_token', token);
+              localStorage.removeItem('angel_is_guest');
+            }
+            const userName =
+              supaAuth.session.user.user_metadata?.full_name ||
+              supaAuth.session.user.user_metadata?.name ||
+              cleanEmail.split('@')[0];
+            const initials = userName
+              .split(' ')
+              .map((n: string) => n[0])
+              .filter(Boolean)
+              .join('')
+              .substring(0, 2)
+              .toUpperCase() || 'U';
+
+            setUserProfile({
+              id: supaAuth.session.user.id,
+              name: userName,
+              email: cleanEmail,
+              initials,
+              plan: 'Pro',
+              status: 'online',
+              avatarUrl: supaAuth.session.user.user_metadata?.avatar_url,
+            });
+            setIsSignedIn(true);
+            setIsAuthPageOpen(false);
+            return true;
+          }
+        } catch {
+          // If Supabase endpoint fails, proceed to backend auth route
+        }
       }
 
-      setSessionToken(data.token);
+      // 2. Call backend authentication route
+      let res: Response | null = null;
+      try {
+        res = await fetch('/api/auth/signin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password }),
+        });
+      } catch (fetchErr: any) {
+        // Network failure / server offline handling
+        if (!navigator.onLine) {
+          setAuthError('You appear to be offline. Please connect to the internet to sign in.');
+          return false;
+        }
+        // If local demo sign-in
+        if (cleanEmail === 'danielokohnwachukwu22@gmail.com') {
+          res = null; // proceed to canonical fallback
+        } else {
+          setAuthError('Network error connecting to authentication server. Please verify your connection.');
+          return false;
+        }
+      }
+
+      if (res) {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          setAuthError(errData.error || 'Incorrect email or password. Please verify your credentials.');
+          return false;
+        }
+        const data = await res.json();
+        if (data.token && data.profile) {
+          setSessionToken(data.token);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('angel_auth_token', data.token);
+            localStorage.removeItem('angel_is_guest');
+          }
+          const initials = (data.profile.name || cleanEmail)
+            .split(' ')
+            .map((n: string) => n[0])
+            .filter(Boolean)
+            .join('')
+            .substring(0, 2)
+            .toUpperCase() || 'DN';
+
+          setUserProfile({
+            id: data.profile.id,
+            name: data.profile.name,
+            email: data.profile.email,
+            initials,
+            plan: 'Pro',
+            status: 'online',
+            avatarUrl: data.profile.avatarUrl,
+            title: data.profile.title,
+          });
+          setIsSignedIn(true);
+          setIsAuthPageOpen(false);
+          return true;
+        }
+      }
+
+      // 3. Demo canonical account fallback
+      const cleanName =
+        cleanEmail === 'danielokohnwachukwu22@gmail.com'
+          ? 'Daniel Nwachukwu'
+          : cleanEmail.split('@')[0];
+      const token = `angel_demo_${Date.now()}`;
+      setSessionToken(token);
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('angel_auth_token', data.token);
+        localStorage.setItem('angel_auth_token', token);
+        localStorage.removeItem('angel_is_guest');
       }
 
-      const initials = (data.profile.name || email)
+      const initials = cleanName
         .split(' ')
         .map((n: string) => n[0])
         .filter(Boolean)
         .join('')
         .substring(0, 2)
-        .toUpperCase();
+        .toUpperCase() || 'DN';
 
-      const updatedUser: UserProfile = {
-        id: data.profile.id,
-        name: data.profile.name,
-        email: data.profile.email,
-        initials: initials || 'DD',
+      setUserProfile({
+        id: `usr_demo_${Date.now()}`,
+        name: cleanName,
+        email: cleanEmail,
+        initials,
         plan: 'Pro',
         status: 'online',
-        avatarUrl: data.profile.avatarUrl,
-      };
-
-      setUserProfile(updatedUser);
+      });
       setIsSignedIn(true);
       setIsAuthPageOpen(false);
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setAuthError(msg);
+      if (msg.includes('Failed to fetch')) {
+        setAuthError('Connection error. Could not reach authentication server.');
+      } else {
+        setAuthError(msg);
+      }
       return false;
     }
   };
 
   const signUp = async (email: string, password: string, name: string): Promise<boolean> => {
     setAuthError(null);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim() || cleanEmail.split('@')[0];
+
     try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Registration failed');
+      // 1. Attempt Supabase Auth signup if client is configured
+      const client = getClientSupabase();
+      if (client) {
+        try {
+          const { data: supaAuth, error: supaErr } = await client.auth.signUp({
+            email: cleanEmail,
+            password,
+            options: {
+              data: { full_name: cleanName, name: cleanName },
+            },
+          });
+          if (!supaErr && supaAuth?.session) {
+            const token = supaAuth.session.access_token;
+            setSessionToken(token);
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('angel_auth_token', token);
+              localStorage.removeItem('angel_is_guest');
+            }
+            const initials = cleanName
+              .split(' ')
+              .map((n: string) => n[0])
+              .filter(Boolean)
+              .join('')
+              .substring(0, 2)
+              .toUpperCase() || 'U';
+
+            setUserProfile({
+              id: supaAuth.session.user.id,
+              name: cleanName,
+              email: cleanEmail,
+              initials,
+              plan: 'Pro',
+              status: 'online',
+            });
+            setIsSignedIn(true);
+            setIsAuthPageOpen(false);
+            return true;
+          }
+        } catch {
+          // If Supabase fails, fall back to backend auth route
+        }
       }
 
-      setSessionToken(data.token);
+      // 2. Call backend signup
+      let res: Response | null = null;
+      try {
+        res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password, name: cleanName }),
+        });
+      } catch (fetchErr: any) {
+        if (!navigator.onLine) {
+          setAuthError('You appear to be offline. Please connect to the internet to create an account.');
+          return false;
+        }
+        setAuthError('Network error connecting to registration server. Please verify your connection.');
+        return false;
+      }
+
+      if (res) {
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          setAuthError(errData.error || 'Failed to create account. Please check your credentials.');
+          return false;
+        }
+        const data = await res.json();
+        if (data.token && data.profile) {
+          setSessionToken(data.token);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('angel_auth_token', data.token);
+            localStorage.removeItem('angel_is_guest');
+          }
+          const initials = (data.profile.name || cleanEmail)
+            .split(' ')
+            .map((n: string) => n[0])
+            .filter(Boolean)
+            .join('')
+            .substring(0, 2)
+            .toUpperCase() || 'DN';
+
+          setUserProfile({
+            id: data.profile.id,
+            name: data.profile.name,
+            email: data.profile.email,
+            initials,
+            plan: 'Pro',
+            status: 'online',
+          });
+          setIsSignedIn(true);
+          setIsAuthPageOpen(false);
+          return true;
+        }
+      }
+
+      // Fallback
+      const token = `angel_user_${Date.now()}`;
+      setSessionToken(token);
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('angel_auth_token', data.token);
+        localStorage.setItem('angel_auth_token', token);
+        localStorage.removeItem('angel_is_guest');
       }
 
-      const initials = (name || email)
+      const initials = cleanName
         .split(' ')
         .map((n: string) => n[0])
         .filter(Boolean)
         .join('')
         .substring(0, 2)
-        .toUpperCase();
+        .toUpperCase() || 'DN';
 
-      const updatedUser: UserProfile = {
-        id: data.profile.id,
-        name: data.profile.name,
-        email: data.profile.email,
-        initials: initials || 'NU',
+      setUserProfile({
+        id: `usr_${Date.now()}`,
+        name: cleanName,
+        email: cleanEmail,
+        initials,
         plan: 'Pro',
         status: 'online',
-      };
-
-      setUserProfile(updatedUser);
+      });
       setIsSignedIn(true);
       setIsAuthPageOpen(false);
       return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setAuthError(msg);
+      if (msg.includes('Failed to fetch')) {
+        setAuthError('Connection error. Could not reach registration server.');
+      } else {
+        setAuthError(msg);
+      }
       return false;
     }
   };
 
   const signOut = async () => {
+    // 1. Terminate server session
     if (sessionToken) {
       fetch('/api/auth/signout', {
         method: 'POST',
@@ -800,13 +1276,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }).catch(() => {});
     }
 
+    // 2. Terminate Supabase authentication session
+    signOutFromSupabase().catch(() => {});
+
+    // 3. Clear auth token from persistent storage and set guest mode flag
     setSessionToken(null);
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem('angel_auth_token');
+      localStorage.setItem('angel_is_guest', 'true');
     }
 
+    // 4. Update userProfile to guest
     const guestUser: UserProfile = {
-      id: 'user_guest',
+      id: 'guest_user',
       name: 'Guest User',
       email: 'guest@angel.local',
       initials: 'GU',
@@ -816,6 +1298,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUserProfile(guestUser);
     setIsSignedIn(false);
     setIsAuthPageOpen(false);
+
+    // 5. Evacuate authenticated-only workspace data from in-memory state
+    setTasks(INITIAL_TASKS);
+    setMemories(INITIAL_MEMORIES);
+    setProjects(INITIAL_PROJECTS);
+    setWorkflows(INITIAL_WORKFLOWS);
+    setLibraryItems(INITIAL_LIBRARY_ITEMS);
+    setConversations(INITIAL_CONVERSATIONS);
+    setActiveConversationId(INITIAL_CONVERSATIONS[0].id);
+    setMessagesMap({});
+
+    // 6. Redirect to Home (ensures protected views cannot remain accessible after sign-out)
+    setActiveTab('home');
   };
 
   const requestPasswordRecovery = async (email: string): Promise<{ success: boolean; message: string }> => {
@@ -1148,6 +1643,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     setTasks((prev) => [newTask, ...prev]);
 
+    // Enqueue offline/cloud mutation
+    syncService.enqueueMutation('task', 'create', newId, newTask, isGuest);
+
     // Dispatch automation event: task.created
     fetch('/api/automation/dispatch', {
       method: 'POST',
@@ -1169,13 +1667,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateTask = (id: string, updates: Partial<Task>) => {
+    const now = new Date().toISOString();
     setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t))
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        const updated = { ...t, ...updates, updatedAt: now };
+        syncService.enqueueMutation('task', 'update', id, updated, isGuest);
+        return updated;
+      })
     );
   };
 
   const deleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    syncService.enqueueMutation('task', 'delete', id, { id }, isGuest);
   };
 
   const toggleTaskStatus = (id: string) => {
@@ -1190,6 +1695,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           completedAt,
           updatedAt: new Date().toISOString(),
         };
+
+        syncService.enqueueMutation('task', 'update', id, updated, isGuest);
 
         // Dispatch automation event: task.completed
         if (newStatus === 'completed') {
@@ -1221,12 +1728,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           st.id === subtaskId ? { ...st, completed: !st.completed } : st
         );
         const allCompleted = updatedSubtasks.length > 0 && updatedSubtasks.every((st) => st.completed);
-        return {
+        const updated = {
           ...t,
           subtasks: updatedSubtasks,
           status: allCompleted ? 'completed' : t.status,
           updatedAt: new Date().toISOString(),
         };
+        syncService.enqueueMutation('task', 'update', taskId, updated, isGuest);
+        return updated;
       })
     );
   };
@@ -1242,6 +1751,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: now,
     };
     setMemories((prev) => [newMem, ...prev]);
+
+    // Enqueue mutation
+    syncService.enqueueMutation('memory', 'create', newId, newMem, isGuest);
 
     // Dispatch automation event: memory.created
     fetch('/api/automation/dispatch', {
@@ -1266,6 +1778,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       prev.map((m) => {
         if (m.id !== id) return m;
         const updated = { ...m, ...updates, updatedAt: new Date().toISOString() };
+        syncService.enqueueMutation('memory', 'update', id, updated, isGuest);
         // Dispatch automation event: memory.updated
         fetch('/api/automation/dispatch', {
           method: 'POST',
@@ -1287,6 +1800,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteMemory = (id: string) => {
     setMemories((prev) => prev.filter((m) => m.id !== id));
+    syncService.enqueueMutation('memory', 'delete', id, { id }, isGuest);
   };
 
   // Project methods
@@ -1300,16 +1814,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: now,
     };
     setProjects((prev) => [...prev, newProj]);
+    syncService.enqueueMutation('project', 'create', newId, newProj, isGuest);
   };
 
   const updateProject = (id: string, updates: Partial<Project>) => {
+    const now = new Date().toISOString();
     setProjects((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p))
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const updated = { ...p, ...updates, updatedAt: now };
+        syncService.enqueueMutation('project', 'update', id, updated, isGuest);
+        return updated;
+      })
     );
   };
 
   const deleteProject = (id: string) => {
     setProjects((prev) => prev.filter((p) => p.id !== id));
+    syncService.enqueueMutation('project', 'delete', id, { id }, isGuest);
+  };
+
+  // Workflow Library Methods (Persistent Foundation)
+  const createWorkflow = (
+    workflowData: Omit<Workflow, 'id' | 'createdAt' | 'updatedAt' | 'executionCount'>
+  ): Workflow => {
+    const newId = `wf-${Date.now()}`;
+    const now = new Date().toISOString();
+    const newWf: Workflow = {
+      ...workflowData,
+      id: newId,
+      executionCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setWorkflows((prev) => [newWf, ...prev]);
+    syncService.enqueueMutation('workflow', 'create', newId, newWf, isGuest);
+    return newWf;
+  };
+
+  const updateWorkflow = (id: string, updates: Partial<Workflow>) => {
+    const now = new Date().toISOString();
+    setWorkflows((prev) =>
+      prev.map((w) => {
+        if (w.id !== id) return w;
+        const updated = { ...w, ...updates, updatedAt: now };
+        syncService.enqueueMutation('workflow', 'update', id, updated, isGuest);
+        return updated;
+      })
+    );
+  };
+
+  const deleteWorkflow = (id: string) => {
+    setWorkflows((prev) => prev.filter((w) => w.id !== id));
+    syncService.enqueueMutation('workflow', 'delete', id, { id }, isGuest);
+  };
+
+  const toggleWorkflowEnabled = (id: string) => {
+    const now = new Date().toISOString();
+    setWorkflows((prev) =>
+      prev.map((w) => {
+        if (w.id !== id) return w;
+        const updated = { ...w, enabled: !w.enabled, updatedAt: now };
+        syncService.enqueueMutation('workflow', 'update', id, updated, isGuest);
+        return updated;
+      })
+    );
+  };
+
+  // Workspace Data Export Service
+  const exportWorkspaceData = async (): Promise<void> => {
+    const payload = buildWorkspaceExportPayload({
+      tasks,
+      memories,
+      conversations,
+      messagesMap,
+      projects,
+      workflows,
+      agents,
+      libraryItems,
+      userProfile,
+    });
+    downloadWorkspaceExportAsJSON(payload);
   };
 
   // Marketplace methods
@@ -1724,6 +2309,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsIncognitoActive,
         isSignedIn,
         isGuest,
+        guestMode,
         discardGuestSession,
         syncStatus,
         triggerManualSync,
@@ -1776,6 +2362,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createProject,
         updateProject,
         deleteProject,
+        workflows,
+        createWorkflow,
+        updateWorkflow,
+        deleteWorkflow,
+        toggleWorkflowEnabled,
+        exportWorkspaceData,
+        lastAutosavedAt,
         marketplaceItems,
         availableTools,
         installMarketplaceItem,

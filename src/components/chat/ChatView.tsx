@@ -450,7 +450,7 @@ export const ChatView: React.FC = () => {
                         {message.toolCalls.map((tc) => (
                           <div
                             key={tc.id}
-                            className={`p-2 rounded-xl text-xs font-mono border ${
+                            className={`p-2 rounded-xl text-xs font-medium border ${
                               isLight
                                 ? 'bg-slate-50 border-slate-200 text-slate-700'
                                 : 'bg-neutral-950/80 border-neutral-800 text-neutral-300'
@@ -709,7 +709,7 @@ export const ChatView: React.FC = () => {
           </form>
 
           <div
-            className={`flex items-center justify-between px-2 pt-2 text-[10px] font-mono ${
+            className={`flex items-center justify-between px-2 pt-2 text-[10px] font-medium ${
               isLight ? 'text-slate-400' : 'text-neutral-400'
             }`}
           >

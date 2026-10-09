@@ -13,7 +13,7 @@ import {
   Brain,
   Clock,
   ArrowRight,
-  Sparkles,
+  Activity,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 
@@ -118,7 +118,7 @@ export const RecentActivityWidget: React.FC<{ isLight: boolean }> = ({ isLight }
 
       {activities.length === 0 ? (
         <div className="text-center py-6 px-4 space-y-2">
-          <Sparkles className="w-5 h-5 text-indigo-400 mx-auto opacity-40" />
+          <Activity className="w-5 h-5 text-indigo-400 mx-auto opacity-40" />
           <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
             No recent activity recorded
           </p>
@@ -152,7 +152,7 @@ export const RecentActivityWidget: React.FC<{ isLight: boolean }> = ({ isLight }
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className={`text-[10px] font-mono ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
+                  <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
                     {item.timestamp}
                   </span>
                   <ArrowRight

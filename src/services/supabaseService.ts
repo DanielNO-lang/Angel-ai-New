@@ -204,3 +204,55 @@ export async function pushTasksToSupabase(tasks: Task[]): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Initiates Google OAuth using Supabase Authentication
+ */
+export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirected?: boolean }> {
+  const client = getClientSupabase();
+  if (!client) {
+    return { error: 'Supabase authentication service is not configured.' };
+  }
+
+  try {
+    const redirectUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}${window.location.pathname}`
+        : undefined;
+
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+    return { redirected: true };
+  } catch (err: any) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('Failed to fetch') || message.includes('network')) {
+      return { error: 'Network error connecting to Google authentication. Please verify internet access.' };
+    }
+    return { error: message || 'Google authentication encountered an unexpected error.' };
+  }
+}
+
+/**
+ * Signs out from Supabase Authentication
+ */
+export async function signOutFromSupabase(): Promise<void> {
+  const client = getClientSupabase();
+  if (!client) return;
+  try {
+    await client.auth.signOut();
+  } catch (err) {
+    console.warn('[Supabase Auth] Sign out notice:', err);
+  }
+}

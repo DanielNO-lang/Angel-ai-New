@@ -175,7 +175,7 @@ export const ActivityLogSidePanel: React.FC<ActivityLogSidePanelProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold truncate">{item.title}</span>
-                      <span className="text-[10px] font-mono opacity-50 shrink-0">
+                      <span className="text-[10px] font-medium opacity-50 shrink-0">
                         {item.timestamp.slice(0, 10)}
                       </span>
                     </div>

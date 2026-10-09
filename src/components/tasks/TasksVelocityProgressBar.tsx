@@ -161,13 +161,13 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
 
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold tracking-tight uppercase tracking-wider text-slate-700 dark:text-slate-200 font-mono">
+                <span className="text-xs font-bold tracking-tight uppercase tracking-wider text-slate-700 dark:text-slate-200 font-medium">
                   Project Velocity & Completion
                 </span>
 
                 {/* Real-time Badge */}
                 <div
-                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono border ${
+                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
                     metrics.isSupabaseConnected
                       ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-semibold'
                       : isLight
@@ -207,7 +207,7 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
           {/* Action Buttons & Quick Controls */}
           <div className="flex items-center gap-2 self-start sm:self-auto">
             {syncNotice && (
-              <span className="text-[11px] font-mono text-indigo-500 animate-in fade-in">
+              <span className="text-[11px] font-medium text-indigo-500 animate-in fade-in">
                 {syncNotice}
               </span>
             )}
@@ -257,7 +257,7 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
           >
             <div className="flex items-center justify-between">
               <span
-                className={`text-[10px] font-mono uppercase font-semibold ${
+                className={`text-[10px] font-medium uppercase font-semibold ${
                   isLight ? 'text-slate-400' : 'text-neutral-500'
                 }`}
               >
@@ -266,10 +266,10 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 font-mono">
+              <span className="text-xl sm:text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 font-medium">
                 {metrics.completionRate}%
               </span>
-              <span className={`text-[11px] font-mono ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+              <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                 ({metrics.completed}/{metrics.total})
               </span>
             </div>
@@ -283,7 +283,7 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
           >
             <div className="flex items-center justify-between">
               <span
-                className={`text-[10px] font-mono uppercase font-semibold ${
+                className={`text-[10px] font-medium uppercase font-semibold ${
                   isLight ? 'text-slate-400' : 'text-neutral-500'
                 }`}
               >
@@ -292,7 +292,7 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
               <TrendingUp className="w-3.5 h-3.5 text-indigo-500" />
             </div>
             <div className="flex items-baseline gap-1.5 mt-1">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400 font-mono">
+              <span className="text-xl sm:text-2xl font-bold tracking-tight text-indigo-600 dark:text-indigo-400 font-medium">
                 {metrics.velocityScore}
               </span>
               <span
@@ -317,7 +317,7 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
           >
             <div className="flex items-center justify-between">
               <span
-                className={`text-[10px] font-mono uppercase font-semibold ${
+                className={`text-[10px] font-medium uppercase font-semibold ${
                   isLight ? 'text-slate-400' : 'text-neutral-500'
                 }`}
               >
@@ -326,10 +326,10 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
               <Flame className="w-3.5 h-3.5 text-amber-500" />
             </div>
             <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight font-mono text-amber-600 dark:text-amber-400">
+              <span className="text-xl sm:text-2xl font-bold tracking-tight font-medium text-amber-600 dark:text-amber-400">
                 {metrics.burnDownRate.split(' ')[0]}
               </span>
-              <span className={`text-[11px] font-mono ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+              <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                 tasks / day
               </span>
             </div>
@@ -343,7 +343,7 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
           >
             <div className="flex items-center justify-between">
               <span
-                className={`text-[10px] font-mono uppercase font-semibold ${
+                className={`text-[10px] font-medium uppercase font-semibold ${
                   isLight ? 'text-slate-400' : 'text-neutral-500'
                 }`}
               >
@@ -352,10 +352,10 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
               <Clock className="w-3.5 h-3.5 text-purple-500" />
             </div>
             <div className="flex items-baseline gap-1 mt-1">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight font-mono text-purple-600 dark:text-purple-400">
+              <span className="text-xl sm:text-2xl font-bold tracking-tight font-medium text-purple-600 dark:text-purple-400">
                 {metrics.estimatedDaysToCompletion}
               </span>
-              <span className={`text-[11px] font-mono ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+              <span className={`text-[11px] font-medium ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                 {metrics.estimatedDaysToCompletion === 1 ? 'day remaining' : 'days remaining'}
               </span>
             </div>
@@ -365,10 +365,10 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
         {/* Real-Time Segmented Multi-Gradient Progress Bar */}
         <div className="space-y-1.5 pt-1">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-[11px] font-mono opacity-70">
+            <span className="text-[11px] font-medium opacity-70">
               Workspace Execution Pipeline
             </span>
-            <span className="text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="text-[11px] font-medium font-semibold text-emerald-600 dark:text-emerald-400">
               {metrics.completionRate}% Target Completion
             </span>
           </div>
@@ -423,7 +423,7 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
           </div>
 
           {/* Interactive Legend with dynamic counts */}
-          <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] pt-1 font-mono">
+          <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] pt-1 font-medium">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
@@ -495,7 +495,7 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-mono">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-medium">
                   <div
                     className={`p-2 rounded-lg border ${
                       isLight ? 'bg-white border-slate-200' : 'bg-white/5 border-white/5'

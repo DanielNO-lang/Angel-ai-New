@@ -495,7 +495,7 @@ Respond strictly with a JSON object matching this schema:
 
               {/* Timer & Status */}
               <div>
-                <span className="text-2xl font-mono font-bold tracking-wider">
+                <span className="text-2xl font-medium font-bold tracking-wider">
                   {formatTime(recordingSeconds)}
                 </span>
                 <p className="text-xs text-rose-500 font-medium mt-1 animate-pulse">
@@ -520,7 +520,7 @@ Respond strictly with a JSON object matching this schema:
                   isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#0E121D] border-white/5'
                 }`}
               >
-                <div className="flex items-center gap-1.5 text-[10px] uppercase font-mono tracking-wider opacity-50 mb-1">
+                <div className="flex items-center gap-1.5 text-[10px] uppercase font-medium tracking-wider opacity-50 mb-1">
                   <Sparkles className="w-3 h-3 text-pink-400" />
                   <span>Real-time Transcription</span>
                 </div>
@@ -635,7 +635,7 @@ Respond strictly with a JSON object matching this schema:
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider opacity-60">
+                  <label className="text-[10px] uppercase font-medium tracking-wider opacity-60">
                     Title
                   </label>
                   <input
@@ -653,7 +653,7 @@ Respond strictly with a JSON object matching this schema:
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase font-mono tracking-wider opacity-60">
+                  <label className="text-[10px] uppercase font-medium tracking-wider opacity-60">
                     Description & Transcript
                   </label>
                   <textarea
@@ -674,7 +674,7 @@ Respond strictly with a JSON object matching this schema:
                   {taskPreview.tags.map((tag, i) => (
                     <span
                       key={i}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
+                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
                     >
                       <Tag className="w-2.5 h-2.5" />
                       <span>{tag}</span>

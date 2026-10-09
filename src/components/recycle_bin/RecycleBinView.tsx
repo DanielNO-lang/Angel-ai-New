@@ -115,7 +115,7 @@ export const RecycleBinView: React.FC = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tight">Recycle Bin</h1>
-            <span className="text-[11px] font-mono opacity-60">
+            <span className="text-[11px] font-medium opacity-60">
               {deletedItems.length} items preserved
             </span>
           </div>
