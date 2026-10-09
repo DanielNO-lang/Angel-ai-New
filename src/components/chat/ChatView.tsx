@@ -34,7 +34,6 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Sparkles,
   Trash2,
   Video,
   Wrench,
@@ -67,6 +66,7 @@ export const ChatView: React.FC = () => {
     memories,
     setActiveTab,
     settings,
+    updateSettings,
     setMobileMenuOpen,
   } = useAngel();
 
@@ -628,21 +628,6 @@ export const ChatView: React.FC = () => {
               <Plus className={`w-4 h-4 transition-transform duration-150 ${isAddSectionOpen ? 'rotate-45' : ''}`} />
             </button>
 
-            {/* Visual Mode in Chat Bar */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('visual_mode')}
-              className={`p-2 rounded-xl transition-colors shrink-0 ${
-                isLight
-                  ? 'text-slate-500 hover:text-indigo-600 hover:bg-slate-200/60'
-                  : 'text-neutral-400 hover:text-indigo-400 hover:bg-neutral-800'
-              }`}
-              title="Visual Mode (Camera & Screen Perception)"
-              aria-label="Visual Mode"
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-
             {/* Textarea Input (Placeholder: "Message Angel...") */}
             <textarea
               ref={textareaRef}
@@ -657,30 +642,88 @@ export const ChatView: React.FC = () => {
               }`}
             />
 
-            {/* Browser Web Speech API Dictate Icon (Speech to Text) */}
+            {/* Think: use the workspace's configured thinking preference */}
+            <button
+              type="button"
+              onClick={() => updateSettings({ models: { ...settings.models, enableThinking: !settings.models.enableThinking } })}
+              className={`flex items-center gap-1.5 px-2 py-2 rounded-xl text-xs font-medium transition-all shrink-0 ${
+                settings.models.enableThinking
+                  ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30'
+                  : isLight ? 'text-slate-500 hover:bg-slate-200/60' : 'text-neutral-400 hover:bg-neutral-800'
+              }`}
+              aria-pressed={settings.models.enableThinking}
+              title={settings.models.enableThinking ? 'Thinking enabled' : 'Enable thinking'}
+            >
+              <Brain className="w-4 h-4" />
+              <span className="hidden xl:inline">Think</span>
+            </button>
+
+            {/* Dictate */}
             <button
               type="button"
               onClick={toggleSpeechRecognition}
               className={`p-2 rounded-xl transition-all shrink-0 ${
                 voiceDictation.isListening
                   ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/40'
-                  : isLight
-                  ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/60'
-                  : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
+                  : isLight ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/60' : 'text-neutral-400 hover:text-white hover:bg-neutral-800'
               }`}
-              title={voiceDictation.isListening ? 'Stop dictation' : 'Dictate hands-free (Speech to Text)'}
+              title={voiceDictation.isListening ? 'Stop dictation' : 'Dictate message'}
               aria-label="Dictate message"
             >
               {voiceDictation.isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
             </button>
 
-            {/* Alternating Voice Mode vs Send Button */}
+            {/* Visual Mode */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('visual_mode')}
+              className={`p-2 rounded-xl transition-colors shrink-0 ${
+                isLight ? 'text-slate-500 hover:text-indigo-600 hover:bg-slate-200/60' : 'text-neutral-400 hover:text-indigo-400 hover:bg-neutral-800'
+              }`}
+              title="Visual mode"
+              aria-label="Visual mode"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+
+            {/* Voice mode is always available as its own control */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('voice')}
+              className={`p-2 rounded-xl transition-colors shrink-0 ${
+                isLight ? 'text-slate-500 hover:text-indigo-600 hover:bg-slate-200/60' : 'text-neutral-400 hover:text-indigo-400 hover:bg-neutral-800'
+              }`}
+              title="Open Voice Mode"
+              aria-label="Open Voice Mode"
+            >
+              <Headphones className="w-4 h-4" />
+            </button>
+
+            {/* Model selector updates the configured model used by the conversation service */}
+            <label className="flex items-center gap-1 shrink-0">
+              <span className="sr-only">Model</span>
+              <select
+                value={settings.models.geminiModel}
+                onChange={(event) => updateSettings({ models: { ...settings.models, geminiModel: event.target.value } })}
+                className={`max-w-[100px] sm:max-w-[130px] rounded-lg px-1.5 py-2 text-[10px] sm:text-xs outline-none border ${
+                  isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-neutral-900 border-white/10 text-neutral-300'
+                }`}
+                aria-label="AI model"
+                title="Select AI model"
+              >
+                <option value={settings.models.geminiModel}>{settings.models.geminiModel}</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+              </select>
+            </label>
+
+            {/* Send is last; voice is a separate control */}
             {input.trim().length > 0 || attachments.length > 0 ? (
               <button
                 type="submit"
                 id="btn-chat-send"
                 disabled={isChatStreaming}
-                className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shrink-0 shadow-xs cursor-pointer transform-gpu active:scale-95 animate-in zoom-in-90 duration-150"
+                className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shrink-0 shadow-xs cursor-pointer transform-gpu active:scale-95"
                 aria-label="Send message"
                 title="Send message"
               >
@@ -692,18 +735,14 @@ export const ChatView: React.FC = () => {
               </button>
             ) : (
               <button
-                type="button"
-                id="btn-activate-voice"
-                onClick={() => setActiveTab('voice')}
-                className={`p-2 rounded-xl transition-all shrink-0 cursor-pointer transform-gpu active:scale-95 animate-in zoom-in-90 duration-150 ${
-                  isLight
-                    ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200/80 shadow-2xs'
-                    : 'bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-400 border border-indigo-500/30 shadow-xs'
-                }`}
-                title="Activate Voice Mode"
-                aria-label="Activate Voice Mode"
+                type="submit"
+                id="btn-chat-send-empty"
+                disabled={isChatStreaming}
+                className="p-2 rounded-xl bg-indigo-600/70 hover:bg-indigo-600 text-white transition-all shrink-0 shadow-xs cursor-pointer"
+                aria-label="Send message"
+                title="Send message"
               >
-                <Headphones className="w-4 h-4" />
+                <ArrowUp className="w-4 h-4 stroke-[2.5]" />
               </button>
             )}
           </form>
@@ -713,7 +752,7 @@ export const ChatView: React.FC = () => {
               isLight ? 'text-slate-400' : 'text-neutral-400'
             }`}
           >
-            <span>Routing: Google Gemini 3.8 Flash • Hardware Secured</span>
+            <span>Model: {settings.models.geminiModel}</span>
             <span>Enter to send • Shift+Enter for newline</span>
           </div>
         </div>
