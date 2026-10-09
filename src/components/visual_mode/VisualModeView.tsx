@@ -251,16 +251,29 @@ export const VisualModeView: React.FC = () => {
 
   // Start media stream (Camera or Screen)
   const startStream = async (source: VisualSourceType, deviceId?: string) => {
-    stopStream();
     setPermissionError(null);
     setAnalysisError(null);
 
-    const widthConstraint =
-      resolutionPreset === '1080p' ? 1920 : resolutionPreset === '720p' ? 1280 : 1280;
-    const heightConstraint =
-      resolutionPreset === '1080p' ? 1080 : resolutionPreset === '720p' ? 720 : 720;
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
+      setPermissionError('This browser does not expose media capture. Open Angel over HTTPS in a current browser, or upload a screenshot to inspect a static view.');
+      return;
+    }
+
+    if (source === 'screen' && !supportsLiveScreenShare) {
+      setPermissionError('Live screen sharing is not available in this browser/device. Screen capture requires a secure page and browser support; many mobile browsers do not expose this API. Upload a screenshot here, or use a supported desktop browser for live sharing.');
+      return;
+    }
+
+    if (source === 'camera' && typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      setPermissionError('Camera access is not available in this browser. Check device/browser support, or upload a screenshot instead.');
+      return;
+    }
+
+    const widthConstraint = resolutionPreset === '1080p' ? 1920 : 1280;
+    const heightConstraint = resolutionPreset === '1080p' ? 1080 : 720;
 
     try {
+      stopStream();
       let stream: MediaStream;
 
       if (source === 'camera') {
@@ -269,31 +282,18 @@ export const VisualModeView: React.FC = () => {
           height: { ideal: heightConstraint },
           frameRate: { ideal: 30 },
         };
-        if (deviceId) {
-          videoConstraints.deviceId = { exact: deviceId };
-        }
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: false,
-        });
+        if (deviceId) videoConstraints.deviceId = { exact: deviceId };
+        stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
       } else {
-        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
-          throw new Error('Screen sharing is not supported by your browser or environment.');
-        }
-        try {
-          // Standard cross-browser invocation
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: false,
-          });
-        } catch (displayErr: any) {
-          if (displayErr.name === 'NotAllowedError' || displayErr.name === 'AbortError') {
-            console.info('[VisualMode] Screen sharing cancelled by user.');
-            return;
-          }
-          console.warn('[VisualMode] Standard getDisplayMedia failed, trying fallback:', displayErr);
-          stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        }
+        // Must be called directly from the user's Share Screen action.
+        // Do not retry a denied/cancelled picker, which can create confusing permission loops.
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      }
+
+      const track = stream.getVideoTracks()[0];
+      if (!track) {
+        stream.getTracks().forEach((mediaTrack) => mediaTrack.stop());
+        throw new Error('The selected source did not provide a video track.');
       }
 
       mediaStreamRef.current = stream;
@@ -303,35 +303,51 @@ export const VisualModeView: React.FC = () => {
         videoRef.current.playsInline = true;
         try {
           await videoRef.current.play();
-        } catch (e) {
-          console.warn('[VisualMode] Video play error (ignoring autoplay policy):', e);
+        } catch (playError) {
+          // Playback may need a second user gesture on some browsers; keep the stream attached.
+          console.info('[VisualMode] Video preview awaits playback permission:', playError);
         }
+        const trackSettings = track.getSettings();
         setFeedDimensions({
-          width: videoRef.current.videoWidth || 1280,
-          height: videoRef.current.videoHeight || 720,
+          width: videoRef.current.videoWidth || trackSettings.width || 1280,
+          height: videoRef.current.videoHeight || trackSettings.height || 720,
         });
       }
 
       setStreamSource(source);
       setIsActive(true);
+      setLastCapturedImage(null);
+      const trackSettings = track.getSettings();
+      if (trackSettings.frameRate) setStreamFps(Math.round(trackSettings.frameRate));
+      track.onended = () => {
+        stopStream();
+        setPermissionError(source === 'screen' ? 'Screen sharing has ended.' : 'The camera stream has ended.');
+      };
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.warn('[VisualMode] Stream acquisition failed:', error);
+      if (error.name === 'AbortError') return;
 
-      const track = stream.getVideoTracks()[0];
-      if (track) {
-        const settings = track.getSettings();
-        if (settings.frameRate) setStreamFps(Math.round(settings.frameRate));
-        track.onended = () => {
-          stopStream();
-        };
+      let message: string;
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError' || error.name === 'SecurityError') {
+        message = source === 'screen'
+          ? 'Screen sharing was cancelled or blocked. Choose Share Screen again and select a tab, window, or display. If no picker appears, check browser permissions and HTTPS.'
+          : 'Camera permission was denied. Allow camera access in your browser settings and try again.';
+      } else if (error.name === 'NotFoundError') {
+        message = source === 'screen' ? 'No shareable display source was found by this browser.' : 'No camera was found on this device.';
+      } else if (error.name === 'NotReadableError') {
+        message = 'The selected source is unavailable or being used by another application. Close other capture sessions and try again.';
+      } else {
+        message = 'Could not start ' + (source === 'screen' ? 'screen sharing' : 'the camera') + ': ' + (error.message || 'Unknown media error');
       }
-    } catch (err: any) {
-      console.error('[VisualMode] Stream acquisition failed:', err);
-      const isDenied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
-      setPermissionError(
-        isDenied
-          ? `Permission was denied for ${source}. Check browser site permissions to allow access.`
-          : `Stream acquisition error: ${err.message || 'Device unavailable'}`
-      );
+
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
+      if (videoRef.current) videoRef.current.srcObject = null;
       setIsActive(false);
+      setPermissionError(message);
     }
   };
 
