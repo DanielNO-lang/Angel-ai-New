@@ -302,7 +302,7 @@ export const Sidebar: React.FC = () => {
                 >
                   <AngelLogo size={28} glow={true} />
                   <span
-                    className={`font-semibold tracking-tight text-base transition-colors ${
+                    className={`font-calligraphy text-2xl tracking-wide select-none transition-colors ${
                       isLight
                         ? 'text-slate-900 group-hover:text-indigo-600'
                         : 'text-white group-hover:text-indigo-300'
@@ -842,11 +842,14 @@ export const Sidebar: React.FC = () => {
             >
               <div className="flex items-center justify-between h-9 px-1">
                 <div
-                  onClick={() => handleNavClick('home')}
+                  onClick={() => {
+                    handleNavClick('home');
+                    setMobileMenuOpen(false);
+                  }}
                   className="flex items-center gap-2.5 cursor-pointer"
                 >
                   <AngelLogo size={28} glow={true} />
-                  <span className="font-semibold text-base tracking-tight">Angel</span>
+                  <span className="font-calligraphy text-2xl tracking-wide select-none text-white">Angel</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <button

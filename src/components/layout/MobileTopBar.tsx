@@ -99,7 +99,7 @@ export const MobileTopBar: React.FC = () => {
         >
           <AngelLogo size={24} glow={true} />
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-semibold text-sm tracking-tight truncate">Angel</span>
+            <span className="font-calligraphy text-xl tracking-wide select-none truncate">Angel</span>
             <span className="text-neutral-400 text-xs">/</span>
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[11px] font-medium truncate">
               <TabIcon className="w-3 h-3 shrink-0" />

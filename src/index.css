@@ -2,11 +2,11 @@
 
 @layer base {
   :root {
-    --bg-primary: #0a0a0a;
-    --bg-secondary: #121212;
-    --border-color: #262626;
-    --text-primary: #f5f5f5;
-    --text-secondary: #a3a3a3;
+    --bg-primary: #060813;
+    --bg-secondary: #0c1022;
+    --border-color: rgba(99, 102, 241, 0.16);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
   }
 
   .light {
@@ -18,9 +18,9 @@
   }
 
   .midnight {
-    --bg-primary: #000000;
-    --bg-secondary: #050508;
-    --border-color: #27272a;
+    --bg-primary: #030408;
+    --bg-secondary: #060914;
+    --border-color: rgba(139, 92, 246, 0.22);
     --text-primary: #ffffff;
     --text-secondary: #a1a1aa;
   }
@@ -47,7 +47,7 @@
   }
 
   select option {
-    background-color: #121622;
+    background-color: #0c1022;
     color: #ffffff;
   }
 
@@ -55,6 +55,14 @@
     background-color: #ffffff;
     color: #0f172a;
   }
+}
+
+/* Calligraphy font style for the Angel wordmark */
+.font-calligraphy {
+  font-family: 'Great Vibes', 'Alex Brush', 'Pinyon Script', cursive, Georgia, serif !important;
+  font-style: normal;
+  letter-spacing: 0.03em;
+  line-height: 1;
 }
 
 /* BackdropLayer CSS component */
@@ -67,7 +75,7 @@
   user-select: none;
 }
 
-/* Custom minimal scrollbar */
+/* Custom minimal scrollbar matching ethereal celestial palette */
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -76,17 +84,17 @@
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #2e2e2e;
+  background: rgba(99, 102, 241, 0.25);
   border-radius: 9999px;
 }
 .light .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: #cbd5e1;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: rgba(139, 92, 246, 0.45);
 }
 .light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: #94a3b8;
 }
 
 /* Clean markdown formatting */

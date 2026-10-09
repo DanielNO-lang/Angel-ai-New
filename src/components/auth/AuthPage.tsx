@@ -154,7 +154,7 @@ export const AuthPage: React.FC = () => {
             {/* Angel AI Brand */}
             <div className="flex items-center gap-2.5">
               <AngelLogo size={32} glow={true} />
-              <span className="font-semibold text-lg tracking-tight">Angel</span>
+              <span className="font-calligraphy text-3xl tracking-wide select-none">Angel</span>
             </div>
 
             {/* Header Titles */}
