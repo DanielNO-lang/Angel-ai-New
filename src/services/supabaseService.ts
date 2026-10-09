@@ -208,6 +208,74 @@ export async function pushTasksToSupabase(tasks: Task[]): Promise<boolean> {
 /**
  * Initiates Google OAuth using Supabase Authentication
  */
+export interface AuthenticatedProfileInput {
+  id: string;
+  name: string;
+  email: string;
+  initials: string;
+  avatarUrl?: string;
+}
+
+/**
+ * Upserts the signed-in user's public profile using the active Supabase session.
+ * Auth identity creation remains managed by Supabase Auth; this only mirrors safe
+ * profile fields into public.profiles under the table's self-access RLS policy.
+ */
+export async function upsertAuthenticatedProfile(profile: AuthenticatedProfileInput): Promise<void> {
+  const client = getClientSupabase();
+  if (!client) return;
+
+  try {
+    const { data: authData, error: authError } = await client.auth.getUser();
+    const user = authData?.user;
+    if (authError || !user || user.id !== profile.id) {
+      console.warn('[Supabase Profile] Skipped profile sync because the active user could not be verified.');
+      return;
+    }
+
+    const { data: existing, error: lookupError } = await client
+      .from('profiles')
+      .select('plan, avatar_url')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (lookupError) {
+      console.warn('[Supabase Profile] Could not check the existing profile; auth remains active.');
+      return;
+    }
+
+    const metadataName =
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email?.split('@')[0] ||
+      'Angel User';
+
+    const normalizedName = profile.name?.trim() || metadataName;
+    const initials =
+      profile.initials?.trim() ||
+      normalizedName.split(/\s+/).map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() ||
+      'AU';
+
+    const { error: upsertError } = await client.from('profiles').upsert({
+      id: user.id,
+      name: normalizedName,
+      email: user.email || profile.email,
+      initials,
+      // Do not grant a plan based on client input. Preserve an existing database value; otherwise start at Free.
+      plan: existing?.plan || 'Free',
+      status: 'online',
+      avatar_url: profile.avatarUrl || existing?.avatar_url || user.user_metadata?.avatar_url || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+
+    if (upsertError) {
+      console.warn('[Supabase Profile] Profile sync failed. Authentication remains active.');
+    }
+  } catch (error) {
+    console.warn('[Supabase Profile] Unexpected profile sync failure; authentication remains active.', error);
+  }
+}
+
 export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirected?: boolean }> {
   const client = getClientSupabase();
   if (!client) {
@@ -232,7 +300,22 @@ export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirec
     });
 
     if (error) {
-      return { error: error.message };
+      const message = error.message || 'Google authentication could not be started.';
+      const normalized = message.toLowerCase();
+
+      if (normalized.includes('unsupported provider') || normalized.includes('provider is not enabled')) {
+        return {
+          error: 'Google sign-in is not enabled in Supabase Auth yet. Enable Authentication → Sign In / Providers → Google, add your Google OAuth Client ID and Client Secret, and save the provider settings.',
+        };
+      }
+
+      if (normalized.includes('redirect') && (normalized.includes('not allowed') || normalized.includes('allow list'))) {
+        return {
+          error: 'Supabase blocked the return URL. Add https://angel-ai-new.vercel.app/ to Authentication → URL Configuration → Redirect URLs, then try again.',
+        };
+      }
+
+      return { error: message };
     }
     return { redirected: true };
   } catch (err: any) {
