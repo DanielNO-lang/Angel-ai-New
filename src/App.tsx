@@ -156,7 +156,6 @@ const WorkspaceContent: React.FC = () => {
       agent_lab: { name: 'Agent Lab', description: 'Build and manage persistent autonomous agents and workflows.' },
       tasks: { name: 'Tasks', description: 'Save tasks and track progress when you return.' },
       schedule: { name: 'Schedule', description: 'Keep planned work and upcoming tasks available between sessions.' },
-      more: { name: 'Tools', description: 'Configure advanced tools and integrations for your workspace.' },
       memories: { name: 'Memory Vault', description: 'Review and manage memory that belongs to your signed-in workspace.' },
     };
     const lockedSection = guestLockedSections[activeTab];
