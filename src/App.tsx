@@ -149,13 +149,24 @@ const WorkspaceContent: React.FC = () => {
       return <IncognitoView />;
     }
 
-    // 2. Guest user redirection: directly redirect to sign-in modal for locked features
-    if (!isSignedIn && (activeTab === 'library' || activeTab === 'projects' || activeTab === 'agent_lab' || activeTab === 'tasks' || activeTab === 'schedule' || activeTab === 'more' || activeTab === 'memories')) {
-      setTimeout(() => {
-        setAuthPageMode('signin');
-        setIsAuthPageOpen(true);
-      }, 0);
-      return <HomeView />;
+    // 2. Guests can use basic chat, voice, and visual mode. Persistent sections offer an optional sign-in gate.
+    const guestLockedSections: Record<string, { name: string; description: string }> = {
+      library: { name: 'Library', description: 'Keep documents, files, and saved resources in your personal workspace.' },
+      projects: { name: 'Projects', description: 'Organize long-term work and preserve project context between sessions.' },
+      agent_lab: { name: 'Agent Lab', description: 'Build and manage persistent autonomous agents and workflows.' },
+      tasks: { name: 'Tasks', description: 'Save tasks and track progress when you return.' },
+      schedule: { name: 'Schedule', description: 'Keep planned work and upcoming tasks available between sessions.' },
+      more: { name: 'Tools', description: 'Configure advanced tools and integrations for your workspace.' },
+      memories: { name: 'Memory Vault', description: 'Review and manage memory that belongs to your signed-in workspace.' },
+    };
+    const lockedSection = guestLockedSections[activeTab];
+    if (!isSignedIn && lockedSection) {
+      return (
+        <GuestGateBanner
+          featureName={lockedSection.name}
+          featureDescription={lockedSection.description}
+        />
+      );
     }
 
     switch (activeTab) {

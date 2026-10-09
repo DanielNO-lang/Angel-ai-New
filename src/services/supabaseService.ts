@@ -217,7 +217,7 @@ export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirec
   try {
     const redirectUrl =
       typeof window !== 'undefined'
-        ? `${window.location.origin}${window.location.pathname}`
+        ? `${window.location.origin}/`
         : undefined;
 
     const { error } = await client.auth.signInWithOAuth({

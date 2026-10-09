@@ -41,6 +41,7 @@ export const HomeView: React.FC = () => {
   const {
     setActiveTab,
     createConversation,
+    setActiveConversationId,
     sendMessage,
     conversations,
     userProfile,
@@ -343,62 +344,22 @@ export const HomeView: React.FC = () => {
         </div>
       </div>
 
-      {/* Sub-view Navigation Switcher (Overview vs Spotlight & News) */}
-      <div
-        className={`flex items-center justify-between pb-3 border-b ${
-          isLight ? 'border-slate-200' : 'border-white/5'
-        }`}
-      >
-        <div className="flex items-center gap-4 text-xs font-semibold">
-          <button
-            onClick={() => setHomeTab('overview')}
-            className={`pb-1 transition-colors relative ${
-              homeTab === 'overview'
-                ? isLight
-                  ? 'text-slate-900'
-                  : 'text-white'
-                : isLight
-                ? 'text-slate-400 hover:text-slate-700'
-                : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            Overview
-            {homeTab === 'overview' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
-            )}
-          </button>
-          <button
-            onClick={() => setHomeTab('spotlight')}
-            className={`pb-1 transition-colors relative ${
-              homeTab === 'spotlight'
-                ? isLight
-                  ? 'text-slate-900'
-                  : 'text-white'
-                : isLight
-                ? 'text-slate-400 hover:text-slate-700'
-                : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            Spotlight & News
-            {homeTab === 'spotlight' && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
-            )}
-          </button>
+      <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+        <div>
+          <h2 className={`text-sm font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>Explore Angel</h2>
+          <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+            Chat, create, research, speak, and work visually with Angel.
+          </p>
         </div>
-
-        <span
-          className={`text-[11px] font-medium ${
-            isLight ? 'text-slate-400' : 'text-neutral-400'
-          }`}
-        >
-          5 AGENTS READY • PERSISTENT MEMORY
+        <span className={`text-[10px] font-medium tracking-wide ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
+          {isSignedIn ? 'PERSONAL WORKSPACE' : 'GUEST SESSION · TEMPORARY'}
         </span>
       </div>
 
       {homeTab === 'overview' ? (
         <div className="space-y-6">
           {/* Daily Digest & Briefing Component */}
-          <DailyDigest isLight={isLight} />
+          <DailyDigest isLight={isLight} isSignedIn={isSignedIn} />
 
           {/* ========================================================
               3. "WHAT WOULD YOU LIKE TO DO?" 8-TOOL GRID + RIGHT COLUMN WIDGETS
@@ -634,9 +595,8 @@ export const HomeView: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column: Active Agents + Recent Activity */}
+            {/* Right Column: Actual Angel capabilities, not placeholder agent activity */}
             <div className="space-y-6">
-              {/* Active Agents Widget */}
               <div
                 className={`rounded-2xl p-5 space-y-3 transition-all ${
                   isLight
@@ -644,99 +604,53 @@ export const HomeView: React.FC = () => {
                     : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <h3
-                      className={`text-xs font-semibold ${
-                        isLight ? 'text-slate-900' : 'text-neutral-200'
-                      }`}
-                    >
-                      Active Agents (3 running)
-                    </h3>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                  <h3 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                    What Angel can do
+                  </h3>
+                </div>
+                <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Start with a conversation, speak naturally, or let Angel inspect visual information.
+                </p>
+                <div className="space-y-2">
                   <button
-                    onClick={() => setActiveTab('agent_lab')}
-                    className="text-[11px] text-indigo-500 hover:text-indigo-600 font-medium"
+                    onClick={() => { createConversation('angel-core'); setActiveTab('chat'); }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-900/60 hover:bg-neutral-900'}`}
                   >
-                    View all →
+                    <MessageSquare className="w-4 h-4 text-indigo-400 shrink-0" />
+                    <span>
+                      <span className={`block text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>Chat, writing & research</span>
+                      <span className={`block text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Think through ideas and get things done</span>
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 ml-auto text-indigo-400 shrink-0" />
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('voice')}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-900/60 hover:bg-neutral-900'}`}
+                  >
+                    <Mic className="w-4 h-4 text-cyan-400 shrink-0" />
+                    <span>
+                      <span className={`block text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>Voice Mode</span>
+                      <span className={`block text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Talk naturally with Angel</span>
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 ml-auto text-cyan-400 shrink-0" />
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('visual_mode')}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-900/60 hover:bg-neutral-900'}`}
+                  >
+                    <ImageIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>
+                      <span className={`block text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>Visual Mode</span>
+                      <span className={`block text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Explore images and your screen</span>
+                    </span>
+                    <ArrowRight className="w-3.5 h-3.5 ml-auto text-emerald-400 shrink-0" />
                   </button>
                 </div>
-
-                <div className="space-y-2">
-                  <div
-                    className={`flex items-center justify-between p-2.5 rounded-xl transition-colors ${
-                      isLight ? 'bg-slate-50 hover:bg-slate-100/70' : 'bg-neutral-900/50 hover:bg-neutral-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 text-xs">
-                        <Bot className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <h4 className={`text-xs font-medium ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>
-                          Research Agent
-                        </h4>
-                        <p className={`text-[10px] truncate max-w-[130px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                          Gathering latest updates...
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
-                      2m
-                    </span>
-                  </div>
-
-                  <div
-                    className={`flex items-center justify-between p-2.5 rounded-xl transition-colors ${
-                      isLight ? 'bg-slate-50 hover:bg-slate-100/70' : 'bg-neutral-900/50 hover:bg-neutral-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 text-xs">
-                        <Bot className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <h4 className={`text-xs font-medium ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>
-                          Content Creator
-                        </h4>
-                        <p className={`text-[10px] truncate max-w-[130px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                          Generating blog post draft...
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
-                      4m
-                    </span>
-                  </div>
-
-                  <div
-                    className={`flex items-center justify-between p-2.5 rounded-xl transition-colors ${
-                      isLight ? 'bg-slate-50 hover:bg-slate-100/70' : 'bg-neutral-900/50 hover:bg-neutral-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 text-xs">
-                        <Bot className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <h4 className={`text-xs font-medium ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>
-                          Image Generator
-                        </h4>
-                        <p className={`text-[10px] truncate max-w-[130px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                          Creating graphic assets...
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-400'}`}>
-                      1m
-                    </span>
-                  </div>
-                </div>
               </div>
-
               {/* Real-time Dynamic Recent Activity Widget */}
-              <RecentActivityWidget isLight={isLight} />
+              {isSignedIn && <RecentActivityWidget isLight={isLight} />}
             </div>
           </div>
 
@@ -906,56 +820,74 @@ export const HomeView: React.FC = () => {
               5. BOTTOM ROW: RECENT CONVERSATIONS & QUICK ACTIONS
               ======================================================== */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Conversations */}
-            <div
-              className={`rounded-2xl p-5 space-y-3 transition-all ${
-                isLight
-                  ? 'bg-white border border-slate-200/80 shadow-2xs'
-                  : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <h3 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
-                  Recent Conversations
-                </h3>
+            {isSignedIn ? (
+              /* Recent Conversations: show only real saved conversation previews */
+              <div
+                className={`rounded-2xl p-5 space-y-3 transition-all ${
+                  isLight
+                    ? 'bg-white border border-slate-200/80 shadow-2xs'
+                    : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                    Recent Conversations
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('chat')}
+                    className="text-[11px] text-indigo-500 hover:text-indigo-600 font-medium"
+                  >
+                    View all →
+                  </button>
+                </div>
+                {conversations.length === 0 ? (
+                  <p className={`text-xs py-6 text-center ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                    Your saved conversations will appear here.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {conversations.slice(0, 4).map((conversation) => (
+                      <button
+                        key={conversation.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveConversationId(conversation.id);
+                          setActiveTab('chat');
+                        }}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-950/60 hover:bg-neutral-900'}`}
+                      >
+                        <span className="flex items-center gap-2.5 min-w-0 pr-2">
+                          <MessageSquare className="w-4 h-4 text-indigo-400 shrink-0" />
+                          <span className="min-w-0">
+                            <span className={`block text-xs font-medium truncate ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>{conversation.title}</span>
+                            <span className={`block text-[10px] truncate ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{conversation.lastMessagePreview || 'Saved conversation'}</span>
+                          </span>
+                        </span>
+                        <ArrowRight className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-400' : 'text-neutral-400'}`} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                className={`rounded-2xl p-5 space-y-3 transition-all ${isLight ? 'bg-white border border-slate-200/80 shadow-2xs' : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-indigo-400" />
+                  <h3 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>Start with Angel</h3>
+                </div>
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Explore a question or test an idea. Guest conversations are temporary and are not saved to permanent memory.
+                </p>
                 <button
-                  onClick={() => setActiveTab('chat')}
-                  className="text-[11px] text-indigo-500 hover:text-indigo-600 font-medium"
+                  onClick={() => { createConversation('angel-core'); setActiveTab('chat'); }}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold inline-flex items-center gap-2 transition-colors"
                 >
-                  View all →
+                  Start a chat <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
-
-              <div className="space-y-1.5">
-                {conversations.slice(0, 4).map((c, idx) => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      createConversation('angel-core', undefined, c.title);
-                      setActiveTab('chat');
-                    }}
-                    className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors ${
-                      isLight
-                        ? 'bg-slate-50 hover:bg-slate-100'
-                        : 'bg-neutral-950/60 hover:bg-neutral-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 truncate pr-2">
-                      <MessageSquare className="w-4 h-4 text-indigo-400 shrink-0" />
-                      <div className="truncate">
-                        <h4 className={`text-xs font-medium truncate ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
-                          {c.title}
-                        </h4>
-                        <p className={`text-[10px] truncate ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                          {idx === 0 ? 'Web search' : idx === 1 ? 'Agent' : idx === 2 ? 'Image generation' : 'Chat'} • 2m ago
-                        </p>
-                      </div>
-                    </div>
-                    <ArrowRight className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-400' : 'text-neutral-400'}`} />
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Quick Actions */}
             <div
@@ -1019,17 +951,17 @@ export const HomeView: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('memories')}
+                  onClick={() => setActiveTab(isSignedIn ? 'memories' : 'voice')}
                   className={`p-3 rounded-xl text-left transition-colors ${
                     isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-950/60 hover:bg-neutral-900'
                   }`}
                 >
-                  <Brain className="w-4 h-4 text-emerald-500 mb-2" />
+                  {isSignedIn ? <Brain className="w-4 h-4 text-emerald-500 mb-2" /> : <Mic className="w-4 h-4 text-emerald-500 mb-2" />}
                   <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
-                    View Memory
+                    {isSignedIn ? 'View Memory' : 'Voice Mode'}
                   </h4>
                   <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                    Durable knowledge bank
+                    {isSignedIn ? 'Durable knowledge bank' : 'Talk naturally with Angel'}
                   </p>
                 </button>
               </div>

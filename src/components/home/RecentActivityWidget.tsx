@@ -30,7 +30,7 @@ interface TimelineActivity {
 }
 
 export const RecentActivityWidget: React.FC<{ isLight: boolean }> = ({ isLight }) => {
-  const { executions, tasks, memories, setActiveTab } = useAngel();
+  const { executions, tasks, memories, setActiveTab, isSignedIn } = useAngel();
 
   const activities = useMemo(() => {
     const list: TimelineActivity[] = [];
@@ -69,25 +69,27 @@ export const RecentActivityWidget: React.FC<{ isLight: boolean }> = ({ isLight }
         });
       });
 
-    // 3. Memory Additions
-    memories.forEach((m) => {
-      const date = m.createdAt ? new Date(m.createdAt) : new Date();
-      list.push({
-        id: `memory-${m.id}`,
-        type: 'memory',
-        title: `Memory: ${m.title}`,
-        subtitle: m.content.slice(0, 50) + (m.content.length > 50 ? '...' : ''),
-        timestamp: formatRelativeTime(date),
-        isoDate: date.toISOString(),
-        icon: Brain,
-        color: 'text-purple-400 bg-purple-500/10',
-        onClick: () => setActiveTab('memories'),
+    // Memory activity belongs only to an authenticated, persistent workspace.
+    if (isSignedIn) {
+      memories.forEach((m) => {
+        const date = m.createdAt ? new Date(m.createdAt) : new Date();
+        list.push({
+          id: `memory-${m.id}`,
+          type: 'memory',
+          title: `Memory: ${m.title}`,
+          subtitle: m.content.slice(0, 50) + (m.content.length > 50 ? '...' : ''),
+          timestamp: formatRelativeTime(date),
+          isoDate: date.toISOString(),
+          icon: Brain,
+          color: 'text-purple-400 bg-purple-500/10',
+          onClick: () => setActiveTab('memories'),
+        });
       });
-    });
+    }
 
     // Sort descending by ISO timestamp
     return list.sort((a, b) => new Date(b.isoDate).getTime() - new Date(a.isoDate).getTime()).slice(0, 7);
-  }, [executions, tasks, memories, setActiveTab]);
+  }, [executions, tasks, memories, isSignedIn, setActiveTab]);
 
   return (
     <div

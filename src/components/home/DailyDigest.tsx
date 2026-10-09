@@ -21,14 +21,18 @@ import {
   CheckSquare,
   AlertCircle,
   Plus,
+  MessageSquare,
+  Mic,
+  Layers,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 
 interface DailyDigestProps {
   isLight: boolean;
+  isSignedIn: boolean;
 }
 
-export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
+export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn }) => {
   const {
     tasks,
     memories,
@@ -86,7 +90,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
               </span>
             </div>
             <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-              Your workspace overview: upcoming milestones, memory reflections, and autonomous workflows.
+              {isSignedIn ? 'Your workspace overview: upcoming milestones, memory reflections, and autonomous workflows.' : 'A quick look at what Angel can help you create, explore, and solve.'}
             </p>
           </div>
         </div>
@@ -130,7 +134,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
           <div className="space-y-2">
             {focusTasks.length === 0 ? (
               <p className="text-xs text-neutral-500 italic p-3 rounded-xl bg-black/5 dark:bg-white/5">
-                All tasks are currently completed! Great job.
+                {tasks.length === 0 ? 'No tasks yet. Angel is ready when you want to plan something.' : 'All tasks are currently completed! Great job.'}
               </p>
             ) : (
               focusTasks.map((t) => (
@@ -171,55 +175,88 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight }) => {
           </div>
         </div>
 
-        {/* 2. Recent Memories Pillar */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Brain className="w-4 h-4 text-pink-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider">Memory Updates</h3>
+        {isSignedIn ? (
+          /* 2. Recent Memories Pillar: private to the signed-in workspace */
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Brain className="w-4 h-4 text-pink-400" />
+                <h3 className="text-xs font-bold uppercase tracking-wider">Memory Updates</h3>
+              </div>
+              <button
+                onClick={() => setActiveTab('memories')}
+                className="text-[11px] font-semibold text-indigo-500 hover:underline flex items-center gap-0.5"
+              >
+                <span>Vault</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
             </div>
-            <button
-              onClick={() => setActiveTab('memories')}
-              className="text-[11px] font-semibold text-indigo-500 hover:underline flex items-center gap-0.5"
-            >
-              <span>Vault</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {recentMemories.length === 0 ? (
-              <p className="text-xs text-neutral-500 italic p-3 rounded-xl bg-black/5 dark:bg-white/5">
-                No memories recorded yet.
-              </p>
-            ) : (
-              recentMemories.map((m) => (
-                <div
-                  key={m.id}
-                  className={`p-2.5 rounded-xl border transition-all ${
-                    isLight
-                      ? 'bg-white/80 border-slate-200/80 hover:border-slate-300'
-                      : 'bg-neutral-900/60 border-white/5 hover:border-white/10'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold truncate">{m.title}</p>
-                    <span className="text-[9px] font-medium px-1 rounded bg-pink-500/10 text-pink-400 shrink-0">
-                      {m.type.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <p
-                    className={`text-[11px] mt-1 line-clamp-2 leading-relaxed ${
-                      isLight ? 'text-slate-600' : 'text-neutral-400'
+            <div className="space-y-2">
+              {recentMemories.length === 0 ? (
+                <p className="text-xs text-neutral-500 italic p-3 rounded-xl bg-black/5 dark:bg-white/5">
+                  No memories recorded yet.
+                </p>
+              ) : (
+                recentMemories.map((m) => (
+                  <div
+                    key={m.id}
+                    className={`p-2.5 rounded-xl border transition-all ${
+                      isLight
+                        ? 'bg-white/80 border-slate-200/80 hover:border-slate-300'
+                        : 'bg-neutral-900/60 border-white/5 hover:border-white/10'
                     }`}
                   >
-                    {m.content}
-                  </p>
-                </div>
-              ))
-            )}
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold truncate">{m.title}</p>
+                      <span className="text-[9px] font-medium px-1 rounded bg-pink-500/10 text-pink-400 shrink-0">
+                        {m.type.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <p className={`text-[11px] mt-1 line-clamp-2 leading-relaxed ${
+                      isLight ? 'text-slate-600' : 'text-neutral-400'
+                    }`}>
+                      {m.content}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          /* 2. Guest capability panel: no seeded or permanent-memory content */
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Brain className="w-4 h-4 text-purple-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider">Try Angel</h3>
+            </div>
+            <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
+              Your guest session has no permanent memory. Start with any of these tools.
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl transition-colors ${isLight ? 'bg-white/80 border border-slate-200/80 hover:border-indigo-300' : 'bg-neutral-900/60 border border-white/5 hover:border-white/10'}`}
+              >
+                <MessageSquare className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span className="text-xs font-semibold">Chat, write, and brainstorm</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('voice')}
+                className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl transition-colors ${isLight ? 'bg-white/80 border border-slate-200/80 hover:border-indigo-300' : 'bg-neutral-900/60 border border-white/5 hover:border-white/10'}`}
+              >
+                <Mic className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span className="text-xs font-semibold">Talk with Angel in Voice Mode</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('visual_mode')}
+                className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl transition-colors ${isLight ? 'bg-white/80 border border-slate-200/80 hover:border-indigo-300' : 'bg-neutral-900/60 border border-white/5 hover:border-white/10'}`}
+              >
+                <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="text-xs font-semibold">Explore images and your screen</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 3. Active Agent Workflows Pillar */}
         <div className="space-y-3">
