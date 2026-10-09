@@ -121,7 +121,7 @@ interface AppContextType {
   setAuthError: (err: string | null) => void;
   sessionToken: string | null;
   signIn: (email?: string, password?: string) => Promise<boolean>;
-  signUp: (email: string, password: string, name: string) => Promise<boolean>;
+  signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
   sendMessage: (content: string, attachments?: Message['attachments']) => Promise<void>;
@@ -246,6 +246,62 @@ function setStoredItem<T>(key: string, value: T): void {
   }
 }
 
+const GUEST_CONVERSATION_ID = 'conv-guest-welcome';
+
+function hasStoredAuthSession(): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  if (localStorage.getItem('angel_is_guest') === 'true') return false;
+  const token = localStorage.getItem('angel_auth_token');
+  return Boolean(token && token !== 'undefined' && token !== 'guest');
+}
+
+function createGuestConversation(): Conversation {
+  const now = new Date().toISOString();
+  return {
+    id: GUEST_CONVERSATION_ID,
+    title: 'Welcome to Angel',
+    createdAt: now,
+    updatedAt: now,
+    agentId: 'angel-core',
+    pinned: false,
+    messageCount: 0,
+    lastMessagePreview: 'Start a temporary chat with Angel.',
+  };
+}
+
+function createGuestMessages(): Record<string, Message[]> {
+  return {
+    [GUEST_CONVERSATION_ID]: [{
+      id: `msg-guest-${Date.now()}`,
+      conversationId: GUEST_CONVERSATION_ID,
+      role: 'assistant',
+      content: "Hi, I'm Angel. Ask me a question, brainstorm an idea, or try voice and visual mode. Guest chats are temporary and are not saved to permanent memory.",
+      createdAt: new Date().toISOString(),
+      agentId: 'angel-core',
+    }],
+  };
+}
+
+function clearGuestScopedStorage(): void {
+  if (typeof localStorage === 'undefined') return;
+  const keys = [
+    'agents', 'conversations', 'messages_map', 'tasks', 'memories', 'projects',
+    'workflows', 'marketplace', 'executions', 'visual_captures', 'library_items',
+    'assistants_list', 'user_profile',
+  ];
+  try {
+    keys.forEach((key) => localStorage.removeItem(STORAGE_KEY_PREFIX + key));
+  } catch {
+    // Guest mode remains usable when browser storage is unavailable.
+  }
+}
+
+interface SignUpResult {
+  success: boolean;
+  requiresEmailConfirmation?: boolean;
+  message?: string;
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -254,7 +310,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const isNewSession = !sessionStorage.getItem('angel_browser_session_active');
       sessionStorage.setItem('angel_browser_session_active', 'true');
-      const token = localStorage.getItem('angel_auth_token');
+      const token = hasStoredAuthSession();
 
       // If browser was closed and opened newly, OR user is guest/not signed in: always start from 'home'
       if (isNewSession || !token) {
@@ -352,74 +408,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Entities
-  const [agents, setAgents] = useState<Agent[]>(() => getStoredItem('agents', INITIAL_AGENTS));
+  const [agents, setAgents] = useState<Agent[]>(() => hasStoredAuthSession() ? getStoredItem('agents', INITIAL_AGENTS) : INITIAL_AGENTS);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('angel-core');
   const [conversations, setConversations] = useState<Conversation[]>(() =>
-    getStoredItem('conversations', INITIAL_CONVERSATIONS)
+    hasStoredAuthSession() ? getStoredItem('conversations', INITIAL_CONVERSATIONS) : [createGuestConversation()]
   );
   const [activeConversationId, setActiveConversationId] = useState<string>(() => {
+    if (!hasStoredAuthSession()) return GUEST_CONVERSATION_ID;
     const convs = getStoredItem<Conversation[]>('conversations', INITIAL_CONVERSATIONS);
     return convs[0]?.id || 'conv-welcome';
   });
 
-  const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() => {
-    return getStoredItem<Record<string, Message[]>>('messages_map', {
-      'conv-welcome': [
-        {
-          id: 'msg-w1',
-          conversationId: 'conv-welcome',
-          role: 'user',
-          content: 'Hello Angel. Welcome to our unified AI workspace.',
-          createdAt: '2026-09-22T10:00:00Z',
-        },
-        {
-          id: 'msg-w2',
-          conversationId: 'conv-welcome',
-          role: 'assistant',
-          content:
-            'Welcome. I am **Angel Core**, your workspace orchestrator.\n\nHere is our operational status:\n- **Intelligence Layer**: Google Gemini 3.8 Flash (Server-Side) with multi-model abstraction.\n- **Agent Lab**: 5 specialized agents active (Atlas, Chronos, Optic, Mnemosyne, and Angel Core).\n- **Memory Bank**: 4 persistent knowledge records indexed.\n- **Visual Mode**: Screen sharing and camera multimodal perception ready.\n- **Supabase Architecture**: PostgreSQL DDL and Row Level Security policies generated.\n\nHow would you like to direct the workspace today?',
-          createdAt: '2026-09-22T10:00:05Z',
-          agentId: 'angel-core',
-        },
-      ],
-    });
-  });
+  const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() =>
+    hasStoredAuthSession()
+      ? getStoredItem<Record<string, Message[]>>('messages_map', {})
+      : createGuestMessages()
+  );
 
-  const [tasks, setTasks] = useState<Task[]>(() => getStoredItem('tasks', INITIAL_TASKS));
-  const [memories, setMemories] = useState<Memory[]>(() => getStoredItem('memories', INITIAL_MEMORIES));
-  const [projects, setProjects] = useState<Project[]>(() => getStoredItem('projects', INITIAL_PROJECTS));
+  const [tasks, setTasks] = useState<Task[]>(() => hasStoredAuthSession() ? getStoredItem('tasks', []) : []);
+  const [memories, setMemories] = useState<Memory[]>(() => hasStoredAuthSession() ? getStoredItem('memories', []) : []);
+  const [projects, setProjects] = useState<Project[]>(() => hasStoredAuthSession() ? getStoredItem('projects', []) : []);
   const [workflows, setWorkflows] = useState<Workflow[]>(() =>
-    getStoredItem('workflows', INITIAL_WORKFLOWS)
+    hasStoredAuthSession() ? getStoredItem('workflows', []) : []
   );
   const [lastAutosavedAt, setLastAutosavedAt] = useState<string | null>(null);
   const lastSavedFingerprintRef = useRef<string>('');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplaceItem[]>(() =>
-    getStoredItem('marketplace', INITIAL_MARKETPLACE_ITEMS)
+    hasStoredAuthSession() ? getStoredItem('marketplace', INITIAL_MARKETPLACE_ITEMS) : INITIAL_MARKETPLACE_ITEMS
   );
   const [availableTools, setAvailableTools] = useState<ToolDefinition[]>(AVAILABLE_TOOLS);
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>(() =>
-    getStoredItem('library_items', INITIAL_LIBRARY_ITEMS)
+    hasStoredAuthSession() ? getStoredItem('library_items', []) : []
   );
   const [assistantsList, setAssistantsList] = useState<AssistantEntity[]>(() =>
-    getStoredItem('assistants_list', INITIAL_ASSISTANTS)
+    hasStoredAuthSession() ? getStoredItem('assistants_list', INITIAL_ASSISTANTS) : INITIAL_ASSISTANTS
   );
-  const [executions, setExecutions] = useState<AgentExecutionRecord[]>(() => getStoredItem('executions', []));
-  const [visualCaptures, setVisualCaptures] = useState<VisualModeCapture[]>(() => getStoredItem('visual_captures', []));
+  const [executions, setExecutions] = useState<AgentExecutionRecord[]>(() => hasStoredAuthSession() ? getStoredItem('executions', []) : []);
+  const [visualCaptures, setVisualCaptures] = useState<VisualModeCapture[]>(() => hasStoredAuthSession() ? getStoredItem('visual_captures', []) : []);
 
   const [sessionToken, setSessionToken] = useState<string | null>(() => {
-    if (typeof localStorage !== 'undefined') {
-      const token = localStorage.getItem('angel_auth_token');
-      if (token && token !== 'undefined' && token !== 'guest') {
-        return token;
-      }
-    }
-    return null;
+    if (!hasStoredAuthSession() || typeof localStorage === 'undefined') return null;
+    return localStorage.getItem('angel_auth_token');
   });
   const [authError, setAuthError] = useState<string | null>(null);
 
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem('angel_auth_token')) {
+    if (hasStoredAuthSession()) {
       return getStoredItem('user_profile', {
         id: 'user_danny',
         name: 'Danny Davis',
@@ -532,26 +567,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await syncService.syncNow(sessionToken);
   };
 
-  const discardGuestSession = () => {
-    setConversations(INITIAL_CONVERSATIONS);
-    setActiveConversationId('conv-welcome');
-    setMessagesMap({
-      'conv-welcome': [
-        {
-          id: `msg-${Date.now()}`,
-          conversationId: 'conv-welcome',
-          role: 'assistant',
-          content: 'Guest session reset. Your workspace is fresh and ephemeral.',
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    });
-    setTasks(INITIAL_TASKS);
-    setMemories(INITIAL_MEMORIES);
-    setProjects(INITIAL_PROJECTS);
-  };
+  const discardGuestSession = () => resetToGuestWorkspace();
   const [isAuthPageOpen, setIsAuthPageOpen] = useState<boolean>(false);
   const [authPageMode, setAuthPageMode] = useState<'signin' | 'signup'>('signin');
+
+  const resetToGuestWorkspace = () => {
+    setSessionToken(null);
+    setIsSignedIn(false);
+    setAuthError(null);
+    setIsAuthPageOpen(false);
+    setIsIncognitoActive(false);
+    setIsSecretsUnlocked(false);
+    setUserProfile({
+      id: 'guest_user',
+      name: 'Guest User',
+      email: 'guest@angel.local',
+      initials: 'GU',
+      plan: 'Free',
+      status: 'offline',
+    });
+    setAgents(INITIAL_AGENTS);
+    setSelectedAgentId('angel-core');
+    setConversations([createGuestConversation()]);
+    setActiveConversationId(GUEST_CONVERSATION_ID);
+    setMessagesMap(createGuestMessages());
+    setTasks([]);
+    setMemories([]);
+    setProjects([]);
+    setWorkflows([]);
+    setActiveProjectId(null);
+    setMarketplaceItems(INITIAL_MARKETPLACE_ITEMS);
+    setLibraryItems([]);
+    setAssistantsList(INITIAL_ASSISTANTS);
+    setExecutions([]);
+    setVisualCaptures([]);
+    clearGuestScopedStorage();
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('angel_auth_token');
+      localStorage.setItem('angel_is_guest', 'true');
+    }
+    setActiveTab('home');
+  };
 
   // Sync theme to HTML document and persist in localStorage
   useEffect(() => {
@@ -579,7 +635,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [integrationsStatus, setIntegrationsStatus] = useState<Record<string, unknown> | null>(null);
 
   // Sync to local storage (Guest conversations are NOT saved to permanent storage)
-  useEffect(() => setStoredItem('agents', agents), [agents]);
+  useEffect(() => { if (isSignedIn) setStoredItem('agents', agents); }, [agents, isSignedIn]);
   useEffect(() => {
     if (isSignedIn) {
       setStoredItem('conversations', conversations);
@@ -590,23 +646,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStoredItem('messages_map', messagesMap);
     }
   }, [messagesMap, isSignedIn]);
-  useEffect(() => setStoredItem('tasks', tasks), [tasks]);
-  useEffect(() => setStoredItem('memories', memories), [memories]);
-  useEffect(() => setStoredItem('projects', projects), [projects]);
-  useEffect(() => setStoredItem('workflows', workflows), [workflows]);
-  useEffect(() => setStoredItem('marketplace', marketplaceItems), [marketplaceItems]);
-  useEffect(() => setStoredItem('executions', executions), [executions]);
-  useEffect(() => setStoredItem('visual_captures', visualCaptures), [visualCaptures]);
+  useEffect(() => { if (isSignedIn) setStoredItem('tasks', tasks); }, [tasks, isSignedIn]);
+  useEffect(() => { if (isSignedIn) setStoredItem('memories', memories); }, [memories, isSignedIn]);
+  useEffect(() => { if (isSignedIn) setStoredItem('projects', projects); }, [projects, isSignedIn]);
+  useEffect(() => { if (isSignedIn) setStoredItem('workflows', workflows); }, [workflows, isSignedIn]);
+  useEffect(() => { if (isSignedIn) setStoredItem('marketplace', marketplaceItems); }, [marketplaceItems, isSignedIn]);
+  useEffect(() => { if (isSignedIn) setStoredItem('executions', executions); }, [executions, isSignedIn]);
+  useEffect(() => { if (isSignedIn) setStoredItem('visual_captures', visualCaptures); }, [visualCaptures, isSignedIn]);
   useEffect(() => setStoredItem('settings', settings), [settings]);
-  useEffect(() => setStoredItem('library_items', libraryItems), [libraryItems]);
-  useEffect(() => setStoredItem('assistants_list', assistantsList), [assistantsList]);
+  useEffect(() => { if (isSignedIn) setStoredItem('library_items', libraryItems); }, [libraryItems, isSignedIn]);
+  useEffect(() => { if (isSignedIn) setStoredItem('assistants_list', assistantsList); }, [assistantsList, isSignedIn]);
 
   // IndexedDB Local-First Hydration on App Launch (Only for persistent items)
   useEffect(() => {
     let isMounted = true;
     loadWorkspaceFromIndexedDB()
       .then((idb) => {
-        if (!isMounted || !idb) return;
+        if (!isMounted || !idb || !isSignedIn) return;
         if (idb.tasks && idb.tasks.length > 0) setTasks(idb.tasks);
         if (idb.memories && idb.memories.length > 0) setMemories(idb.memories);
         if (idb.projects && idb.projects.length > 0) setProjects(idb.projects);
@@ -640,6 +696,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           hashParams.get('error') ||
           'Google authentication was cancelled or could not be completed.';
         setAuthError(decodeURIComponent(errorDesc.replace(/\+/g, ' ')));
+        setAuthPageMode('signin');
+        setIsAuthPageOpen(true);
         window.history.replaceState(null, '', window.location.pathname + window.location.search);
       } catch {}
     }
@@ -731,6 +789,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsSignedIn(false);
       return;
     }
+    if (/^eyJ[A-Za-z0-9_-]*\./.test(token)) {
+      setIsSignedIn(true);
+      return;
+    }
 
     fetch('/api/auth/session', {
       headers: { Authorization: `Bearer ${token}` },
@@ -769,15 +831,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             })
             .catch(() => {});
         } else {
-          setIsSignedIn(false);
+          resetToGuestWorkspace();
         }
       })
       .catch(() => {
-        // If server is unavailable but client had a token, keep offline state without wiping
+        // If the server is unreachable while offline, retain the local session. Online failures clear stale tokens.
         if (!navigator.onLine) {
           setIsSignedIn(true);
         } else {
-          setIsSignedIn(false);
+          resetToGuestWorkspace();
         }
       });
   }, [sessionToken]);
@@ -788,6 +850,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const performAutosave = async () => {
       try {
+        if (isGuest) return;
         // Construct deterministic fingerprint of persistent workspace state
         const taskFingerprint = tasks.map((t) => `${t.id}:${t.updatedAt || ''}:${t.status}`).join(';');
         const memFingerprint = memories.map((m) => `${m.id}:${m.updatedAt || ''}`).join(';');
@@ -948,7 +1011,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateUserProfile = (updates: Partial<UserProfile>) => {
     setUserProfile((prev) => {
       const next = { ...prev, ...updates };
-      setStoredItem('user_profile', next);
+      if (isSignedIn) setStoredItem('user_profile', next);
       return next;
     });
 
@@ -976,341 +1039,214 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const signIn = async (email = 'danielokohnwachukwu22@gmail.com', password = 'Angel2026!'): Promise<boolean> => {
+  const signIn = async (email: string, password: string): Promise<boolean> => {
     setAuthError(null);
     const cleanEmail = email.trim().toLowerCase();
 
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setAuthError('Please enter a valid email address.');
+      return false;
+    }
+    if (!password || password.length < 6) {
+      setAuthError('Password must be at least 6 characters long.');
+      return false;
+    }
+
     try {
-      // 1. Attempt Supabase Auth if client is configured
       const client = getClientSupabase();
       if (client) {
-        try {
-          const { data: supaAuth, error: supaErr } = await client.auth.signInWithPassword({
-            email: cleanEmail,
-            password,
-          });
-          if (!supaErr && supaAuth?.session) {
-            const token = supaAuth.session.access_token;
-            setSessionToken(token);
-            if (typeof localStorage !== 'undefined') {
-              localStorage.setItem('angel_auth_token', token);
-              localStorage.removeItem('angel_is_guest');
-            }
-            const userName =
-              supaAuth.session.user.user_metadata?.full_name ||
-              supaAuth.session.user.user_metadata?.name ||
-              cleanEmail.split('@')[0];
-            const initials = userName
-              .split(' ')
-              .map((n: string) => n[0])
-              .filter(Boolean)
-              .join('')
-              .substring(0, 2)
-              .toUpperCase() || 'U';
-
-            setUserProfile({
-              id: supaAuth.session.user.id,
-              name: userName,
-              email: cleanEmail,
-              initials,
-              plan: 'Pro',
-              status: 'online',
-              avatarUrl: supaAuth.session.user.user_metadata?.avatar_url,
-            });
-            setIsSignedIn(true);
-            setIsAuthPageOpen(false);
-            return true;
-          }
-        } catch {
-          // If Supabase endpoint fails, proceed to backend auth route
+        const { data, error } = await client.auth.signInWithPassword({ email: cleanEmail, password });
+        if (error) {
+          setAuthError(error.message || 'Unable to sign in with that email and password.');
+          return false;
         }
-      }
-
-      // 2. Call backend authentication route
-      let res: Response | null = null;
-      try {
-        res = await fetch('/api/auth/signin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password }),
+        const session = data.session;
+        if (!session?.user) {
+          setAuthError('Authentication completed without an active session. Please try again.');
+          return false;
+        }
+        const name =
+          session.user.user_metadata?.full_name ||
+          session.user.user_metadata?.name ||
+          cleanEmail.split('@')[0];
+        const initials = name.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'U';
+        setSessionToken(session.access_token);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('angel_auth_token', session.access_token);
+          localStorage.removeItem('angel_is_guest');
+        }
+        setUserProfile({
+          id: session.user.id,
+          name,
+          email: cleanEmail,
+          initials,
+          plan: 'Pro',
+          status: 'online',
+          avatarUrl: session.user.user_metadata?.avatar_url,
         });
-      } catch (fetchErr: any) {
-        // Network failure / server offline handling
-        if (!navigator.onLine) {
-          setAuthError('You appear to be offline. Please connect to the internet to sign in.');
-          return false;
-        }
-        // If local demo sign-in
-        if (cleanEmail === 'danielokohnwachukwu22@gmail.com') {
-          res = null; // proceed to canonical fallback
-        } else {
-          setAuthError('Network error connecting to authentication server. Please verify your connection.');
-          return false;
-        }
+        setIsSignedIn(true);
+        setIsAuthPageOpen(false);
+        return true;
       }
 
-      if (res) {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          setAuthError(errData.error || 'Incorrect email or password. Please verify your credentials.');
-          return false;
-        }
-        const data = await res.json();
-        if (data.token && data.profile) {
-          setSessionToken(data.token);
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('angel_auth_token', data.token);
-            localStorage.removeItem('angel_is_guest');
-          }
-          const initials = (data.profile.name || cleanEmail)
-            .split(' ')
-            .map((n: string) => n[0])
-            .filter(Boolean)
-            .join('')
-            .substring(0, 2)
-            .toUpperCase() || 'DN';
-
-          setUserProfile({
-            id: data.profile.id,
-            name: data.profile.name,
-            email: data.profile.email,
-            initials,
-            plan: 'Pro',
-            status: 'online',
-            avatarUrl: data.profile.avatarUrl,
-            title: data.profile.title,
-          });
-          setIsSignedIn(true);
-          setIsAuthPageOpen(false);
-          return true;
-        }
+      // Server fallback is only for environments where Supabase browser auth is not configured.
+      const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAuthError(data.error || 'Unable to sign in. Check your details or create an account.');
+        return false;
       }
-
-      // 3. Demo canonical account fallback
-      const cleanName =
-        cleanEmail === 'danielokohnwachukwu22@gmail.com'
-          ? 'Daniel Nwachukwu'
-          : cleanEmail.split('@')[0];
-      const token = `angel_demo_${Date.now()}`;
-      setSessionToken(token);
+      if (!data.token || !data.profile) {
+        setAuthError('The authentication service returned an incomplete response. Please try again.');
+        return false;
+      }
+      const name = data.profile.name || cleanEmail.split('@')[0];
+      const initials = name.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'U';
+      setSessionToken(data.token);
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('angel_auth_token', token);
+        localStorage.setItem('angel_auth_token', data.token);
         localStorage.removeItem('angel_is_guest');
       }
-
-      const initials = cleanName
-        .split(' ')
-        .map((n: string) => n[0])
-        .filter(Boolean)
-        .join('')
-        .substring(0, 2)
-        .toUpperCase() || 'DN';
-
       setUserProfile({
-        id: `usr_demo_${Date.now()}`,
-        name: cleanName,
-        email: cleanEmail,
+        id: data.profile.id,
+        name,
+        email: data.profile.email || cleanEmail,
         initials,
         plan: 'Pro',
         status: 'online',
+        avatarUrl: data.profile.avatarUrl,
+        title: data.profile.title,
       });
       setIsSignedIn(true);
       setIsAuthPageOpen(false);
       return true;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('Failed to fetch')) {
-        setAuthError('Connection error. Could not reach authentication server.');
-      } else {
-        setAuthError(msg);
-      }
+      const message = err instanceof Error ? err.message : 'Authentication failed unexpectedly.';
+      setAuthError(!navigator.onLine
+        ? 'You appear to be offline. Please reconnect and try again.'
+        : message);
       return false;
     }
   };
 
-  const signUp = async (email: string, password: string, name: string): Promise<boolean> => {
+  const signUp = async (email: string, password: string, name: string): Promise<SignUpResult> => {
     setAuthError(null);
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = name.trim() || cleanEmail.split('@')[0];
 
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setAuthError('Please enter a valid email address.');
+      return { success: false };
+    }
+    if (!password || password.length < 6) {
+      setAuthError('Password must be at least 6 characters long.');
+      return { success: false };
+    }
+
     try {
-      // 1. Attempt Supabase Auth signup if client is configured
       const client = getClientSupabase();
       if (client) {
-        try {
-          const { data: supaAuth, error: supaErr } = await client.auth.signUp({
-            email: cleanEmail,
-            password,
-            options: {
-              data: { full_name: cleanName, name: cleanName },
-            },
-          });
-          if (!supaErr && supaAuth?.session) {
-            const token = supaAuth.session.access_token;
-            setSessionToken(token);
-            if (typeof localStorage !== 'undefined') {
-              localStorage.setItem('angel_auth_token', token);
-              localStorage.removeItem('angel_is_guest');
-            }
-            const initials = cleanName
-              .split(' ')
-              .map((n: string) => n[0])
-              .filter(Boolean)
-              .join('')
-              .substring(0, 2)
-              .toUpperCase() || 'U';
-
-            setUserProfile({
-              id: supaAuth.session.user.id,
-              name: cleanName,
-              email: cleanEmail,
-              initials,
-              plan: 'Pro',
-              status: 'online',
-            });
-            setIsSignedIn(true);
-            setIsAuthPageOpen(false);
-            return true;
-          }
-        } catch {
-          // If Supabase fails, fall back to backend auth route
-        }
-      }
-
-      // 2. Call backend signup
-      let res: Response | null = null;
-      try {
-        res = await fetch('/api/auth/signup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password, name: cleanName }),
+        const { data, error } = await client.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: { data: { full_name: cleanName, name: cleanName } },
         });
-      } catch (fetchErr: any) {
-        if (!navigator.onLine) {
-          setAuthError('You appear to be offline. Please connect to the internet to create an account.');
-          return false;
+        if (error) {
+          setAuthError(error.message || 'Unable to create an account with those details.');
+          return { success: false };
         }
-        setAuthError('Network error connecting to registration server. Please verify your connection.');
-        return false;
-      }
 
-      if (res) {
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          setAuthError(errData.error || 'Failed to create account. Please check your credentials.');
-          return false;
-        }
-        const data = await res.json();
-        if (data.token && data.profile) {
-          setSessionToken(data.token);
+        if (data.session?.user) {
+          const user = data.session.user;
+          const initials = cleanName.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'U';
+          setSessionToken(data.session.access_token);
           if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('angel_auth_token', data.token);
+            localStorage.setItem('angel_auth_token', data.session.access_token);
             localStorage.removeItem('angel_is_guest');
           }
-          const initials = (data.profile.name || cleanEmail)
-            .split(' ')
-            .map((n: string) => n[0])
-            .filter(Boolean)
-            .join('')
-            .substring(0, 2)
-            .toUpperCase() || 'DN';
-
           setUserProfile({
-            id: data.profile.id,
-            name: data.profile.name,
-            email: data.profile.email,
+            id: user.id,
+            name: cleanName,
+            email: cleanEmail,
             initials,
             plan: 'Pro',
             status: 'online',
+            avatarUrl: user.user_metadata?.avatar_url,
           });
           setIsSignedIn(true);
           setIsAuthPageOpen(false);
-          return true;
+          return { success: true };
         }
+
+        if (data.user) {
+          return {
+            success: true,
+            requiresEmailConfirmation: true,
+            message: 'Your account has been created. Check your email to confirm it, then sign in.',
+          };
+        }
+
+        setAuthError('The registration service did not confirm account creation. Please try again.');
+        return { success: false };
       }
 
-      // Fallback
-      const token = `angel_user_${Date.now()}`;
-      setSessionToken(token);
+      // Server fallback is only used when Supabase browser auth is not configured.
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password, name: cleanName }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAuthError(data.error || 'Unable to create your account. Please check your details.');
+        return { success: false };
+      }
+      if (!data.token || !data.profile) {
+        setAuthError('The registration service returned an incomplete response. Please try again.');
+        return { success: false };
+      }
+      const profileName = data.profile.name || cleanName;
+      const initials = profileName.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'U';
+      setSessionToken(data.token);
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('angel_auth_token', token);
+        localStorage.setItem('angel_auth_token', data.token);
         localStorage.removeItem('angel_is_guest');
       }
-
-      const initials = cleanName
-        .split(' ')
-        .map((n: string) => n[0])
-        .filter(Boolean)
-        .join('')
-        .substring(0, 2)
-        .toUpperCase() || 'DN';
-
       setUserProfile({
-        id: `usr_${Date.now()}`,
-        name: cleanName,
-        email: cleanEmail,
+        id: data.profile.id,
+        name: profileName,
+        email: data.profile.email || cleanEmail,
         initials,
         plan: 'Pro',
         status: 'online',
+        avatarUrl: data.profile.avatarUrl,
+        title: data.profile.title,
       });
       setIsSignedIn(true);
       setIsAuthPageOpen(false);
-      return true;
+      return { success: true };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('Failed to fetch')) {
-        setAuthError('Connection error. Could not reach registration server.');
-      } else {
-        setAuthError(msg);
-      }
-      return false;
+      const message = err instanceof Error ? err.message : 'Registration failed unexpectedly.';
+      setAuthError(!navigator.onLine
+        ? 'You appear to be offline. Please reconnect and try again.'
+        : message);
+      return { success: false };
     }
   };
 
   const signOut = async () => {
-    // 1. Terminate server session
-    if (sessionToken) {
+    if (sessionToken && !/^eyJ[A-Za-z0-9_-]*\./.test(sessionToken)) {
       fetch('/api/auth/signout', {
         method: 'POST',
         headers: { Authorization: `Bearer ${sessionToken}` },
       }).catch(() => {});
     }
-
-    // 2. Terminate Supabase authentication session
     signOutFromSupabase().catch(() => {});
-
-    // 3. Clear auth token from persistent storage and set guest mode flag
-    setSessionToken(null);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem('angel_auth_token');
-      localStorage.setItem('angel_is_guest', 'true');
-    }
-
-    // 4. Update userProfile to guest
-    const guestUser: UserProfile = {
-      id: 'guest_user',
-      name: 'Guest User',
-      email: 'guest@angel.local',
-      initials: 'GU',
-      plan: 'Free',
-      status: 'offline',
-    };
-    setUserProfile(guestUser);
-    setIsSignedIn(false);
-    setIsAuthPageOpen(false);
-
-    // 5. Evacuate authenticated-only workspace data from in-memory state
-    setTasks(INITIAL_TASKS);
-    setMemories(INITIAL_MEMORIES);
-    setProjects(INITIAL_PROJECTS);
-    setWorkflows(INITIAL_WORKFLOWS);
-    setLibraryItems(INITIAL_LIBRARY_ITEMS);
-    setConversations(INITIAL_CONVERSATIONS);
-    setActiveConversationId(INITIAL_CONVERSATIONS[0].id);
-    setMessagesMap({});
-
-    // 6. Redirect to Home (ensures protected views cannot remain accessible after sign-out)
-    setActiveTab('home');
+    resetToGuestWorkspace();
   };
 
   const requestPasswordRecovery = async (email: string): Promise<{ success: boolean; message: string }> => {
@@ -1734,6 +1670,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Memory methods
   const createMemory = (memoryData: Omit<Memory, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (isGuest) return;
     const newId = `mem-${Date.now()}`;
     const now = new Date().toISOString();
     const newMem: Memory = {
@@ -1766,6 +1703,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateMemory = (id: string, updates: Partial<Memory>) => {
+    if (isGuest) return;
     setMemories((prev) =>
       prev.map((m) => {
         if (m.id !== id) return m;
@@ -1791,6 +1729,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteMemory = (id: string) => {
+    if (isGuest) return;
     setMemories((prev) => prev.filter((m) => m.id !== id));
     syncService.enqueueMutation('memory', 'delete', id, { id }, isGuest);
   };
