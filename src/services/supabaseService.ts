@@ -284,7 +284,7 @@ export async function upsertAuthenticatedProfile(profile: AuthenticatedProfileIn
 async function isGoogleOAuthEnabled(): Promise<boolean | null> {
   if (!supabaseUrl || !supabaseKey) return null;
   try {
-    const response = await fetch(`${supabaseUrl.replace(/\\/$/, '')}/auth/v1/settings`, {
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/settings`, {
       headers: { apikey: supabaseKey },
     });
     if (!response.ok) return null;
