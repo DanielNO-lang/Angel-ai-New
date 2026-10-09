@@ -276,6 +276,26 @@ export async function upsertAuthenticatedProfile(profile: AuthenticatedProfileIn
   }
 }
 
+/**
+ * Check provider availability before navigating away from the app. Supabase returns
+ * a raw JSON 400 page for a disabled OAuth provider, so preflight lets the UI explain
+ * the real configuration blocker instead of showing that raw response to the user.
+ */
+async function isGoogleOAuthEnabled(): Promise<boolean | null> {
+  if (!supabaseUrl || !supabaseKey) return null;
+  try {
+    const response = await fetch(`${supabaseUrl.replace(/\\/$/, '')}/auth/v1/settings`, {
+      headers: { apikey: supabaseKey },
+    });
+    if (!response.ok) return null;
+    const settings = await response.json();
+    return typeof settings?.external?.google === 'boolean' ? settings.external.google : null;
+  } catch {
+    // Do not block OAuth if the public settings endpoint is temporarily unavailable.
+    return null;
+  }
+}
+
 export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirected?: boolean }> {
   const client = getClientSupabase();
   if (!client) {
@@ -283,6 +303,13 @@ export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirec
   }
 
   try {
+    const providerEnabled = await isGoogleOAuthEnabled();
+    if (providerEnabled === false) {
+      return {
+        error: 'Google sign-in is not enabled in the Angel Supabase project. Open Supabase → Authentication → Sign In / Providers → Google, enable the provider, and save the Google OAuth Web Client ID and Client Secret. The application code is reaching Supabase correctly; this setting must be enabled before Google sign-in can proceed.',
+      };
+    }
+
     const redirectUrl =
       typeof window !== 'undefined'
         ? `${window.location.origin}/`
