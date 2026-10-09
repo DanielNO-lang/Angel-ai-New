@@ -35,7 +35,6 @@ import { signInWithGoogleOAuth } from '../../services/supabaseService';
 export const AuthPage: React.FC = () => {
   const {
     isAuthPageOpen,
-    setIsAuthPageOpen,
     authPageMode,
     setAuthPageMode,
     signIn,
@@ -72,13 +71,23 @@ export const AuthPage: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    if (authPageMode === 'signup') {
-      const cleanName = name.trim() || cleanEmail.split('@')[0];
-      await signUp(cleanEmail, password, cleanName);
-    } else {
-      await signIn(cleanEmail, password);
+    try {
+      if (authPageMode === 'signup') {
+        const cleanName = name.trim() || cleanEmail.split('@')[0];
+        const result = await signUp(cleanEmail, password, cleanName);
+        if (result.requiresEmailConfirmation) {
+          setRecoveryMessage(result.message || 'Your account has been created. Check your email to confirm it, then sign in.');
+          setAuthPageMode('signin');
+          setPassword('');
+        }
+      } else {
+        await signIn(cleanEmail, password);
+      }
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Authentication failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const handleGoogleSignIn = async () => {
