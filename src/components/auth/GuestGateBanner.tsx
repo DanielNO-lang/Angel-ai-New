@@ -18,7 +18,7 @@ export const GuestGateBanner: React.FC<GuestGateBannerProps> = ({
   featureName,
   featureDescription,
 }) => {
-  const { setIsAuthPageOpen, settings } = useAngel();
+  const { setIsAuthPageOpen, setAuthPageMode, settings } = useAngel();
   const isLight = settings.theme === 'light';
 
   return (
@@ -46,22 +46,25 @@ export const GuestGateBanner: React.FC<GuestGateBannerProps> = ({
           Unlock Persistent {featureName}
         </h3>
         <p className={`text-xs max-w-md mx-auto leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
-          {featureDescription} In Guest Mode, workspace changes are temporary. Sign in with Google to enable permanent encrypted cloud synchronization.
+          {featureDescription} Guest work stays temporary in this browser session. Sign in to keep your workspace and sync it across devices.
         </p>
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-4 text-xs pt-1">
-        <span className="flex items-center gap-1.5 text-emerald-500 font-medium">
-          <CheckCircle2 className="w-3.5 h-3.5" /> Google OAuth Verified
-        </span>
         <span className="flex items-center gap-1.5 text-indigo-400 font-medium">
-          <ShieldCheck className="w-3.5 h-3.5" /> End-to-End Encrypted
+          <ShieldCheck className="w-3.5 h-3.5" /> Guest session is temporary
+        </span>
+        <span className="flex items-center gap-1.5 text-emerald-500 font-medium">
+          <CheckCircle2 className="w-3.5 h-3.5" /> Basic chat remains available
         </span>
       </div>
 
       <div className="pt-2">
         <button
-          onClick={() => setIsAuthPageOpen(true)}
+          onClick={() => {
+            setAuthPageMode('signin');
+            setIsAuthPageOpen(true);
+          }}
           className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md transition-all transform-gpu hover:-translate-y-0.5 inline-flex items-center gap-2 cursor-pointer"
         >
           <span>Sign In with Google</span>
