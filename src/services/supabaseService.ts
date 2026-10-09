@@ -253,7 +253,7 @@ export async function upsertAuthenticatedProfile(profile: AuthenticatedProfileIn
     const normalizedName = profile.name?.trim() || metadataName;
     const initials =
       profile.initials?.trim() ||
-      normalizedName.split(/\\s+/).map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() ||
+      normalizedName.split(/\s+/).map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() ||
       'AU';
 
     const { error: upsertError } = await client.from('profiles').upsert({
