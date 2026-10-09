@@ -69,7 +69,11 @@ If Google Auth is left in **Testing** mode, add the intended testing accounts as
 
 ## Common failures
 
+- **Google error 403 / access blocked:** this is usually Google OAuth configuration, not a Vercel build error. In Google Auth Platform → Audience, choose **External** if users outside your Google Workspace must sign in. If the app is in **Testing**, add the Google account you're using under **Test users** and save.
+- **Google error 403 / redirect URI mismatch:** in Google Auth Platform → Clients → your Web client, confirm the only OAuth callback used by Supabase is exactly `https://qltiogotxbxwzwmnypwu.supabase.co/auth/v1/callback`. Do not use the Vercel URL as Google's callback URI.
+- **Google error 403 / invalid client:** confirm the Web OAuth Client ID and Client Secret in Supabase → Authentication → Providers → Google are from the same Google Cloud OAuth client, with no extra spaces. Re-save the provider.
 - **Provider disabled / unsupported provider:** enable Google in Supabase and save the client ID/secret.
-- **redirect_uri_mismatch on Google:** ensure the authorized redirect URI is exactly the Supabase callback URL above.
-- **redirect URL not allowed by Supabase:** add the deployed app URL to Auth URL Configuration.
-- **App still shows an old result:** hard-refresh the browser and retry after saving the provider settings.
+- **redirect URL not allowed by Supabase:** add the deployed app URL to Auth URL Configuration. For Vercel preview deployments, add a narrowly scoped wildcard such as `https://angel-ai-new-*-angel-0908.vercel.app/**` only if your actual preview host follows that pattern.
+- **App still shows an old result:** hard-refresh the browser and retry after saving the provider settings. Then check Supabase → Authentication → Users to confirm whether the sign-in created a user.
+
+**Important:** Vercel already has `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_SUPABASE_ANON_KEY` configured for Production, Preview, and Development. The browser app is configured for the `Angel` Supabase project above. A Google 403 that appears on Google's own page must be corrected in Google Auth Platform and/or the Google provider settings in Supabase; changing frontend code cannot override Google's OAuth restrictions.
