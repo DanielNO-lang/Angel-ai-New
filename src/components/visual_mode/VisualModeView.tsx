@@ -46,6 +46,7 @@ import {
   Volume2,
   Wifi,
   WifiOff,
+  Upload,
   X,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
@@ -135,6 +136,15 @@ export const VisualModeView: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
+
+  // Screen capture requires a secure context and an implementation of getDisplayMedia.
+  // Some mobile browsers do not expose the Screen Capture API.
+  const supportsLiveScreenShare =
+    typeof window !== 'undefined' &&
+    window.isSecureContext &&
+    typeof navigator !== 'undefined' &&
+    Boolean(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function');
 
   // Enumerate video devices on mount
   useEffect(() => {
@@ -180,25 +190,90 @@ export const VisualModeView: React.FC = () => {
     setSelectedRegion(null);
   }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopStream();
+  // Load a screenshot as a one-off visual source, including on mobile browsers that
+  // do not expose native screen capture.
+  const handleScreenshotUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setPermissionError('Please choose an image or screenshot file.');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setPermissionError('That screenshot is over 20 MB. Please choose a smaller image.');
+      return;
+    }
+
+    setPermissionError(null);
+    setAnalysisError(null);
+    const reader = new FileReader();
+    reader.onerror = () => setPermissionError('Angel could not read that image. Please try another screenshot.');
+    reader.onload = () => {
+      const sourceUrl = typeof reader.result === 'string' ? reader.result : '';
+      if (!sourceUrl) {
+        setPermissionError('Angel could not read that image. Please try another screenshot.');
+        return;
+      }
+
+      const image = new Image();
+      image.onerror = () => setPermissionError('That image could not be opened. Please choose a valid screenshot.');
+      image.onload = () => {
+        const maxDimension = 2048;
+        const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const normalizedCanvas = document.createElement('canvas');
+        normalizedCanvas.width = width;
+        normalizedCanvas.height = height;
+        const context = normalizedCanvas.getContext('2d');
+        if (!context) {
+          setPermissionError('Angel could not prepare this screenshot. Please try another image.');
+          return;
+        }
+
+        context.drawImage(image, 0, 0, width, height);
+        const normalizedImage = normalizedCanvas.toDataURL('image/jpeg', 0.88);
+        stopStream();
+        setStreamSource('snapshot_upload');
+        setLastCapturedImage(normalizedImage);
+        setFeedDimensions({ width, height });
+        setSelectedRegion(null);
+        setCropOnly(false);
+        setPermissionError(null);
+        setAnalysisError(null);
+      };
+      image.src = sourceUrl;
     };
-  }, [stopStream]);
+    reader.readAsDataURL(file);
+  };
 
   // Start media stream (Camera or Screen)
   const startStream = async (source: VisualSourceType, deviceId?: string) => {
-    stopStream();
     setPermissionError(null);
     setAnalysisError(null);
 
-    const widthConstraint =
-      resolutionPreset === '1080p' ? 1920 : resolutionPreset === '720p' ? 1280 : 1280;
-    const heightConstraint =
-      resolutionPreset === '1080p' ? 1080 : resolutionPreset === '720p' ? 720 : 720;
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
+      setPermissionError('This browser does not expose media capture. Open Angel over HTTPS in a current browser, or upload a screenshot to inspect a static view.');
+      return;
+    }
+
+    if (source === 'screen' && !supportsLiveScreenShare) {
+      setPermissionError('Live screen sharing is not available in this browser/device. Screen capture requires a secure page and browser support; many mobile browsers do not expose this API. Upload a screenshot here, or use a supported desktop browser for live sharing.');
+      return;
+    }
+
+    if (source === 'camera' && typeof navigator.mediaDevices.getUserMedia !== 'function') {
+      setPermissionError('Camera access is not available in this browser. Check device/browser support, or upload a screenshot instead.');
+      return;
+    }
+
+    const widthConstraint = resolutionPreset === '1080p' ? 1920 : 1280;
+    const heightConstraint = resolutionPreset === '1080p' ? 1080 : 720;
 
     try {
+      stopStream();
       let stream: MediaStream;
 
       if (source === 'camera') {
@@ -207,31 +282,18 @@ export const VisualModeView: React.FC = () => {
           height: { ideal: heightConstraint },
           frameRate: { ideal: 30 },
         };
-        if (deviceId) {
-          videoConstraints.deviceId = { exact: deviceId };
-        }
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: false,
-        });
+        if (deviceId) videoConstraints.deviceId = { exact: deviceId };
+        stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio: false });
       } else {
-        if (!navigator.mediaDevices || typeof navigator.mediaDevices.getDisplayMedia !== 'function') {
-          throw new Error('Screen sharing is not supported by your browser or environment.');
-        }
-        try {
-          // Standard cross-browser invocation
-          stream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: false,
-          });
-        } catch (displayErr: any) {
-          if (displayErr.name === 'NotAllowedError' || displayErr.name === 'AbortError') {
-            console.info('[VisualMode] Screen sharing cancelled by user.');
-            return;
-          }
-          console.warn('[VisualMode] Standard getDisplayMedia failed, trying fallback:', displayErr);
-          stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        }
+        // Must be called directly from the user's Share Screen action.
+        // Do not retry a denied/cancelled picker, which can create confusing permission loops.
+        stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      }
+
+      const track = stream.getVideoTracks()[0];
+      if (!track) {
+        stream.getTracks().forEach((mediaTrack) => mediaTrack.stop());
+        throw new Error('The selected source did not provide a video track.');
       }
 
       mediaStreamRef.current = stream;
@@ -241,35 +303,51 @@ export const VisualModeView: React.FC = () => {
         videoRef.current.playsInline = true;
         try {
           await videoRef.current.play();
-        } catch (e) {
-          console.warn('[VisualMode] Video play error (ignoring autoplay policy):', e);
+        } catch (playError) {
+          // Playback may need a second user gesture on some browsers; keep the stream attached.
+          console.info('[VisualMode] Video preview awaits playback permission:', playError);
         }
+        const trackSettings = track.getSettings();
         setFeedDimensions({
-          width: videoRef.current.videoWidth || 1280,
-          height: videoRef.current.videoHeight || 720,
+          width: videoRef.current.videoWidth || trackSettings.width || 1280,
+          height: videoRef.current.videoHeight || trackSettings.height || 720,
         });
       }
 
       setStreamSource(source);
       setIsActive(true);
+      setLastCapturedImage(null);
+      const trackSettings = track.getSettings();
+      if (trackSettings.frameRate) setStreamFps(Math.round(trackSettings.frameRate));
+      track.onended = () => {
+        stopStream();
+        setPermissionError(source === 'screen' ? 'Screen sharing has ended.' : 'The camera stream has ended.');
+      };
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.warn('[VisualMode] Stream acquisition failed:', error);
+      if (error.name === 'AbortError') return;
 
-      const track = stream.getVideoTracks()[0];
-      if (track) {
-        const settings = track.getSettings();
-        if (settings.frameRate) setStreamFps(Math.round(settings.frameRate));
-        track.onended = () => {
-          stopStream();
-        };
+      let message: string;
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError' || error.name === 'SecurityError') {
+        message = source === 'screen'
+          ? 'Screen sharing was cancelled or blocked. Choose Share Screen again and select a tab, window, or display. If no picker appears, check browser permissions and HTTPS.'
+          : 'Camera permission was denied. Allow camera access in your browser settings and try again.';
+      } else if (error.name === 'NotFoundError') {
+        message = source === 'screen' ? 'No shareable display source was found by this browser.' : 'No camera was found on this device.';
+      } else if (error.name === 'NotReadableError') {
+        message = 'The selected source is unavailable or being used by another application. Close other capture sessions and try again.';
+      } else {
+        message = 'Could not start ' + (source === 'screen' ? 'screen sharing' : 'the camera') + ': ' + (error.message || 'Unknown media error');
       }
-    } catch (err: any) {
-      console.error('[VisualMode] Stream acquisition failed:', err);
-      const isDenied = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
-      setPermissionError(
-        isDenied
-          ? `Permission was denied for ${source}. Check browser site permissions to allow access.`
-          : `Stream acquisition error: ${err.message || 'Device unavailable'}`
-      );
+
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
+      if (videoRef.current) videoRef.current.srcObject = null;
       setIsActive(false);
+      setPermissionError(message);
     }
   };
 
@@ -314,12 +392,15 @@ export const VisualModeView: React.FC = () => {
 
   // Inspect Frame Directive Trigger
   const handleInspectFrame = async () => {
-    if (!isActive || isAnalyzing) return;
+    const isUploadedSnapshot = streamSource === 'snapshot_upload' && Boolean(lastCapturedImage);
+    if ((!isActive && !isUploadedSnapshot) || isAnalyzing) return;
     setAnalysisError(null);
 
-    const frameDataUrl = await captureCurrentFrameDataUrl();
+    const frameDataUrl = isUploadedSnapshot ? lastCapturedImage : await captureCurrentFrameDataUrl();
     if (!frameDataUrl) {
-      setAnalysisError('Unable to extract frame buffer from active video stream.');
+      setAnalysisError(isUploadedSnapshot
+        ? 'Unable to read the uploaded screenshot.'
+        : 'Unable to extract frame buffer from the active stream.');
       return;
     }
 
@@ -489,8 +570,16 @@ export const VisualModeView: React.FC = () => {
         isLight ? 'text-slate-800' : 'text-neutral-100'
       }`}
     >
-      {/* Hidden processing canvas */}
+      {/* Hidden canvas and cross-device screenshot picker */}
       <canvas ref={canvasRef} className="hidden" />
+      <input
+        ref={screenshotInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleScreenshotUpload}
+        className="hidden"
+        aria-label="Upload a screenshot for visual analysis"
+      />
 
       {/* Top Header Bar - Fixed Non-Transparent */}
       <div
@@ -554,10 +643,20 @@ export const VisualModeView: React.FC = () => {
               <button
                 id="btn-start-screen"
                 onClick={() => startStream('screen')}
+                title={supportsLiveScreenShare ? 'Share a browser tab, application window, or display' : 'Live screen sharing is unavailable here; upload a screenshot instead'}
                 className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-medium transition-all shadow-xs"
               >
                 <Monitor className="w-4 h-4" />
                 <span>Share Screen</span>
+              </button>
+              <button
+                id="btn-upload-screenshot"
+                onClick={() => screenshotInputRef.current?.click()}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-medium transition-colors ${isLight ? 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800' : 'border-white/10 bg-neutral-900 hover:bg-neutral-800 text-neutral-100'}`}
+                title="Upload a screenshot from any device"
+              >
+                <Upload className="w-4 h-4 text-cyan-400" />
+                <span>Upload Screenshot</span>
               </button>
             </div>
           ) : (
@@ -601,6 +700,15 @@ export const VisualModeView: React.FC = () => {
         </div>
       )}
 
+      {!supportsLiveScreenShare && !permissionError && (
+        <div role="status" className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-950/20 border-amber-800/70 text-amber-200'}`}>
+          <Monitor className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="leading-relaxed">
+            Live screen sharing is not exposed by this browser/device or secure context. Uploading a screenshot still works here. For live sharing, open Angel over HTTPS in a supported desktop browser.
+          </p>
+        </div>
+      )}
+
       {/* Main Two-Column Perception Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (7 cols): Viewport & Interaction Arena */}
@@ -624,7 +732,7 @@ export const VisualModeView: React.FC = () => {
               <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-indigo-400/60 pointer-events-none" />
               <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-indigo-400/60 pointer-events-none" />
 
-              {/* Video Element */}
+              {/* Live camera or display feed */}
               <video
                 ref={videoRef}
                 autoPlay
@@ -633,8 +741,22 @@ export const VisualModeView: React.FC = () => {
                 className={`w-full h-full object-contain ${!isActive ? 'hidden' : 'block'}`}
               />
 
+              {/* Static screenshot fallback, clearly labelled as non-live */}
+              {!isActive && streamSource === 'snapshot_upload' && lastCapturedImage && (
+                <>
+                  <img
+                    src={lastCapturedImage}
+                    alt="Uploaded screenshot ready for visual inspection"
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-neutral-950/85 border border-neutral-700 text-[11px] font-medium text-neutral-200">
+                    Uploaded screenshot · Not live
+                  </div>
+                </>
+              )}
+
               {/* Inactive Empty Feed Banner */}
-              {!isActive && (
+              {!isActive && !(streamSource === 'snapshot_upload' && lastCapturedImage) && (
                 <div className="text-center p-8 space-y-3">
                   <div
                     className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto border ${
@@ -648,10 +770,10 @@ export const VisualModeView: React.FC = () => {
                       Visual Pipeline Standby
                     </h3>
                     <p className="text-xs text-slate-400 max-w-sm mt-1 mx-auto leading-relaxed">
-                      Connect your camera or share a desktop screen to inspect live UI interfaces, code syntax, architectural diagrams, and physical scenes.
+                      Connect a camera, share a display in a supported browser, or upload a screenshot to inspect interfaces, code, diagrams, and physical scenes.
                     </p>
                   </div>
-                  <div className="pt-2 flex items-center justify-center gap-2">
+                  <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
                     <button
                       onClick={() => startStream('camera', selectedDeviceId)}
                       className="px-3.5 py-1.5 rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs text-white transition-colors"
@@ -664,7 +786,18 @@ export const VisualModeView: React.FC = () => {
                     >
                       Share Screen
                     </button>
+                    <button
+                      onClick={() => screenshotInputRef.current?.click()}
+                      className="px-3.5 py-1.5 rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs text-white transition-colors inline-flex items-center gap-1.5"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Upload Screenshot
+                    </button>
                   </div>
+                  {!supportsLiveScreenShare && (
+                    <p className="max-w-sm mx-auto text-[10px] text-amber-300/90 leading-relaxed">
+                      This browser/device does not expose live screen sharing. Upload a screenshot here, or open Angel in a supported desktop browser over HTTPS for live sharing.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -885,7 +1018,7 @@ export const VisualModeView: React.FC = () => {
                 <button
                   id="btn-inspect-frame"
                   onClick={handleInspectFrame}
-                  disabled={!isActive || isAnalyzing}
+                  disabled={(!isActive && !(streamSource === 'snapshot_upload' && Boolean(lastCapturedImage))) || isAnalyzing}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
                 >
                   {isAnalyzing ? (
