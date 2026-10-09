@@ -1380,7 +1380,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
     let targetConvId = requestedConversationId || activeConversationId;
-    if (!targetConvId || !conversations.some((c) => c.id === targetConvId)) {
+    // A newly created Home conversation may not be present in this render's stale state snapshot.
+    if (!targetConvId || (!requestedConversationId && !conversations.some((c) => c.id === targetConvId))) {
       targetConvId = createConversation(selectedAgentId);
     }
 
