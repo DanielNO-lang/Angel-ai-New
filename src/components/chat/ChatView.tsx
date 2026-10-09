@@ -711,7 +711,7 @@ export const ChatView: React.FC = () => {
                 aria-label="AI model"
                 title="Select AI model"
               >
-                <option value={settings.models.geminiModel}>{settings.models.geminiModel}</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
                 <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                 <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
               </select>
