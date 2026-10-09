@@ -263,22 +263,31 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bot className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider">Agent Workflows</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider">{isSignedIn ? 'Agent Workflows' : 'Build Your Workspace'}</h3>
             </div>
             <button
               onClick={() => setActiveTab('agent_lab')}
               className="text-[11px] font-semibold text-indigo-500 hover:underline flex items-center gap-0.5"
             >
-              <span>Agent Lab</span>
+              <span>{isSignedIn ? 'Agent Lab' : 'Explore'}</span>
               <ArrowRight className="w-3 h-3" />
             </button>
           </div>
 
           <div className="space-y-2">
-            {recentExecutions.length === 0 ? (
+            {!isSignedIn ? (
               <div className="p-3 rounded-xl border border-dashed border-inherit space-y-2">
-                <p className="text-xs text-neutral-500 italic">
-                  All {agents.length} agents are synchronized and ready on standby.
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
+                  Sign in to save custom agents, task plans, projects, and Memory Vault updates between sessions. Your guest workspace stays temporary.
+                </p>
+                <p className="text-[10px] text-indigo-400 font-medium">
+                  Chat, Voice Mode, and Visual Mode are available right now.
+                </p>
+              </div>
+            ) : recentExecutions.length === 0 ? (
+              <div className="p-3 rounded-xl border border-dashed border-inherit space-y-2">
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
+                  No workflow runs recorded yet. Your available agents can be configured in Agent Lab.
                 </p>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {agents.slice(0, 4).map((a) => (
