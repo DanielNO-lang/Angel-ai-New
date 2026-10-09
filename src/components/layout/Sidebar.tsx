@@ -137,14 +137,7 @@ export const Sidebar: React.FC = () => {
     setIsAuthPageOpen(true);
   };
 
-  // Rescheduled sidebar arrangement (strictly per user's prompt):
-  // 1. Home (fixed at top)
-  // 2. Agent Lab
-  // 3. Projects
-  // 4. Library
-  // 5. Schedule
-  // 6. Media Studios
-  // 7. More
+  // Canonical signed-in navigation: Home is fixed above this list.
   const signedInTools: Array<{
     id: string;
     label: string;
@@ -155,17 +148,14 @@ export const Sidebar: React.FC = () => {
   }> = [
     { id: 'agent_lab', label: 'Agent Lab', icon: Bot, tabTarget: 'agent_lab' },
     { id: 'projects', label: 'Projects', icon: FolderGit2, tabTarget: 'projects' },
-    { id: 'library', label: 'Library', icon: BookOpen, tabTarget: 'library' },
     { id: 'tasks', label: 'Schedule', icon: Calendar, tabTarget: 'tasks' },
-    { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
+    { id: 'library', label: 'Library', icon: BookOpen, tabTarget: 'library' },
+    { id: 'media_studio', label: 'Media Studio', icon: ImageIcon, tabTarget: 'media_studio' },
+    { id: 'assistants', label: 'Assistants', icon: Users, tabTarget: 'assistants' },
     { id: 'more', label: 'More', icon: MoreHorizontal, tabTarget: 'more' },
   ];
 
-  // Guest sidebar arrangement:
-  // - Hide 'Agent Lab' for guests
-  // - Ensure 'Media Studios' and 'Library' are available, forced to the top after 'Home'
-  // - Projects & Schedule follow, redirecting to sign-in
-  // - More is discarded
+  // Guests keep the basic workspace only; persistent account tools stay hidden.
   const guestTools: Array<{
     id: string;
     label: string;
@@ -174,10 +164,8 @@ export const Sidebar: React.FC = () => {
     onClickCustom?: () => void;
     badge?: string;
   }> = [
-    { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
-    { id: 'library', label: 'Library', icon: BookOpen, onClickCustom: redirectToSignIn },
-    { id: 'projects', label: 'Projects', icon: FolderGit2, onClickCustom: redirectToSignIn },
-    { id: 'tasks', label: 'Schedule', icon: Calendar, onClickCustom: redirectToSignIn },
+    { id: 'media_studio', label: 'Media Studio', icon: ImageIcon, tabTarget: 'media_studio' },
+    { id: 'more', label: 'More', icon: MoreHorizontal, tabTarget: 'more' },
   ];
 
   const scrollableTools = isSignedIn ? signedInTools : guestTools;
