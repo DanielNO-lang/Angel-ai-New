@@ -576,7 +576,6 @@ export const VisualModeView: React.FC = () => {
         ref={screenshotInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={handleScreenshotUpload}
         className="hidden"
         aria-label="Upload a screenshot for visual analysis"
