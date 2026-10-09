@@ -46,6 +46,7 @@ import {
   Volume2,
   Wifi,
   WifiOff,
+  Upload,
   X,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
@@ -135,6 +136,15 @@ export const VisualModeView: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
+
+  // Screen capture requires a secure context and an implementation of getDisplayMedia.
+  // Some mobile browsers do not expose the Screen Capture API.
+  const supportsLiveScreenShare =
+    typeof window !== 'undefined' &&
+    window.isSecureContext &&
+    typeof navigator !== 'undefined' &&
+    Boolean(navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function');
 
   // Enumerate video devices on mount
   useEffect(() => {
@@ -180,12 +190,64 @@ export const VisualModeView: React.FC = () => {
     setSelectedRegion(null);
   }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      stopStream();
+  // Load a screenshot as a one-off visual source, including on mobile browsers that
+  // do not expose native screen capture.
+  const handleScreenshotUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setPermissionError('Please choose an image or screenshot file.');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setPermissionError('That screenshot is over 20 MB. Please choose a smaller image.');
+      return;
+    }
+
+    setPermissionError(null);
+    setAnalysisError(null);
+    const reader = new FileReader();
+    reader.onerror = () => setPermissionError('Angel could not read that image. Please try another screenshot.');
+    reader.onload = () => {
+      const sourceUrl = typeof reader.result === 'string' ? reader.result : '';
+      if (!sourceUrl) {
+        setPermissionError('Angel could not read that image. Please try another screenshot.');
+        return;
+      }
+
+      const image = new Image();
+      image.onerror = () => setPermissionError('That image could not be opened. Please choose a valid screenshot.');
+      image.onload = () => {
+        const maxDimension = 2048;
+        const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const normalizedCanvas = document.createElement('canvas');
+        normalizedCanvas.width = width;
+        normalizedCanvas.height = height;
+        const context = normalizedCanvas.getContext('2d');
+        if (!context) {
+          setPermissionError('Angel could not prepare this screenshot. Please try another image.');
+          return;
+        }
+
+        context.drawImage(image, 0, 0, width, height);
+        const normalizedImage = normalizedCanvas.toDataURL('image/jpeg', 0.88);
+        stopStream();
+        setStreamSource('snapshot_upload');
+        setLastCapturedImage(normalizedImage);
+        setFeedDimensions({ width, height });
+        setSelectedRegion(null);
+        setCropOnly(false);
+        setPermissionError(null);
+        setAnalysisError(null);
+      };
+      image.src = sourceUrl;
     };
-  }, [stopStream]);
+    reader.readAsDataURL(file);
+  };
 
   // Start media stream (Camera or Screen)
   const startStream = async (source: VisualSourceType, deviceId?: string) => {
