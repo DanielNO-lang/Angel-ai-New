@@ -66,30 +66,17 @@ export const HomeView: React.FC = () => {
     action();
   };
 
-  // Dynamic random Angel greetings based on intelligence and time of day
+  // Natural, human greetings only. Keep Home's composer, but remove secondary AI-style subtitles.
   const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    const timeBasedOptions =
-      hour < 12
-        ? [
-            { text: 'Good morning', emoji: '☀️', subtitle: "I'm Angel, your AI assistant. What can I help you with today?" },
-            { text: 'Bright morning', emoji: '☕', subtitle: 'Ready to turn today’s vision into tangible progress?' },
-            { text: 'Rise and build', emoji: '✨', subtitle: 'All neural engines and agents are synchronized and ready.' },
-          ]
-        : hour < 18
-        ? [
-            { text: 'Good afternoon', emoji: '🌤️', subtitle: 'What high-impact objective shall we tackle next?' },
-            { text: 'Hello again', emoji: '🔮', subtitle: 'Continuing momentum across all your active projects.' },
-            { text: 'Ready to create', emoji: '🚀', subtitle: 'From strategy to code, your AI command center is primed.' },
-          ]
-        : [
-            { text: 'Good evening', emoji: '🌙', subtitle: 'Refining today’s milestones and organizing tomorrow’s roadmap.' },
-            { text: 'Evening focus', emoji: '✨', subtitle: 'Quiet hours are best for creative breakthrough.' },
-            { text: 'Welcome back', emoji: '🌌', subtitle: 'Where would you like to direct Angel’s focus tonight?' },
-          ];
-
-    const randomIndex = Math.floor(Math.random() * timeBasedOptions.length);
-    return timeBasedOptions[randomIndex];
+    const options = [
+      'How was your day?',
+      "What's on your mind?",
+      'How are things going?',
+      'What are you working on?',
+      'Good to see you again',
+      'Where shall we pick up?',
+    ];
+    return options[Math.floor(Math.random() * options.length)];
   }, []);
 
   const handleExecutePrompt = (e?: React.FormEvent) => {
@@ -182,16 +169,8 @@ export const HomeView: React.FC = () => {
                 isLight ? 'text-slate-900' : 'text-white'
               }`}
             >
-              <span>{greeting.text}, {userProfile.name.split(' ')[0]}</span>
-              <span>{greeting.emoji}</span>
+              <span>{greeting}</span>
             </h1>
-            <p
-              className={`text-xs sm:text-sm font-normal ${
-                isLight ? 'text-slate-600' : 'text-neutral-300'
-              }`}
-            >
-              {greeting.subtitle}
-            </p>
           </div>
 
           {/* Winged Angel Emblem with ethereal 3D glow */}
