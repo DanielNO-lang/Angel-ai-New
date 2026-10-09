@@ -10,7 +10,7 @@ import { syncWorkspaceToIndexedDB, loadWorkspaceFromIndexedDB } from '../service
 import { syncService } from '../services/syncService';
 import { offlineSyncManager, SyncState } from '../services/db/offlineSyncManager';
 import { buildWorkspaceExportPayload, downloadWorkspaceExportAsJSON } from '../services/data/workspaceExportService';
-import { getClientSupabase, signOutFromSupabase } from '../services/supabaseService';
+import { getClientSupabase, signOutFromSupabase, upsertAuthenticatedProfile } from '../services/supabaseService';
 import {
   INITIAL_AGENTS,
   INITIAL_CONVERSATIONS,
@@ -772,6 +772,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           status: 'online',
           avatarUrl: session.user.user_metadata?.avatar_url || prev.avatarUrl,
         }));
+
+        // Defer Supabase calls until after the auth event callback to avoid blocking auth state transitions.
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
+          window.setTimeout(() => {
+            void upsertAuthenticatedProfile({
+              id: session.user.id,
+              name,
+              email: session.user.email || '',
+              initials,
+              avatarUrl: session.user.user_metadata?.avatar_url,
+            });
+          }, 0);
+        }
         setIsAuthPageOpen(false);
       } else if (event === 'SIGNED_OUT') {
         setIsSignedIn(false);
