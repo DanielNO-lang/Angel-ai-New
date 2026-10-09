@@ -1447,7 +1447,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await conversationService.sendMessage({
         conversationId: targetConvId,
         prompt: content,
-        agent,
+        // The Chat composer model selector must affect the model that reaches the server.
+        agent: {
+          ...agent,
+          modelConfig: {
+            ...agent.modelConfig,
+            modelId: settings.models.geminiModel || agent.modelConfig.modelId,
+          },
+        },
         conversationHistory: convHistory,
         contextState: {
           memories,
