@@ -392,12 +392,15 @@ export const VisualModeView: React.FC = () => {
 
   // Inspect Frame Directive Trigger
   const handleInspectFrame = async () => {
-    if (!isActive || isAnalyzing) return;
+    const isUploadedSnapshot = streamSource === 'snapshot_upload' && Boolean(lastCapturedImage);
+    if ((!isActive && !isUploadedSnapshot) || isAnalyzing) return;
     setAnalysisError(null);
 
-    const frameDataUrl = await captureCurrentFrameDataUrl();
+    const frameDataUrl = isUploadedSnapshot ? lastCapturedImage : await captureCurrentFrameDataUrl();
     if (!frameDataUrl) {
-      setAnalysisError('Unable to extract frame buffer from active video stream.');
+      setAnalysisError(isUploadedSnapshot
+        ? 'Unable to read the uploaded screenshot.'
+        : 'Unable to extract frame buffer from the active stream.');
       return;
     }
 
@@ -567,8 +570,17 @@ export const VisualModeView: React.FC = () => {
         isLight ? 'text-slate-800' : 'text-neutral-100'
       }`}
     >
-      {/* Hidden processing canvas */}
+      {/* Hidden canvas and cross-device screenshot picker */}
       <canvas ref={canvasRef} className="hidden" />
+      <input
+        ref={screenshotInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleScreenshotUpload}
+        className="hidden"
+        aria-label="Upload a screenshot for visual analysis"
+      />
 
       {/* Top Header Bar - Fixed Non-Transparent */}
       <div
@@ -632,10 +644,20 @@ export const VisualModeView: React.FC = () => {
               <button
                 id="btn-start-screen"
                 onClick={() => startStream('screen')}
+                title={supportsLiveScreenShare ? 'Share a browser tab, application window, or display' : 'Live screen sharing is unavailable here; upload a screenshot instead'}
                 className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-medium transition-all shadow-xs"
               >
                 <Monitor className="w-4 h-4" />
                 <span>Share Screen</span>
+              </button>
+              <button
+                id="btn-upload-screenshot"
+                onClick={() => screenshotInputRef.current?.click()}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs font-medium transition-colors ${isLight ? 'border-slate-300 bg-white hover:bg-slate-50 text-slate-800' : 'border-white/10 bg-neutral-900 hover:bg-neutral-800 text-neutral-100'}`}
+                title="Upload a screenshot from any device"
+              >
+                <Upload className="w-4 h-4 text-cyan-400" />
+                <span>Upload Screenshot</span>
               </button>
             </div>
           ) : (
@@ -679,6 +701,15 @@ export const VisualModeView: React.FC = () => {
         </div>
       )}
 
+      {!supportsLiveScreenShare && !permissionError && (
+        <div role="status" className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${isLight ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-amber-950/20 border-amber-800/70 text-amber-200'}`}>
+          <Monitor className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="leading-relaxed">
+            Live screen sharing is not exposed by this browser/device or secure context. Uploading a screenshot still works here. For live sharing, open Angel over HTTPS in a supported desktop browser.
+          </p>
+        </div>
+      )}
+
       {/* Main Two-Column Perception Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column (7 cols): Viewport & Interaction Arena */}
@@ -702,7 +733,7 @@ export const VisualModeView: React.FC = () => {
               <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-indigo-400/60 pointer-events-none" />
               <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-indigo-400/60 pointer-events-none" />
 
-              {/* Video Element */}
+              {/* Live camera or display feed */}
               <video
                 ref={videoRef}
                 autoPlay
@@ -711,8 +742,22 @@ export const VisualModeView: React.FC = () => {
                 className={`w-full h-full object-contain ${!isActive ? 'hidden' : 'block'}`}
               />
 
+              {/* Static screenshot fallback, clearly labelled as non-live */}
+              {!isActive && streamSource === 'snapshot_upload' && lastCapturedImage && (
+                <>
+                  <img
+                    src={lastCapturedImage}
+                    alt="Uploaded screenshot ready for visual inspection"
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-neutral-950/85 border border-neutral-700 text-[11px] font-medium text-neutral-200">
+                    Uploaded screenshot · Not live
+                  </div>
+                </>
+              )}
+
               {/* Inactive Empty Feed Banner */}
-              {!isActive && (
+              {!isActive && !(streamSource === 'snapshot_upload' && lastCapturedImage) && (
                 <div className="text-center p-8 space-y-3">
                   <div
                     className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto border ${
@@ -726,10 +771,10 @@ export const VisualModeView: React.FC = () => {
                       Visual Pipeline Standby
                     </h3>
                     <p className="text-xs text-slate-400 max-w-sm mt-1 mx-auto leading-relaxed">
-                      Connect your camera or share a desktop screen to inspect live UI interfaces, code syntax, architectural diagrams, and physical scenes.
+                      Connect a camera, share a display in a supported browser, or upload a screenshot to inspect interfaces, code, diagrams, and physical scenes.
                     </p>
                   </div>
-                  <div className="pt-2 flex items-center justify-center gap-2">
+                  <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
                     <button
                       onClick={() => startStream('camera', selectedDeviceId)}
                       className="px-3.5 py-1.5 rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs text-white transition-colors"
@@ -742,7 +787,18 @@ export const VisualModeView: React.FC = () => {
                     >
                       Share Screen
                     </button>
+                    <button
+                      onClick={() => screenshotInputRef.current?.click()}
+                      className="px-3.5 py-1.5 rounded-xl border border-white/10 bg-slate-800 hover:bg-slate-700 text-xs text-white transition-colors inline-flex items-center gap-1.5"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Upload Screenshot
+                    </button>
                   </div>
+                  {!supportsLiveScreenShare && (
+                    <p className="max-w-sm mx-auto text-[10px] text-amber-300/90 leading-relaxed">
+                      This browser/device does not expose live screen sharing. Upload a screenshot here, or open Angel in a supported desktop browser over HTTPS for live sharing.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -963,7 +1019,7 @@ export const VisualModeView: React.FC = () => {
                 <button
                   id="btn-inspect-frame"
                   onClick={handleInspectFrame}
-                  disabled={!isActive || isAnalyzing}
+                  disabled={(!isActive && !(streamSource === 'snapshot_upload' && Boolean(lastCapturedImage))) || isAnalyzing}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
                 >
                   {isAnalyzing ? (
