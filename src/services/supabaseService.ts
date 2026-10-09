@@ -300,7 +300,22 @@ export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirec
     });
 
     if (error) {
-      return { error: error.message };
+      const message = error.message || 'Google authentication could not be started.';
+      const normalized = message.toLowerCase();
+
+      if (normalized.includes('unsupported provider') || normalized.includes('provider is not enabled')) {
+        return {
+          error: 'Google sign-in is not enabled in Supabase Auth yet. Enable Authentication → Sign In / Providers → Google, add your Google OAuth Client ID and Client Secret, and save the provider settings.',
+        };
+      }
+
+      if (normalized.includes('redirect') && (normalized.includes('not allowed') || normalized.includes('allow list'))) {
+        return {
+          error: 'Supabase blocked the return URL. Add https://angel-ai-new.vercel.app/ to Authentication → URL Configuration → Redirect URLs, then try again.',
+        };
+      }
+
+      return { error: message };
     }
     return { redirected: true };
   } catch (err: any) {
