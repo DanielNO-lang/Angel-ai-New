@@ -23,7 +23,10 @@ Add this under **Authorized JavaScript origins**:
 
 ```text
 https://angel-ai-new.vercel.app
+https://angel-ai-new-git-fix-google-oauth-ui-recovery-f4234a-angel-0908.vercel.app
 ```
+
+The second origin is for testing the current branch preview. Add it only while you need to test this preview.
 
 Add this under **Authorized redirect URIs**:
 
@@ -51,10 +54,11 @@ Set **Site URL** to:
 https://angel-ai-new.vercel.app
 ```
 
-Add this to **Redirect URLs**:
+Add these to **Redirect URLs**:
 
 ```text
 https://angel-ai-new.vercel.app/**
+https://angel-ai-new-git-fix-google-oauth-ui-recovery-f4234a-angel-0908.vercel.app/**
 ```
 
 If Google Auth is left in **Testing** mode, add the intended testing accounts as test users on the Google consent-screen/audience configuration. For public launch, finish the relevant Google consent-screen setup.
