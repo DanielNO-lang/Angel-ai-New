@@ -252,7 +252,9 @@ function hasStoredAuthSession(): boolean {
   if (typeof localStorage === 'undefined') return false;
   if (localStorage.getItem('angel_is_guest') === 'true') return false;
   const token = localStorage.getItem('angel_auth_token');
-  return Boolean(token && token !== 'undefined' && token !== 'guest');
+  if (!token || token === 'undefined' || token === 'guest') return false;
+  // Accept only Supabase JWTs or the backend's cryptographically random 64-hex session tokens.
+  return /^eyJ[A-Za-z0-9_-]*\./.test(token) || /^angel_[a-f0-9]{64}$/.test(token);
 }
 
 function createGuestConversation(): Conversation {
