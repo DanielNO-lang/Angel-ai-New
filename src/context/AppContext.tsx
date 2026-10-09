@@ -120,7 +120,7 @@ interface AppContextType {
   authError: string | null;
   setAuthError: (err: string | null) => void;
   sessionToken: string | null;
-  signIn: (email?: string, password?: string) => Promise<boolean>;
+  signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
