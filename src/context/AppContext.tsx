@@ -124,7 +124,7 @@ interface AppContextType {
   signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
-  sendMessage: (content: string, attachments?: Message['attachments']) => Promise<void>;
+  sendMessage: (content: string, attachments?: Message['attachments'], conversationId?: string) => Promise<void>;
 
   // User Profile
   userProfile: UserProfile;
@@ -1376,10 +1376,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Send Message with SSE streaming
-  const sendMessage = async (content: string, attachments?: Message['attachments']) => {
+  const sendMessage = async (content: string, attachments?: Message['attachments'], requestedConversationId?: string) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
-    let targetConvId = activeConversationId;
+    let targetConvId = requestedConversationId || activeConversationId;
     if (!targetConvId || !conversations.some((c) => c.id === targetConvId)) {
       targetConvId = createConversation(selectedAgentId);
     }
@@ -1454,6 +1454,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...agent.modelConfig,
             modelId: settings.models.geminiModel || agent.modelConfig.modelId,
           },
+          systemInstructions: settings.models.enableThinking
+            ? `${agent.systemInstructions}\nThink carefully and verify the answer internally. Present clear conclusions and concise rationale without exposing private reasoning traces.`
+            : agent.systemInstructions,
         },
         conversationHistory: convHistory,
         contextState: {
