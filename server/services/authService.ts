@@ -131,10 +131,6 @@ class AuthService {
     const user = this.users.get(cleanEmail);
 
     if (!user) {
-      // For demo convenience if using unseeded email with valid password, allow auto-creation
-      if (password && password.length >= 6) {
-        return this.signUp(email, password, cleanEmail.split('@')[0]);
-      }
       throw new Error('No account found with this email. Please check your spelling or sign up.');
     }
 
