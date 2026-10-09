@@ -13,7 +13,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   FileText,
   Image as ImageIcon,
-  Sparkles,
   Link2,
   Wrench,
   Brain,
