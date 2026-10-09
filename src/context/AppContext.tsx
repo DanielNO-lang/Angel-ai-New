@@ -1415,14 +1415,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const updateUserProfile = (updates: Partial<UserProfile>) => {
-    setUserProfile((prev: UserProfile) => {
-      const next = { ...prev, ...updates };
-      setStoredItem('user_profile', next);
-      return next;
-    });
-  };
-
   const toggleTheme = () => {
     setSettings((prev: AngelSettings) => {
       const nextTheme: ThemeMode = prev.theme === 'dark' ? 'light' : 'dark';
