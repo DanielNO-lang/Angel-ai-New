@@ -225,7 +225,7 @@ export const ChatView: React.FC = () => {
       }`}
     >
       {/* Main Conversational Workspace */}
-      <div className="flex-1 flex flex-col h-full max-w-4xl mx-auto w-full min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col h-full w-full min-w-0 overflow-hidden">
         {/* Top Conversation Status Header: Fixed Glassy Header with Chat Title */}
         <div
           className={`px-4 sm:px-6 py-3.5 border-b flex items-center justify-between text-xs sticky top-0 z-30 shadow-xs backdrop-blur-xl transition-colors shrink-0 ${
