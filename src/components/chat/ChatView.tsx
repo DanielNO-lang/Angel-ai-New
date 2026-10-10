@@ -48,7 +48,7 @@ import { AddSectionMenu } from './AddSectionMenu';
 import { useVoiceDictation } from '../../services/voice/useVoiceDictation';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { getSavedCanvases, saveCanvases, setActiveCanvasId } from '../../services/canvas/canvasService';
-import { VisualModeView } from '../visual_mode/VisualModeView';
+import { VisualModePopup } from './VisualModePopup';
 import { VoiceModeView } from '../voice/VoiceModeView';
 
 export const ChatView: React.FC = () => {
@@ -723,14 +723,7 @@ export const ChatView: React.FC = () => {
         </div>
       </div>
 
-      {isVisualPanelOpen && (
-        <div className="fixed inset-0 z-[70] bg-[#060813] text-white">
-          <div className="absolute right-3 top-3 z-[80]">
-            <button onClick={() => setIsVisualPanelOpen(false)} aria-label="Close visual mode" className="rounded-xl border border-white/15 bg-black/60 p-2 text-white hover:bg-white/10"><X className="h-5 w-5" /></button>
-          </div>
-          <div className="h-full overflow-y-auto"><VisualModeView /></div>
-        </div>
-      )}
+      {isVisualPanelOpen && <VisualModePopup onClose={() => setIsVisualPanelOpen(false)} />}
       {isVoicePanelOpen && (
         <div className="fixed inset-0 z-[70] bg-[#060813] text-white">
           <div className="absolute right-3 top-3 z-[80]">
