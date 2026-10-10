@@ -35,7 +35,6 @@ import { PluginsView } from './components/plugins/PluginsView';
 import { CommandPalette } from './components/search/CommandPalette';
 import { BackdropLayer } from './components/ui/BackdropLayer';
 import { NetworkStatusToast } from './components/ui/NetworkStatusToast';
-import { OnboardingTour } from './components/ui/OnboardingTour';
 import { Maximize2 } from 'lucide-react';
 import {
   WorkspaceStageControls,
@@ -170,12 +169,12 @@ const WorkspaceContent: React.FC = () => {
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
-      // Only initiate swipe-to-open from the left portion of the screen (first 80px) or general left drag
-      if (touch.clientX < 80) {
-        startX = touch.clientX;
-        startY = touch.clientY;
-        isTracking = true;
-      }
+      // Allow a right-swipe from any sidebar-enabled page, not only the screen edge.
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      isTracking = true;
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
@@ -284,19 +283,19 @@ const WorkspaceContent: React.FC = () => {
           : 'dark text-neutral-100 bg-transparent'
       } ${
         settings.fontSize === 'sm'
-          ? 'text-xs'
+          ? 'text-sm'
           : settings.fontSize === 'lg'
           ? 'text-base'
           : settings.fontSize === 'xl'
           ? 'text-lg'
-          : 'text-[13px]'
+          : 'text-sm'
       }`}
     >
       {/* Independent globally-consistent backdrop layer (fixed, inset-0, z-index: 0, pointer-events: none) */}
       <BackdropLayer />
 
       {/* Actual Angel UI rendered at a higher stacking level (z-10) above the backdrop */}
-      <div className="relative z-10 flex w-full min-h-screen transition-all duration-300 ease-in-out">
+      <div className="relative z-10 flex w-full min-h-screen pl-12 md:pl-0 transition-all duration-300 ease-in-out">
         {/* Persistent Collapsible Sidebar (hidden in Focus Mode) */}
         <Sidebar />
 
@@ -360,9 +359,6 @@ const WorkspaceContent: React.FC = () => {
 
       {/* Network Connectivity & PWA Service Worker Status Listener Toast */}
       <NetworkStatusToast />
-
-      {/* First-Time User Onboarding Guided Tour */}
-      <OnboardingTour />
 
       {/* Global Workspace Search & Command Palette */}
       <CommandPalette />
