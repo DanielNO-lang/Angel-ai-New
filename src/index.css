@@ -30,6 +30,10 @@
     overflow: hidden;
   }
 
+  html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+  @media (max-width: 767px) { body { font-size: 15px; } }
+  button, input, select, textarea { font-size: inherit; }
+
   body {
     position: relative;
     background-color: var(--bg-primary);
