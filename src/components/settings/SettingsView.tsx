@@ -115,7 +115,9 @@ export const SettingsView: React.FC = () => {
   const [isProfileSaved, setIsProfileSaved] = useState(false);
 
   // Appearance states
-  const [accentColor, setAccentColor] = useState('indigo');
+  const [accentColor, setAccentColor] = useState(settings.accentColor || 'indigo');
+
+  useEffect(() => { setAccentColor(settings.accentColor || 'indigo'); }, [settings.accentColor]);
   const [fontScale, setFontScale] = useState(() => {
     try { return localStorage.getItem('angel_font_scale') || 'comfortable'; } catch { return 'comfortable'; }
   });
@@ -474,13 +476,13 @@ export const SettingsView: React.FC = () => {
                   {[
                     { id: 'indigo', label: 'Indigo', bg: 'bg-indigo-600' },
                     { id: 'purple', label: 'Violet', bg: 'bg-purple-600' },
-                    { id: 'pink', label: 'Rose', bg: 'bg-pink-600' },
+                    { id: 'rose', label: 'Rose', bg: 'bg-rose-600' },
                     { id: 'emerald', label: 'Emerald', bg: 'bg-emerald-600' },
                     { id: 'amber', label: 'Amber', bg: 'bg-amber-600' },
                   ].map((c) => (
                     <button
                       key={c.id}
-                      onClick={() => setAccentColor(c.id)}
+                      onClick={() => { setAccentColor(c.id); updateSettings({ accentColor: c.id as 'blue' | 'indigo' | 'purple' | 'emerald' | 'rose' | 'amber' }); }}
                       className={`w-9 h-9 rounded-2xl ${c.bg} flex items-center justify-center transition-all ${
                         accentColor === c.id ? 'ring-4 ring-indigo-400/40 scale-105 shadow-md' : 'opacity-70 hover:opacity-100'
                       }`}
