@@ -56,6 +56,7 @@ const WorkspaceContent: React.FC = () => {
     workspaceSizeMode,
     openCommandPalette,
     toggleSidebar,
+    setMobileMenuOpen,
     isFocusMode,
     toggleFocusMode,
   } = useAngel();
