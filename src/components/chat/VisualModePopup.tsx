@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, MonitorUp, Square, X, Eye, LoaderCircle } from 'lucide-react';
+import { Camera, MonitorUp, Square, X, Eye, LoaderCircle, Grip } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 
 type Source = 'camera' | 'screen';
@@ -17,12 +17,22 @@ export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => 
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
   const [busy, setBusy] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  const [position, setPosition] = useState({ x: 16, y: 20 });
+  const dragRef = useRef<{ pointerX: number; pointerY: number; startX: number; startY: number } | null>(null);
+
+  const dismiss = () => {
+    if (source) setMinimized(true);
+    else onClose();
+  };
 
   const stopStream = () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setSource(null);
+    setMinimized(false);
+    setError('');
   };
 
   useEffect(() => () => {
@@ -109,8 +119,35 @@ export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => 
     }
   };
 
+  const handleDragStart = (e: React.PointerEvent<HTMLButtonElement>) => {
+    dragRef.current = { pointerX: e.clientX, pointerY: e.clientY, startX: position.x, startY: position.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleDragMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragRef.current) return;
+    const d = dragRef.current;
+    const maxX = Math.max(8, window.innerWidth - 230);
+    const maxY = Math.max(8, window.innerHeight - 72);
+    setPosition({
+      x: Math.min(maxX, Math.max(8, d.startX - (e.clientX - d.pointerX))),
+      y: Math.min(maxY, Math.max(8, d.startY - (e.clientY - d.pointerY))),
+    });
+  };
+
+  const handleDragEnd = () => { dragRef.current = null; };
+
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-3 sm:p-5" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <>
+    {source && (
+      <div className="fixed z-[100] flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-[#101522]/95 p-1.5 pl-2.5 text-white shadow-xl backdrop-blur-md" style={{ right: position.x, bottom: position.y }}>
+        <button type="button" aria-label="Drag sharing control" title="Drag this control" onPointerDown={handleDragStart} onPointerMove={handleDragMove} onPointerUp={handleDragEnd} onPointerCancel={handleDragEnd} className="touch-none cursor-move rounded-full p-1.5 text-white/70 hover:bg-white/10"><Grip className="h-4 w-4" /></button>
+        <span className="max-w-28 truncate text-xs font-medium">{source === 'screen' ? 'Screen sharing' : 'Camera active'}</span>
+        <button type="button" onClick={() => setMinimized(false)} className="rounded-full px-2 py-1.5 text-xs hover:bg-white/10">Open</button>
+        <button type="button" onClick={() => { stopStream(); onClose(); }} className="flex items-center gap-1 rounded-full bg-red-600 px-2.5 py-1.5 text-xs font-semibold hover:bg-red-500" aria-label="End sharing or camera"><Square className="h-3 w-3" /> Stop</button>
+      </div>
+    )}
+    {!minimized && <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-3 sm:p-5" onMouseDown={(e) => { if (e.target === e.currentTarget) dismiss(); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="visual-mode-title" className={`relative flex max-h-[92dvh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-[#0e1220] text-white'}`}>
         <header className="flex items-center justify-between gap-3 border-b border-current/10 px-4 py-3 sm:px-5">
           <div className="flex items-center gap-2">
@@ -120,7 +157,7 @@ export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => 
               <p className="text-xs opacity-60">Let Angel see your camera or shared screen</p>
             </div>
           </div>
-          <button type="button" onClick={() => { stopStream(); onClose(); }} className="rounded-lg p-2 opacity-70 hover:bg-current/10 hover:opacity-100" aria-label="Close Visual Mode"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={dismiss} className="rounded-lg p-2 opacity-70 hover:bg-current/10 hover:opacity-100" aria-label={source ? 'Minimize Visual Mode' : 'Close Visual Mode'}><X className="h-5 w-5" /></button>
         </header>
 
         <div className="space-y-3 overflow-y-auto p-4 sm:p-5">
@@ -154,6 +191,7 @@ export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => 
           {!source && !error && <p className="py-3 text-center text-sm opacity-60">Choose Camera or Share screen. Your browser will ask for permission before Angel can access it.</p>}
         </div>
       </section>
-    </div>
+    </div>}
+    </>
   );
 };
