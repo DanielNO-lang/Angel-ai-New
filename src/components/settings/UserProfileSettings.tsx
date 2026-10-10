@@ -43,7 +43,7 @@ export const UserProfileSettings: React.FC = () => {
   const [bio, setBio] = useState(
     userProfile.bio || 'Building autonomous agent workflows and intelligence systems with Angel AI.'
   );
-  const [timezone, setTimezone] = useState(userProfile.timezone || detectedTimezone);
+  const [timezone, setTimezone] = useState(userProfile.timezone && availableTimeZones.includes(userProfile.timezone) ? userProfile.timezone : detectedTimezone);
   const [avatarUrl, setAvatarUrl] = useState(userProfile.avatarUrl || '');
   const [isSaved, setIsSaved] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,7 +54,7 @@ export const UserProfileSettings: React.FC = () => {
     setName(userProfile.name || '');
     setTitle(userProfile.title || 'Principal AI Architect');
     setBio(userProfile.bio || 'Building autonomous agent workflows and intelligence systems with Angel AI.');
-    setTimezone(userProfile.timezone || detectedTimezone);
+    setTimezone(userProfile.timezone && availableTimeZones.includes(userProfile.timezone) ? userProfile.timezone : detectedTimezone);
     setAvatarUrl(userProfile.avatarUrl || '');
   }, [userProfile]);
 
