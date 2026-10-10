@@ -9,7 +9,7 @@
  * Full Light & Dark mode support adhering to Angel AI visual identity.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   User,
   Palette,
@@ -116,7 +116,19 @@ export const SettingsView: React.FC = () => {
 
   // Appearance states
   const [accentColor, setAccentColor] = useState('indigo');
-  const [fontScale, setFontScale] = useState('medium');
+  const [fontScale, setFontScale] = useState(() => {
+    try { return localStorage.getItem('angel_font_scale') || 'comfortable'; } catch { return 'comfortable'; }
+  });
+
+  useEffect(() => {
+    const fontSizes: Record<string, string> = { compact: '14px', medium: '16px', comfortable: '18px' };
+    document.documentElement.style.fontSize = fontSizes[fontScale] || '18px';
+    try { localStorage.setItem('angel_font_scale', fontScale); } catch {}
+  }, [fontScale]);
+
+  useEffect(() => {
+    if (activeSection === 'visual' || activeSection === 'privacy') setActiveSection('account');
+  }, [activeSection, setActiveSection]);
   const [animationEffects, setAnimationEffects] = useState(true);
   const [uiDensity, setUiDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [soundEffects, setSoundEffects] = useState(true);
@@ -204,12 +216,6 @@ export const SettingsView: React.FC = () => {
           description: 'TTS synthesis & voice models',
         },
         {
-          id: 'visual',
-          label: 'Visual Multimodal',
-          icon: Eye,
-          description: 'Camera streams & vision FPS',
-        },
-        {
           id: 'memory',
           label: 'Memory Vault',
           icon: Brain,
@@ -220,12 +226,6 @@ export const SettingsView: React.FC = () => {
     {
       category: 'Security & System',
       items: [
-        {
-          id: 'privacy',
-          label: 'Privacy & Incognito',
-          icon: Shield,
-          description: 'Zero-retention & telemetry',
-        },
         {
           id: 'notifications',
           label: 'Notifications',
@@ -593,9 +593,9 @@ export const SettingsView: React.FC = () => {
                 <label className="text-xs font-semibold block opacity-80">Font Sizing Scale</label>
                 <div className="grid grid-cols-3 gap-2.5 max-w-sm">
                   {[
-                    { id: 'compact', label: 'Compact (12px)' },
-                    { id: 'medium', label: 'Medium (14px)' },
-                    { id: 'comfortable', label: 'Comfortable (16px)' },
+                    { id: 'compact', label: 'Compact (14px)' },
+                    { id: 'medium', label: 'Medium (16px)' },
+                    { id: 'comfortable', label: 'Comfortable (18px)' },
                   ].map((scale) => (
                     <button
                       key={scale.id}
