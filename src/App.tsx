@@ -281,7 +281,7 @@ const WorkspaceContent: React.FC = () => {
           : settings.theme === 'midnight'
           ? 'midnight dark text-white bg-transparent'
           : 'dark text-neutral-100 bg-transparent'
-      } ${
+      } accent-${settings.accentColor || 'indigo'} ${
         settings.fontSize === 'sm'
           ? 'text-sm'
           : settings.fontSize === 'lg'
