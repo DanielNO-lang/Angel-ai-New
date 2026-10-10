@@ -48,6 +48,8 @@ import { AddSectionMenu } from './AddSectionMenu';
 import { useVoiceDictation } from '../../services/voice/useVoiceDictation';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { getSavedCanvases, saveCanvases, setActiveCanvasId } from '../../services/canvas/canvasService';
+import { VisualModeView } from '../visual_mode/VisualModeView';
+import { VoiceModeView } from '../voice/VoiceModeView';
 
 export const ChatView: React.FC = () => {
   const {
@@ -73,6 +75,8 @@ export const ChatView: React.FC = () => {
   const isLight = settings.theme === 'light';
 
   const [input, setInput] = useState('');
+  const [isVisualPanelOpen, setIsVisualPanelOpen] = useState(false);
+  const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
@@ -631,7 +635,7 @@ export const ChatView: React.FC = () => {
             {/* Visual Mode in Chat Bar */}
             <button
               type="button"
-              onClick={() => setActiveTab('visual_mode')}
+              onClick={() => setIsVisualPanelOpen(true)}
               className={`p-2 rounded-xl transition-colors shrink-0 ${
                 isLight
                   ? 'text-slate-500 hover:text-indigo-600 hover:bg-slate-200/60'
@@ -694,7 +698,7 @@ export const ChatView: React.FC = () => {
               <button
                 type="button"
                 id="btn-activate-voice"
-                onClick={() => setActiveTab('voice')}
+                onClick={() => setIsVoicePanelOpen(true)}
                 className={`p-2 rounded-xl transition-all shrink-0 cursor-pointer transform-gpu active:scale-95 animate-in zoom-in-90 duration-150 ${
                   isLight
                     ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200/80 shadow-2xs'
@@ -718,6 +722,23 @@ export const ChatView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {isVisualPanelOpen && (
+        <div className="fixed inset-0 z-[70] bg-[#060813] text-white">
+          <div className="absolute right-3 top-3 z-[80]">
+            <button onClick={() => setIsVisualPanelOpen(false)} aria-label="Close visual mode" className="rounded-xl border border-white/15 bg-black/60 p-2 text-white hover:bg-white/10"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="h-full overflow-y-auto"><VisualModeView /></div>
+        </div>
+      )}
+      {isVoicePanelOpen && (
+        <div className="fixed inset-0 z-[70] bg-[#060813] text-white">
+          <div className="absolute right-3 top-3 z-[80]">
+            <button onClick={() => setIsVoicePanelOpen(false)} aria-label="Close voice mode" className="rounded-xl border border-white/15 bg-black/60 p-2 text-white hover:bg-white/10"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="h-full overflow-y-auto"><VoiceModeView /></div>
+        </div>
+      )}
 
       {/* Confirmation Dialog: Delete Thread */}
       <ConfirmDialog
