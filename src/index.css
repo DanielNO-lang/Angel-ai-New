@@ -458,3 +458,21 @@
   color: #e4e4e7 !important;
 }
 
+
+
+/* Accent palette follows the user's Appearance setting across shared controls. */
+.accent-purple .bg-indigo-600, .accent-purple .bg-indigo-500 { background-color: #9333ea !important; }
+.accent-purple .text-indigo-500, .accent-purple .text-indigo-400 { color: #a855f7 !important; }
+.accent-purple .border-indigo-500, .accent-purple .border-indigo-400 { border-color: #a855f7 !important; }
+.accent-blue .bg-indigo-600, .accent-blue .bg-indigo-500 { background-color: #2563eb !important; }
+.accent-blue .text-indigo-500, .accent-blue .text-indigo-400 { color: #3b82f6 !important; }
+.accent-blue .border-indigo-500, .accent-blue .border-indigo-400 { border-color: #3b82f6 !important; }
+.accent-rose .bg-indigo-600, .accent-rose .bg-indigo-500 { background-color: #e11d48 !important; }
+.accent-rose .text-indigo-500, .accent-rose .text-indigo-400 { color: #f43f5e !important; }
+.accent-rose .border-indigo-500, .accent-rose .border-indigo-400 { border-color: #f43f5e !important; }
+.accent-emerald .bg-indigo-600, .accent-emerald .bg-indigo-500 { background-color: #059669 !important; }
+.accent-emerald .text-indigo-500, .accent-emerald .text-indigo-400 { color: #10b981 !important; }
+.accent-emerald .border-indigo-500, .accent-emerald .border-indigo-400 { border-color: #10b981 !important; }
+.accent-amber .bg-indigo-600, .accent-amber .bg-indigo-500 { background-color: #d97706 !important; }
+.accent-amber .text-indigo-500, .accent-amber .text-indigo-400 { color: #f59e0b !important; }
+.accent-amber .border-indigo-500, .accent-amber .border-indigo-400 { border-color: #f59e0b !important; }
