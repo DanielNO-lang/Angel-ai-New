@@ -29,6 +29,13 @@ import { useAngel } from '../../context/AppContext';
 export const UserProfileSettings: React.FC = () => {
   const { userProfile, updateUserProfile, settings, updateSettings, isSignedIn, sessionToken } = useAngel();
   const isLight = settings.theme === 'light';
+  const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Lagos';
+  const availableTimeZones: string[] = (() => {
+    try {
+      const intl = Intl as typeof Intl & { supportedValuesOf?: (key: 'timeZone') => string[] };
+      return intl.supportedValuesOf ? intl.supportedValuesOf('timeZone') : ['Africa/Lagos', 'Europe/London', 'America/New_York', 'Asia/Tokyo', 'UTC'];
+    } catch { return ['Africa/Lagos', 'Europe/London', 'America/New_York', 'Asia/Tokyo', 'UTC']; }
+  })();
 
   const [name, setName] = useState(userProfile.name || '');
   const [email] = useState(userProfile.email || '');
@@ -36,7 +43,7 @@ export const UserProfileSettings: React.FC = () => {
   const [bio, setBio] = useState(
     userProfile.bio || 'Building autonomous agent workflows and intelligence systems with Angel AI.'
   );
-  const [timezone, setTimezone] = useState(userProfile.timezone || 'UTC-07:00 (Pacific Time)');
+  const [timezone, setTimezone] = useState(userProfile.timezone || detectedTimezone);
   const [avatarUrl, setAvatarUrl] = useState(userProfile.avatarUrl || '');
   const [isSaved, setIsSaved] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,7 +54,7 @@ export const UserProfileSettings: React.FC = () => {
     setName(userProfile.name || '');
     setTitle(userProfile.title || 'Principal AI Architect');
     setBio(userProfile.bio || 'Building autonomous agent workflows and intelligence systems with Angel AI.');
-    setTimezone(userProfile.timezone || 'UTC-07:00 (Pacific Time)');
+    setTimezone(userProfile.timezone || detectedTimezone);
     setAvatarUrl(userProfile.avatarUrl || '');
   }, [userProfile]);
 
@@ -260,14 +267,14 @@ export const UserProfileSettings: React.FC = () => {
                     : 'bg-neutral-900 border-white/10 text-white focus:border-indigo-500'
                 }`}
               >
-                <option value="UTC-08:00 (Pacific Time)">UTC-08:00 (Pacific Time)</option>
-                <option value="UTC-07:00 (Mountain Time)">UTC-07:00 (Mountain Time)</option>
-                <option value="UTC-05:00 (Eastern Time)">UTC-05:00 (Eastern Time)</option>
-                <option value="UTC+00:00 (London, GMT)">UTC+00:00 (London, GMT)</option>
-                <option value="UTC+01:00 (Central European Time)">UTC+01:00 (Central European Time)</option>
-                <option value="UTC+05:30 (India Standard Time)">UTC+05:30 (India Standard Time)</option>
-                <option value="UTC+08:00 (Singapore / Beijing)">UTC+08:00 (Singapore / Beijing)</option>
-                <option value="UTC+09:00 (Tokyo)">UTC+09:00 (Tokyo)</option>
+                {availableTimeZones.map((zone) => {
+                  let offset = '';
+                  try {
+                    offset = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
+                      .formatToParts(new Date()).find((part) => part.type === 'timeZoneName')?.value || '';
+                  } catch {}
+                  return <option key={zone} value={zone}>{zone.replaceAll('_', ' ')} {offset ? `(${offset})` : ''}</option>;
+                })}
               </select>
             </div>
           </div>
