@@ -420,108 +420,12 @@ export const SettingsView: React.FC = () => {
                 </p>
               </div>
 
-              {/* Plan Card Banner */}
-              <div
-                className={`p-5 rounded-3xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-                  isLight
-                    ? 'bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border-indigo-100'
-                    : 'bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-neutral-900 border-indigo-500/20'
-                }`}
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-indigo-500">
-                      Active Tier
-                    </span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500 text-white">
-                      Pro Enterprise
-                    </span>
-                  </div>
-                  <h3 className="text-base font-bold">Angel Autonomous Pro</h3>
-                  <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
-                    Unlimited high-speed Gemini 3.8 Flash model generation, multimodal vision, and custom Agent Lab workflows.
-                  </p>
-                </div>
-
-                <button
-                  onClick={() => setIsSaved(true)}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 shrink-0"
-                >
-                  <Flame className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Manage Subscription</span>
-                </button>
-              </div>
-
-              {/* Usage Quotas */}
-              <div className="space-y-3 pt-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider opacity-70">
-                  Monthly Resource Consumption
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    { label: 'Multimodal Tokens', value: '1.4M / 10M', pct: 14 },
-                    { label: 'Agent Executions', value: '428 / 5,000', pct: 8.5 },
-                    { label: 'Visual Perception', value: '82 hrs / 200 hrs', pct: 41 },
-                  ].map((stat) => (
-                    <div
-                      key={stat.label}
-                      className={`p-3.5 rounded-2xl border ${
-                        isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/60 border-white/5'
-                      }`}
-                    >
-                      <span className="text-[11px] opacity-60 block">{stat.label}</span>
-                      <span className="text-sm font-bold block mt-0.5">{stat.value}</span>
-                      <div className="w-full h-1.5 rounded-full bg-neutral-700/20 mt-2 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-indigo-500"
-                          style={{ width: `${stat.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Connected OAuth Identity Accounts */}
-              <div className="space-y-3 pt-3 border-t border-inherit">
-                <h4 className="text-xs font-bold uppercase tracking-wider opacity-70">
-                  Linked Identity Providers
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div
-                    className={`p-3.5 rounded-2xl border flex items-center justify-between ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/40 border-white/5'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Globe className="w-4 h-4 text-indigo-400" />
-                      <div>
-                        <div className="font-semibold">Google Account</div>
-                        <div className="text-[10px] opacity-60">{userProfile.email}</div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-medium text-emerald-500 font-semibold flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Connected
-                    </span>
-                  </div>
-
-                  <div
-                    className={`p-3.5 rounded-2xl border flex items-center justify-between ${
-                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/40 border-white/5'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Github className="w-4 h-4 text-indigo-400" />
-                      <div>
-                        <div className="font-semibold">GitHub OAuth</div>
-                        <div className="text-[10px] opacity-60">github.com/{profileHandle}</div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-medium text-emerald-500 font-semibold flex items-center gap-1">
-                      <Check className="w-3 h-3" /> Connected
-                    </span>
-                  </div>
-                </div>
+              <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/50 border-white/10'}`}>
+                <div className="text-xs font-semibold uppercase tracking-wider text-indigo-500">Current plan</div>
+                <div className="mt-1 text-lg font-bold">{userProfile.plan}</div>
+                <p className={`mt-1 text-sm ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
+                  Your current account tier. Billing management will appear here when a billing provider is connected.
+                </p>
               </div>
 
               {/* Sign Out Action */}
