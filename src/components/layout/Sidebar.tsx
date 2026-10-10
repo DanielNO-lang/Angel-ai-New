@@ -325,19 +325,6 @@ export const Sidebar: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                  {/* When sidebar is expanded, Search displays as a microscope/search icon immediately before the collapse sidebar icon */}
-                  <button
-                    onClick={() => openCommandPalette('all')}
-                    aria-label="Search Workspace (Ctrl + K)"
-                    className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                      isLight
-                        ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-                        : 'text-neutral-300 hover:text-white hover:bg-white/10'
-                    }`}
-                    title="Search (Ctrl + K)"
-                  >
-                    <Search className="w-3.5 h-3.5 text-indigo-400" />
-                  </button>
 
                   <button
                     onClick={isSidebarCollapsed ? handleExpandSidebarPermanently : handleCollapseSidebar}
@@ -384,12 +371,14 @@ export const Sidebar: React.FC = () => {
           </button>
 
           {/* Search Workspace Option — When collapsed, stays in-between New Conversation and Home. When expanded, moves to header before collapse icon */}
-          {!effectiveExpanded && (
+          {isSidebarCollapsed && (
             <button
               onClick={() => openCommandPalette('all')}
               title={isIncognitoActive ? 'Knowledge / Search (Ctrl + K)' : 'Search (Ctrl + K)'}
               aria-label="Search Workspace (Ctrl + K)"
-              className={`flex items-center rounded-xl text-[11px] font-medium transition-all duration-150 cursor-pointer w-8 h-8 mx-auto justify-center p-0 ${
+              className={`flex items-center rounded-xl text-[11px] font-medium transition-all duration-150 cursor-pointer ${
+                !effectiveExpanded ? 'w-8 h-8 mx-auto justify-center p-0' : 'w-full px-2.5 py-1.5'
+              } ${
                 isLight
                   ? 'text-slate-700 hover:text-slate-900 bg-white/40 hover:bg-white/70 border border-slate-200/60'
                   : 'text-neutral-200 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-indigo-400/30 backdrop-blur-md'
