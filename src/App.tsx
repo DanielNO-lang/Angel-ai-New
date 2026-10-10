@@ -300,7 +300,7 @@ const WorkspaceContent: React.FC = () => {
       <BackdropLayer />
 
       {/* Actual Angel UI rendered at a higher stacking level (z-10) above the backdrop */}
-      <div className="relative z-10 flex w-full min-h-screen pl-12 md:pl-0 transition-all duration-300 ease-in-out">
+      <div className="relative z-10 flex w-full min-h-screen pl-0 transition-all duration-300 ease-in-out">
         {/* Persistent Collapsible Sidebar (hidden in Focus Mode) */}
         <Sidebar />
 
