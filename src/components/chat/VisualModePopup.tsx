@@ -99,7 +99,7 @@ export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => 
           ? 'Describe what you see in the camera view and answer the user’s likely visual questions. Be specific and grounded in the image.'
           : 'Inspect the shared screen. Explain the visible content and help the user with what is shown.',
         source,
-        { intent: 'scene_analysis', systemInstruction: 'You are Angel. Analyze only the captured visual frame. Be concise, accurate, and do not claim to see anything outside the image.' }
+        { intent: 'general_scene', systemInstruction: 'You are Angel. Analyze only the captured visual frame. Be concise, accurate, and do not claim to see anything outside the image.' }
       );
       setResult(typeof response === 'string' ? response : response.analysis);
     } catch (analysisError) {
