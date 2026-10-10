@@ -51,6 +51,7 @@ import {
   PenTool,
   BarChart3,
   Zap,
+  Settings,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { NavigationTab } from '../../types';
@@ -824,6 +825,22 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
       </aside>
+
+      {/* Persistent mobile icon rail: icons remain available without a universal top bar. */}
+      <nav aria-label="Workspace sections" className="fixed left-0 top-0 bottom-0 z-40 md:hidden w-12 flex flex-col items-center gap-2 py-3 border-r border-white/10 bg-[#080B14]/95 text-neutral-200 backdrop-blur-xl">
+        <button onClick={() => handleNavClick('home')} aria-label="Home" title="Home" className={'w-9 h-9 flex items-center justify-center rounded-xl ' + (activeTab === 'home' ? 'bg-indigo-600 text-white' : 'hover:bg-indigo-500/10')}><Home className="w-5 h-5" /></button>
+        <button onClick={() => handleNavClick('chat')} aria-label="Chat" title="Chat" className={'w-9 h-9 flex items-center justify-center rounded-xl ' + (activeTab === 'chat' ? 'bg-indigo-600 text-white' : 'hover:bg-indigo-500/10')}><MessageSquare className="w-5 h-5" /></button>
+        <div className="w-7 border-t border-current/15 my-1" />
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col items-center gap-2">
+          {scrollableTools.filter((tool) => tool.id !== 'chat').map((tool) => {
+            const Icon = tool.icon;
+            const selected = !!tool.tabTarget && activeTab === tool.tabTarget;
+            return <button key={tool.id} onClick={() => tool.onClickCustom ? tool.onClickCustom() : tool.tabTarget && handleNavClick(tool.tabTarget)} aria-label={tool.label} title={tool.label} className={'w-9 h-9 shrink-0 flex items-center justify-center rounded-xl ' + (selected ? 'bg-indigo-600 text-white' : 'hover:bg-indigo-500/10')}><Icon className="w-5 h-5" /></button>;
+          })}
+        </div>
+        <button onClick={() => handleNavClick('settings')} aria-label="Settings" title="Settings" className={'w-9 h-9 flex items-center justify-center rounded-xl ' + (activeTab === 'settings' || activeTab === 'profile' ? 'bg-indigo-600 text-white' : 'hover:bg-indigo-500/10')}><Settings className="w-5 h-5" /></button>
+        <button onClick={() => setMobileMenuOpen(true)} aria-label="Open full sidebar" title="Open full sidebar" className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-indigo-500/10"><MoreHorizontal className="w-5 h-5" /></button>
+      </nav>
 
       {/* ========================================================
           MOBILE & TABLET SLIDE-IN SIDEBAR DRAWER
