@@ -476,3 +476,30 @@
 .accent-amber .bg-indigo-600, .accent-amber .bg-indigo-500 { background-color: #d97706 !important; }
 .accent-amber .text-indigo-500, .accent-amber .text-indigo-400 { color: #f59e0b !important; }
 .accent-amber .border-indigo-500, .accent-amber .border-indigo-400 { border-color: #f59e0b !important; }
+
+
+/* Enforce exactly one navigation sidebar at each viewport size.
+   Explicit media rules back up utility classes so desktop rail and mobile drawer
+   can never render visibly together, regardless of guest/auth state. */
+.angel-desktop-sidebar {
+  display: none;
+}
+.angel-mobile-sidebar {
+  display: block;
+}
+@media (min-width: 768px) {
+  .angel-desktop-sidebar {
+    display: flex !important;
+  }
+  .angel-mobile-sidebar {
+    display: none !important;
+  }
+}
+@media (max-width: 767.98px) {
+  .angel-desktop-sidebar {
+    display: none !important;
+  }
+  .angel-mobile-sidebar {
+    display: block;
+  }
+}
