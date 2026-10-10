@@ -12,7 +12,7 @@ export default defineConfig(() => {
       VitePWA({
         injectRegister: null,
         registerType: 'autoUpdate',
-        includeAssets: ['icon-192.svg', 'icon-512.svg', 'icon-maskable-512.svg'],
+        includeAssets: ['favicon.png'],
         manifest: {
           id: '/',
           name: 'Angel AI Workspace',
@@ -26,21 +26,21 @@ export default defineConfig(() => {
           scope: '/',
           icons: [
             {
-              src: '/icon-192.svg',
+              src: '/favicon.png',
               sizes: '192x192',
-              type: 'image/svg+xml',
+              type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/icon-512.svg',
+              src: '/favicon.png',
               sizes: '512x512',
-              type: 'image/svg+xml',
+              type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/icon-maskable-512.svg',
+              src: '/favicon.png',
               sizes: '512x512',
-              type: 'image/svg+xml',
+              type: 'image/png',
               purpose: 'maskable',
             },
           ],
