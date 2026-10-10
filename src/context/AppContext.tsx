@@ -906,21 +906,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
   }, [sessionToken]);
 
-  // Centralized Autosave Engine (Runs every 30 seconds, persists dirty changed state without user disruption)
+  // Centralized autosave engine: frequent, change-detected local persistence with cloud queue processing.
   useEffect(() => {
-    const AUTOSAVE_INTERVAL_MS = 30000;
+    const AUTOSAVE_INTERVAL_MS = 10000;
 
     const performAutosave = async () => {
       try {
         if (isGuest) return;
-        // Construct deterministic fingerprint of persistent workspace state
-        const taskFingerprint = tasks.map((t) => `${t.id}:${t.updatedAt || ''}:${t.status}`).join(';');
-        const memFingerprint = memories.map((m) => `${m.id}:${m.updatedAt || ''}`).join(';');
-        const projFingerprint = projects.map((p) => `${p.id}:${p.updatedAt || ''}`).join(';');
-        const wfFingerprint = workflows.map((w) => `${w.id}:${w.updatedAt || ''}:${w.enabled}`).join(';');
-        const convFingerprint = conversations.map((c) => `${c.id}:${c.updatedAt || ''}`).join(';');
-        const msgCount = Object.values(messagesMap).reduce((acc, m) => acc + (Array.isArray(m) ? m.length : 0), 0);
-        const currentFingerprint = `${taskFingerprint}|${memFingerprint}|${projFingerprint}|${wfFingerprint}|${convFingerprint}|${msgCount}`;
+        // Fingerprint full persisted state so edits to existing messages and settings are not missed.
+        const currentFingerprint = JSON.stringify({
+          tasks, memories, projects, workflows, conversations, messagesMap,
+          agents, libraryItems, assistants: assistantsList, activeTab,
+          theme: settings.theme, syncStatus,
+        });
 
         // Only persist if data actually changed since last autosave (avoids unnecessary writes)
         if (currentFingerprint === lastSavedFingerprintRef.current) {
