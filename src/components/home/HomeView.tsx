@@ -199,7 +199,7 @@ export const HomeView: React.FC = () => {
             className={`hidden sm:flex items-center justify-center p-3 rounded-2xl shadow-md transition-transform duration-300 hover:scale-105 ${
               isLight
                 ? 'bg-white border border-slate-200/80 shadow-slate-200/50'
-                : 'bg-neutral-900/80 border border-white/5 shadow-black/60'
+                : 'bg-[#141C30]/80 border border-indigo-500/20 shadow-indigo-950/40 backdrop-blur-md'
             }`}
           >
             <AngelLogo size={42} glow={true} />
@@ -221,7 +221,7 @@ export const HomeView: React.FC = () => {
               className={`w-full rounded-2xl px-5 py-4 pr-14 text-xs sm:text-sm outline-none transition-all shadow-inner ${
                 isLight
                   ? 'bg-white border border-slate-300/80 text-slate-900 placeholder-slate-400 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10'
-                  : 'bg-neutral-950/90 border border-white/10 text-white placeholder-neutral-500 focus:border-indigo-500/70 focus:ring-1 focus:ring-indigo-500/50'
+                  : 'bg-[#12182B]/95 border border-indigo-500/20 text-white placeholder-slate-400 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/50 backdrop-blur-md'
               }`}
             />
             <button
@@ -244,7 +244,7 @@ export const HomeView: React.FC = () => {
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : isLight
                   ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
+                  : 'bg-[#182036]/80 hover:bg-[#202b48] text-slate-200 border border-white/5'
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5 text-cyan-400" />
@@ -262,7 +262,7 @@ export const HomeView: React.FC = () => {
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : isLight
                   ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
+                  : 'bg-[#182036]/80 hover:bg-[#202b48] text-slate-200 border border-white/5'
               }`}
             >
               <ImageIcon className="w-3.5 h-3.5 text-purple-400" />
@@ -280,7 +280,7 @@ export const HomeView: React.FC = () => {
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : isLight
                   ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
+                  : 'bg-[#182036]/80 hover:bg-[#202b48] text-slate-200 border border-white/5'
               }`}
             >
               <Film className="w-3.5 h-3.5 text-pink-400" />
@@ -298,7 +298,7 @@ export const HomeView: React.FC = () => {
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : isLight
                   ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
+                  : 'bg-[#182036]/80 hover:bg-[#202b48] text-slate-200 border border-white/5'
               }`}
             >
               <Globe className="w-3.5 h-3.5 text-blue-400" />
@@ -316,7 +316,7 @@ export const HomeView: React.FC = () => {
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : isLight
                   ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
+                  : 'bg-[#182036]/80 hover:bg-[#202b48] text-slate-200 border border-white/5'
               }`}
             >
               <Zap className="w-3.5 h-3.5 text-emerald-400" />
@@ -334,7 +334,7 @@ export const HomeView: React.FC = () => {
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : isLight
                   ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80'
-                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
+                  : 'bg-[#182036]/80 hover:bg-[#202b48] text-slate-200 border border-white/5'
               }`}
             >
               <Bot className="w-3.5 h-3.5 text-indigo-400" />
@@ -383,23 +383,23 @@ export const HomeView: React.FC = () => {
                   className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg ${
                     isLight
                       ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                      : 'bg-[#121622]/90 border border-white/5 hover:border-white/15 shadow-md shadow-black/40'
+                      : 'bg-[#151D33]/90 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-indigo-400/40 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-500 mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 mb-3 group-hover:scale-110 transition-transform">
                       <MessageSquare className="w-4 h-4" />
                     </div>
                     <ArrowRight
                       className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${
-                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-neutral-400 group-hover:text-white'
+                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-slate-400 group-hover:text-white'
                       }`}
                     />
                   </div>
                   <h3 className={`text-xs font-semibold mb-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Chat
                   </h3>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Have a conversation with Angel
                   </p>
                 </div>
@@ -410,23 +410,23 @@ export const HomeView: React.FC = () => {
                   className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg ${
                     isLight
                       ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                      : 'bg-[#121622]/90 border border-white/5 hover:border-white/15 shadow-md shadow-black/40'
+                      : 'bg-[#151D33]/90 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-purple-400/40 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 mb-3 group-hover:scale-110 transition-transform">
                       <ImageIcon className="w-4 h-4" />
                     </div>
                     <ArrowRight
                       className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${
-                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-neutral-400 group-hover:text-white'
+                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-slate-400 group-hover:text-white'
                       }`}
                     />
                   </div>
                   <h3 className={`text-xs font-semibold mb-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Create image
                   </h3>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Bring your ideas to life
                   </p>
                 </div>
@@ -437,23 +437,23 @@ export const HomeView: React.FC = () => {
                   className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg ${
                     isLight
                       ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                      : 'bg-[#121622]/90 border border-white/5 hover:border-white/15 shadow-md shadow-black/40'
+                      : 'bg-[#151D33]/90 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-pink-400/40 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-500 mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-400 mb-3 group-hover:scale-110 transition-transform">
                       <Film className="w-4 h-4" />
                     </div>
                     <ArrowRight
                       className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${
-                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-neutral-400 group-hover:text-white'
+                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-slate-400 group-hover:text-white'
                       }`}
                     />
                   </div>
                   <h3 className={`text-xs font-semibold mb-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Create video
                   </h3>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Turn ideas into videos
                   </p>
                 </div>
@@ -464,23 +464,23 @@ export const HomeView: React.FC = () => {
                   className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg ${
                     isLight
                       ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                      : 'bg-[#121622]/90 border border-white/5 hover:border-white/15 shadow-md shadow-black/40'
+                      : 'bg-[#151D33]/90 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-blue-400/40 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 mb-3 group-hover:scale-110 transition-transform">
                       <Globe className="w-4 h-4" />
                     </div>
                     <ArrowRight
                       className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${
-                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-neutral-400 group-hover:text-white'
+                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-slate-400 group-hover:text-white'
                       }`}
                     />
                   </div>
                   <h3 className={`text-xs font-semibold mb-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Web search
                   </h3>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Find information across the web
                   </p>
                 </div>
@@ -491,23 +491,23 @@ export const HomeView: React.FC = () => {
                   className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg ${
                     isLight
                       ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                      : 'bg-[#121622]/90 border border-white/5 hover:border-white/15 shadow-md shadow-black/40'
+                      : 'bg-[#151D33]/90 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-emerald-400/40 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-110 transition-transform">
                       <Zap className="w-4 h-4" />
                     </div>
                     <ArrowRight
                       className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${
-                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-neutral-400 group-hover:text-white'
+                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-slate-400 group-hover:text-white'
                       }`}
                     />
                   </div>
                   <h3 className={`text-xs font-semibold mb-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Live search
                   </h3>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Real-time results & social feeds
                   </p>
                 </div>
@@ -518,23 +518,23 @@ export const HomeView: React.FC = () => {
                   className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg ${
                     isLight
                       ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                      : 'bg-[#121622]/90 border border-white/5 hover:border-white/15 shadow-md shadow-black/40'
+                      : 'bg-[#151D33]/90 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-indigo-400/40 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-3 group-hover:scale-110 transition-transform">
                       <Bot className="w-4 h-4" />
                     </div>
                     <ArrowRight
                       className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${
-                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-neutral-400 group-hover:text-white'
+                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-slate-400 group-hover:text-white'
                       }`}
                     />
                   </div>
                   <h3 className={`text-xs font-semibold mb-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Run agent
                   </h3>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Let Angel work on complex tasks
                   </p>
                 </div>
@@ -545,23 +545,23 @@ export const HomeView: React.FC = () => {
                   className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg ${
                     isLight
                       ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                      : 'bg-[#121622]/90 border border-white/5 hover:border-white/15 shadow-md shadow-black/40'
+                      : 'bg-[#151D33]/90 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-amber-400/40 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition-transform">
                       <UserPlus className="w-4 h-4" />
                     </div>
                     <ArrowRight
                       className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${
-                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-neutral-400 group-hover:text-white'
+                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-slate-400 group-hover:text-white'
                       }`}
                     />
                   </div>
                   <h3 className={`text-xs font-semibold mb-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Custom assistant
                   </h3>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Your personal AI team
                   </p>
                 </div>
@@ -572,23 +572,23 @@ export const HomeView: React.FC = () => {
                   className={`group p-4 rounded-2xl cursor-pointer transition-all duration-200 transform-gpu hover:-translate-y-1 hover:shadow-lg ${
                     isLight
                       ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                      : 'bg-[#121622]/90 border border-white/5 hover:border-white/15 shadow-md shadow-black/40'
+                      : 'bg-[#151D33]/90 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-orange-400/40 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-3 group-hover:scale-110 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-400 mb-3 group-hover:scale-110 transition-transform">
                       <Layers className="w-4 h-4" />
                     </div>
                     <ArrowRight
                       className={`w-4 h-4 transition-transform group-hover:translate-x-1 ${
-                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-neutral-400 group-hover:text-white'
+                        isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-slate-400 group-hover:text-white'
                       }`}
                     />
                   </div>
                   <h3 className={`text-xs font-semibold mb-1 ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Agent Lab
                   </h3>
-                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Build and execute workflows
                   </p>
                 </div>
@@ -601,7 +601,7 @@ export const HomeView: React.FC = () => {
                 className={`rounded-2xl p-5 space-y-3 transition-all ${
                   isLight
                     ? 'bg-white border border-slate-200/80 shadow-2xs'
-                    : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'
+                    : 'bg-[#141B2E]/90 border border-indigo-500/20 shadow-lg shadow-indigo-950/30 backdrop-blur-md'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -610,40 +610,52 @@ export const HomeView: React.FC = () => {
                     What Angel can do
                   </h3>
                 </div>
-                <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                <p className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                   Start with a conversation, speak naturally, or let Angel inspect visual information.
                 </p>
                 <div className="space-y-2">
                   <button
                     onClick={() => { createConversation('angel-core'); setActiveTab('chat'); }}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-900/60 hover:bg-neutral-900'}`}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
+                      isLight
+                        ? 'bg-slate-50 hover:bg-slate-100'
+                        : 'bg-[#182036]/90 hover:bg-[#202b48] border border-white/5 hover:border-indigo-500/30 text-white shadow-xs'
+                    }`}
                   >
                     <MessageSquare className="w-4 h-4 text-indigo-400 shrink-0" />
                     <span>
-                      <span className={`block text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>Chat, writing & research</span>
-                      <span className={`block text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Think through ideas and get things done</span>
+                      <span className={`block text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-neutral-100'}`}>Chat, writing & research</span>
+                      <span className={`block text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>Think through ideas and get things done</span>
                     </span>
                     <ArrowRight className="w-3.5 h-3.5 ml-auto text-indigo-400 shrink-0" />
                   </button>
                   <button
                     onClick={() => setActiveTab('voice')}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-900/60 hover:bg-neutral-900'}`}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
+                      isLight
+                        ? 'bg-slate-50 hover:bg-slate-100'
+                        : 'bg-[#182036]/90 hover:bg-[#202b48] border border-white/5 hover:border-cyan-500/30 text-white shadow-xs'
+                    }`}
                   >
                     <Mic className="w-4 h-4 text-cyan-400 shrink-0" />
                     <span>
-                      <span className={`block text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>Voice Mode</span>
-                      <span className={`block text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Talk naturally with Angel</span>
+                      <span className={`block text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-neutral-100'}`}>Voice Mode</span>
+                      <span className={`block text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>Talk naturally with Angel</span>
                     </span>
                     <ArrowRight className="w-3.5 h-3.5 ml-auto text-cyan-400 shrink-0" />
                   </button>
                   <button
                     onClick={() => setActiveTab('visual_mode')}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-900/60 hover:bg-neutral-900'}`}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
+                      isLight
+                        ? 'bg-slate-50 hover:bg-slate-100'
+                        : 'bg-[#182036]/90 hover:bg-[#202b48] border border-white/5 hover:border-emerald-500/30 text-white shadow-xs'
+                    }`}
                   >
                     <ImageIcon className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>
-                      <span className={`block text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>Visual Mode</span>
-                      <span className={`block text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Explore images and your screen</span>
+                      <span className={`block text-xs font-semibold ${isLight ? 'text-slate-800' : 'text-neutral-100'}`}>Visual Mode</span>
+                      <span className={`block text-[10px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>Explore images and your screen</span>
                     </span>
                     <ArrowRight className="w-3.5 h-3.5 ml-auto text-emerald-400 shrink-0" />
                   </button>
@@ -658,10 +670,10 @@ export const HomeView: React.FC = () => {
               4. AGENT LAB HIGHLIGHT BANNER SECTION
               ======================================================== */}
           <div
-            className={`rounded-2xl p-6 space-y-4 transition-all ${
+            className={`rounded-2xl p-6 space-y-4 transition-all backdrop-blur-xl ${
               isLight
                 ? 'bg-gradient-to-r from-indigo-50/70 to-purple-50/50 border border-slate-200/80 shadow-2xs'
-                : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'
+                : 'bg-[#10172B]/85 border border-indigo-500/20 shadow-lg shadow-indigo-950/30'
             }`}
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -692,24 +704,24 @@ export const HomeView: React.FC = () => {
               {/* Agent Runner */}
               <div
                 onClick={() => setActiveTab('agent_lab')}
-                className={`p-3.5 rounded-xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`p-3.5 rounded-2xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-sm ${
                   isLight
                     ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                    : 'bg-neutral-950/60 border border-white/5 hover:border-white/10'
+                    : 'bg-[#182036]/80 hover:bg-[#202b48] border border-indigo-500/20 hover:border-indigo-400/40 shadow-indigo-950/40 backdrop-blur-md'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>
                       Agent Runner
                     </span>
                     <Bot className="w-3.5 h-3.5 text-indigo-400" />
                   </div>
-                  <p className={`text-[11px] mb-3 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] mb-3 leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Run autonomous agents with goals.
                   </p>
                 </div>
-                <span className="text-[10px] text-indigo-500 font-semibold self-start hover:underline">
+                <span className="text-[10px] text-indigo-400 font-semibold self-start hover:underline">
                   Launch →
                 </span>
               </div>
@@ -717,24 +729,24 @@ export const HomeView: React.FC = () => {
               {/* Task Queue */}
               <div
                 onClick={() => setActiveTab('tasks')}
-                className={`p-3.5 rounded-xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`p-3.5 rounded-2xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-sm ${
                   isLight
                     ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                    : 'bg-neutral-950/60 border border-white/5 hover:border-white/10'
+                    : 'bg-[#182036]/80 hover:bg-[#202b48] border border-indigo-500/20 hover:border-blue-400/40 shadow-indigo-950/40 backdrop-blur-md'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>
                       Task Queue
                     </span>
                     <Clock className="w-3.5 h-3.5 text-blue-400" />
                   </div>
-                  <p className={`text-[11px] mb-3 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] mb-3 leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Track multi-step goals.
                   </p>
                 </div>
-                <span className="text-[10px] text-blue-500 font-semibold self-start hover:underline">
+                <span className="text-[10px] text-blue-400 font-semibold self-start hover:underline">
                   View Tasks →
                 </span>
               </div>
@@ -742,24 +754,24 @@ export const HomeView: React.FC = () => {
               {/* Approval Queue */}
               <div
                 onClick={() => setActiveTab('agent_lab')}
-                className={`p-3.5 rounded-xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`p-3.5 rounded-2xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-sm ${
                   isLight
                     ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                    : 'bg-neutral-950/60 border border-white/5 hover:border-white/10'
+                    : 'bg-[#182036]/80 hover:bg-[#202b48] border border-indigo-500/20 hover:border-emerald-400/40 shadow-indigo-950/40 backdrop-blur-md'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>
                       Approval Queue
                     </span>
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   </div>
-                  <p className={`text-[11px] mb-3 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] mb-3 leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Review & authorize actions.
                   </p>
                 </div>
-                <span className="text-[10px] text-emerald-500 font-semibold self-start hover:underline">
+                <span className="text-[10px] text-emerald-400 font-semibold self-start hover:underline">
                   Approvals →
                 </span>
               </div>
@@ -767,24 +779,24 @@ export const HomeView: React.FC = () => {
               {/* Assistant Creator */}
               <div
                 onClick={() => setActiveTab('marketplace')}
-                className={`p-3.5 rounded-xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`p-3.5 rounded-2xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-sm ${
                   isLight
                     ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                    : 'bg-neutral-950/60 border border-white/5 hover:border-white/10'
+                    : 'bg-[#182036]/80 hover:bg-[#202b48] border border-indigo-500/20 hover:border-amber-400/40 shadow-indigo-950/40 backdrop-blur-md'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>
                       Assistant Creator
                     </span>
                     <Flame className="w-3.5 h-3.5 text-amber-400" />
                   </div>
-                  <p className={`text-[11px] mb-3 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] mb-3 leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Build custom personas.
                   </p>
                 </div>
-                <span className="text-[10px] text-amber-500 font-semibold self-start hover:underline">
+                <span className="text-[10px] text-amber-400 font-semibold self-start hover:underline">
                   Create →
                 </span>
               </div>
@@ -792,24 +804,24 @@ export const HomeView: React.FC = () => {
               {/* Marketplace */}
               <div
                 onClick={() => setActiveTab('marketplace')}
-                className={`p-3.5 rounded-xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`p-3.5 rounded-2xl cursor-pointer flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-sm ${
                   isLight
                     ? 'bg-white border border-slate-200/80 hover:border-indigo-400 shadow-2xs'
-                    : 'bg-neutral-950/60 border border-white/5 hover:border-white/10'
+                    : 'bg-[#182036]/80 hover:bg-[#202b48] border border-indigo-500/20 hover:border-orange-400/40 shadow-indigo-950/40 backdrop-blur-md'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                    <span className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>
                       Marketplace
                     </span>
                     <Layers className="w-3.5 h-3.5 text-orange-400" />
                   </div>
-                  <p className={`text-[11px] mb-3 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[11px] mb-3 leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Explore ready-made tools.
                   </p>
                 </div>
-                <span className="text-[10px] text-orange-500 font-semibold self-start hover:underline">
+                <span className="text-[10px] text-orange-400 font-semibold self-start hover:underline">
                   Browse →
                 </span>
               </div>
@@ -826,7 +838,7 @@ export const HomeView: React.FC = () => {
                 className={`rounded-2xl p-5 space-y-3 transition-all ${
                   isLight
                     ? 'bg-white border border-slate-200/80 shadow-2xs'
-                    : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'
+                    : 'bg-[#141B2E]/90 border border-indigo-500/20 shadow-lg shadow-indigo-950/30 backdrop-blur-md'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -835,13 +847,13 @@ export const HomeView: React.FC = () => {
                   </h3>
                   <button
                     onClick={() => setActiveTab('chat')}
-                    className="text-[11px] text-indigo-500 hover:text-indigo-600 font-medium"
+                    className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
                   >
                     View all →
                   </button>
                 </div>
                 {conversations.length === 0 ? (
-                  <p className={`text-xs py-6 text-center ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-xs py-6 text-center ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                     Your saved conversations will appear here.
                   </p>
                 ) : (
@@ -854,16 +866,20 @@ export const HomeView: React.FC = () => {
                           setActiveConversationId(conversation.id);
                           setActiveTab('chat');
                         }}
-                        className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-950/60 hover:bg-neutral-900'}`}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors ${
+                          isLight
+                            ? 'bg-slate-50 hover:bg-slate-100'
+                            : 'bg-[#182036]/80 hover:bg-[#202b48] border border-white/5 text-white'
+                        }`}
                       >
                         <span className="flex items-center gap-2.5 min-w-0 pr-2">
                           <MessageSquare className="w-4 h-4 text-indigo-400 shrink-0" />
                           <span className="min-w-0">
                             <span className={`block text-xs font-medium truncate ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>{conversation.title}</span>
-                            <span className={`block text-[10px] truncate ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{conversation.lastMessagePreview || 'Saved conversation'}</span>
+                            <span className={`block text-[10px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{conversation.lastMessagePreview || 'Saved conversation'}</span>
                           </span>
                         </span>
-                        <ArrowRight className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-400' : 'text-neutral-400'}`} />
+                        <ArrowRight className={`w-3.5 h-3.5 shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-400'}`} />
                       </button>
                     ))}
                   </div>
@@ -871,18 +887,22 @@ export const HomeView: React.FC = () => {
               </div>
             ) : (
               <div
-                className={`rounded-2xl p-5 space-y-3 transition-all ${isLight ? 'bg-white border border-slate-200/80 shadow-2xs' : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'}`}
+                className={`rounded-2xl p-5 space-y-3 transition-all ${
+                  isLight
+                    ? 'bg-white border border-slate-200/80 shadow-2xs'
+                    : 'bg-[#141B2E]/90 border border-indigo-500/20 shadow-lg shadow-indigo-950/30 backdrop-blur-md'
+                }`}
               >
                 <div className="flex items-center gap-2">
                   <MessageSquare className="w-4 h-4 text-indigo-400" />
                   <h3 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>Start with Angel</h3>
                 </div>
-                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                   Explore a question or test an idea. Guest conversations are temporary and are not saved to permanent memory.
                 </p>
                 <button
                   onClick={() => { createConversation('angel-core'); setActiveTab('chat'); }}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold inline-flex items-center gap-2 transition-colors"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold inline-flex items-center gap-2 transition-colors shadow-sm"
                 >
                   Start a chat <ArrowRight className="w-3.5 h-3.5" />
                 </button>
@@ -894,7 +914,7 @@ export const HomeView: React.FC = () => {
               className={`rounded-2xl p-5 space-y-3 transition-all ${
                 isLight
                   ? 'bg-white border border-slate-200/80 shadow-2xs'
-                  : 'bg-[#121622]/90 border border-white/5 shadow-md shadow-black/40'
+                  : 'bg-[#141B2E]/90 border border-indigo-500/20 shadow-lg shadow-indigo-950/30 backdrop-blur-md'
               }`}
             >
               <h3 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
@@ -907,60 +927,60 @@ export const HomeView: React.FC = () => {
                     createConversation();
                     setActiveTab('chat');
                   }}
-                  className={`p-3 rounded-xl text-left transition-colors ${
-                    isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-950/60 hover:bg-neutral-900'
+                  className={`p-3 rounded-xl text-left transition-all ${
+                    isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-[#182036]/80 hover:bg-[#202b48] border border-white/5 text-white shadow-xs'
                   }`}
                 >
-                  <Plus className="w-4 h-4 text-indigo-500 mb-2" />
-                  <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                  <Plus className="w-4 h-4 text-indigo-400 mb-2" />
+                  <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>
                     New Chat
                   </h4>
-                  <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Start a conversation
                   </p>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('visual_mode')}
-                  className={`p-3 rounded-xl text-left transition-colors ${
-                    isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-950/60 hover:bg-neutral-900'
+                  className={`p-3 rounded-xl text-left transition-all ${
+                    isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-[#182036]/80 hover:bg-[#202b48] border border-white/5 text-white shadow-xs'
                   }`}
                 >
-                  <Upload className="w-4 h-4 text-blue-500 mb-2" />
-                  <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                  <Upload className="w-4 h-4 text-blue-400 mb-2" />
+                  <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>
                     Upload File
                   </h4>
-                  <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Inspect documents or photos
                   </p>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('marketplace')}
-                  className={`p-3 rounded-xl text-left transition-colors ${
-                    isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-950/60 hover:bg-neutral-900'
+                  className={`p-3 rounded-xl text-left transition-all ${
+                    isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-[#182036]/80 hover:bg-[#202b48] border border-white/5 text-white shadow-xs'
                   }`}
                 >
-                  <Layers className="w-4 h-4 text-purple-500 mb-2" />
-                  <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                  <Layers className="w-4 h-4 text-purple-400 mb-2" />
+                  <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>
                     Explore Assistants
                   </h4>
-                  <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     Browse extensions
                   </p>
                 </button>
 
                 <button
                   onClick={() => setActiveTab(isSignedIn ? 'memories' : 'voice')}
-                  className={`p-3 rounded-xl text-left transition-colors ${
-                    isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-neutral-950/60 hover:bg-neutral-900'
+                  className={`p-3 rounded-xl text-left transition-all ${
+                    isLight ? 'bg-slate-50 hover:bg-slate-100' : 'bg-[#182036]/80 hover:bg-[#202b48] border border-white/5 text-white shadow-xs'
                   }`}
                 >
-                  {isSignedIn ? <Brain className="w-4 h-4 text-emerald-500 mb-2" /> : <Mic className="w-4 h-4 text-emerald-500 mb-2" />}
-                  <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-200'}`}>
+                  {isSignedIn ? <Brain className="w-4 h-4 text-emerald-400 mb-2" /> : <Mic className="w-4 h-4 text-emerald-400 mb-2" />}
+                  <h4 className={`text-xs font-semibold ${isLight ? 'text-slate-900' : 'text-neutral-100'}`}>
                     {isSignedIn ? 'View Memory' : 'Voice Mode'}
                   </h4>
-                  <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-300'}`}>
                     {isSignedIn ? 'Durable knowledge bank' : 'Talk naturally with Angel'}
                   </p>
                 </button>
@@ -1009,10 +1029,10 @@ export const HomeView: React.FC = () => {
                 </button>
                 <button
                   onClick={() => setActiveTab('tasks')}
-                  className={`px-4 py-2 rounded-xl text-xs font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-xl text-xs font-medium transition-all ${
                     isLight
-                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                      : 'bg-neutral-800 hover:bg-neutral-700 text-neutral-200'
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                      : 'bg-[#18223B]/80 hover:bg-[#202E50] border border-white/5 hover:border-indigo-500/20 text-neutral-200 backdrop-blur-md'
                   }`}
                 >
                   Inspect Task Queue

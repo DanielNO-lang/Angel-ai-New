@@ -11,6 +11,7 @@ import { syncService } from '../services/syncService';
 import { offlineSyncManager, SyncState } from '../services/db/offlineSyncManager';
 import { buildWorkspaceExportPayload, downloadWorkspaceExportAsJSON } from '../services/data/workspaceExportService';
 import { getClientSupabase, signOutFromSupabase, upsertAuthenticatedProfile } from '../services/supabaseService';
+import { playThemeSound } from '../utils/themeAudio';
 import {
   INITIAL_AGENTS,
   INITIAL_CONVERSATIONS,
@@ -351,9 +352,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setStoredItem('active_settings_section', section);
   };
 
+  // Window width positioning matching Chrome multi-window / snapped arrangements:
+  // - Full width (> 1200px): sidebar opens fully, user can toggle/close.
+  // - Halfway (768px - 1199px): sidebar automatically closes to compact rail.
+  // - Quarter / mobile (< 768px): mobile responsiveness drawer arrangement.
   const [isSidebarCollapsed, setIsSidebarCollapsedState] = useState<boolean>(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      return true;
+    if (typeof window !== 'undefined') {
+      if (window.innerWidth < 1200) {
+        return true;
+      }
     }
     return getStoredItem<boolean>('is_sidebar_collapsed', false);
   });
@@ -371,12 +378,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Automatically collapse or transform sidebar sections when window width is reduced
+  // Automatically shift arrangement based on window positioning matching Chrome:
+  // Full width opens sidebar, halfway snapped closes sidebar, quarter width adapts to mobile
   useEffect(() => {
+    let lastWidth = typeof window !== 'undefined' ? window.innerWidth : 1440;
     const handleResize = () => {
-      if (window.innerWidth < 1024) {
+      const currentWidth = window.innerWidth;
+      if (currentWidth < 1200 && lastWidth >= 1200) {
+        // Snapped halfway or smaller: automatically close sidebar
         setIsSidebarCollapsedState(true);
+      } else if (currentWidth >= 1200 && lastWidth < 1200) {
+        // Restored to full screen: automatically open sidebar
+        setIsSidebarCollapsedState(false);
       }
+      lastWidth = currentWidth;
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -480,7 +495,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const defaultSettings: AngelSettings = {
       theme: 'dark',
       accentColor: 'indigo',
-      fontSize: 'base',
+      fontSize: 'sm', // Reduced by one size per user specification
       compactMode: false,
       focusMode: false,
       personality: {
@@ -611,26 +626,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveTab('home');
   };
 
-  // Sync theme to HTML document and persist in localStorage
+  // Sync theme to HTML document and body with subtle cross-fade transition
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove('dark', 'light', 'midnight');
+    const body = document.body;
 
-    if (settings.theme === 'midnight') {
-      root.classList.add('midnight', 'dark');
-    } else if (settings.theme === 'dark') {
-      root.classList.add('dark');
-    } else if (settings.theme === 'light') {
-      root.classList.add('light');
-    } else {
-      // System
-      const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.add(prefersDark ? 'dark' : 'light');
+    let timer: number | undefined;
+    if (body) {
+      body.classList.add('theme-transitioning');
+      timer = window.setTimeout(() => {
+        body.classList.remove('theme-transitioning');
+      }, 500);
+
+      root.classList.remove('dark', 'light', 'midnight');
+      body.classList.remove('dark', 'light', 'midnight');
+
+      if (settings.theme === 'midnight') {
+        root.classList.add('midnight', 'dark');
+        body.classList.add('midnight', 'dark');
+      } else if (settings.theme === 'dark') {
+        root.classList.add('dark');
+        body.classList.add('dark');
+      } else if (settings.theme === 'light') {
+        root.classList.add('light');
+        body.classList.add('light');
+      } else {
+        // System: automatically synchronize with user's OS preference using matchMedia
+        if (typeof window !== 'undefined') {
+          const mq = window.matchMedia('(prefers-color-scheme: dark)');
+          const applySystemTheme = () => {
+            root.classList.remove('dark', 'light', 'midnight');
+            body.classList.remove('dark', 'light', 'midnight');
+            const isDark = mq.matches;
+            root.classList.add(isDark ? 'dark' : 'light');
+            body.classList.add(isDark ? 'dark' : 'light');
+          };
+          applySystemTheme();
+          mq.addEventListener('change', applySystemTheme);
+          return () => {
+            if (timer) window.clearTimeout(timer);
+            mq.removeEventListener('change', applySystemTheme);
+          };
+        }
+      }
     }
 
     if (typeof localStorage !== 'undefined' && settings.theme) {
       localStorage.setItem('angel_theme', settings.theme);
     }
+
+    return () => {
+      if (timer) window.clearTimeout(timer);
+    };
   }, [settings.theme]);
 
   const [isChatStreaming, setIsChatStreaming] = useState<boolean>(false);
@@ -1371,6 +1418,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const nextTheme: ThemeMode = prev.theme === 'dark' ? 'light' : 'dark';
       const updated: AngelSettings = { ...prev, theme: nextTheme };
       setStoredItem('settings', updated);
+      playThemeSound(nextTheme);
       return updated;
     });
   };
@@ -2198,6 +2246,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateSettings = (updates: Partial<AngelSettings>) => {
+    if (updates.theme && updates.theme !== settings.theme) {
+      playThemeSound(updates.theme);
+    }
     setSettings((prev) => ({ ...prev, ...updates }));
   };
 

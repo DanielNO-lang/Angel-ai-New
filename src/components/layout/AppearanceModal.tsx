@@ -70,47 +70,61 @@ export const AppearanceModal: React.FC<AppearanceModalProps> = ({ isOpen, onClos
           <label className={`text-xs font-semibold ${isLight ? 'text-slate-700' : 'text-neutral-300'}`}>
             Choose your preferred theme
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-1.5">
             <button
               onClick={() => updateSettings({ theme: 'light' })}
-              className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
+              className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
                 settings.theme === 'light'
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md font-bold'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm font-bold'
                   : isLight
                   ? 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
                   : 'border-white/5 bg-neutral-900 text-neutral-400 hover:text-white'
               }`}
             >
-              <Sun className="w-5 h-5 mb-1.5 text-amber-500" />
-              <span className="text-xs">Light</span>
+              <Sun className="w-4 h-4 mb-1 text-amber-500" />
+              <span className="text-[11px]">Light</span>
             </button>
 
             <button
               onClick={() => updateSettings({ theme: 'dark' })}
-              className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
+              className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
                 settings.theme === 'dark'
-                  ? 'border-indigo-500 bg-indigo-950/40 text-indigo-300 shadow-md font-bold'
+                  ? 'border-indigo-500 bg-indigo-950/40 text-indigo-300 shadow-sm font-bold'
                   : isLight
                   ? 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
                   : 'border-white/5 bg-neutral-900 text-neutral-400 hover:text-white'
               }`}
             >
-              <Moon className="w-5 h-5 mb-1.5 text-indigo-400" />
-              <span className="text-xs">Dark</span>
+              <Moon className="w-4 h-4 mb-1 text-indigo-400" />
+              <span className="text-[11px]">Dark</span>
+            </button>
+
+            <button
+              onClick={() => updateSettings({ theme: 'midnight' })}
+              className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
+                settings.theme === 'midnight'
+                  ? 'border-cyan-400 bg-cyan-950/40 text-cyan-300 shadow-sm font-bold'
+                  : isLight
+                  ? 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                  : 'border-white/5 bg-neutral-900 text-neutral-400 hover:text-white'
+              }`}
+            >
+              <Moon className="w-4 h-4 mb-1 text-cyan-400" />
+              <span className="text-[11px]">Midnight</span>
             </button>
 
             <button
               onClick={() => updateSettings({ theme: 'system' })}
-              className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
+              className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
                 settings.theme === 'system'
-                  ? 'border-indigo-500 bg-indigo-950/40 text-indigo-300 shadow-md font-bold'
+                  ? 'border-indigo-500 bg-indigo-950/40 text-indigo-300 shadow-sm font-bold'
                   : isLight
                   ? 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
                   : 'border-white/5 bg-neutral-900 text-neutral-400 hover:text-white'
               }`}
             >
-              <Laptop className="w-5 h-5 mb-1.5 text-neutral-400" />
-              <span className="text-xs">System</span>
+              <Laptop className="w-4 h-4 mb-1 text-neutral-400" />
+              <span className="text-[11px]">System</span>
             </button>
           </div>
         </div>

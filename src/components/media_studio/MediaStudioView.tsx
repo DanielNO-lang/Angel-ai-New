@@ -34,6 +34,7 @@ import {
   Trash2,
   ExternalLink,
   ChevronDown,
+  Menu,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { mediaClient, MediaArtifactDTO } from '../../services/media/mediaService';
@@ -48,6 +49,7 @@ export const MediaStudioView: React.FC = () => {
     createConversation,
     sendMessage,
     setActiveTab,
+    setMobileMenuOpen,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
@@ -228,33 +230,41 @@ export const MediaStudioView: React.FC = () => {
   return (
     <div
       className={`min-h-full p-4 sm:p-6 lg:p-8 space-y-6 transition-colors duration-150 animate-in fade-in duration-150 ${
-        isLight ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#0B0E14] text-neutral-100'
+        isLight ? 'bg-transparent text-slate-900' : 'bg-transparent text-neutral-100'
       }`}
     >
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Sticky Header */}
+        {/* Sticky Header with open sidebar icon on mobile/tablet */}
         <div
-          className={`sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs ${
+          className={`sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs backdrop-blur-xl ${
             isLight
-              ? 'bg-white border-slate-200 text-slate-900'
-              : 'bg-[#0B0E14] border-white/10 text-neutral-100'
+              ? 'bg-white/80 border-slate-200/80 text-slate-900'
+              : 'bg-[#0B1020]/80 border-indigo-500/20 text-neutral-100 shadow-lg shadow-indigo-950/30'
           }`}
         >
           <div className="flex items-center gap-3">
-            <span
-              className={`p-2 rounded-2xl border ${
-                isLight
-                  ? 'bg-purple-50 border-purple-200 text-purple-600'
-                  : 'bg-purple-500/10 border-purple-500/20 text-purple-400'
+            {/* Open sidebar trigger on mobile/tablet attached directly to header */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className={`md:hidden p-1.5 rounded-xl transition-colors cursor-pointer shrink-0 ${
+                isLight ? 'text-slate-600 hover:bg-slate-100' : 'text-neutral-400 hover:bg-white/10'
               }`}
+              aria-label="Open sidebar"
+              title="Open sidebar"
             >
-              <Wand2 className="w-5 h-5" />
-            </span>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Media Studio</h1>
-              <span className="text-[11px] font-medium opacity-60">
-                Model-Backed Multimodal Image & Video Synthesis Engine
+              <Menu className="w-5 h-5 text-indigo-400" />
+            </button>
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`p-1.5 rounded-xl border ${
+                  isLight
+                    ? 'bg-purple-50 border-purple-200 text-purple-600'
+                    : 'bg-purple-500/10 border-purple-500/20 text-purple-400'
+                }`}
+              >
+                <Wand2 className="w-4 h-4" />
               </span>
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight">Media Studio</h1>
             </div>
           </div>
 
@@ -294,8 +304,8 @@ export const MediaStudioView: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Prompt Console Form */}
             <div
-              className={`lg:col-span-2 p-6 rounded-3xl border space-y-4 ${
-                isLight ? 'bg-white border-slate-200' : 'bg-[#10141E] border-white/10'
+              className={`lg:col-span-2 p-6 rounded-3xl border space-y-4 backdrop-blur-xl ${
+                isLight ? 'bg-white/80 border-slate-200/80' : 'bg-[#10172B]/85 border-indigo-500/20 shadow-lg shadow-indigo-950/20'
               }`}
             >
               <form

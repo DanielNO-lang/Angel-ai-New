@@ -28,6 +28,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
+import { AngelLogo } from '../ui/AngelLogo';
 import { NotificationCenter } from './NotificationCenter';
 
 interface BatteryManager extends EventTarget {
@@ -170,18 +171,22 @@ export const Header: React.FC = () => {
             : 'bg-[#0B0E14]/70 border-b border-white/10 text-neutral-100 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),0_4px_20px_rgba(0,0,0,0.4)]'
         }`}
       >
-        {/* Left Section: Mobile Drawer Toggle */}
+        {/* Left Section: Mobile Drawer Toggle — In place of open sidebar icon, Angel logo and write up replaces it and serves as the open sidebar trigger */}
         <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0 mr-2 md:mr-4">
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className={`md:hidden p-1.5 -ml-1 rounded-xl transition-colors shrink-0 ${
-              isLight
-                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 backdrop-blur-md'
-                : 'text-neutral-400 hover:text-white hover:bg-white/10 backdrop-blur-md'
-            }`}
+            className="md:hidden flex items-center gap-2 p-1.5 -ml-1 rounded-xl transition-colors shrink-0 group cursor-pointer"
             aria-label="Open navigation drawer"
+            title="Open sidebar"
           >
-            <Menu className="w-5 h-5" />
+            <AngelLogo size={26} glow={true} />
+            <span
+              className={`font-calligraphy text-2xl tracking-wide select-none ${
+                isLight ? 'text-slate-900 group-hover:text-indigo-600' : 'text-white group-hover:text-indigo-300'
+              }`}
+            >
+              Angel
+            </span>
           </button>
         </div>
 

@@ -52,6 +52,7 @@ import { SUPABASE_SCHEMA_SQL } from '../../data/supabaseSchema';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConnectionsWorkspace } from '../connections/ConnectionsWorkspace';
 import { UserProfileSettings } from './UserProfileSettings';
+import { playThemeSound } from '../../utils/themeAudio';
 
 export type SettingsSubSection =
   | 'account'
@@ -334,26 +335,26 @@ export const SettingsView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         {/* Left Categorized Sub-Navigation Rail (Desktop/Tablet) */}
         <div
-          className={`hidden md:block md:col-span-4 lg:col-span-3 rounded-3xl border p-3 space-y-4 shadow-sm sticky top-6 ${
+          className={`hidden md:block md:col-span-4 lg:col-span-3 rounded-2xl border p-2 space-y-2 shadow-xs sticky top-4 ${
             isLight
               ? 'bg-white border-slate-200/90 shadow-slate-200/50'
               : 'bg-[#121622] border-white/5 shadow-black/40'
           }`}
         >
-          <div className="px-2 pt-1 pb-1 flex items-center justify-between">
-            <span className="text-[10px] font-medium uppercase tracking-wider opacity-60">
+          <div className="px-2 pt-0.5 pb-0.5 flex items-center justify-between">
+            <span className="text-[9.5px] font-medium uppercase tracking-wider opacity-60">
               Categorized Navigation
             </span>
-            <span className="text-[10px] font-medium text-indigo-500 font-semibold">
+            <span className="text-[9.5px] font-medium text-indigo-500 font-semibold">
               Angel Core
             </span>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-2">
             {navigationCategories.map((group) => (
-              <div key={group.category} className="space-y-1">
+              <div key={group.category} className="space-y-0.5">
                 {/* Category Header */}
-                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider opacity-50 flex items-center gap-1.5">
+                <div className="px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider opacity-50 flex items-center gap-1.5">
                   <span className="w-1 h-1 rounded-full bg-indigo-500" />
                   <span>{group.category}</span>
                 </div>
@@ -367,26 +368,26 @@ export const SettingsView: React.FC = () => {
                       <button
                         key={sec.id}
                         onClick={() => setActiveSection(sec.id)}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs font-medium transition-all ${
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                           isSelected
                             ? isLight
-                              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200 shadow-xs'
-                              : 'bg-indigo-600/20 text-white border border-indigo-500/40 font-bold shadow-xs'
+                              ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200 shadow-2xs'
+                              : 'bg-indigo-600/20 text-white border border-indigo-500/40 font-bold shadow-2xs'
                             : isLight
                             ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
                             : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
                           <Icon
-                            className={`w-4 h-4 shrink-0 transition-colors ${
+                            className={`w-3.5 h-3.5 shrink-0 transition-colors ${
                               isSelected ? 'text-indigo-500' : 'opacity-60'
                             }`}
                           />
                           <span className="truncate">{sec.label}</span>
                         </div>
                         {sec.badge && (
-                          <span className="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                          <span className="text-[8.5px] font-semibold px-1.5 py-0.2 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
                             {sec.badge}
                           </span>
                         )}
@@ -728,91 +729,103 @@ export const SettingsView: React.FC = () => {
               </div>
 
               {/* Theme Mode Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                 {/* System Auto Card */}
                 <button
                   type="button"
-                  onClick={() => updateSettings({ theme: 'system' })}
-                  className={`p-4 rounded-3xl border text-left transition-all relative overflow-hidden ${
+                  onClick={() => {
+                    playThemeSound('system');
+                    updateSettings({ theme: 'system' });
+                  }}
+                  className={`p-2.5 rounded-xl border text-left transition-all relative overflow-hidden ${
                     settings.theme === 'system'
-                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md'
+                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs'
                       : 'border-inherit hover:border-indigo-400/40 opacity-70 hover:opacity-100'
                   } ${isLight ? 'bg-white text-slate-900' : 'bg-neutral-900 text-white'}`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <Laptop className="w-5 h-5 text-indigo-400" />
-                    {settings.theme === 'system' && <Check className="w-4 h-4 text-emerald-400" />}
+                  <div className="flex items-center justify-between mb-2">
+                    <Laptop className="w-4 h-4 text-indigo-400" />
+                    {settings.theme === 'system' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                   </div>
-                  <h4 className="text-xs font-bold">System Default</h4>
-                  <p className="text-[10px] opacity-60 mt-0.5 leading-relaxed">
-                    Automatically match your operating system's day and night preferences.
+                  <h4 className="text-[11px] font-bold">System Default</h4>
+                  <p className="text-[9.5px] opacity-60 mt-0.5 leading-relaxed">
+                    Automatically match OS day/night preferences.
                   </p>
                 </button>
 
                 {/* Light Mode Card */}
                 <button
                   type="button"
-                  onClick={() => updateSettings({ theme: 'light' })}
-                  className={`p-4 rounded-3xl border text-left transition-all relative overflow-hidden ${
+                  onClick={() => {
+                    playThemeSound('light');
+                    updateSettings({ theme: 'light' });
+                  }}
+                  className={`p-2.5 rounded-xl border text-left transition-all relative overflow-hidden ${
                     settings.theme === 'light'
-                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md'
+                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs'
                       : 'border-inherit hover:border-indigo-400/40 opacity-70 hover:opacity-100'
                   } bg-[#F9FAFD] text-slate-900`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <Sun className="w-5 h-5 text-amber-500" />
-                    {settings.theme === 'light' && <Check className="w-4 h-4 text-emerald-500" />}
+                  <div className="flex items-center justify-between mb-2">
+                    <Sun className="w-4 h-4 text-amber-500" />
+                    {settings.theme === 'light' && <Check className="w-3.5 h-3.5 text-emerald-500" />}
                   </div>
-                  <h4 className="text-xs font-bold">Radiant Light</h4>
-                  <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
-                    Crisp off-white canvas with gentle indigo tones and maximum readability.
+                  <h4 className="text-[11px] font-bold">Radiant Light</h4>
+                  <p className="text-[9.5px] text-slate-500 mt-0.5 leading-relaxed">
+                    Crisp canvas with maximum readability.
                   </p>
                 </button>
 
                 {/* Dark Mode Card */}
                 <button
                   type="button"
-                  onClick={() => updateSettings({ theme: 'dark' })}
-                  className={`p-4 rounded-3xl border text-left transition-all relative overflow-hidden ${
+                  onClick={() => {
+                    playThemeSound('dark');
+                    updateSettings({ theme: 'dark' });
+                  }}
+                  className={`p-2.5 rounded-xl border text-left transition-all relative overflow-hidden ${
                     settings.theme === 'dark'
-                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md'
+                      ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs'
                       : 'border-inherit hover:border-indigo-400/40 opacity-70 hover:opacity-100'
                   } bg-[#0A0D15] text-white`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <Moon className="w-5 h-5 text-indigo-400" />
-                    {settings.theme === 'dark' && <Check className="w-4 h-4 text-emerald-400" />}
+                  <div className="flex items-center justify-between mb-2">
+                    <Moon className="w-4 h-4 text-indigo-400" />
+                    {settings.theme === 'dark' && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                   </div>
-                  <h4 className="text-xs font-bold">Cosmic Dark</h4>
-                  <p className="text-[10px] text-neutral-400 mt-0.5 leading-relaxed">
-                    Refined charcoal base with deep indigo and violet glass auras.
+                  <h4 className="text-[11px] font-bold">Cosmic Dark</h4>
+                  <p className="text-[9.5px] text-neutral-400 mt-0.5 leading-relaxed">
+                    Charcoal base with deep violet glass auras.
                   </p>
                 </button>
 
                 {/* Midnight High-Contrast Card */}
                 <button
                   type="button"
-                  onClick={() => updateSettings({ theme: 'midnight' })}
-                  className={`p-4 rounded-3xl border text-left transition-all relative overflow-hidden ${
+                  onClick={() => {
+                    playThemeSound('midnight');
+                    updateSettings({ theme: 'midnight' });
+                  }}
+                  className={`p-2.5 rounded-xl border text-left transition-all relative overflow-hidden ${
                     settings.theme === 'midnight'
-                      ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-md'
+                      ? 'border-cyan-400 ring-2 ring-cyan-400/30 shadow-xs'
                       : 'border-inherit hover:border-cyan-400/40 opacity-70 hover:opacity-100'
                   } bg-[#000000] text-white`}
                 >
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-4 h-4 rounded-full bg-cyan-400 flex items-center justify-center text-[9px] font-bold text-black">
+                      <div className="w-3.5 h-3.5 rounded-full bg-cyan-400 flex items-center justify-center text-[8px] font-bold text-black">
                         M
                       </div>
-                      <span className="text-[9px] font-medium uppercase px-1.5 py-0.2 rounded bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+                      <span className="text-[8px] font-medium uppercase px-1 py-0.2 rounded bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
                         OLED
                       </span>
                     </div>
-                    {settings.theme === 'midnight' && <Check className="w-4 h-4 text-cyan-400" />}
+                    {settings.theme === 'midnight' && <Check className="w-3.5 h-3.5 text-cyan-400" />}
                   </div>
-                  <h4 className="text-xs font-bold">Midnight</h4>
-                  <p className="text-[10px] text-neutral-300 mt-0.5 leading-relaxed">
-                    Pure high-contrast black with sharp electric accents and zero backlight glare.
+                  <h4 className="text-[11px] font-bold">Midnight</h4>
+                  <p className="text-[9.5px] text-neutral-300 mt-0.5 leading-relaxed">
+                    Pure black with sharp electric accents.
                   </p>
                 </button>
               </div>

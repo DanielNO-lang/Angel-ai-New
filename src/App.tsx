@@ -87,9 +87,26 @@ const WorkspaceContent: React.FC = () => {
         toggleFocusMode();
         return;
       }
-      // Open Command Palette: Cmd/Ctrl + K
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      // Open Global Command Palette & Search across all search/command keys:
+      // Overrides browser Find (Ctrl/Cmd+F), Print/Palette (Ctrl/Cmd+P), Palette (Ctrl/Cmd+K), F3, and / key
+      const isModifierActive = e.ctrlKey || e.metaKey;
+      const keyLower = e.key.toLowerCase();
+      const activeElement = document.activeElement;
+      const isTyping =
+        activeElement &&
+        (activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          (activeElement as HTMLElement).isContentEditable);
+
+      if (
+        (isModifierActive && (keyLower === 'k' || keyLower === 'f' || keyLower === 'p')) ||
+        (isModifierActive && e.shiftKey && (keyLower === 'k' || keyLower === 'f' || keyLower === 'p')) ||
+        (e.altKey && !isModifierActive && (keyLower === 'k' || keyLower === 'f')) ||
+        e.key === 'F3' ||
+        (!isModifierActive && !e.altKey && e.key === '/' && !isTyping)
+      ) {
         e.preventDefault();
+        e.stopPropagation();
         openCommandPalette('all');
         return;
       }
@@ -142,6 +159,45 @@ const WorkspaceContent: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [openCommandPalette, setActiveTab, toggleSidebar]);
+
+  // Mobile & Tablet swipe-to-right gesture to open sidebar drawer
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    let isTracking = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      // Only initiate swipe-to-open from the left portion of the screen (first 80px) or general left drag
+      if (touch.clientX < 80) {
+        startX = touch.clientX;
+        startY = touch.clientY;
+        isTracking = true;
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!isTracking || e.changedTouches.length !== 1) return;
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      isTracking = false;
+
+      // Swiped right with dominant horizontal velocity (> 45px deltaX and deltaX > 1.5 * abs(deltaY))
+      if (deltaX > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+        setMobileMenuOpen(true);
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [setMobileMenuOpen]);
 
   const renderActiveView = () => {
     // 1. Incognito Mode: dedicated isolated page comprising only the chats and chat bar
@@ -219,7 +275,7 @@ const WorkspaceContent: React.FC = () => {
 
   return (
     <div
-      className={`relative flex min-h-screen font-sans antialiased selection:bg-indigo-600/30 selection:text-white transition-all duration-300 ease-in-out ${
+      className={`relative flex min-h-screen font-sans antialiased selection:bg-indigo-600/30 selection:text-white transition-colors duration-500 ease-in-out ${
         settings.theme === 'light'
           ? 'light text-slate-900 bg-transparent'
           : settings.theme === 'midnight'
@@ -232,7 +288,7 @@ const WorkspaceContent: React.FC = () => {
           ? 'text-base'
           : settings.fontSize === 'xl'
           ? 'text-lg'
-          : 'text-sm'
+          : 'text-[13px]'
       }`}
     >
       {/* Independent globally-consistent backdrop layer (fixed, inset-0, z-index: 0, pointer-events: none) */}
@@ -258,7 +314,7 @@ const WorkspaceContent: React.FC = () => {
             <WorkspaceMinimizedView />
           ) : (
             <>
-              {activeTab === 'home' ? <Header /> : <MobileTopBar />}
+              {activeTab === 'home' && <Header />}
               <main
                 ref={mainScrollRef}
                 className={`flex-1 min-h-0 ${

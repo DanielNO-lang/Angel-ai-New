@@ -217,17 +217,17 @@ export const ChatView: React.FC = () => {
   return (
     <div
       className={`flex flex-col h-full w-full overflow-hidden transition-colors ${
-        isLight ? 'bg-slate-50 text-slate-800' : 'bg-[#0B0E14] text-neutral-100'
+        isLight ? 'bg-transparent text-slate-800' : 'bg-transparent text-neutral-100'
       }`}
     >
       {/* Main Conversational Workspace */}
       <div className="flex-1 flex flex-col h-full max-w-4xl mx-auto w-full min-w-0 overflow-hidden">
-        {/* Top Conversation Status Header: Fixed Non-Transparent with Chat Title */}
+        {/* Top Conversation Status Header: Fixed Glassy Header with Chat Title */}
         <div
-          className={`px-4 sm:px-6 py-3.5 border-b flex items-center justify-between text-xs sticky top-0 z-30 shadow-xs transition-colors shrink-0 ${
+          className={`px-4 sm:px-6 py-3.5 border-b flex items-center justify-between text-xs sticky top-0 z-30 shadow-xs backdrop-blur-xl transition-colors shrink-0 ${
             isLight
-              ? 'bg-white border-slate-200 text-slate-900'
-              : 'bg-[#0B0E14] border-white/10 text-neutral-100'
+              ? 'bg-white/80 border-slate-200/80 text-slate-900'
+              : 'bg-[#0B1020]/80 border-indigo-500/20 text-neutral-100 shadow-lg shadow-indigo-950/30'
           }`}
         >
           <div className="flex items-center gap-3 min-w-0">
@@ -535,21 +535,21 @@ export const ChatView: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Console (Image 1 Bottom Dock) - Always 100% visible immediately */}
+        {/* Input Console (Image 1 Bottom Dock) - Always anchored to bottom with safe-area support */}
         <div
-          className={`sticky bottom-0 z-30 p-3 md:p-4 border-t transition-colors shrink-0 shadow-lg ${
+          className={`sticky bottom-0 z-30 p-3 md:p-4 pb-safe border-t transition-colors shrink-0 shadow-lg backdrop-blur-xl ${
             isLight
-              ? 'border-slate-200 bg-white text-slate-900'
-              : 'border-white/10 bg-[#0B0E14] text-neutral-100'
+              ? 'border-slate-200/80 bg-white/80 text-slate-900'
+              : 'border-indigo-500/20 bg-[#0B1020]/85 text-neutral-100 shadow-indigo-950/40'
           }`}
         >
           {/* Pending Attachments Strip */}
           {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-2 mb-2 p-2 rounded-xl bg-slate-100/80 dark:bg-neutral-900">
+            <div className="flex flex-wrap gap-2 mb-2 p-2 rounded-xl bg-slate-100/80 dark:bg-[#151D33]/80">
               {attachments.map((att) => (
                 <div
                   key={att.id}
-                  className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white dark:bg-neutral-800 text-xs shadow-2xs"
+                  className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white dark:bg-[#1B2542] text-xs shadow-2xs"
                 >
                   <span className="truncate max-w-[140px]">{att.name}</span>
                   <button
@@ -568,7 +568,7 @@ export const ChatView: React.FC = () => {
             className={`relative flex items-center gap-2 rounded-2xl p-2 transition-all shadow-sm ${
               isLight
                 ? 'bg-slate-50 border border-slate-300/80 focus-within:border-indigo-600 focus-within:bg-white'
-                : 'bg-[#121622] border border-white/10 focus-within:border-indigo-500/60'
+                : 'bg-[#151D33]/90 border border-indigo-500/30 focus-within:border-indigo-400 backdrop-blur-md'
             }`}
           >
             {/* File Attachment Trigger & Omnimodal Add Section */}

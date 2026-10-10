@@ -370,27 +370,35 @@ export const TasksView: React.FC = () => {
             FIXED NON-TRANSPARENT SECTION HEADER
             ======================================================== */}
         <div
-          className={`sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs ${
+          className={`sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs backdrop-blur-xl ${
             isLight
-              ? 'bg-white border-slate-200 text-slate-900'
-              : 'bg-[#0B0E14] border-white/10 text-neutral-100'
+              ? 'bg-white/80 border-slate-200/80 text-slate-900'
+              : 'bg-[#0B1020]/80 border-indigo-500/20 text-neutral-100 shadow-lg shadow-indigo-950/30'
           }`}
         >
           <div className="flex items-center gap-3">
-            <span
-              className={`p-2 rounded-2xl border ${
-                isLight
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
-                  : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+            {/* Open sidebar trigger on mobile/tablet */}
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className={`md:hidden p-1.5 rounded-xl transition-colors cursor-pointer shrink-0 ${
+                isLight ? 'text-slate-600 hover:bg-slate-100' : 'text-neutral-400 hover:bg-white/10'
               }`}
+              aria-label="Open sidebar"
+              title="Open sidebar"
             >
-              <CheckSquare className="w-5 h-5" />
-            </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight">Schedule</h1>
-                <span className="text-[11px] font-medium opacity-60">({tasks.length} tasks)</span>
-              </div>
+              <Menu className="w-5 h-5 text-indigo-400" />
+            </button>
+            <div className="flex items-center gap-2.5">
+              <span
+                className={`p-1.5 rounded-xl border ${
+                  isLight
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                    : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'
+                }`}
+              >
+                <CheckSquare className="w-4 h-4" />
+              </span>
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight">Schedule</h1>
             </div>
           </div>
 

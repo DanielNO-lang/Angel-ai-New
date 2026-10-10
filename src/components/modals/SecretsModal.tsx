@@ -3,10 +3,12 @@
  * Backed by Web Crypto API (SubtleCrypto):
  * - Key Derivation: PBKDF2 (SHA-256, 200,000 iterations)
  * - Encryption: AES-GCM 256-bit
- * - Plaintext is never stored in localStorage or normal application state
+ * - Passcode: 4 alphanumeric characters (letters, numbers, or code)
+ * - Device Keyboard Support: Native mobile virtual keyboard pops up on phones,
+ *   physical and on-screen keyboards work seamlessly on laptops/desktops (no in-app virtual keyboard)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Lock,
   Unlock,
@@ -16,13 +18,14 @@ import {
   Trash2,
   X,
   Shield,
-  ShieldAlert,
   RotateCcw,
   Check,
   Eye,
   EyeOff,
   AlertCircle,
   Key,
+  Smartphone,
+  Keyboard,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { cryptoVault, EncryptedPayload } from '../../services/security/cryptoVaultService';
@@ -37,7 +40,6 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
   const {
     settings,
     isGuest,
-    conversations,
     createConversation,
     setActiveConversationId,
     setActiveTab,
@@ -49,11 +51,17 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
   const [enteredPasscode, setEnteredPasscode] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(cryptoVault.isUnlocked());
+  const [showMask, setShowMask] = useState(true);
   const [showChangePasscode, setShowChangePasscode] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [newPasscode, setNewPasscode] = useState('');
   const [confirmPasscode, setConfirmPasscode] = useState('');
   const [changeSuccess, setChangeSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
+
+  // Hidden/Native device keyboard input ref
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Encrypted chats state
   const [encryptedChats, setEncryptedChats] = useState<Array<{ id: string; title: string; updatedAt: string }>>([]);
@@ -71,6 +79,18 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
       loadEncryptedChats();
     }
   }, [isUnlocked]);
+
+  // Auto-focus native input whenever modal opens in locked state
+  useEffect(() => {
+    if (isOpen && !isUnlocked) {
+      setEnteredPasscode('');
+      setErrorMessage('');
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 80);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, isUnlocked]);
 
   const loadEncryptedChats = async () => {
     try {
@@ -102,29 +122,40 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
 
   if (!isOpen) return null;
 
-  const handleKeyClick = async (digit: string) => {
-    if (enteredPasscode.length < 6) {
-      const next = enteredPasscode + digit;
-      setEnteredPasscode(next);
+  const triggerUnlock = async (passcode: string) => {
+    if (passcode.length !== 4) return;
+    setIsLoading(true);
+    setErrorMessage('');
+    const success = await cryptoVault.unlockWithPasscode(passcode);
+    setIsLoading(false);
+
+    if (success) {
+      setIsUnlocked(true);
+      setEnteredPasscode('');
       setErrorMessage('');
-      if (next.length >= 4) {
-        setIsLoading(true);
-        const success = await cryptoVault.unlockWithPasscode(next);
-        setIsLoading(false);
-        if (success) {
-          setIsUnlocked(true);
-          setEnteredPasscode('');
-        } else if (next.length === 6) {
-          setErrorMessage('Invalid vault passcode. Please try again.');
-          setTimeout(() => setEnteredPasscode(''), 500);
-        }
-      }
+    } else {
+      setIsShaking(true);
+      setErrorMessage('Invalid 4-character passcode. Please try again.');
+      setTimeout(() => {
+        setIsShaking(false);
+        setEnteredPasscode('');
+        inputRef.current?.focus();
+      }, 700);
     }
   };
 
-  const handleBackspace = () => {
-    setEnteredPasscode((prev) => prev.slice(0, -1));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.slice(0, 4);
+    setEnteredPasscode(val);
     setErrorMessage('');
+
+    if (val.length === 4) {
+      triggerUnlock(val);
+    }
+  };
+
+  const handleContainerClick = () => {
+    inputRef.current?.focus();
   };
 
   const handleLockVault = () => {
@@ -132,6 +163,16 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
     setIsUnlocked(false);
     setEnteredPasscode('');
     setShowChangePasscode(false);
+    setShowResetConfirm(false);
+  };
+
+  const handleResetVault = () => {
+    cryptoVault.resetVault();
+    setIsUnlocked(false);
+    setEnteredPasscode('');
+    setShowResetConfirm(false);
+    setErrorMessage('Vault reset successfully. Enter any 4-character code to set a new passcode.');
+    inputRef.current?.focus();
   };
 
   const handleNewSecretChat = async () => {
@@ -173,8 +214,8 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
 
   const handleChangePasscodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPasscode.length < 4) {
-      setErrorMessage('Passcode must be at least 4 digits');
+    if (newPasscode.length !== 4) {
+      setErrorMessage('Passcode must be exactly 4 characters (letters, numbers, or code)');
       return;
     }
     if (newPasscode !== confirmPasscode) {
@@ -183,6 +224,7 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
     }
 
     setIsLoading(true);
+    // Use last entered passcode or current key to change
     const success = await cryptoVault.changePasscode(enteredPasscode || '1234', newPasscode);
     setIsLoading(false);
     if (success) {
@@ -204,11 +246,11 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
 
       <div
         className={`relative w-full max-w-md rounded-2xl shadow-2xl overflow-hidden z-10 transition-all ${
-          isLight ? 'bg-white text-slate-800 border border-slate-200' : 'bg-[#0E121B] text-neutral-100 border border-white/10'
+          isLight ? 'bg-white text-slate-800 border border-slate-200' : 'bg-[#0E1322] text-neutral-100 border border-indigo-500/20'
         }`}
       >
         {/* Header */}
-        <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? 'border-slate-100 bg-slate-50/70' : 'border-neutral-800/80 bg-neutral-900/40'}`}>
+        <div className={`flex items-center justify-between px-5 py-4 border-b ${isLight ? 'border-slate-100 bg-slate-50/70' : 'border-indigo-500/15 bg-[#12192D]/90'}`}>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
               <Shield className="w-5 h-5" />
@@ -216,7 +258,7 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
             <div>
               <h2 className="text-sm font-semibold tracking-tight">Cryptographic Secrets Vault</h2>
               <p className={`text-[10px] font-medium ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                {isUnlocked ? 'AES-GCM 256-bit Unlocked' : 'PBKDF2 Key Derivation Protected'}
+                {isUnlocked ? 'AES-GCM 256-bit Unlocked' : '4-Character Passcode Protected'}
               </p>
             </div>
           </div>
@@ -224,14 +266,14 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
             {isUnlocked && (
               <button
                 onClick={handleLockVault}
-                className="p-1.5 rounded-lg text-xs font-medium flex items-center gap-1 text-purple-400 hover:bg-purple-500/10"
+                className="p-1.5 rounded-lg text-xs font-medium flex items-center gap-1 text-purple-400 hover:bg-purple-500/10 cursor-pointer"
                 title="Lock Vault"
               >
                 <Lock className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Lock</span>
               </button>
             )}
-            <button onClick={onClose} className="p-1.5 rounded-lg text-neutral-400 hover:text-white">
+            <button onClick={onClose} className="p-1.5 rounded-lg text-neutral-400 hover:text-white cursor-pointer">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -260,73 +302,163 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
             </button>
           </div>
         ) : !isUnlocked ? (
-          /* Lock Screen */
+          /* Lock Screen — Native Keyboard Input with 4 Characters */
           <div className="p-6 space-y-6 text-center">
             <div className="space-y-2">
               <div className="w-14 h-14 mx-auto rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shadow-inner">
                 <KeyRound className="w-7 h-7" />
               </div>
-              <h3 className="text-base font-semibold">Enter Vault Passcode</h3>
+              <h3 className="text-base font-semibold">Enter 4-Character Passcode</h3>
               <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                Derives an in-memory AES-GCM 256 key via PBKDF2 (200,000 iterations).
+                Supports letters, numbers, or code. Type with your physical or device keyboard.
               </p>
             </div>
 
-            {/* PIN Dots */}
-            <div className="flex justify-center items-center gap-3">
-              {[0, 1, 2, 3, 4, 5].map((idx) => (
-                <div
-                  key={idx}
-                  className={`w-3.5 h-3.5 rounded-full transition-all duration-150 ${
-                    idx < enteredPasscode.length
-                      ? 'bg-purple-500 ring-4 ring-purple-500/20 scale-110'
-                      : isLight
-                      ? 'bg-slate-200'
-                      : 'bg-neutral-800'
-                  }`}
-                />
-              ))}
+            {/* Hidden/Native Device Keyboard Input Trigger */}
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="text"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              autoComplete="off"
+              maxLength={4}
+              value={enteredPasscode}
+              onChange={handleInputChange}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && enteredPasscode.length === 4) {
+                  triggerUnlock(enteredPasscode);
+                }
+              }}
+              className="sr-only"
+              aria-label="Enter 4-character secrets passcode"
+            />
+
+            {/* 4 Passcode Boxes — Clicking anywhere focuses native keyboard on phones/desktops */}
+            <div
+              onClick={handleContainerClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={handleContainerClick}
+              className={`flex justify-center items-center gap-3.5 cursor-pointer select-none py-2 ${
+                isShaking ? 'animate-bounce' : ''
+              }`}
+              title="Click to type with keyboard"
+            >
+              {[0, 1, 2, 3].map((idx) => {
+                const char = enteredPasscode[idx];
+                const isCurrent = idx === enteredPasscode.length;
+                return (
+                  <div
+                    key={idx}
+                    className={`w-13 h-14 sm:w-14 sm:h-16 rounded-2xl flex items-center justify-center text-xl font-bold font-mono transition-all duration-200 border ${
+                      char
+                        ? isLight
+                          ? 'bg-purple-50 border-purple-400 text-purple-900 shadow-sm'
+                          : 'bg-[#182038] border-purple-400/80 text-white shadow-lg shadow-purple-950/40'
+                        : isCurrent
+                        ? isLight
+                          ? 'bg-white border-purple-500 ring-4 ring-purple-500/15'
+                          : 'bg-[#12182B] border-purple-400 ring-4 ring-purple-500/25'
+                        : isLight
+                        ? 'bg-slate-50 border-slate-200 text-slate-400'
+                        : 'bg-[#0E1322] border-white/10 text-neutral-600'
+                    }`}
+                  >
+                    {char ? (
+                      showMask ? (
+                        <span className="w-3.5 h-3.5 rounded-full bg-purple-400 inline-block" />
+                      ) : (
+                        <span>{char}</span>
+                      )
+                    ) : isCurrent ? (
+                      <span className="w-1.5 h-6 rounded-full bg-purple-400/70 animate-pulse inline-block" />
+                    ) : (
+                      <span className="text-xs opacity-30">•</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            {errorMessage && <p className="text-xs text-red-500 font-medium">{errorMessage}</p>}
+            {/* Mask toggle & Keyboard indicator */}
+            <div className="flex items-center justify-between px-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setShowMask(!showMask)}
+                className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  isLight ? 'text-slate-500 hover:text-slate-800' : 'text-neutral-400 hover:text-neutral-200'
+                }`}
+              >
+                {showMask ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                <span>{showMask ? 'Show Characters' : 'Hide Characters'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleContainerClick}
+                className={`flex items-center gap-1 text-[11px] font-medium transition-colors cursor-pointer ${
+                  isLight ? 'text-indigo-600' : 'text-indigo-400'
+                }`}
+              >
+                <Keyboard className="w-3.5 h-3.5" />
+                <span>Tap to type</span>
+              </button>
+            </div>
+
+            {errorMessage && <p className="text-xs text-rose-400 font-medium">{errorMessage}</p>}
             {isLoading && <p className="text-xs text-purple-400 font-medium">Deriving cryptographic key...</p>}
 
-            {/* Keypad */}
-            <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto pt-2">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+            {/* Unlock Button */}
+            <button
+              onClick={() => triggerUnlock(enteredPasscode)}
+              disabled={enteredPasscode.length !== 4 || isLoading}
+              className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all shadow-md cursor-pointer ${
+                enteredPasscode.length === 4 && !isLoading
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-950/40'
+                  : 'bg-neutral-800/50 text-neutral-500 cursor-not-allowed border border-white/5'
+              }`}
+            >
+              {isLoading ? 'Decrypting Vault...' : 'Unlock Vault'}
+            </button>
+
+            {/* Reset Vault Option */}
+            <div className="pt-2 border-t border-white/10 flex justify-center">
+              {!showResetConfirm ? (
                 <button
-                  key={digit}
-                  onClick={() => handleKeyClick(digit)}
-                  className={`py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                    isLight
-                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                      : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-200 border border-white/5 active:scale-95'
+                  type="button"
+                  onClick={() => setShowResetConfirm(true)}
+                  className={`text-[11px] flex items-center gap-1 hover:underline cursor-pointer ${
+                    isLight ? 'text-slate-500 hover:text-slate-800' : 'text-neutral-500 hover:text-neutral-300'
                   }`}
                 >
-                  {digit}
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Forgot or Reset Passcode?</span>
                 </button>
-              ))}
-              <div />
-              <button
-                onClick={() => handleKeyClick('0')}
-                className={`py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                  isLight
-                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-                    : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-200 border border-white/5 active:scale-95'
-                }`}
-              >
-                0
-              </button>
-              <button
-                onClick={handleBackspace}
-                className={`py-3 rounded-xl text-xs font-medium flex items-center justify-center transition-all cursor-pointer ${
-                  isLight
-                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-600'
-                    : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-400 border border-white/5'
-                }`}
-              >
-                Del
-              </button>
+              ) : (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-center space-y-2 w-full">
+                  <p className="text-rose-300 font-medium">
+                    Resetting will clear the current passcode lock. Proceed?
+                  </p>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleResetVault}
+                      className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold cursor-pointer"
+                    >
+                      Confirm Reset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowResetConfirm(false)}
+                      className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-neutral-300 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -372,7 +504,7 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
                       </span>
                       <button
                         onClick={(e) => handleDeleteSecretChat(chat.id, e)}
-                        className="p-1 rounded text-neutral-500 hover:text-red-400"
+                        className="p-1 rounded text-neutral-500 hover:text-red-400 cursor-pointer"
                         title="Securely delete chat"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -383,41 +515,48 @@ export const SecretsModal: React.FC<SecretsModalProps> = ({ isOpen, onClose }) =
               </div>
             )}
 
-            {/* Change Passcode toggle */}
+            {/* Change Passcode Section (4 characters: letters & numbers) */}
             <div className="pt-3 border-t border-white/10">
               {!showChangePasscode ? (
                 <button
                   onClick={() => setShowChangePasscode(true)}
-                  className="text-xs text-neutral-400 hover:text-neutral-200 flex items-center gap-1.5"
+                  className="text-xs text-neutral-400 hover:text-neutral-200 flex items-center gap-1.5 cursor-pointer"
                 >
                   <Key className="w-3.5 h-3.5 text-purple-400" />
-                  <span>Change Vault Passcode</span>
+                  <span>Change 4-Character Passcode</span>
                 </button>
               ) : (
-                <form onSubmit={handleChangePasscodeSubmit} className="space-y-2 text-xs">
+                <form onSubmit={handleChangePasscodeSubmit} className="space-y-2.5 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-neutral-300">Set New Passcode</span>
-                    <button type="button" onClick={() => setShowChangePasscode(false)} className="text-neutral-500 hover:text-neutral-300">
+                    <span className="font-semibold text-neutral-300">Set New 4-Character Passcode</span>
+                    <button type="button" onClick={() => setShowChangePasscode(false)} className="text-neutral-500 hover:text-neutral-300 cursor-pointer">
                       Cancel
                     </button>
                   </div>
+                  <p className="text-[11px] text-neutral-400">
+                    Use any 4 characters — letters, numbers, or a code.
+                  </p>
                   <input
-                    type="password"
-                    placeholder="New Passcode (min 4 digits)"
+                    type="text"
+                    maxLength={4}
+                    placeholder="New 4-character passcode"
                     value={newPasscode}
-                    onChange={(e) => setNewPasscode(e.target.value)}
-                    className="w-full p-2 rounded-xl bg-neutral-950 border border-white/10 text-xs text-neutral-200"
+                    onChange={(e) => setNewPasscode(e.target.value.slice(0, 4))}
+                    className="w-full p-2.5 rounded-xl bg-neutral-950 border border-white/10 text-xs text-neutral-200 font-mono tracking-widest uppercase"
                   />
                   <input
-                    type="password"
-                    placeholder="Confirm Passcode"
+                    type="text"
+                    maxLength={4}
+                    placeholder="Confirm 4-character passcode"
                     value={confirmPasscode}
-                    onChange={(e) => setConfirmPasscode(e.target.value)}
-                    className="w-full p-2 rounded-xl bg-neutral-950 border border-white/10 text-xs text-neutral-200"
+                    onChange={(e) => setConfirmPasscode(e.target.value.slice(0, 4))}
+                    className="w-full p-2.5 rounded-xl bg-neutral-950 border border-white/10 text-xs text-neutral-200 font-mono tracking-widest uppercase"
                   />
+                  {errorMessage && <p className="text-xs text-rose-400 font-medium">{errorMessage}</p>}
                   <button
                     type="submit"
-                    className="w-full py-2 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-500 cursor-pointer"
+                    disabled={isLoading || newPasscode.length !== 4}
+                    className="w-full py-2.5 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-500 transition-colors cursor-pointer disabled:opacity-50"
                   >
                     {changeSuccess ? 'Passcode Changed!' : 'Update Passcode & Re-Key'}
                   </button>

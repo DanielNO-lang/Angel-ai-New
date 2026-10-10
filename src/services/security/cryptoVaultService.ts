@@ -131,6 +131,18 @@ class CryptoVaultService {
     return this.activeKey !== null;
   }
 
+  hasStoredVault(): boolean {
+    return Boolean(
+      localStorage.getItem('angel_vault_salt') && localStorage.getItem('angel_vault_verify')
+    );
+  }
+
+  resetVault(): void {
+    localStorage.removeItem('angel_vault_salt');
+    localStorage.removeItem('angel_vault_verify');
+    this.lock();
+  }
+
   lock(): void {
     this.activeKey = null;
     if (this.autoLockTimer) {

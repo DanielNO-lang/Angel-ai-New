@@ -60,6 +60,7 @@ import { UserProfileMenu } from './UserProfileMenu';
 import { ChatOptionsMenu } from '../chat/ChatOptionsMenu';
 import { SecretsModal } from '../modals/SecretsModal';
 import { RandomQuoteCard } from '../ui/RandomQuoteCard';
+import angelBackdropImg from '../../assets/images/Luminous Angelic A Emblem in Flowing Wings.png';
 
 export const Sidebar: React.FC = () => {
   const {
@@ -81,6 +82,7 @@ export const Sidebar: React.FC = () => {
     setAuthPageMode,
     isFocusMode,
     isAgentProcessing,
+    isIncognitoActive,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
@@ -95,21 +97,15 @@ export const Sidebar: React.FC = () => {
 
   const handleCollapseSidebar = (e: React.MouseEvent) => {
     e.stopPropagation();
-    ignoreHoverRef.current = true;
     setIsHoverExpanded(false);
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     if (!isSidebarCollapsed) {
       toggleSidebar();
     }
-    setTimeout(() => {
-      ignoreHoverRef.current = false;
-    }, 350);
   };
 
   const handleExpandSidebarPermanently = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsHoverExpanded(false);
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     if (isSidebarCollapsed) {
       toggleSidebar();
     }
@@ -137,14 +133,18 @@ export const Sidebar: React.FC = () => {
     setIsAuthPageOpen(true);
   };
 
-  // Rescheduled sidebar arrangement (strictly per user's prompt):
-  // 1. Home (fixed at top)
-  // 2. Agent Lab
-  // 3. Projects
-  // 4. Library
-  // 5. Schedule
-  // 6. Media Studios
-  // 7. More
+  // Incognito Navigation: Only Chat, Media Studios, Knowledge/Search, and Recent Chats
+  const incognitoTools: Array<{
+    id: string;
+    label: string;
+    icon: React.FC<{ className?: string }>;
+    tabTarget?: NavigationTab;
+    onClickCustom?: () => void;
+  }> = [
+    { id: 'chat', label: 'Chat', icon: MessageSquare, tabTarget: 'chat' },
+    { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
+  ];
+
   const signedInTools: Array<{
     id: string;
     label: string;
@@ -161,11 +161,6 @@ export const Sidebar: React.FC = () => {
     { id: 'more', label: 'More', icon: MoreHorizontal, tabTarget: 'more' },
   ];
 
-  // Guest sidebar arrangement:
-  // - Hide 'Agent Lab' for guests
-  // - Ensure 'Media Studios' and 'Library' are available, forced to the top after 'Home'
-  // - Projects & Schedule follow, redirecting to sign-in
-  // - More is discarded
   const guestTools: Array<{
     id: string;
     label: string;
@@ -180,7 +175,11 @@ export const Sidebar: React.FC = () => {
     { id: 'tasks', label: 'Schedule', icon: Calendar, onClickCustom: redirectToSignIn },
   ];
 
-  const scrollableTools = isSignedIn ? signedInTools : guestTools;
+  const scrollableTools = isIncognitoActive
+    ? incognitoTools
+    : isSignedIn
+    ? signedInTools
+    : guestTools;
 
   const handleNavClick = (tab: NavigationTab) => {
     setActiveTab(tab);
@@ -225,14 +224,11 @@ export const Sidebar: React.FC = () => {
   };
 
   const handleMouseEnterRail = () => {
-    if (ignoreHoverRef.current) return;
     if (!isSidebarCollapsed) return;
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     setIsHoverExpanded(true);
   };
 
   const handleMouseLeaveRail = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     setIsHoverExpanded(false);
   };
 
@@ -243,64 +239,79 @@ export const Sidebar: React.FC = () => {
   return (
     <>
       {/* ========================================================
-          DESKTOP PERSISTENT SIDEBAR
+          DESKTOP PERSISTENT SIDEBAR — Anchored at exact edge (left: 0)
           ======================================================== */}
-      {/* Placeholder in document flow so page width does not jump when hovered while collapsed */}
-      {isSidebarCollapsed && (
-        <div className="hidden md:block w-16 shrink-0 h-screen pointer-events-none" />
-      )}
-
-      {/* Persistent Desktop Sidebar with Instant Hover-Expansion */}
-      <motion.aside
+      <aside
         onMouseEnter={handleMouseEnterRail}
         onMouseLeave={handleMouseLeaveRail}
-        initial={false}
-        animate={{ width: effectiveExpanded ? 256 : 64 }}
-        transition={{
-          type: 'tween',
-          duration: 0.09,
-          ease: 'easeOut',
+        onPointerEnter={handleMouseEnterRail}
+        onPointerLeave={handleMouseLeaveRail}
+        style={{
+          width: effectiveExpanded ? 240 : 60,
+          transition: 'width 0ms linear',
+          willChange: 'width',
         }}
-        style={{ willChange: 'width', transform: 'translateZ(0)' }}
-        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden ${
-          isSidebarCollapsed ? 'fixed left-0 top-0 z-50 shadow-2xl' : 'relative z-30'
-        } border-r ${
+        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-2xl ${
           isLight
-            ? 'bg-white border-slate-200/90 text-slate-800 shadow-slate-300/40'
-            : 'bg-[#0B0E14] border-white/5 text-neutral-200 shadow-black/80'
+            ? 'border-slate-200/60 bg-white/40 text-slate-800'
+            : 'border-white/10 bg-white/[0.03] text-neutral-200 shadow-2xl'
         }`}
       >
+        {/* Angel Backdrop Integration — Carries the left portion of the Angel artwork seamlessly */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 select-none">
+          <img
+            src={angelBackdropImg}
+            alt=""
+            aria-hidden="true"
+            className={`w-[100vw] h-full max-w-none object-cover object-left select-none transition-opacity duration-500 ${
+              isLight
+                ? 'opacity-20 mix-blend-multiply filter contrast-125 saturate-110'
+                : 'opacity-70 mix-blend-screen filter brightness-105 contrast-125'
+            }`}
+          />
+          <div
+            className={`absolute inset-0 backdrop-blur-2xl ${
+              isLight ? 'bg-[#F4F6FC]/60' : 'bg-[#060813]/60'
+            }`}
+          />
+          <div
+            className="absolute -top-[10%] -left-[20%] w-[120%] h-[50%] rounded-full pointer-events-none blur-[60px]"
+            style={{
+              background: isLight
+                ? 'radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, transparent 70%)'
+                : 'radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 70%)',
+            }}
+          />
+        </div>
+
         {/* ========================================================
             1. FIXED (UNSCROLLABLE) TOP REGION
-            From Angel Logo down through Home tool
             ======================================================== */}
         <div
-          className={`shrink-0 p-3 pb-2 space-y-2 border-b ${
-            isLight ? 'border-slate-100 bg-white' : 'border-white/5 bg-[#0B0E14]'
+          className={`shrink-0 p-2 pb-1.5 space-y-1.5 border-b backdrop-blur-md ${
+            isLight ? 'border-slate-200/50 bg-white/30' : 'border-white/10 bg-white/[0.02]'
           }`}
         >
           {/* Logo & Collapse / Pin Toggle */}
-          <div className="flex items-center justify-between h-9 px-1">
+          <div className="flex items-center justify-between h-8 px-1">
             {!effectiveExpanded ? (
-              /* Collapsed: Angel Logo is ALWAYS shown at this position, never replaced by expand icon */
               <div
                 onClick={handleExpandSidebarPermanently}
-                className={`w-10 h-10 -ml-1 rounded-xl flex items-center justify-center cursor-pointer transition-colors group relative ${
-                  isLight ? 'hover:bg-slate-100' : 'hover:bg-neutral-900'
+                className={`w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors group relative ${
+                  isLight ? 'hover:bg-slate-100' : 'hover:bg-white/10'
                 }`}
                 title="Expand sidebar"
                 aria-label="Expand sidebar"
               >
-                <AngelLogo size={26} glow={true} />
+                <AngelLogo size={24} glow={true} />
               </div>
             ) : (
-              /* Expanded: Angel Logo + Text + Collapse / Expand Button */
               <>
                 <div
-                  onClick={() => handleNavClick('home')}
-                  className="flex items-center gap-2.5 cursor-pointer group min-w-0"
+                  onClick={() => !isIncognitoActive && handleNavClick('home')}
+                  className="flex items-center gap-2 cursor-pointer group min-w-0"
                 >
-                  <AngelLogo size={28} glow={true} />
+                  <AngelLogo size={26} glow={true} />
                   <span
                     className={`font-calligraphy text-2xl tracking-wide select-none transition-colors ${
                       isLight
@@ -308,26 +319,39 @@ export const Sidebar: React.FC = () => {
                         : 'text-white group-hover:text-indigo-300'
                     }`}
                   >
-                    Angel
+                    {isIncognitoActive ? 'Angel Private' : 'Angel'}
                   </span>
                 </div>
 
-                {/* Top Actions: Collapse toggle button */}
                 <div className="flex items-center gap-1 shrink-0">
+                  {/* When sidebar is expanded, Search displays as a microscope/search icon immediately before the collapse sidebar icon */}
+                  <button
+                    onClick={() => openCommandPalette('all')}
+                    aria-label="Search Workspace (Ctrl + K)"
+                    className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                      isLight
+                        ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                        : 'text-neutral-300 hover:text-white hover:bg-white/10'
+                    }`}
+                    title="Search (Ctrl + K)"
+                  >
+                    <Search className="w-3.5 h-3.5 text-indigo-400" />
+                  </button>
+
                   <button
                     onClick={isSidebarCollapsed ? handleExpandSidebarPermanently : handleCollapseSidebar}
                     aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                    className={`p-1.5 rounded-lg transition-colors ${
+                    className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                       isLight
                         ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
-                        : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                        : 'text-neutral-400 hover:text-white hover:bg-white/10'
                     }`}
                     title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                   >
                     {isSidebarCollapsed ? (
-                      <PanelLeftOpen className="w-4 h-4 text-indigo-500" />
+                      <PanelLeftOpen className="w-3.5 h-3.5 text-indigo-400" />
                     ) : (
-                      <PanelLeftClose className="w-4 h-4" />
+                      <PanelLeftClose className="w-3.5 h-3.5 text-neutral-400" />
                     )}
                   </button>
                 </div>
@@ -340,95 +364,79 @@ export const Sidebar: React.FC = () => {
             onClick={handleNewChat}
             title={!effectiveExpanded ? 'New Conversation' : undefined}
             aria-label="New Conversation"
-            className={`flex items-center rounded-xl text-xs font-semibold tracking-tight transition-all duration-150 transform-gpu hover:-translate-y-0.5 shadow-xs cursor-pointer ${
+            className={`flex items-center rounded-xl text-[11px] font-semibold tracking-tight transition-all duration-150 transform-gpu hover:-translate-y-0.5 shadow-sm cursor-pointer ${
               !effectiveExpanded
-                ? 'w-10 h-10 mx-auto justify-center p-0'
-                : 'w-full px-3 py-2'
+                ? 'w-8 h-8 mx-auto justify-center p-0'
+                : 'w-full px-2.5 py-1.5'
             } ${
               isLight
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/80 hover:border-slate-300'
-                : 'bg-[#141824] hover:bg-[#1C2132] text-white border border-white/5 hover:border-white/10'
+                ? 'bg-white/70 hover:bg-white text-slate-800 border border-slate-200/80 shadow-xs'
+                : 'bg-white/[0.06] hover:bg-white/[0.12] text-white border border-white/15 shadow-sm backdrop-blur-md'
             }`}
           >
-            <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-3'}`}>
-              <div className="w-5 h-5 shrink-0 flex items-center justify-center">
-                <SquarePen className="w-4 h-4 text-indigo-500 shrink-0" />
+            <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-2.5'}`}>
+              <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                <SquarePen className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               </div>
               {effectiveExpanded && <span className="truncate">New Conversation</span>}
             </div>
           </button>
 
-          {/* Search Trigger: Search bar when hovering / expanded, standalone icon when collapsed */}
-          {!effectiveExpanded ? (
+          {/* Search Workspace Option — When collapsed, stays in-between New Conversation and Home. When expanded, moves to header before collapse icon */}
+          {!effectiveExpanded && (
             <button
               onClick={() => openCommandPalette('all')}
-              title="Search workspace (Win + K)"
-              aria-label="Search workspace (Win + K)"
-              className={`w-10 h-10 mx-auto flex items-center justify-center rounded-xl text-xs font-medium transition-colors ${
+              title={isIncognitoActive ? 'Knowledge / Search (Ctrl + K)' : 'Search (Ctrl + K)'}
+              aria-label="Search Workspace (Ctrl + K)"
+              className={`flex items-center rounded-xl text-[11px] font-medium transition-all duration-150 cursor-pointer w-8 h-8 mx-auto justify-center p-0 ${
                 isLight
-                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
+                  ? 'text-slate-700 hover:text-slate-900 bg-white/40 hover:bg-white/70 border border-slate-200/60'
+                  : 'text-neutral-200 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-indigo-400/30 backdrop-blur-md'
               }`}
             >
-              <div className="w-5 h-5 shrink-0 flex items-center justify-center">
-                <Search className="w-4 h-4 text-neutral-400 hover:text-indigo-400 transition-colors" />
+              <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                <Search className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               </div>
             </button>
-          ) : (
-            <div
-              onClick={() => openCommandPalette('all')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border text-xs cursor-pointer transition-colors shadow-2xs ${
-                isLight
-                  ? 'bg-slate-50 hover:bg-slate-100/90 border-slate-200 text-slate-500'
-                  : 'bg-[#121622] hover:bg-[#161B2A] border-white/5 text-neutral-400'
-              }`}
-              title="Search workspace (Win + K)"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-5 h-5 shrink-0 flex items-center justify-center">
-                  <Search className="w-4 h-4 text-indigo-400 shrink-0" />
-                </div>
-                <span className="truncate text-xs">Search...</span>
-              </div>
-              <WindowsShortcutBadge shortcut="K" />
-            </div>
           )}
 
-          {/* Home Tool — Fixed & Unscrollable */}
-          <div className="pt-0.5">
-            <button
-              onClick={() => handleNavClick('home')}
-              title={!effectiveExpanded ? 'Home' : undefined}
-              className={`flex items-center rounded-xl text-xs font-medium transition-colors ${
-                !effectiveExpanded
-                  ? 'w-10 h-10 mx-auto justify-center p-0'
-                  : 'w-full px-3 py-2'
-              } ${
-                activeTab === 'home'
-                  ? isLight
-                    ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs'
-                    : 'bg-[#151926] text-white font-semibold border border-white/5 shadow-xs'
-                  : isLight
-                  ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50'
-              }`}
-            >
-              <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-3'}`}>
-                <div className="w-5 h-5 shrink-0 flex items-center justify-center">
-                  <Home
-                    className={`w-4 h-4 shrink-0 ${
-                      activeTab === 'home'
-                        ? 'text-indigo-500'
-                        : isLight
-                        ? 'text-slate-400'
-                        : 'text-neutral-400'
-                    }`}
-                  />
+          {/* Home Tool — Hidden in Incognito Mode */}
+          {!isIncognitoActive && (
+            <div className="pt-0.5">
+              <button
+                onClick={() => handleNavClick('home')}
+                title={!effectiveExpanded ? 'Home' : undefined}
+                className={`flex items-center rounded-xl text-[11px] font-medium transition-all duration-150 cursor-pointer ${
+                  !effectiveExpanded
+                    ? 'w-8 h-8 mx-auto justify-center p-0'
+                    : 'w-full px-2.5 py-1.5'
+                } ${
+                  activeTab === 'home'
+                    ? isLight
+                      ? 'bg-indigo-50/80 text-indigo-700 font-semibold shadow-2xs border border-indigo-200/80'
+                      : 'bg-indigo-500/20 text-white font-semibold border border-indigo-400/30 backdrop-blur-md shadow-sm'
+                    : isLight
+                    ? 'text-slate-700 hover:text-slate-900 bg-white/40 hover:bg-white/70 border border-slate-200/60'
+                    : 'text-neutral-200 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-indigo-400/30 backdrop-blur-md'
+                }`}
+              >
+                <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-2.5'}`}>
+                  <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                    <Home
+                      className={`w-3.5 h-3.5 shrink-0 ${
+                        activeTab === 'home'
+                          ? 'text-indigo-400'
+                          : isLight
+                          ? 'text-slate-400'
+                          : 'text-indigo-300/80'
+                      }`}
+                    />
+                  </div>
+                  {effectiveExpanded && <span className="truncate">Home</span>}
                 </div>
-                {effectiveExpanded && <span className="truncate">Home</span>}
-              </div>
-            </button>
-          </div>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ========================================================
@@ -436,9 +444,9 @@ export const Sidebar: React.FC = () => {
             With overscroll-contain preventing scroll chaining to right pane!
             Contains tools, chats, and More dropdown
             ======================================================== */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-2 space-y-3 custom-scrollbar overscroll-contain">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-1.5 space-y-2 custom-scrollbar overscroll-contain">
           {/* Main Navigation Tools */}
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             {scrollableTools.map((tool) => {
               const isActive = tool.tabTarget ? activeTab === tool.tabTarget : false;
               const Icon = tool.icon;
@@ -454,29 +462,29 @@ export const Sidebar: React.FC = () => {
                     }
                   }}
                   title={!effectiveExpanded ? tool.label : undefined}
-                  className={`flex items-center rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                  className={`flex items-center rounded-xl text-[11px] font-medium transition-all duration-150 cursor-pointer ${
                     !effectiveExpanded
-                      ? 'w-10 h-10 mx-auto justify-center p-0'
-                      : 'w-full justify-between px-3 py-2'
+                      ? 'w-8 h-8 mx-auto justify-center p-0'
+                      : 'w-full justify-between px-2.5 py-1.5'
                   } ${
                     isActive
                       ? isLight
-                        ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs'
-                        : 'bg-[#151926] text-white font-semibold border border-white/5 shadow-xs'
+                        ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-2xs border border-indigo-200'
+                        : 'bg-[#1E2744] text-white font-semibold border border-indigo-400/30 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                       : isLight
-                      ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50'
+                      ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent'
+                      : 'text-slate-300 hover:text-white bg-[#141B2E]/50 hover:bg-[#1C2540] border border-white/5 hover:border-indigo-500/20 backdrop-blur-md'
                   }`}
                 >
-                  <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-3'}`}>
-                    <div className="w-5 h-5 shrink-0 flex items-center justify-center relative">
+                  <div className={`flex items-center min-w-0 ${!effectiveExpanded ? 'justify-center' : 'gap-2.5'}`}>
+                    <div className="w-4 h-4 shrink-0 flex items-center justify-center relative">
                       <Icon
-                        className={`w-4 h-4 shrink-0 ${
+                        className={`w-3.5 h-3.5 shrink-0 ${
                           isActive
-                            ? 'text-indigo-500'
+                            ? 'text-indigo-400'
                             : isLight
                             ? 'text-slate-400'
-                            : 'text-neutral-400'
+                            : 'text-indigo-300/80'
                         }`}
                       />
                       {/* Heartbeat pulse indicator for active agent background processing */}
@@ -490,13 +498,13 @@ export const Sidebar: React.FC = () => {
                     {effectiveExpanded && <span className="truncate">{tool.label}</span>}
                   </div>
                   {effectiveExpanded && tool.id === 'agent_lab' && isAgentProcessing && (
-                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
+                      <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
                       Active
                     </span>
                   )}
                   {effectiveExpanded && (!isAgentProcessing || tool.id !== 'agent_lab') && tool.badge && (
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-indigo-500/10 text-indigo-400">
+                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-medium bg-indigo-500/10 text-indigo-400">
                       {tool.badge}
                     </span>
                   )}
@@ -506,32 +514,32 @@ export const Sidebar: React.FC = () => {
 
             {/* When collapsed without hovering, display 1 single Chat icon consolidating Recent, Pinned, and Archive */}
             {!effectiveExpanded && (
-              <div className="pt-1.5 mt-1 border-t border-inherit/40 flex justify-center">
+              <div className="pt-1 mt-1 border-t border-indigo-500/20 flex justify-center">
                 <button
                   onClick={() => handleNavClick('chat')}
                   title="Chats"
                   aria-label="Chats"
-                  className={`w-10 h-10 mx-auto flex items-center justify-center rounded-xl text-xs font-medium transition-colors cursor-pointer relative group ${
+                  className={`w-8 h-8 mx-auto flex items-center justify-center rounded-xl text-xs font-medium transition-all duration-150 cursor-pointer relative group ${
                     activeTab === 'chat'
                       ? isLight
-                        ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-xs'
-                        : 'bg-[#151926] text-white font-semibold border border-white/5 shadow-xs'
+                        ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-2xs border border-indigo-200'
+                        : 'bg-[#1E2744] text-white font-semibold border border-indigo-400/30 shadow-md shadow-indigo-950/40 backdrop-blur-md'
                       : isLight
                       ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                      : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50'
+                      : 'text-slate-300 hover:text-white bg-[#141B2E]/50 hover:bg-[#1C2540] border border-white/5 hover:border-indigo-500/20 backdrop-blur-md'
                   }`}
                 >
                   <MessageSquare
-                    className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${
+                    className={`w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-110 ${
                       activeTab === 'chat'
-                        ? 'text-indigo-500'
+                        ? 'text-indigo-400'
                         : isLight
                         ? 'text-slate-400 group-hover:text-indigo-600'
-                        : 'text-neutral-400 group-hover:text-indigo-400'
+                        : 'text-indigo-300/80 group-hover:text-indigo-300'
                     }`}
                   />
                   {conversations.length > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-white dark:ring-[#0B0E14]" />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-white dark:ring-[#0E1322]" />
                   )}
                 </button>
               </div>
@@ -546,8 +554,8 @@ export const Sidebar: React.FC = () => {
                 <div className="space-y-1">
                   <button
                     onClick={() => setIsPinnedExpanded(!isPinnedExpanded)}
-                    className={`w-full flex items-center justify-between px-2 text-[11px] font-semibold uppercase tracking-wider ${
-                      isLight ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-400 hover:text-neutral-200'
+                    className={`w-full flex items-center justify-between px-2 text-[10px] font-semibold uppercase tracking-wider ${
+                      isLight ? 'text-slate-400 hover:text-slate-700' : 'text-indigo-300/70 hover:text-indigo-200'
                     }`}
                   >
                     <span>Pinned</span>
@@ -569,10 +577,10 @@ export const Sidebar: React.FC = () => {
                               isSelected
                                 ? isLight
                                   ? 'bg-indigo-50 text-indigo-800 font-medium'
-                                  : 'bg-[#151926] text-white font-medium'
+                                  : 'bg-[#1E2744] text-white font-medium border border-indigo-400/30'
                                 : isLight
                                 ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-                                : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/40'
+                                : 'text-slate-300 hover:text-white hover:bg-[#161D32]'
                             }`}
                           >
                             <div className="flex items-center gap-2 truncate pr-2">
@@ -587,7 +595,7 @@ export const Sidebar: React.FC = () => {
                                 setChatOptionsAnchor({ top: rect.top, left: rect.right + 8 });
                                 setChatOptionsId(conv.id);
                               }}
-                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-neutral-800/40 transition-opacity"
+                              className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-white/10 transition-opacity"
                             >
                               <MoreHorizontal className="w-3 h-3 text-neutral-400" />
                             </button>
@@ -601,20 +609,20 @@ export const Sidebar: React.FC = () => {
 
               {/* 1. Archived Chats (Comes BEFORE Recent section per user request) */}
               {archivedConversations.length > 0 && (
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <button
                     onClick={() => setIsArchivedExpanded(!isArchivedExpanded)}
-                    className={`w-full flex items-center justify-between px-2 text-[11px] font-semibold uppercase tracking-wider ${
-                      isLight ? 'text-slate-400 hover:text-slate-700' : 'text-neutral-400 hover:text-neutral-200'
+                    className={`w-full flex items-center justify-between px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
+                      isLight ? 'text-slate-400 hover:text-slate-700' : 'text-indigo-300/70 hover:text-indigo-200'
                     }`}
                   >
                     <span>Archived</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-medium opacity-60">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-medium opacity-60">
                         {archivedConversations.length}
                       </span>
                       <ChevronDown
-                        className={`w-3 h-3 transition-transform ${isArchivedExpanded ? '' : '-rotate-90'}`}
+                        className={`w-2.5 h-2.5 transition-transform ${isArchivedExpanded ? '' : '-rotate-90'}`}
                       />
                     </div>
                   </button>
@@ -625,14 +633,14 @@ export const Sidebar: React.FC = () => {
                         <div
                           key={conv.id}
                           onClick={() => handleSelectChat(conv.id)}
-                          className={`group flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                          className={`group flex items-center justify-between px-2 py-1 rounded-md text-[11px] cursor-pointer transition-colors ${
                             isLight
                               ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                              : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/40'
+                              : 'text-slate-300 hover:text-white hover:bg-[#161D32]'
                           }`}
                         >
-                          <div className="flex items-center gap-2 truncate pr-2">
-                            <MessageSquare className="w-3.5 h-3.5 shrink-0 text-neutral-400 group-hover:text-indigo-400" />
+                          <div className="flex items-center gap-1.5 truncate pr-1">
+                            <MessageSquare className="w-3 h-3 shrink-0 text-indigo-400/70 group-hover:text-indigo-400" />
                             <span className="truncate">{conv.title}</span>
                           </div>
                           <button
@@ -642,7 +650,7 @@ export const Sidebar: React.FC = () => {
                               setChatOptionsAnchor({ top: rect.top, left: rect.right + 8 });
                               setChatOptionsId(conv.id);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-neutral-400 hover:text-white"
+                            className="opacity-0 group-hover:opacity-100 p-0.5 text-neutral-400 hover:text-white"
                           >
                             <MoreHorizontal className="w-3 h-3" />
                           </button>
@@ -654,23 +662,23 @@ export const Sidebar: React.FC = () => {
               )}
 
               {/* 2. Recent (Follows Archived section, labeled "Recent") */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between px-2">
+              <div className="space-y-0.5">
+                <div className="flex items-center justify-between px-2 py-0.5">
                   <span
-                    className={`text-[11px] font-semibold uppercase tracking-wider ${
-                      isLight ? 'text-slate-400' : 'text-neutral-400'
+                    className={`text-[10px] font-semibold uppercase tracking-wider ${
+                      isLight ? 'text-slate-400' : 'text-indigo-300/70'
                     }`}
                   >
                     Recent
                   </span>
-                  <span className="text-[10px] font-medium opacity-60">
+                  <span className="text-[9px] font-medium opacity-60">
                     {recentConversations.length}
                   </span>
                 </div>
 
-                  <div className="space-y-0.5">
+                <div className="space-y-0.5">
                   {recentConversations.length === 0 ? (
-                    <p className="text-xs text-neutral-500 px-2 py-1.5 italic">No recent chats.</p>
+                    <p className="text-[11px] text-neutral-500 px-2 py-1 italic">No recent chats.</p>
                   ) : (
                     (showAllRecent ? recentConversations : recentConversations.slice(0, 5)).map((conv) => {
                       const isSelected =
@@ -679,18 +687,18 @@ export const Sidebar: React.FC = () => {
                         <div
                           key={conv.id}
                           onClick={() => handleSelectChat(conv.id)}
-                          className={`group relative flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                          className={`group relative flex items-center justify-between px-2 py-1.5 rounded-lg text-[11px] cursor-pointer transition-colors ${
                             isSelected
                               ? isLight
                                 ? 'bg-indigo-50 text-indigo-800 font-medium'
-                                : 'bg-[#151926] text-white font-medium'
+                                : 'bg-[#1E2744] text-white font-medium border border-indigo-400/30'
                               : isLight
                               ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
-                              : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/40'
+                              : 'text-slate-300 hover:text-white hover:bg-[#161D32]'
                           }`}
                         >
-                          <div className="flex items-center gap-2 truncate pr-2">
-                            <MessageSquare className="w-3.5 h-3.5 shrink-0 text-neutral-400 group-hover:text-indigo-400" />
+                          <div className="flex items-center gap-1.5 truncate pr-1">
+                            <MessageSquare className="w-3 h-3 shrink-0 text-neutral-400 group-hover:text-indigo-400" />
                             <span className="truncate">{conv.title}</span>
                           </div>
 
@@ -701,7 +709,7 @@ export const Sidebar: React.FC = () => {
                               setChatOptionsAnchor({ top: rect.top, left: rect.right + 8 });
                               setChatOptionsId(conv.id);
                             }}
-                            className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-neutral-800/40 transition-opacity"
+                            className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-neutral-800/40 transition-opacity"
                           >
                             <MoreHorizontal className="w-3 h-3 text-neutral-400" />
                           </button>
@@ -714,7 +722,7 @@ export const Sidebar: React.FC = () => {
                   {recentConversations.length > 5 && (
                     <button
                       onClick={() => setShowAllRecent(!showAllRecent)}
-                      className={`w-full mt-1 py-1 px-2.5 rounded-lg text-[11px] font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      className={`w-full mt-0.5 py-0.5 px-2 rounded-md text-[10px] font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                         isLight
                           ? 'text-indigo-600 hover:bg-indigo-50/70'
                           : 'text-indigo-400 hover:bg-neutral-800/60'
@@ -722,7 +730,7 @@ export const Sidebar: React.FC = () => {
                     >
                       <span>{showAllRecent ? 'See less' : `See more (${recentConversations.length - 5})`}</span>
                       <ChevronDown
-                        className={`w-3 h-3 transition-transform ${showAllRecent ? 'rotate-180' : ''}`}
+                        className={`w-2.5 h-2.5 transition-transform ${showAllRecent ? 'rotate-180' : ''}`}
                       />
                     </button>
                   )}
@@ -738,8 +746,8 @@ export const Sidebar: React.FC = () => {
             - User Profile: Danny Davis (DD), Pro/Free badge, online status dot
             ======================================================== */}
         <div
-          className={`shrink-0 p-2.5 border-t space-y-2 select-none ${
-            isLight ? 'border-slate-100 bg-white' : 'border-white/5 bg-[#0B0E14]'
+          className={`shrink-0 p-1.5 border-t space-y-1.5 select-none backdrop-blur-md ${
+            isLight ? 'border-slate-100/80 bg-white/60' : 'border-indigo-500/15 bg-[#10172B]/75'
           }`}
         >
           {/* Dynamic Random Quote Card */}
@@ -754,18 +762,22 @@ export const Sidebar: React.FC = () => {
                 setIsUserProfileMenuOpen(true);
               }
             }}
-            className={`w-full flex items-center gap-3 p-1.5 rounded-xl transition-colors group ${
+            className={`w-full flex items-center gap-2 p-1.5 rounded-xl transition-all group ${
               !effectiveExpanded ? 'justify-center p-1' : 'justify-between'
-            } ${isLight ? 'hover:bg-slate-100' : 'hover:bg-neutral-900'}`}
+            } ${
+              isLight
+                ? 'hover:bg-slate-100'
+                : 'hover:bg-[#1C2540] bg-[#141B2E]/60 border border-white/5 hover:border-indigo-500/20'
+            }`}
             title={isSignedIn ? 'User Profile & Settings' : 'Sign in to Angel'}
           >
-            <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
               <div className="relative">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-semibold text-white text-xs shadow-xs">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-semibold text-white text-[11px] shadow-2xs">
                   {isSignedIn ? (userProfile.initials || 'DD') : 'GU'}
                 </div>
                 <span
-                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 ${
+                  className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 ${
                     isLight ? 'border-white' : 'border-neutral-950'
                   } ${
                     !isSignedIn
@@ -781,18 +793,18 @@ export const Sidebar: React.FC = () => {
                 <div className="text-left min-w-0">
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`text-xs font-semibold truncate ${
+                      className={`text-[11.5px] font-semibold truncate ${
                         isLight ? 'text-slate-900' : 'text-white'
                       }`}
                     >
                       {isSignedIn ? userProfile.name : 'Guest User'}
                     </span>
-                    <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
+                    <span className="text-[8.5px] font-semibold px-1 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
                       {isSignedIn ? userProfile.plan : 'Free'}
                     </span>
                   </div>
                   <p
-                    className={`text-[10px] truncate ${
+                    className={`text-[9.5px] truncate ${
                       isLight ? 'text-slate-500' : 'text-neutral-400'
                     }`}
                   >
@@ -804,14 +816,14 @@ export const Sidebar: React.FC = () => {
 
             {effectiveExpanded && (
               <ChevronRight
-                className={`w-4 h-4 transition-transform group-hover:translate-x-0.5 ${
+                className={`w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 ${
                   isLight ? 'text-slate-400' : 'text-neutral-400'
                 }`}
               />
             )}
           </button>
         </div>
-      </motion.aside>
+      </aside>
 
       {/* ========================================================
           MOBILE & TABLET SLIDE-IN SIDEBAR DRAWER
@@ -828,87 +840,122 @@ export const Sidebar: React.FC = () => {
 
           {/* Drawer Panel */}
           <aside
-            className={`fixed inset-y-0 left-0 w-72 sm:w-80 flex flex-col h-full shadow-2xl z-50 animate-in slide-in-from-left duration-200 select-none ${
+            className={`fixed inset-y-0 left-0 w-72 sm:w-80 flex flex-col h-full shadow-2xl z-50 animate-in slide-in-from-left duration-200 select-none overflow-hidden relative border-r ${
               isLight
-                ? 'bg-white text-slate-800 border-r border-slate-200'
-                : 'bg-[#0B0E14] text-neutral-200 border-r border-white/10'
+                ? 'text-slate-800 border-slate-200'
+                : 'text-neutral-200 border-indigo-500/20'
             }`}
           >
-            {/* Drawer Top Header: Logo + Close Button */}
+            {/* Angel Backdrop Integration — Unified with app backdrop colors */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 select-none">
+              <img
+                src={angelBackdropImg}
+                alt=""
+                aria-hidden="true"
+                className={`w-[100vw] h-full max-w-none object-cover object-left select-none transition-opacity duration-500 ${
+                  isLight
+                    ? 'opacity-20 mix-blend-multiply filter contrast-125 saturate-110'
+                    : 'opacity-70 mix-blend-screen filter brightness-105 contrast-125'
+                }`}
+              />
+              <div
+                className={`absolute inset-0 backdrop-blur-2xl ${
+                  isLight ? 'bg-[#F4F6FC]/85' : 'bg-[#060813]/85'
+                }`}
+              />
+            </div>
+
+            {/* Drawer Top Header: Logo + Collapse Sidebar Icon */}
             <div
-              className={`shrink-0 p-3 pb-2 space-y-2 border-b ${
-                isLight ? 'border-slate-100 bg-white' : 'border-white/5 bg-[#0B0E14]'
+              className={`shrink-0 p-2 pb-1.5 space-y-1.5 border-b backdrop-blur-md ${
+                isLight ? 'border-slate-100/80 bg-white/60' : 'border-indigo-500/15 bg-[#10172B]/75'
               }`}
             >
-              <div className="flex items-center justify-between h-9 px-1">
+              <div className="flex items-center justify-between h-8 px-1">
                 <div
                   onClick={() => {
                     handleNavClick('home');
                     setMobileMenuOpen(false);
                   }}
-                  className="flex items-center gap-2.5 cursor-pointer"
+                  className="flex items-center gap-2 cursor-pointer"
                 >
-                  <AngelLogo size={28} glow={true} />
+                  <AngelLogo size={26} glow={true} />
                   <span className="font-calligraphy text-2xl tracking-wide select-none text-white">Angel</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      openCommandPalette('all');
-                    }}
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      isLight ? 'text-slate-400 hover:text-slate-800 hover:bg-slate-100' : 'text-neutral-400 hover:text-white hover:bg-neutral-900'
-                    }`}
-                    title="Search workspace (Win + K)"
-                  >
-                    <Search className="w-4 h-4" />
-                  </button>
+                  {/* Replaced cancel (x) button with collapse sidebar icon for mobiles */}
                   <button
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      isLight ? 'text-slate-400 hover:bg-slate-100' : 'text-neutral-400 hover:bg-neutral-900'
+                    aria-label="Collapse sidebar"
+                    title="Collapse sidebar"
+                    className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                      isLight ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100' : 'text-neutral-400 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    <X className="w-5 h-5" />
+                    <PanelLeftClose className="w-4 h-4 text-indigo-400" />
                   </button>
                 </div>
               </div>
 
-              {/* New Conversation Button */}
+              {/* 1. New Conversation Button */}
               <button
                 onClick={handleNewChat}
-                className={`w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold tracking-tight transition-all duration-150 shadow-xs ${
+                className={`w-full flex items-center justify-center gap-2 py-1.5 rounded-xl text-[11px] font-semibold tracking-tight transition-all duration-150 shadow-sm cursor-pointer ${
                   isLight
                     ? 'bg-slate-100 text-slate-800 border border-slate-200'
-                    : 'bg-[#141824] text-white border border-white/5'
-                } px-3`}
+                    : 'bg-[#182036] hover:bg-[#202b48] text-white border border-indigo-500/20 shadow-indigo-950/30'
+                } px-2.5`}
               >
-                <Plus className="w-4 h-4 text-indigo-500 shrink-0" />
+                <Plus className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                 <span>New Conversation</span>
               </button>
 
-              {/* Home Tool */}
+              {/* 2. Search Option — Positioned in-between New Conversation and Home */}
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  openCommandPalette('all');
+                }}
+                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all cursor-pointer ${
+                  isLight
+                    ? 'text-slate-600 hover:text-slate-900 bg-slate-100/80 border border-slate-200/70'
+                    : 'text-slate-300 hover:text-white bg-[#141B2E]/60 hover:bg-[#1C2540] border border-white/5 backdrop-blur-md'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Search className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span>Search</span>
+                </div>
+                <kbd
+                  className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-medium ${
+                    isLight ? 'bg-slate-200/80 text-slate-500' : 'bg-white/5 text-neutral-400 border border-white/10'
+                  }`}
+                >
+                  Ctrl K
+                </kbd>
+              </button>
+
+              {/* 3. Home Tool */}
               <button
                 onClick={() => handleNavClick('home')}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all ${
                   activeTab === 'home'
                     ? isLight
                       ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                      : 'bg-[#151926] text-white font-semibold border border-white/5'
+                      : 'bg-[#1E2744] text-white font-semibold border border-indigo-400/30'
                     : isLight
                     ? 'text-slate-600 hover:bg-slate-100'
-                    : 'text-neutral-400 hover:bg-neutral-900/50'
+                    : 'text-slate-300 hover:text-white bg-[#141B2E]/60 hover:bg-[#1C2540] border border-white/5'
                 }`}
               >
-                <Home className="w-4 h-4 text-indigo-500 shrink-0" />
+                <Home className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                 <span>Home</span>
               </button>
             </div>
 
             {/* Drawer Middle: Scrollable Tools and Chats */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-3 custom-scrollbar overscroll-contain">
-              <div className="space-y-0.5">
+            <div className="flex-1 min-h-0 overflow-y-auto px-2 py-1.5 space-y-2 custom-scrollbar overscroll-contain">
+              <div className="space-y-1">
                 {scrollableTools.map((tool) => {
                   const isActive = tool.tabTarget ? activeTab === tool.tabTarget : false;
                   const Icon = tool.icon;
@@ -922,22 +969,22 @@ export const Sidebar: React.FC = () => {
                           handleNavClick(tool.tabTarget);
                         }
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-all ${
                         isActive
                           ? isLight
                             ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                            : 'bg-[#151926] text-white font-semibold'
+                            : 'bg-[#1E2744] text-white font-semibold border border-indigo-400/30'
                           : isLight
                           ? 'text-slate-600 hover:bg-slate-100'
-                          : 'text-neutral-400 hover:bg-neutral-900/50'
+                          : 'text-slate-300 hover:text-white bg-[#141B2E]/50 hover:bg-[#1C2540] border border-white/5'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <Icon className="w-4 h-4 shrink-0 text-indigo-400" />
+                      <div className="flex items-center gap-2.5">
+                        <Icon className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
                         <span>{tool.label}</span>
                       </div>
                       {tool.badge && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-indigo-500/10 text-indigo-400">
+                        <span className="px-1.5 py-0.2 rounded-full text-[9px] font-medium bg-indigo-500/10 text-indigo-400">
                           {tool.badge}
                         </span>
                       )}
@@ -947,11 +994,11 @@ export const Sidebar: React.FC = () => {
               </div>
 
               {/* Conversations */}
-              <div className="space-y-3 pt-1">
+              <div className="space-y-2 pt-1">
                 {/* Pinned */}
                 {pinnedConversations.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="px-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+                  <div className="space-y-0.5">
+                    <div className="px-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
                       Pinned
                     </div>
                     <div className="space-y-0.5">
@@ -963,13 +1010,13 @@ export const Sidebar: React.FC = () => {
                             setActiveTab('chat');
                             setMobileMenuOpen(false);
                           }}
-                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer ${
+                          className={`flex items-center gap-2 px-2 py-1 rounded-md text-[11px] cursor-pointer ${
                             activeConversationId === conv.id && activeTab === 'chat'
                               ? isLight ? 'bg-indigo-50 text-indigo-800' : 'bg-[#151926] text-white'
                               : isLight ? 'text-slate-600' : 'text-neutral-400'
                           }`}
                         >
-                          <MessageSquare className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
+                          <MessageSquare className="w-3 h-3 shrink-0 text-indigo-400" />
                           <span className="truncate">{conv.title}</span>
                         </div>
                       ))}
@@ -979,8 +1026,8 @@ export const Sidebar: React.FC = () => {
 
                 {/* 1. Archived before Recent */}
                 {archivedConversations.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="px-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+                  <div className="space-y-0.5">
+                    <div className="px-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
                       Archived ({archivedConversations.length})
                     </div>
                     <div className="space-y-0.5">
@@ -992,9 +1039,9 @@ export const Sidebar: React.FC = () => {
                             setActiveTab('chat');
                             setMobileMenuOpen(false);
                           }}
-                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-neutral-400"
+                          className="flex items-center gap-2 px-2 py-1 rounded-md text-[11px] cursor-pointer text-neutral-400"
                         >
-                          <MessageSquare className="w-3.5 h-3.5 shrink-0 text-neutral-400" />
+                          <MessageSquare className="w-3 h-3 shrink-0 text-neutral-400" />
                           <span className="truncate">{conv.title}</span>
                         </div>
                       ))}
@@ -1003,8 +1050,8 @@ export const Sidebar: React.FC = () => {
                 )}
 
                 {/* 2. Recent */}
-                <div className="space-y-1">
-                  <div className="px-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+                <div className="space-y-0.5">
+                  <div className="px-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
                     Recent ({recentConversations.length})
                   </div>
                   <div className="space-y-0.5">
@@ -1016,13 +1063,13 @@ export const Sidebar: React.FC = () => {
                           setActiveTab('chat');
                           setMobileMenuOpen(false);
                         }}
-                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs cursor-pointer ${
+                        className={`flex items-center gap-2 px-2 py-1 rounded-md text-[11px] cursor-pointer ${
                           activeConversationId === conv.id && activeTab === 'chat'
                             ? isLight ? 'bg-indigo-50 text-indigo-800 font-semibold' : 'bg-[#151926] text-white font-semibold'
                             : isLight ? 'text-slate-600' : 'text-neutral-400'
                         }`}
                       >
-                        <MessageSquare className="w-3.5 h-3.5 shrink-0 text-neutral-400" />
+                        <MessageSquare className="w-3 h-3 shrink-0 text-neutral-400" />
                         <span className="truncate">{conv.title}</span>
                       </div>
                     ))}
@@ -1030,12 +1077,12 @@ export const Sidebar: React.FC = () => {
                     {recentConversations.length > 5 && (
                       <button
                         onClick={() => setShowAllRecentMobile(!showAllRecentMobile)}
-                        className={`w-full mt-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                        className={`w-full mt-0.5 py-0.5 px-2 rounded-md text-[10px] font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                           isLight ? 'text-indigo-600 hover:bg-slate-100' : 'text-indigo-400 hover:bg-neutral-800'
                         }`}
                       >
                         <span>{showAllRecentMobile ? 'See less' : `See more (${recentConversations.length - 5})`}</span>
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllRecentMobile ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-3 h-3 transition-transform ${showAllRecentMobile ? 'rotate-180' : ''}`} />
                       </button>
                     )}
                   </div>
@@ -1045,8 +1092,8 @@ export const Sidebar: React.FC = () => {
 
             {/* Drawer Bottom: Fixed Quote & Profile */}
             <div
-              className={`shrink-0 p-2.5 border-t space-y-2 select-none ${
-                isLight ? 'border-slate-100 bg-white' : 'border-white/5 bg-[#0B0E14]'
+              className={`shrink-0 p-1.5 border-t space-y-1.5 select-none backdrop-blur-md ${
+                isLight ? 'border-slate-100 bg-white/90' : 'border-indigo-500/15 bg-[#10172B]/90'
               }`}
             >
               <RandomQuoteCard compact />
@@ -1057,24 +1104,26 @@ export const Sidebar: React.FC = () => {
                   if (!isSignedIn) setIsAuthPageOpen(true);
                   else setIsUserProfileMenuOpen(true);
                 }}
-                className={`w-full flex items-center justify-between p-1.5 rounded-xl transition-colors ${
-                  isLight ? 'hover:bg-slate-100' : 'hover:bg-neutral-900'
+                className={`w-full flex items-center justify-between p-1.5 rounded-xl transition-all ${
+                  isLight
+                    ? 'hover:bg-slate-100'
+                    : 'hover:bg-[#1C2540] bg-[#141B2E]/60 border border-white/5 hover:border-indigo-500/20'
                 }`}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-semibold text-white text-xs">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-semibold text-white text-[11px]">
                     {isSignedIn ? (userProfile.initials || 'DD') : 'GU'}
                   </div>
                   <div className="text-left min-w-0">
-                    <span className="text-xs font-semibold block truncate">
+                    <span className="text-[11.5px] font-semibold block truncate">
                       {isSignedIn ? userProfile.name : 'Guest User'}
                     </span>
-                    <span className="text-[10px] text-neutral-400 block truncate">
+                    <span className="text-[9.5px] text-neutral-400 block truncate">
                       {isSignedIn ? userProfile.email : 'Click to sign in'}
                     </span>
                   </div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-neutral-400" />
+                <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
               </button>
             </div>
           </aside>

@@ -70,10 +70,10 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
 
   return (
     <div
-      className={`rounded-3xl border p-4 sm:p-6 transition-all duration-200 shadow-sm relative overflow-hidden ${
+      className={`rounded-3xl border p-4 sm:p-6 transition-all duration-200 shadow-sm relative overflow-hidden backdrop-blur-xl ${
         isLight
-          ? 'bg-gradient-to-br from-white via-indigo-50/20 to-slate-50 border-slate-200 text-slate-800'
-          : 'bg-gradient-to-br from-[#101420] via-[#0E121B] to-[#0A0D14] border-white/10 text-neutral-100 shadow-xl'
+          ? 'bg-white/80 border-slate-200 text-slate-800 shadow-slate-200/50'
+          : 'bg-[#0F162A]/75 border-indigo-500/20 text-neutral-100 shadow-xl shadow-indigo-950/30'
       }`}
     >
       {/* Top Banner */}
@@ -143,7 +143,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
                   className={`p-2.5 rounded-xl border transition-all flex items-start gap-2.5 ${
                     isLight
                       ? 'bg-white/80 border-slate-200/80 hover:border-slate-300'
-                      : 'bg-neutral-900/60 border-white/5 hover:border-white/10'
+                      : 'bg-[#151D33]/80 hover:bg-[#1C2642] border-indigo-500/20 hover:border-indigo-400/30 backdrop-blur-md'
                   }`}
                 >
                   <button
@@ -203,7 +203,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
                     className={`p-2.5 rounded-xl border transition-all ${
                       isLight
                         ? 'bg-white/80 border-slate-200/80 hover:border-slate-300'
-                        : 'bg-neutral-900/60 border-white/5 hover:border-white/10'
+                        : 'bg-[#151D33]/80 hover:bg-[#1C2642] border-indigo-500/20 hover:border-indigo-400/30 backdrop-blur-md'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -235,21 +235,21 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
             <div className="space-y-2">
               <button
                 onClick={() => setActiveTab('chat')}
-                className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl transition-colors ${isLight ? 'bg-white/80 border border-slate-200/80 hover:border-indigo-300' : 'bg-neutral-900/60 border border-white/5 hover:border-white/10'}`}
+                className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl transition-colors ${isLight ? 'bg-white/80 border border-slate-200/80 hover:border-indigo-300' : 'bg-[#151D33]/80 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-indigo-400/30 backdrop-blur-md'}`}
               >
                 <MessageSquare className="w-4 h-4 text-indigo-400 shrink-0" />
                 <span className="text-xs font-semibold">Chat, write, and brainstorm</span>
               </button>
               <button
                 onClick={() => setActiveTab('voice')}
-                className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl transition-colors ${isLight ? 'bg-white/80 border border-slate-200/80 hover:border-indigo-300' : 'bg-neutral-900/60 border border-white/5 hover:border-white/10'}`}
+                className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl transition-colors ${isLight ? 'bg-white/80 border border-slate-200/80 hover:border-indigo-300' : 'bg-[#151D33]/80 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-indigo-400/30 backdrop-blur-md'}`}
               >
                 <Mic className="w-4 h-4 text-cyan-400 shrink-0" />
                 <span className="text-xs font-semibold">Talk with Angel in Voice Mode</span>
               </button>
               <button
                 onClick={() => setActiveTab('visual_mode')}
-                className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl transition-colors ${isLight ? 'bg-white/80 border border-slate-200/80 hover:border-indigo-300' : 'bg-neutral-900/60 border border-white/5 hover:border-white/10'}`}
+                className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-xl transition-colors ${isLight ? 'bg-white/80 border border-slate-200/80 hover:border-indigo-300' : 'bg-[#151D33]/80 hover:bg-[#1C2642] border border-indigo-500/20 hover:border-indigo-400/30 backdrop-blur-md'}`}
               >
                 <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span className="text-xs font-semibold">Explore images and your screen</span>
@@ -307,7 +307,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
                   className={`p-2.5 rounded-xl border transition-all ${
                     isLight
                       ? 'bg-white/80 border-slate-200/80 hover:border-slate-300'
-                      : 'bg-neutral-900/60 border-white/5 hover:border-white/10'
+                      : 'bg-[#151D33]/80 hover:bg-[#1C2642] border-indigo-500/20 hover:border-indigo-400/30 backdrop-blur-md'
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs font-semibold">
