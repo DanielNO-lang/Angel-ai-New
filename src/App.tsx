@@ -12,8 +12,6 @@ import { Header } from './components/layout/Header';
 import { AuthPage } from './components/auth/AuthPage';
 import { HomeView } from './components/home/HomeView';
 import { ChatView } from './components/chat/ChatView';
-import { VoiceModeView } from './components/voice/VoiceModeView';
-import { VisualModeView } from './components/visual_mode/VisualModeView';
 import { AgentLabView } from './components/agent_lab/AgentLabView';
 import { TasksView } from './components/tasks/TasksView';
 import { MemoriesView } from './components/memories/MemoriesView';
@@ -60,6 +58,14 @@ const WorkspaceContent: React.FC = () => {
     toggleFocusMode,
   } = useAngel();
   const isLight = settings.theme === 'light';
+
+  useEffect(() => {
+    try {
+      const scale = localStorage.getItem('angel_font_scale');
+      const sizes: Record<string, string> = { compact: '14px', medium: '16px', comfortable: '18px' };
+      if (scale && sizes[scale]) document.documentElement.style.fontSize = sizes[scale];
+    } catch {}
+  }, []);
 
   // Section Scroll Anchor: Reset scroll position to top whenever active section changes or clicked
   const mainScrollRef = useRef<HTMLElement>(null);
@@ -231,9 +237,8 @@ const WorkspaceContent: React.FC = () => {
       case 'chat':
         return <ChatView />;
       case 'voice':
-        return <VoiceModeView />;
       case 'visual_mode':
-        return <VisualModeView />;
+        return <ChatView />;
       case 'canvas':
         return <CanvasView />;
       case 'data_analysis':
