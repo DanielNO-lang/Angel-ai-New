@@ -357,10 +357,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
     try {
       const provider = providerRegistry.getProvider(providerId);
       if (!provider.isConfigured()) {
@@ -368,6 +364,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
         });
       }
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
 
       await provider.stream(
         {
