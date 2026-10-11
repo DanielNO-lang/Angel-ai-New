@@ -149,9 +149,9 @@ export const IncognitoView: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#070A0F] text-neutral-100 select-none overflow-hidden">
+    <div className="flex h-[100dvh] min-h-0 w-full flex-col bg-[#070A0F] text-neutral-100 select-none overflow-hidden">
       {/* Stealth Top Header Banner */}
-      <header className="h-14 px-4 sm:px-6 bg-[#0B0F17]/90 border-b border-purple-500/20 backdrop-blur-md flex items-center justify-between z-20">
+      <header className="relative z-20 flex h-14 shrink-0 items-center justify-between px-4 sm:px-6 bg-[#0B0F17]/90 border-b border-purple-500/20 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300">
             <EyeOff className="w-4 h-4" />
@@ -194,7 +194,7 @@ export const IncognitoView: React.FC = () => {
       </header>
 
       {/* Main Ephemeral Stage */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar p-4 max-w-3xl w-full mx-auto">
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar overscroll-contain p-4 max-w-3xl w-full mx-auto">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-5 animate-in fade-in duration-200">
             <div className="w-16 h-16 rounded-2xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-center shadow-lg shadow-purple-950/50">
@@ -233,12 +233,6 @@ export const IncognitoView: React.FC = () => {
                   msg.role === 'user' ? 'justify-end' : 'justify-start'
                 }`}
               >
-                {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5" />
-                  </div>
-                )}
-
                 <div
                   className={`max-w-2xl px-4 py-2.5 rounded-2xl ${
                     msg.role === 'user'
