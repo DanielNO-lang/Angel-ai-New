@@ -31,10 +31,10 @@ export const HomeView: React.FC = () => {
     event?.preventDefault();
     const prompt = promptText.trim();
     if (!prompt) return;
-    createConversation('angel-core', undefined, prompt.slice(0, 48));
+    const conversationId = createConversation('angel-core', undefined, prompt.slice(0, 48));
     setActiveTab('chat');
     setPromptText('');
-    void sendMessage(prompt);
+    void sendMessage(prompt, undefined, conversationId);
   };
 
   return (
