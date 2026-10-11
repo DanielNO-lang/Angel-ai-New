@@ -357,6 +357,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
     try {
       const provider = providerRegistry.getProvider(providerId);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({
+          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
+        });
+      }
 
       await provider.stream(
         {
