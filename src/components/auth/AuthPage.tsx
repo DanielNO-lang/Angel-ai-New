@@ -382,14 +382,14 @@ export const AuthPage: React.FC = () => {
           </video>
 
           {/* Holographic Subtle Glass Overlays */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20 animate-pulse" />
           <div className="absolute inset-0 bg-indigo-950/20 mix-blend-color-dodge pointer-events-none" />
 
           {/* Top AI Video Pill */}
           <div className="relative z-10 flex items-center justify-between">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-semibold text-cyan-300">
               <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <span>ANGEL INTELLIGENCE STREAM</span>
+              <span>ANGEL INTELLIGENCE</span>
             </div>
           </div>
 
