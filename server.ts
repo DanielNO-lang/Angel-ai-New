@@ -11,17 +11,17 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { executeAgentPipeline } from './server/orchestrator';
-import { providerRegistry } from './server/providers';
-import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
-import { automationService, AutomationEventType } from './server/services/automationService';
-import { dispatchZapierEvent } from './server/zapier_service';
-import { authService } from './server/services/authService';
-import { mediaService } from './server/services/mediaService';
-import { voiceService } from './server/services/voiceService';
-import { intelligenceService } from './server/services/intelligenceService';
-import { githubService } from './server/services/githubService';
-import { vercelService } from './server/services/vercelService';
+import { executeAgentPipeline } from './server/orchestrator.js';
+import { providerRegistry } from './server/providers/index.js';
+import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
+import { automationService, AutomationEventType } from './server/services/automationService.js';
+import { dispatchZapierEvent } from './server/zapier_service.js';
+import { authService } from './server/services/authService.js';
+import { mediaService } from './server/services/mediaService.js';
+import { voiceService } from './server/services/voiceService.js';
+import { intelligenceService } from './server/services/intelligenceService.js';
+import { githubService } from './server/services/githubService.js';
+import { vercelService } from './server/services/vercelService.js';
 
 export interface CreateAppOptions {
   isServerless?: boolean;

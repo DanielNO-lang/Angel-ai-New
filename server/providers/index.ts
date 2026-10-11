@@ -4,16 +4,16 @@
  * Implements model capability awareness, dynamic fallback, and multi-provider orchestration.
  */
 
-import { GeminiProvider } from './geminiProvider';
-import { OpenAICompatibleProvider } from './openAICompatibleProvider';
-import { AIProvider } from './types';
-import { UNIVERSAL_MODEL_CATALOG, ModelMetadata, getAvailableModels } from './modelRegistry';
+import { GeminiProvider } from './geminiProvider.js';
+import { OpenAICompatibleProvider } from './openAICompatibleProvider.js';
+import { AIProvider } from './types.js';
+import { UNIVERSAL_MODEL_CATALOG, ModelMetadata, getAvailableModels } from './modelRegistry.js';
 
-export * from './types';
-export { GeminiProvider } from './geminiProvider';
-export { OpenAICompatibleProvider } from './openAICompatibleProvider';
-export { UNIVERSAL_MODEL_CATALOG, getAvailableModels } from './modelRegistry';
-export type { ModelMetadata, ModelCapability } from './modelRegistry';
+export * from './types.js';
+export { GeminiProvider } from './geminiProvider.js';
+export { OpenAICompatibleProvider } from './openAICompatibleProvider.js';
+export { UNIVERSAL_MODEL_CATALOG, getAvailableModels } from './modelRegistry.js';
+export type { ModelMetadata, ModelCapability } from './modelRegistry.js';
 
 export class ProviderRegistry {
   private providers: Map<string, AIProvider> = new Map();

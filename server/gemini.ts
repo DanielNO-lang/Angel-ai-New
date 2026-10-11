@@ -4,7 +4,7 @@
  * All direct @google/genai SDK usage is strictly encapsulated inside GeminiProvider.
  */
 
-import { providerRegistry } from './providers';
+import { providerRegistry } from './providers/index.js';
 
 export interface ChatGenerateOptions {
   prompt: string;
