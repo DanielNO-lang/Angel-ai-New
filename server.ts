@@ -10,7 +10,6 @@
 
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { executeAgentPipeline } from './server/orchestrator.js';
 import { providerRegistry } from './server/providers/index.js';
 import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
@@ -844,6 +843,7 @@ async function startServer() {
   // VITE / STATIC FILE SERVING
   // ============================================================================
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
