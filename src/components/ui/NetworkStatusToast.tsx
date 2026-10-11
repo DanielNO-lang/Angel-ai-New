@@ -64,7 +64,7 @@ export const NetworkStatusToast: React.FC = () => {
     }
   };
 
-  if (!showToast && !isOffline && !updateAvailable) {
+  if (!showToast && !updateAvailable) {
     return null;
   }
 
