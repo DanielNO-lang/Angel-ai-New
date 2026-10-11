@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
+import aiIntelligencePoster from '../../assets/images/ai_intelligence_clip_1790265840519.jpg';
 import { signInWithGoogleOAuth } from '../../services/supabaseService';
 
 export const AuthPage: React.FC = () => {
@@ -127,7 +128,7 @@ export const AuthPage: React.FC = () => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-2 sm:p-6 overflow-y-auto custom-scrollbar animate-in fade-in duration-200">
       <div
-        className={`relative w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row transition-all duration-200 ${
+        className={`relative min-h-[620px] w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row transition-all duration-200 ${
           isLight
             ? 'bg-white text-slate-800 border border-slate-200'
             : 'bg-[#0E121B] text-neutral-100 border border-white/10'
@@ -149,7 +150,7 @@ export const AuthPage: React.FC = () => {
         {/* ========================================================
             SIDE 1: AUTHENTICATION FORM
             ======================================================== */}
-        <div className="flex-1 p-6 sm:p-10 flex flex-col justify-between">
+        <div className={`relative z-10 flex-1 p-6 sm:p-10 flex flex-col justify-between backdrop-blur-sm md:backdrop-blur-none ${isLight ? "bg-white/80 md:bg-transparent" : "bg-[#0E121B]/75 md:bg-transparent"}`}>
           <div className="space-y-6">
             {/* Angel AI Brand */}
             <div className="flex items-center gap-2.5">
@@ -368,20 +369,16 @@ export const AuthPage: React.FC = () => {
             SIDE 2: CONTINUOUSLY LOOPING AI VIDEO DISPLAY
             Real ambient AI video playing seamlessly by the side
             ======================================================== */}
-        <div className="relative md:w-1/2 min-h-[300px] md:min-h-[480px] bg-neutral-950 flex flex-col justify-between overflow-hidden p-6 select-none border-t md:border-t-0 md:border-l border-white/10">
+        <div className="absolute inset-0 z-0 md:relative md:inset-auto md:z-auto md:w-1/2 min-h-full md:min-h-[480px] bg-neutral-950 flex flex-col justify-between overflow-hidden p-6 select-none border-t md:border-t-0 md:border-l border-white/10">
           {/* Continuously Looping High-Definition AI Ambient Video */}
           <video
             autoPlay
             loop
             muted
             playsInline
-            poster="/src/assets/images/ai_intelligence_clip_1790265840519.jpg"
+            poster={aiIntelligencePoster}
             className="absolute inset-0 w-full h-full object-cover"
           >
-            <source
-              src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-              type="video/mp4"
-            />
           </video>
 
           {/* Holographic Subtle Glass Overlays */}
