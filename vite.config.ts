@@ -26,19 +26,19 @@ export default defineConfig(() => {
           scope: '/',
           icons: [
             {
-              src: '/icon-192.svg',
+              src: '/icon-192.svg?v=6',
               sizes: '192x192',
               type: 'image/svg+xml',
               purpose: 'any',
             },
             {
-              src: '/icon-512.svg',
+              src: '/icon-512.svg?v=6',
               sizes: '512x512',
               type: 'image/svg+xml',
               purpose: 'any',
             },
             {
-              src: '/icon-maskable-512.svg',
+              src: '/icon-maskable-512.svg?v=6',
               sizes: '512x512',
               type: 'image/svg+xml',
               purpose: 'maskable',
