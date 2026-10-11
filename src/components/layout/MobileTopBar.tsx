@@ -11,7 +11,6 @@ import {
   Search,
   Minus,
   Maximize2,
-  Headphones,
   Bot,
   MessageSquare,
   CheckSquare,
@@ -64,8 +63,6 @@ export const MobileTopBar: React.FC = () => {
     memories: { label: 'Memory', icon: Brain },
     media_studio: { label: 'Media Studio', icon: Palette },
     assistants: { label: 'Assistants', icon: Users },
-    visual_mode: { label: 'Visual Mode', icon: Eye },
-    voice: { label: 'Voice Mode', icon: Headphones },
     settings: { label: 'Settings', icon: Settings },
   };
 
@@ -74,7 +71,7 @@ export const MobileTopBar: React.FC = () => {
 
   return (
     <header
-      className={`md:hidden sticky top-0 z-30 flex items-center justify-between px-3 py-2 border-b backdrop-blur-md transition-colors select-none ${
+      className={`md:hidden sticky top-0 z-30 flex shrink-0 items-center justify-between px-3 py-2 border-b backdrop-blur-md transition-colors select-none ${
         isLight
           ? 'bg-white/95 border-slate-200 text-slate-800 shadow-2xs'
           : 'bg-[#0B0E14]/95 border-white/10 text-neutral-100 shadow-black/60'
@@ -117,20 +114,6 @@ export const MobileTopBar: React.FC = () => {
 
       {/* Right: Quick Actions */}
       <div className="flex items-center gap-1 shrink-0">
-        {/* Voice Mode */}
-        <button
-          onClick={() => setActiveTab('voice')}
-          className={`p-2 rounded-xl transition-colors ${
-            isLight
-              ? 'hover:bg-slate-100 text-slate-600 hover:text-indigo-600'
-              : 'hover:bg-white/10 text-neutral-400 hover:text-indigo-400'
-          }`}
-          title="Voice Mode"
-          aria-label="Voice Mode"
-        >
-          <Headphones className="w-4 h-4" />
-        </button>
-
         {/* Global Search */}
         <button
           onClick={() => openCommandPalette('all')}

@@ -3,7 +3,7 @@
  * Adapts legacy calls to the core AutomationService.
  */
 
-import { automationService, AutomationEventType } from './services/automationService';
+import { automationService, AutomationEventType } from './services/automationService.js';
 
 export type AngelEventType = AutomationEventType;
 

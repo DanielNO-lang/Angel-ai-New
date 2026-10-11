@@ -11,6 +11,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {
+  ArrowLeft,
   User,
   Palette,
   Sliders,
@@ -280,7 +281,7 @@ export const SettingsView: React.FC = () => {
 
   return (
     <div
-      className={`min-h-full p-4 sm:p-6 lg:p-8 space-y-6 transition-colors duration-150 ${
+      className={`flex h-full min-h-0 flex-col overflow-hidden p-4 sm:p-6 lg:p-8 gap-4 transition-colors duration-150 ${
         isLight ? 'bg-[#F8FAFC] text-slate-900' : 'bg-[#0B0E14] text-neutral-100'
       }`}
     >
@@ -293,6 +294,15 @@ export const SettingsView: React.FC = () => {
         }`}
       >
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event('angel-navigate-back'))}
+            aria-label="Return to previous section"
+            title="Return to previous section"
+            className={`rounded-xl border p-2 transition-colors ${isLight ? 'border-slate-200 text-slate-600 hover:bg-slate-100' : 'border-white/10 text-neutral-300 hover:bg-white/10'}`}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
           <span
             className={`p-2 rounded-2xl border ${
               isLight
@@ -334,10 +344,10 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {/* Main Two-Column Dashboard Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 items-stretch overflow-hidden">
         {/* Left Categorized Sub-Navigation Rail (Desktop/Tablet) */}
         <div
-          className={`hidden md:block md:col-span-4 lg:col-span-3 rounded-2xl border p-2 space-y-2 shadow-xs sticky top-4 ${
+          className={`hidden md:block md:col-span-4 lg:col-span-3 h-full min-h-0 overflow-y-auto overscroll-contain custom-scrollbar rounded-2xl border p-2 space-y-2 shadow-xs ${
             isLight
               ? 'bg-white border-slate-200/90 shadow-slate-200/50'
               : 'bg-[#121622] border-white/5 shadow-black/40'
@@ -404,7 +414,7 @@ export const SettingsView: React.FC = () => {
 
         {/* Right Active Sub-Section View Content */}
         <div
-          className={`md:col-span-8 lg:col-span-9 rounded-3xl border p-6 sm:p-7 space-y-6 shadow-md ${
+          className={`md:col-span-8 lg:col-span-9 h-full min-h-0 overflow-y-auto overscroll-contain custom-scrollbar rounded-3xl border p-6 sm:p-7 space-y-6 shadow-md ${
             isLight
               ? 'bg-white border-slate-200/90 shadow-slate-200/50'
               : 'bg-[#121622] border-white/5 shadow-black/60'

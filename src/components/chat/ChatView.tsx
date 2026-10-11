@@ -27,6 +27,7 @@ import {
   Headphones,
   Lightbulb,
   Menu,
+  MoreHorizontal,
   MessageSquare,
   Mic,
   MicOff,
@@ -45,6 +46,7 @@ import { useAngel } from '../../context/AppContext';
 import { Attachment, Conversation, CanvasBlock } from '../../types';
 import { AngelLogo } from '../ui/AngelLogo';
 import { AddSectionMenu } from './AddSectionMenu';
+import { ChatOptionsMenu } from './ChatOptionsMenu';
 import { useVoiceDictation } from '../../services/voice/useVoiceDictation';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { getSavedCanvases, saveCanvases, setActiveCanvasId } from '../../services/canvas/canvasService';
@@ -80,6 +82,8 @@ export const ChatView: React.FC = () => {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
+  const [isChatOptionsOpen, setIsChatOptionsOpen] = useState(false);
+  const [chatOptionsAnchor, setChatOptionsAnchor] = useState<{ top: number; left: number } | undefined>(undefined);
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   const [activeChip, setActiveChip] = useState<'think' | 'search' | 'browse' | 'model'>('think');
@@ -263,6 +267,20 @@ export const ChatView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {activeConversationId && (
+              <button
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  setChatOptionsAnchor({ top: rect.bottom, left: rect.left });
+                  setIsChatOptionsOpen(true);
+                }}
+                aria-label="More conversation options"
+                title="More conversation options"
+                className={`rounded-xl border p-2 transition-colors ${isLight ? 'border-slate-200 text-slate-600 hover:bg-slate-100' : 'border-white/10 text-neutral-300 hover:bg-white/10'}`}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            )}
             <button
               onClick={() => createConversation()}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-xs transition-all cursor-pointer"
@@ -404,16 +422,6 @@ export const ChatView: React.FC = () => {
                     }}
                     className={`flex gap-3 text-sm ${isUser ? 'justify-end' : 'justify-start'}`}
                   >
-                  {!isUser && (
-                    <div
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                        isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-neutral-900 text-indigo-400'
-                      }`}
-                    >
-                      <Bot className="w-4 h-4" />
-                    </div>
-                  )}
-
                   <div
                     className={`group relative max-w-[85%] sm:max-w-[78%] rounded-2xl px-4 py-3 shadow-xs ${
                       isUser
@@ -723,6 +731,14 @@ export const ChatView: React.FC = () => {
         </div>
       </div>
 
+      {activeConversationId && (
+        <ChatOptionsMenu
+          conversationId={activeConversationId}
+          isOpen={isChatOptionsOpen}
+          onClose={() => setIsChatOptionsOpen(false)}
+          anchorPosition={chatOptionsAnchor}
+        />
+      )}
       {isVisualPanelOpen && <VisualModePopup onClose={() => setIsVisualPanelOpen(false)} />}
       {isVoicePanelOpen && (
         <div className="fixed inset-0 z-[70] bg-[#060813] text-white">

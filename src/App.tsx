@@ -8,6 +8,7 @@ import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { AppProvider, useAngel } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
+import { MobileTopBar } from './components/layout/MobileTopBar';
 import { Header } from './components/layout/Header';
 import { AuthPage } from './components/auth/AuthPage';
 import { HomeView } from './components/home/HomeView';
@@ -38,7 +39,6 @@ import {
   WorkspaceStageControls,
   WorkspaceMinimizedView,
 } from './components/layout/WorkspaceStageControls';
-import { MobileTopBar } from './components/layout/MobileTopBar';
 
 const WorkspaceContent: React.FC = () => {
   const {
@@ -69,6 +69,21 @@ const WorkspaceContent: React.FC = () => {
 
   // Section Scroll Anchor: Reset scroll position to top whenever active section changes or clicked
   const mainScrollRef = useRef<HTMLElement>(null);
+  const previousTabRef = useRef<string>('home');
+  const currentTabRef = useRef<string>(activeTab);
+
+  useEffect(() => {
+    if (activeTab !== currentTabRef.current) {
+      previousTabRef.current = currentTabRef.current;
+      currentTabRef.current = activeTab;
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleNavigateBack = () => setActiveTab(previousTabRef.current || 'home');
+    window.addEventListener('angel-navigate-back', handleNavigateBack);
+    return () => window.removeEventListener('angel-navigate-back', handleNavigateBack);
+  }, [setActiveTab]);
   useEffect(() => {
     const handleScrollToTop = () => {
       if (mainScrollRef.current) {
@@ -147,9 +162,6 @@ const WorkspaceContent: React.FC = () => {
         } else if (e.key === '6') {
           e.preventDefault();
           setActiveTab('memories');
-        } else if (e.key === '7') {
-          e.preventDefault();
-          setActiveTab('visual_mode');
         }
         return;
       }
@@ -280,7 +292,7 @@ const WorkspaceContent: React.FC = () => {
 
   return (
     <div
-      className={`relative flex min-h-screen font-sans antialiased selection:bg-indigo-600/30 selection:text-white transition-colors duration-500 ease-in-out ${
+      className={`relative flex h-[100dvh] min-h-[100dvh] overflow-hidden font-sans antialiased selection:bg-indigo-600/30 selection:text-white transition-colors duration-500 ease-in-out ${
         settings.theme === 'light'
           ? 'light text-slate-900 bg-transparent'
           : settings.theme === 'midnight'
@@ -300,13 +312,13 @@ const WorkspaceContent: React.FC = () => {
       <BackdropLayer />
 
       {/* Actual Angel UI rendered at a higher stacking level (z-10) above the backdrop */}
-      <div className="relative z-10 flex w-full min-h-screen pl-0 transition-all duration-300 ease-in-out">
+      <div className="relative z-10 flex h-full w-full min-h-0 pl-0 transition-all duration-300 ease-in-out">
         {/* Persistent Collapsible Sidebar (hidden in Focus Mode) */}
         <Sidebar />
 
         {/* Main Workspace Stage with independent scrolling context and manual minimize/sizing support */}
         <div
-          className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative transition-all duration-300 ease-in-out ${
+          className={`flex-1 flex flex-col min-w-0 h-full min-h-0 overflow-hidden relative transition-all duration-300 ease-in-out ${
             workspaceSizeMode === 'half'
               ? 'max-w-4xl mx-auto shadow-2xl border-x border-inherit'
               : 'w-full'
@@ -320,6 +332,7 @@ const WorkspaceContent: React.FC = () => {
           ) : (
             <>
               {activeTab === 'home' && <Header />}
+              {activeTab !== 'home' && activeTab !== 'chat' && !isIncognitoActive && <MobileTopBar />}
               <main
                 ref={mainScrollRef}
                 className={`flex-1 min-h-0 ${

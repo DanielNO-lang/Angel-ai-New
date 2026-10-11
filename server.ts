@@ -10,18 +10,17 @@
 
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
-import { executeAgentPipeline } from './server/orchestrator';
-import { providerRegistry } from './server/providers';
-import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
-import { automationService, AutomationEventType } from './server/services/automationService';
-import { dispatchZapierEvent } from './server/zapier_service';
-import { authService } from './server/services/authService';
-import { mediaService } from './server/services/mediaService';
-import { voiceService } from './server/services/voiceService';
-import { intelligenceService } from './server/services/intelligenceService';
-import { githubService } from './server/services/githubService';
-import { vercelService } from './server/services/vercelService';
+import { executeAgentPipeline } from './server/orchestrator.js';
+import { providerRegistry } from './server/providers/index.js';
+import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
+import { automationService, AutomationEventType } from './server/services/automationService.js';
+import { dispatchZapierEvent } from './server/zapier_service.js';
+import { authService } from './server/services/authService.js';
+import { mediaService } from './server/services/mediaService.js';
+import { voiceService } from './server/services/voiceService.js';
+import { intelligenceService } from './server/services/intelligenceService.js';
+import { githubService } from './server/services/githubService.js';
+import { vercelService } from './server/services/vercelService.js';
 
 export interface CreateAppOptions {
   isServerless?: boolean;
@@ -345,18 +344,30 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   // Streaming Text Generation (Server-Sent Events)
   app.post(['/api/ai/stream', '/api/chat/stream'], async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
+    const body = req.body || {};
+    const prompt = body.prompt ?? body.message;
+    const systemInstruction = body.systemInstruction;
+    const conversationHistory = body.conversationHistory ?? body.history;
+    const modelId = body.modelId;
+    const providerId = body.providerId;
+    const temperature = body.temperature;
+    const maxTokens = body.maxTokens;
 
-    if (!prompt) {
+    if (typeof prompt !== 'string' || !prompt.trim()) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
     try {
       const provider = providerRegistry.getProvider(providerId);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({
+          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
+        });
+      }
+
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
 
       await provider.stream(
         {
@@ -392,6 +403,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
     try {
       const provider = providerRegistry.getProvider(providerId);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({
+          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
+        });
+      }
       const result = await provider.generate({
         prompt,
         systemInstruction,
@@ -418,6 +434,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
     try {
       const provider = providerRegistry.getProvider(providerId);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({
+          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
+        });
+      }
       const result = await provider.structuredOutput({
         prompt,
         systemInstruction,
@@ -445,6 +466,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
     try {
       const provider = providerRegistry.getProvider(providerId);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({
+          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
+        });
+      }
       const result = await provider.toolCall({
         prompt,
         systemInstruction,
@@ -471,6 +497,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
     try {
       const provider = providerRegistry.getProvider(providerId);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({
+          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
+        });
+      }
       const result = await provider.vision({
         base64Data,
         mimeType: mimeType || 'image/jpeg',
@@ -502,6 +533,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
     try {
       const provider = providerRegistry.getProvider(providerId);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({
+          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
+        });
+      }
       const embeddings = await provider.embeddings(texts);
       res.json({ embeddings, count: embeddings.length });
     } catch (err) {
@@ -832,6 +868,7 @@ async function startServer() {
   // VITE / STATIC FILE SERVING
   // ============================================================================
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',

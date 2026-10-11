@@ -39,7 +39,13 @@ export function getClientSupabase(): SupabaseClient | null {
   if (clientInstance) return clientInstance;
   if (supabaseUrl && supabaseKey && supabaseUrl.length > 5 && supabaseKey.length > 5) {
     try {
-      clientInstance = createClient(supabaseUrl, supabaseKey);
+      clientInstance = createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
+      });
       return clientInstance;
     } catch (err) {
       console.warn('[Supabase Client] Failed to create instance:', err);
@@ -292,10 +298,6 @@ export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirec
       provider: 'google',
       options: {
         redirectTo: redirectUrl,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
       },
     });
 

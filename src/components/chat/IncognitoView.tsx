@@ -75,62 +75,62 @@ export const IncognitoView: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: userText,
-          history: messages.map((m) => ({
+          prompt: userText,
+          conversationHistory: messages.map((m) => ({
             role: m.role,
             content: m.content,
           })),
           systemInstruction:
-            'You are operating in ANGEL AI Incognito Mode. Respond with complete confidentiality, precision, and clarity. Note: No logs, history, or tokens from this conversation will be persisted.',
+            'You are Angel in Incognito Mode. Keep this session ephemeral in the application: do not save these messages to workspace history or memory. Do not claim that provider-side retention or server logs are impossible.',
+          providerId: 'gemini',
         }),
       });
 
       if (!response.ok || !response.body) {
-        throw new Error('Streaming failed');
+        const details = await response.text().catch(() => '');
+        throw new Error(`Incognito AI request failed (HTTP ${response.status})${details ? `: ${details.slice(0, 300)}` : ''}`);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulated = '';
+      let buffer = '';
+      let streamError: string | null = null;
+
+      const processLine = (line: string) => {
+        if (!line.startsWith('data:')) return;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === '[DONE]') return;
+        try {
+          const parsed = JSON.parse(payload);
+          if (parsed.error) streamError = String(parsed.error);
+          const token = parsed.chunk ?? parsed.text;
+          if (token) {
+            accumulated += String(token);
+            setMessages((prev) => prev.map((m) => (m.id === asstId ? { ...m, content: accumulated } : m)));
+          }
+        } catch {
+          // Wait for the rest of a fragmented SSE event.
+        }
+      };
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (dataStr === '[DONE]') continue;
-            try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.text) {
-                accumulated += parsed.text;
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === asstId ? { ...m, content: accumulated } : m))
-                );
-              }
-            } catch {
-              // ignore partial lines
-            }
-          }
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        let newline = buffer.indexOf('\n');
+        while (newline >= 0) {
+          processLine(buffer.slice(0, newline).replace(/\r$/, ''));
+          buffer = buffer.slice(newline + 1);
+          newline = buffer.indexOf('\n');
         }
+        if (done) break;
       }
-    } catch {
-      // Fallback response if offline
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === asstId
-            ? {
-                ...m,
-                content:
-                  'I am ready in Incognito Mode. No messages, attachments, or conversation history are preserved during this session.',
-              }
-            : m
-        )
-      );
+      if (buffer.trim()) processLine(buffer.trim());
+      if (streamError) throw new Error(streamError);
+      if (!accumulated.trim()) throw new Error('Angel ended the stream without returning a response.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown streaming error';
+      setMessages((prev) => prev.map((m) => m.id === asstId ? { ...m, content: `Angel could not complete this response: ${message}` } : m));
     } finally {
       setIsStreaming(false);
     }
@@ -149,9 +149,9 @@ export const IncognitoView: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#070A0F] text-neutral-100 select-none overflow-hidden">
+    <div className="flex h-[100dvh] min-h-0 w-full flex-col bg-[#070A0F] text-neutral-100 select-none overflow-hidden">
       {/* Stealth Top Header Banner */}
-      <header className="h-14 px-4 sm:px-6 bg-[#0B0F17]/90 border-b border-purple-500/20 backdrop-blur-md flex items-center justify-between z-20">
+      <header className="relative z-20 flex h-14 shrink-0 items-center justify-between px-4 sm:px-6 bg-[#0B0F17]/90 border-b border-purple-500/20 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300">
             <EyeOff className="w-4 h-4" />
@@ -194,7 +194,7 @@ export const IncognitoView: React.FC = () => {
       </header>
 
       {/* Main Ephemeral Stage */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar p-4 max-w-3xl w-full mx-auto">
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar overscroll-contain p-4 max-w-3xl w-full mx-auto">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-5 animate-in fade-in duration-200">
             <div className="w-16 h-16 rounded-2xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-center shadow-lg shadow-purple-950/50">
@@ -233,12 +233,6 @@ export const IncognitoView: React.FC = () => {
                   msg.role === 'user' ? 'justify-end' : 'justify-start'
                 }`}
               >
-                {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5" />
-                  </div>
-                )}
-
                 <div
                   className={`max-w-2xl px-4 py-2.5 rounded-2xl ${
                     msg.role === 'user'

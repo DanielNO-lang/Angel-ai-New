@@ -164,11 +164,16 @@ export class ConversationService {
       });
 
       if (!response.ok || !response.body) {
-        throw new Error(`HTTP ${response.status}: Failed to connect to Angel intelligence stream`);
+        const details = await response.text().catch(() => '');
+        const message = details.trim().slice(0, 500);
+        throw new Error(`Angel stream request failed (HTTP ${response.status})${message ? `: ${message}` : ''}`);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
+      let streamError: string | null = null;
+      let streamFinished = false;
 
       agentExecutionLifecycle.advanceStage(
         lifecycleSession.sessionId,
@@ -177,31 +182,45 @@ export class ConversationService {
         'Receiving token stream from provider.'
       );
 
+      const processSseLine = (line: string) => {
+        if (!line.startsWith('data:')) return;
+        const payload = line.slice(5).trim();
+        if (!payload) return;
+        if (payload === '[DONE]') {
+          streamFinished = true;
+          return;
+        }
+        try {
+          const parsed = JSON.parse(payload);
+          if (parsed.error) streamError = String(parsed.error);
+          if (parsed.chunk) {
+            const token = String(parsed.chunk);
+            accumulatedText += token;
+            onToken?.(token, accumulatedText);
+          }
+          if (parsed.done) streamFinished = true;
+        } catch {
+          // Keep partial events in the buffer until their newline arrives.
+        }
+      };
+
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
-
-        const textChunk = decoder.decode(value, { stream: true });
-        const lines = textChunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const parsed = JSON.parse(line.slice(6));
-              if (parsed.chunk) {
-                accumulatedText += parsed.chunk;
-                if (onToken) {
-                  onToken(parsed.chunk, accumulatedText);
-                }
-              }
-              if (parsed.done) {
-                break;
-              }
-            } catch {
-              // Ignore partial JSON chunks
-            }
-          }
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        let newline = buffer.indexOf('\n');
+        while (newline >= 0) {
+          processSseLine(buffer.slice(0, newline).replace(/\r$/, ''));
+          buffer = buffer.slice(newline + 1);
+          newline = buffer.indexOf('\n');
         }
+        if (done) break;
+      }
+      if (buffer.trim()) processSseLine(buffer.trim());
+      if (streamError) throw new Error(streamError);
+      if (!accumulatedText.trim()) {
+        throw new Error(streamFinished
+          ? 'Angel completed the stream without returning any text. Check the configured model and provider.'
+          : 'Angel stream ended before a response was received.');
       }
 
       agentExecutionLifecycle.advanceStage(

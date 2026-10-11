@@ -5,8 +5,8 @@
  * EXECUTION -> VALIDATION -> RESPONSE -> MEMORY UPDATE -> COMPLETED
  */
 
-import { modelRouter } from './providers';
-import { dispatchZapierEvent } from './zapier_service';
+import { modelRouter } from './providers/index.js';
+import { dispatchZapierEvent } from './zapier_service.js';
 
 export interface ExecutionStepLog {
   stage:

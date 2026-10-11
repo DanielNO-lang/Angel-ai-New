@@ -61,11 +61,12 @@ export interface SyncResult {
 let cachedClient: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const key =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY;
 
   if (!url || !key || url.length < 5 || key.length < 5) {
     return null;
@@ -89,8 +90,8 @@ export function getSupabaseClient(): SupabaseClient | null {
 }
 
 export function getSupabaseServerStatus(): SupabaseServerStatus {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const anonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   const hasUrl = Boolean(url && url.length > 5);
@@ -105,8 +106,10 @@ export function getSupabaseServerStatus(): SupabaseServerStatus {
     hasServiceRoleKey,
     mode: isConfigured ? 'connected' : 'pending_configuration',
     message: isConfigured
-      ? 'Supabase credentials detected. Multi-entity PostgreSQL cloud sync active.'
-      : 'Supabase credentials pending in .env. Angel is running with reactive workspace synchronization.',
+      ? hasServiceRoleKey
+        ? 'Supabase server credentials detected, including the service-role key.'
+        : 'Supabase URL and anon/publishable key detected. Privileged server-side sync may be limited by Row Level Security until SUPABASE_SERVICE_ROLE_KEY is configured.'
+      : 'Supabase credentials are incomplete. Angel is running with local workspace synchronization where available.',
   };
 }
 
