@@ -292,10 +292,6 @@ export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirec
       provider: 'google',
       options: {
         redirectTo: redirectUrl,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
       },
     });
 
