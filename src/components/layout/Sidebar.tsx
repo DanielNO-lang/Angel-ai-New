@@ -887,7 +887,7 @@ export const Sidebar: React.FC = () => {
                   className="flex items-center gap-2 cursor-pointer"
                 >
                   <AngelLogo size={26} glow={true} />
-                  <span className="font-calligraphy text-2xl tracking-wide select-none text-white">Angel</span>
+                  <span className={isLight ? "font-calligraphy text-2xl tracking-wide select-none text-slate-900" : "font-calligraphy text-2xl tracking-wide select-none text-white"}>Angel</span>
                 </div>
                 <div className="flex items-center gap-1">
                   {/* Replaced cancel (x) button with collapse sidebar icon for mobiles */}
