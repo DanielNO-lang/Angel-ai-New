@@ -69,6 +69,21 @@ const WorkspaceContent: React.FC = () => {
 
   // Section Scroll Anchor: Reset scroll position to top whenever active section changes or clicked
   const mainScrollRef = useRef<HTMLElement>(null);
+  const previousTabRef = useRef<string>('home');
+  const currentTabRef = useRef<string>(activeTab);
+
+  useEffect(() => {
+    if (activeTab !== currentTabRef.current) {
+      previousTabRef.current = currentTabRef.current;
+      currentTabRef.current = activeTab;
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const handleNavigateBack = () => setActiveTab(previousTabRef.current || 'home');
+    window.addEventListener('angel-navigate-back', handleNavigateBack);
+    return () => window.removeEventListener('angel-navigate-back', handleNavigateBack);
+  }, [setActiveTab]);
   useEffect(() => {
     const handleScrollToTop = () => {
       if (mainScrollRef.current) {
