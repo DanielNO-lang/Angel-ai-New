@@ -4,7 +4,7 @@
  * Mounts the portable Express application router without maintaining long-running sockets.
  */
 
-import { createApp } from '../server';
+import { createApp } from '../server.ts';
 
 let appPromise: Promise<any> | null = null;
 
