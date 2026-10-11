@@ -8,6 +8,7 @@ import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { AppProvider, useAngel } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
+import { MobileTopBar } from './components/layout/MobileTopBar';
 import { Header } from './components/layout/Header';
 import { AuthPage } from './components/auth/AuthPage';
 import { HomeView } from './components/home/HomeView';
@@ -319,6 +320,7 @@ const WorkspaceContent: React.FC = () => {
           ) : (
             <>
               {activeTab === 'home' && <Header />}
+              {activeTab !== 'home' && activeTab !== 'chat' && !isIncognitoActive && <MobileTopBar />}
               <main
                 ref={mainScrollRef}
                 className={`flex-1 min-h-0 ${
