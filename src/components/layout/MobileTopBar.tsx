@@ -63,8 +63,6 @@ export const MobileTopBar: React.FC = () => {
     memories: { label: 'Memory', icon: Brain },
     media_studio: { label: 'Media Studio', icon: Palette },
     assistants: { label: 'Assistants', icon: Users },
-    visual_mode: { label: 'Visual Mode', icon: Eye },
-    voice: { label: 'Voice Mode', icon: Headphones },
     settings: { label: 'Settings', icon: Settings },
   };
 
