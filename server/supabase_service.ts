@@ -105,8 +105,10 @@ export function getSupabaseServerStatus(): SupabaseServerStatus {
     hasServiceRoleKey,
     mode: isConfigured ? 'connected' : 'pending_configuration',
     message: isConfigured
-      ? 'Supabase credentials detected. Multi-entity PostgreSQL cloud sync active.'
-      : 'Supabase credentials pending in .env. Angel is running with reactive workspace synchronization.',
+      ? hasServiceRoleKey
+        ? 'Supabase server credentials detected, including the service-role key.'
+        : 'Supabase URL and anon/publishable key detected. Privileged server-side sync may be limited by Row Level Security until SUPABASE_SERVICE_ROLE_KEY is configured.'
+      : 'Supabase credentials are incomplete. Angel is running with local workspace synchronization where available.',
   };
 }
 
