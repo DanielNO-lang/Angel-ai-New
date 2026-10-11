@@ -86,7 +86,6 @@ export const SettingsView: React.FC = () => {
   const {
     userProfile,
     updateUserProfile,
-    setActiveTab,
     settings,
     updateSettings,
     clearAllData,
