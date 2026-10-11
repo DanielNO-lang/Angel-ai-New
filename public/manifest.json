@@ -1,16 +1,17 @@
 {
   "id": "/",
-  "name": "Angel AI Workspace",
-  "short_name": "Angel AI",
+  "name": "Angel AI",
+  "short_name": "Angel",
   "description": "Personal AI workspace and agent platform combining conversational AI, persistent memory, tasks, agent workflows, and visual interaction.",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "theme_color": "#060813",
   "background_color": "#060813",
   "icons": [
-    { "src": "/favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/icon-192.svg?v=5", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-512.svg?v=5", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon-maskable-512.svg?v=5", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
   ]
 }
