@@ -162,9 +162,6 @@ const WorkspaceContent: React.FC = () => {
         } else if (e.key === '6') {
           e.preventDefault();
           setActiveTab('memories');
-        } else if (e.key === '7') {
-          e.preventDefault();
-          setActiveTab('visual_mode');
         }
         return;
       }
