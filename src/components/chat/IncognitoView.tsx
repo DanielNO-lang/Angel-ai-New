@@ -75,62 +75,62 @@ export const IncognitoView: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: userText,
-          history: messages.map((m) => ({
+          prompt: userText,
+          conversationHistory: messages.map((m) => ({
             role: m.role,
             content: m.content,
           })),
           systemInstruction:
-            'You are operating in ANGEL AI Incognito Mode. Respond with complete confidentiality, precision, and clarity. Note: No logs, history, or tokens from this conversation will be persisted.',
+            'You are Angel in Incognito Mode. Keep this session ephemeral in the application: do not save these messages to workspace history or memory. Do not claim that provider-side retention or server logs are impossible.',
+          providerId: 'gemini',
         }),
       });
 
       if (!response.ok || !response.body) {
-        throw new Error('Streaming failed');
+        const details = await response.text().catch(() => '');
+        throw new Error(`Incognito AI request failed (HTTP ${response.status})${details ? `: ${details.slice(0, 300)}` : ''}`);
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulated = '';
+      let buffer = '';
+      let streamError: string | null = null;
+
+      const processLine = (line: string) => {
+        if (!line.startsWith('data:')) return;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === '[DONE]') return;
+        try {
+          const parsed = JSON.parse(payload);
+          if (parsed.error) streamError = String(parsed.error);
+          const token = parsed.chunk ?? parsed.text;
+          if (token) {
+            accumulated += String(token);
+            setMessages((prev) => prev.map((m) => (m.id === asstId ? { ...m, content: accumulated } : m)));
+          }
+        } catch {
+          // Wait for the rest of a fragmented SSE event.
+        }
+      };
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (dataStr === '[DONE]') continue;
-            try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.text) {
-                accumulated += parsed.text;
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === asstId ? { ...m, content: accumulated } : m))
-                );
-              }
-            } catch {
-              // ignore partial lines
-            }
-          }
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        let newline = buffer.indexOf('\n');
+        while (newline >= 0) {
+          processLine(buffer.slice(0, newline).replace(/\r$/, ''));
+          buffer = buffer.slice(newline + 1);
+          newline = buffer.indexOf('\n');
         }
+        if (done) break;
       }
-    } catch {
-      // Fallback response if offline
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === asstId
-            ? {
-                ...m,
-                content:
-                  'I am ready in Incognito Mode. No messages, attachments, or conversation history are preserved during this session.',
-              }
-            : m
-        )
-      );
+      if (buffer.trim()) processLine(buffer.trim());
+      if (streamError) throw new Error(streamError);
+      if (!accumulated.trim()) throw new Error('Angel ended the stream without returning a response.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown streaming error';
+      setMessages((prev) => prev.map((m) => m.id === asstId ? { ...m, content: `Angel could not complete this response: ${message}` } : m));
     } finally {
       setIsStreaming(false);
     }
