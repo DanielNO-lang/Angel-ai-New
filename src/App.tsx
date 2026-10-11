@@ -38,7 +38,6 @@ import {
   WorkspaceStageControls,
   WorkspaceMinimizedView,
 } from './components/layout/WorkspaceStageControls';
-import { MobileTopBar } from './components/layout/MobileTopBar';
 
 const WorkspaceContent: React.FC = () => {
   const {
@@ -280,7 +279,7 @@ const WorkspaceContent: React.FC = () => {
 
   return (
     <div
-      className={`relative flex min-h-screen font-sans antialiased selection:bg-indigo-600/30 selection:text-white transition-colors duration-500 ease-in-out ${
+      className={`relative flex h-[100dvh] min-h-[100dvh] overflow-hidden font-sans antialiased selection:bg-indigo-600/30 selection:text-white transition-colors duration-500 ease-in-out ${
         settings.theme === 'light'
           ? 'light text-slate-900 bg-transparent'
           : settings.theme === 'midnight'
@@ -300,13 +299,13 @@ const WorkspaceContent: React.FC = () => {
       <BackdropLayer />
 
       {/* Actual Angel UI rendered at a higher stacking level (z-10) above the backdrop */}
-      <div className="relative z-10 flex w-full min-h-screen pl-0 transition-all duration-300 ease-in-out">
+      <div className="relative z-10 flex h-full w-full min-h-0 pl-0 transition-all duration-300 ease-in-out">
         {/* Persistent Collapsible Sidebar (hidden in Focus Mode) */}
         <Sidebar />
 
         {/* Main Workspace Stage with independent scrolling context and manual minimize/sizing support */}
         <div
-          className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative transition-all duration-300 ease-in-out ${
+          className={`flex-1 flex flex-col min-w-0 h-full min-h-0 overflow-hidden relative transition-all duration-300 ease-in-out ${
             workspaceSizeMode === 'half'
               ? 'max-w-4xl mx-auto shadow-2xl border-x border-inherit'
               : 'w-full'
