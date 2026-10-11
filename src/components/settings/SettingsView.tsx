@@ -11,6 +11,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {
+  ArrowLeft,
   User,
   Palette,
   Sliders,
@@ -85,6 +86,7 @@ export const SettingsView: React.FC = () => {
   const {
     userProfile,
     updateUserProfile,
+    setActiveTab,
     settings,
     updateSettings,
     clearAllData,
@@ -293,6 +295,15 @@ export const SettingsView: React.FC = () => {
         }`}
       >
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event('angel-navigate-back'))}
+            aria-label="Return to previous section"
+            title="Return to previous section"
+            className={`rounded-xl border p-2 transition-colors ${isLight ? 'border-slate-200 text-slate-600 hover:bg-slate-100' : 'border-white/10 text-neutral-300 hover:bg-white/10'}`}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
           <span
             className={`p-2 rounded-2xl border ${
               isLight
