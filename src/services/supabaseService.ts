@@ -39,7 +39,13 @@ export function getClientSupabase(): SupabaseClient | null {
   if (clientInstance) return clientInstance;
   if (supabaseUrl && supabaseKey && supabaseUrl.length > 5 && supabaseKey.length > 5) {
     try {
-      clientInstance = createClient(supabaseUrl, supabaseKey, {\n        auth: {\n          persistSession: true,\n          autoRefreshToken: true,\n          detectSessionInUrl: true,\n        },\n      });
+      clientInstance = createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+        },
+      });
       return clientInstance;
     } catch (err) {
       console.warn('[Supabase Client] Failed to create instance:', err);
