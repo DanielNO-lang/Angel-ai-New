@@ -345,9 +345,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   // Streaming Text Generation (Server-Sent Events)
   app.post(['/api/ai/stream', '/api/chat/stream'], async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
+    const body = req.body || {};
+    const prompt = body.prompt ?? body.message;
+    const systemInstruction = body.systemInstruction;
+    const conversationHistory = body.conversationHistory ?? body.history;
+    const modelId = body.modelId;
+    const providerId = body.providerId;
+    const temperature = body.temperature;
+    const maxTokens = body.maxTokens;
 
-    if (!prompt) {
+    if (typeof prompt !== 'string' || !prompt.trim()) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
