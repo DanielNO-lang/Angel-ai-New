@@ -40,4 +40,11 @@ test('Angel backend smoke contract', async (t) => {
 
   const artifacts = await fetch(`${baseUrl}/api/media/artifacts`);
   assert.equal(artifacts.status, 401, 'private media must require a verified user');
+
+  const invalidResearch = await fetch(`${baseUrl}/api/research/search`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ query: '' }),
+  });
+  assert.equal(invalidResearch.status, 400, 'research endpoint must validate input before calling paid search');
 });
