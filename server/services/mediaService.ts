@@ -312,7 +312,7 @@ class MediaService {
    */
   async generateVideo(req: GenerateVideoRequest): Promise<MediaArtifact> {
     const id = 'vid_' + crypto.randomBytes(8).toString('hex');
-    const modelId = req.modelId || 'veo-3.1-lite-generate-preview';
+    const modelId = req.modelId || 'veo-3.1-generate-preview';
     const now = new Date().toISOString();
     const artifact: MediaArtifact = {
       id,
@@ -324,19 +324,113 @@ class MediaService {
       mimeType: 'video/mp4',
       aspectRatio: req.aspectRatio || '16:9',
       modelId,
-      status: 'failed',
-      progress: 0,
+      status: 'queued',
+      progress: 5,
       tags: ['Video', 'Cinematic', 'Veo'],
       projectId: req.projectId,
       taskId: req.taskId,
       durationSec: req.durationSeconds || 5,
-      error: this.hasApiKey()
-        ? 'Video generation is not yet connected to a supported asynchronous video-job adapter. No fake video was created.'
-        : 'Video generation is unavailable because GEMINI_API_KEY is not configured.',
       createdAt: now,
       updatedAt: now,
     };
+
+    if (!this.hasApiKey()) {
+      artifact.status = 'failed';
+      artifact.progress = 0;
+      artifact.error = 'Video generation is unavailable because GEMINI_API_KEY is not configured.';
+      this.artifacts.set(id, artifact);
+      return artifact;
+    }
+
+    try {
+      const operation = await this.getClient().models.generateVideos({
+        model: modelId,
+        prompt: req.prompt,
+        config: {
+          aspectRatio: artifact.aspectRatio,
+          numberOfVideos: 1,
+        },
+      });
+      const operationName = (operation as any).name;
+      if (!operationName || typeof operationName !== 'string') {
+        throw new Error('The video provider did not return a trackable operation ID.');
+      }
+      artifact.status = 'processing';
+      artifact.progress = 10;
+      artifact.metadata = { operationName };
+      artifact.updatedAt = new Date().toISOString();
+    } catch (err) {
+      artifact.status = 'failed';
+      artifact.progress = 0;
+      artifact.error = err instanceof Error ? err.message : String(err);
+      artifact.updatedAt = new Date().toISOString();
+    }
+
     this.artifacts.set(id, artifact);
+    return artifact;
+  }
+
+  /** Poll a persisted Veo operation; safe to call from a later serverless invocation. */
+  async pollVideoGeneration(artifact: MediaArtifact): Promise<MediaArtifact> {
+    const operationName = typeof artifact.metadata?.operationName === 'string'
+      ? artifact.metadata.operationName
+      : '';
+    if (!operationName) throw new Error('This video artifact has no provider operation ID.');
+    if (!this.hasApiKey()) throw new Error('Video generation is unavailable because GEMINI_API_KEY is not configured.');
+
+    const ai = this.getClient();
+    const operation = await ai.operations.getVideosOperation({
+      operation: { name: operationName } as any,
+    }) as any;
+
+    artifact.updatedAt = new Date().toISOString();
+    if (!operation.done) {
+      artifact.status = 'processing';
+      artifact.progress = Math.max(15, Math.min(90, artifact.progress + 10));
+      this.artifacts.set(artifact.id, artifact);
+      return artifact;
+    }
+
+    if (operation.error) {
+      artifact.status = 'failed';
+      artifact.progress = 0;
+      artifact.error = String(operation.error.message || 'The video provider reported a generation error.');
+      this.artifacts.set(artifact.id, artifact);
+      return artifact;
+    }
+
+    const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (typeof videoUri !== 'string' || !videoUri) {
+      artifact.status = 'failed';
+      artifact.progress = 0;
+      artifact.error = 'The video provider completed without returning a downloadable video.';
+      this.artifacts.set(artifact.id, artifact);
+      return artifact;
+    }
+
+    const parsedUrl = new URL(videoUri);
+    const allowedHosts = new Set(['generativelanguage.googleapis.com', 'storage.googleapis.com']);
+    if (parsedUrl.protocol !== 'https:' || !allowedHosts.has(parsedUrl.hostname)) {
+      throw new Error('The video provider returned an unsupported download host.');
+    }
+    const headers: Record<string, string> = {};
+    if (parsedUrl.hostname === 'generativelanguage.googleapis.com') {
+      headers['x-goog-api-key'] = process.env.GEMINI_API_KEY || '';
+    }
+    const download = await fetch(parsedUrl.toString(), { headers });
+    if (!download.ok) throw new Error(`Video download failed with status ${download.status}.`);
+    const bytes = Buffer.from(await download.arrayBuffer());
+    if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) {
+      throw new Error('The generated video is empty or exceeds the 20 MB artifact limit.');
+    }
+
+    artifact.url = `data:video/mp4;base64,${bytes.toString('base64')}`;
+    artifact.mimeType = 'video/mp4';
+    artifact.fileSizeBytes = bytes.byteLength;
+    artifact.status = 'completed';
+    artifact.progress = 100;
+    artifact.metadata = { ...artifact.metadata, providerOperationDone: true };
+    this.artifacts.set(artifact.id, artifact);
     return artifact;
   }
 }
