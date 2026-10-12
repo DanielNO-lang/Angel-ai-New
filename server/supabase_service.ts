@@ -231,7 +231,7 @@ export async function getTasksVelocity(fallbackTasks: any[] = [], userClient?: S
   if (supabase) {
     try {
       const { data, error } = await supabase.from('tasks').select('*');
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         return calculateVelocityMetrics(data, true);
       }
     } catch {
@@ -324,15 +324,26 @@ export async function syncAllEntitiesToSupabase(
   try {
     if (payload.profile) {
       const p = payload.profile;
-      await upsert('profiles', [{
-        id: userId,
-        name: String(p.name || p.full_name || ''),
-        email: String(p.email || ''),
-        initials: String(p.initials || ''),
-        avatar_url: p.avatarUrl || p.avatar_url || null,
-        status: String(p.status || 'online'),
-        updated_at: now,
-      }], 'profile');
+      const { data: existingProfile, error: profileLookupError } = await supabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', userId)
+        .maybeSingle();
+      if (profileLookupError) {
+        errors.push(`profile: ${profileLookupError.message}`);
+      } else {
+        await upsert('profiles', [{
+          id: userId,
+          name: String(p.name || p.full_name || ''),
+          email: String(p.email || ''),
+          initials: String(p.initials || ''),
+          avatar_url: p.avatarUrl || p.avatar_url || null,
+          status: String(p.status || 'online'),
+          // Preserve the database-owned plan. Never trust a client payload to upgrade it.
+          plan: existingProfile?.plan || 'Free',
+          updated_at: now,
+        }], 'profile');
+      }
     }
 
     await upsert('agents', (payload.agents || []).map((a: any) => ({
