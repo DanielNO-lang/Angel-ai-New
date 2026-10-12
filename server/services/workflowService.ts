@@ -194,9 +194,23 @@ export async function runWorkflowExecution(options: WorkflowRunOptions): Promise
         const allowedEvents: AutomationEventType[] = ['task.created', 'task.completed', 'agent.executed', 'message.received', 'memory.created', 'memory.updated', 'workflow.completed'];
         if (!allowedEvents.includes(event)) throw new Error(`Step ${stepId} uses an unsupported webhook event.`);
         const dispatched = await dispatchZapierEvent(event, { workflowId, executionId, input, step: stepId });
-        result = { stepId, type: stepType, success: dispatched.dispatched, statusText: dispatched.statusText };
-      } else if (['set_variable', 'transform'].includes(stepType)) {
-        result = { stepId, type: stepType, success: true, value: step.value ?? input[String(step.key || '')] ?? null };
+        if (!dispatched.dispatched) throw new Error(`Webhook step ${stepId} was not delivered: ${dispatched.statusText}`);
+        result = { stepId, type: stepType, success: true, statusText: dispatched.statusText };
+      } else if (stepType === 'set_variable') {
+        const key = String(step.key || '');
+        if (!key || key.length > 120) throw new Error(`Step ${stepId} requires a valid variable key.`);
+        const value = step.value !== undefined ? step.value : getPath(input, String(step.from || ''));
+        input[key] = value;
+        result = { stepId, type: stepType, success: true, key, value: value ?? null };
+      } else if (stepType === 'transform') {
+        const source = step.value ?? step.template ?? '';
+        const value = typeof source === 'string'
+          ? source.replace(/\\{\\{\\s*([a-zA-Z0-9_.-]+)\\s*\\}\\}/g, (_match: string, path: string) => {
+              const resolved = getPath({ input, results }, path.replace(/^input\\./, '').replace(/^results\\./, ''));
+              return resolved == null ? '' : String(resolved);
+            })
+          : source;
+        result = { stepId, type: stepType, success: true, value };
       } else {
         throw new Error(`Unsupported workflow step type "${stepType}" at step ${stepId}.`);
       }
