@@ -74,7 +74,7 @@ class MediaService {
   private artifacts: Map<string, MediaArtifact> = new Map();
 
   constructor() {
-    this.seedCanonicalArtifacts();
+    // Production artifacts must come from real generation jobs, not seeded demo assets.
   }
 
   private getClient(): GoogleGenAI {
@@ -91,81 +91,6 @@ class MediaService {
 
   private hasApiKey(): boolean {
     return Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0);
-  }
-
-  private seedCanonicalArtifacts() {
-    const initialArtifacts: MediaArtifact[] = [
-      {
-        id: 'art-neural-core',
-        title: 'Neural Core Visualization',
-        prompt: 'Futuristic glowing neural intelligence core, ethereal holographic AI orb pulsating with violet data streams',
-        type: 'image',
-        category: 'images',
-        url: '/src/assets/images/ai_intelligence_clip_1790265840519.jpg',
-        mimeType: 'image/jpeg',
-        aspectRatio: '16:9',
-        modelId: 'gemini-3.1-flash-image',
-        status: 'completed',
-        progress: 100,
-        tags: ['AI', 'Neural', 'Cybernetic'],
-        projectId: 'proj-1',
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-        updatedAt: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        id: 'art-cyberpunk-dawn',
-        title: 'Cyberpunk Metropolis Sunrise',
-        prompt: 'Neon cyberpunk city skyline at golden hour with flying vehicles and volumetric fog reflections',
-        type: 'image',
-        category: 'images',
-        url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
-        mimeType: 'image/jpeg',
-        aspectRatio: '16:9',
-        modelId: 'gemini-3.1-flash-image',
-        status: 'completed',
-        progress: 100,
-        tags: ['Sci-Fi', 'Cityscape', 'Architecture'],
-        createdAt: new Date(Date.now() - 7200000).toISOString(),
-        updatedAt: new Date(Date.now() - 7200000).toISOString(),
-      },
-      {
-        id: 'art-hologram-ui',
-        title: 'Spatial Computing Interface',
-        prompt: '3D floating spatial computing UI with data visualizations, glowing glassmorphism dials and nodes',
-        type: 'image',
-        category: 'creations',
-        url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1200&q=80',
-        mimeType: 'image/jpeg',
-        aspectRatio: '4:3',
-        modelId: 'gemini-3.1-flash-image',
-        status: 'completed',
-        progress: 100,
-        tags: ['Interface', 'HUD', 'Glass'],
-        projectId: 'proj-1',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        updatedAt: new Date(Date.now() - 86400000).toISOString(),
-      },
-      {
-        id: 'art-avatar-scout',
-        title: 'Angel Optic Perception Avatar',
-        prompt: 'Cinematic portrait of neural avatar with glowing fiber-optic hair and iridescent wings in midnight violet',
-        type: 'image',
-        category: 'templates',
-        url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=1200&q=80',
-        mimeType: 'image/jpeg',
-        aspectRatio: '1:1',
-        modelId: 'gemini-3.1-flash-image',
-        status: 'completed',
-        progress: 100,
-        tags: ['Portrait', 'Avatar', 'Wings'],
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-        updatedAt: new Date(Date.now() - 172800000).toISOString(),
-      },
-    ];
-
-    for (const art of initialArtifacts) {
-      this.artifacts.set(art.id, art);
-    }
   }
 
   /**
@@ -255,21 +180,9 @@ class MediaService {
 
   private async executeImageGeneration(artifact: MediaArtifact, req: GenerateImageRequest): Promise<void> {
     if (!this.hasApiKey()) {
-      // Offline fallback: provide high-res curated placeholder with explicit explanation
-      artifact.progress = 60;
-      await new Promise((r) => setTimeout(r, 600));
-
-      const fallbackPalettes = [
-        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?auto=format&fit=crop&w=1200&q=80',
-      ];
-      artifact.url = fallbackPalettes[Math.floor(Math.random() * fallbackPalettes.length)];
-      artifact.status = 'completed';
-      artifact.progress = 100;
-      artifact.metadata = {
-        note: 'Generated in offline development mode. Add GEMINI_API_KEY to activate live neural synthesis.',
-      };
+      artifact.status = 'failed';
+      artifact.progress = 0;
+      artifact.error = 'Image generation is unavailable because GEMINI_API_KEY is not configured.';
       artifact.updatedAt = new Date().toISOString();
       return;
     }
@@ -277,6 +190,7 @@ class MediaService {
     try {
       const ai = this.getClient();
       artifact.progress = 50;
+      artifact.updatedAt = new Date().toISOString();
 
       const response = await ai.models.generateContent({
         model: artifact.modelId,
@@ -291,30 +205,22 @@ class MediaService {
         },
       });
 
-      let foundImage = false;
       const candidates = (response as any).candidates;
-      if (candidates && candidates[0]?.content?.parts) {
-        for (const part of candidates[0].content.parts) {
-          if (part.inlineData) {
-            artifact.url = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-            artifact.mimeType = part.inlineData.mimeType || 'image/png';
-            foundImage = true;
-            break;
-          }
-        }
+      const parts = candidates?.[0]?.content?.parts;
+      const imagePart = Array.isArray(parts) ? parts.find((part: any) => part.inlineData?.data) : undefined;
+      if (!imagePart) {
+        throw new Error('The selected model returned no image data. No placeholder was substituted.');
       }
 
-      if (!foundImage) {
-        // If model returned textual critique or reasoning instead of binary image, fallback safely
-        artifact.url = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80';
-      }
-
+      artifact.url = `data:${imagePart.inlineData.mimeType || 'image/png'};base64,${imagePart.inlineData.data}`;
+      artifact.mimeType = imagePart.inlineData.mimeType || 'image/png';
       artifact.status = 'completed';
       artifact.progress = 100;
       artifact.updatedAt = new Date().toISOString();
     } catch (err) {
       console.error('[executeImageGeneration Error]', err);
       artifact.status = 'failed';
+      artifact.progress = 0;
       artifact.error = err instanceof Error ? err.message : String(err);
       artifact.updatedAt = new Date().toISOString();
     }
@@ -352,11 +258,9 @@ class MediaService {
     this.artifacts.set(id, artifact);
 
     if (!this.hasApiKey()) {
-      artifact.url = req.baseImageBase64.startsWith('http')
-        ? req.baseImageBase64
-        : `data:${req.mimeType || 'image/png'};base64,${cleanBase64}`;
-      artifact.status = 'completed';
-      artifact.progress = 100;
+      artifact.status = 'failed';
+      artifact.progress = 0;
+      artifact.error = 'Image editing is unavailable because GEMINI_API_KEY is not configured.';
       artifact.updatedAt = new Date().toISOString();
       return artifact;
     }
@@ -393,7 +297,7 @@ class MediaService {
       }
 
       if (!found) {
-        artifact.url = req.baseImageBase64;
+        throw new Error('The selected model returned no edited image data.');
       }
 
       artifact.status = 'completed';
@@ -414,45 +318,30 @@ class MediaService {
   async generateVideo(req: GenerateVideoRequest): Promise<MediaArtifact> {
     const id = 'vid_' + crypto.randomBytes(8).toString('hex');
     const modelId = req.modelId || 'veo-3.1-lite-generate-preview';
-    const aspectRatio = req.aspectRatio || '16:9';
-
+    const now = new Date().toISOString();
     const artifact: MediaArtifact = {
       id,
       title: 'Video: ' + req.prompt.slice(0, 40),
       prompt: req.prompt,
       type: 'video',
       category: 'creations',
-      url: '/src/assets/images/ai_intelligence_clip_1790265840519.jpg', // initial poster frame
+      url: '',
       mimeType: 'video/mp4',
-      aspectRatio,
+      aspectRatio: req.aspectRatio || '16:9',
       modelId,
-      status: 'processing',
-      progress: 15,
+      status: 'failed',
+      progress: 0,
       tags: ['Video', 'Cinematic', 'Veo'],
       projectId: req.projectId,
       taskId: req.taskId,
       durationSec: req.durationSeconds || 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      error: this.hasApiKey()
+        ? 'Video generation is not yet connected to a supported asynchronous video-job adapter. No fake video was created.'
+        : 'Video generation is unavailable because GEMINI_API_KEY is not configured.',
+      createdAt: now,
+      updatedAt: now,
     };
-
     this.artifacts.set(id, artifact);
-
-    // Simulate progressive video rendering timeline
-    let currentStep = 15;
-    const interval = setInterval(() => {
-      currentStep += 20;
-      if (currentStep >= 100) {
-        clearInterval(interval);
-        artifact.progress = 100;
-        artifact.status = 'completed';
-        artifact.updatedAt = new Date().toISOString();
-      } else {
-        artifact.progress = currentStep;
-        artifact.updatedAt = new Date().toISOString();
-      }
-    }, 800);
-
     return artifact;
   }
 }
