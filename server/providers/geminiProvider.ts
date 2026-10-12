@@ -174,17 +174,22 @@ export class GeminiProvider implements AIProvider {
       const ai = this.getClient();
       const contents = this.formatContents(options.prompt, options.conversationHistory);
 
+      const generationConfig: Record<string, unknown> = {
+        systemInstruction:
+          options.systemInstruction ||
+          'You are Angel, a calm, disciplined, hyper-capable personal AI operating environment. Answer concisely and with clear markdown structure.',
+        maxOutputTokens: options.maxTokens,
+      };
+      // Gemini 3+ rejects legacy sampling controls; use the model's native
+      // thinking defaults for Gemini 3.x and preserve controls for older models.
+      if (!model.startsWith('gemini-3.')) {
+        generationConfig.temperature = options.temperature ?? 0.7;
+        generationConfig.topP = options.topP;
+      }
       const response = await ai.models.generateContent({
         model,
         contents,
-        config: {
-          systemInstruction:
-            options.systemInstruction ||
-            'You are Angel, a calm, disciplined, hyper-capable personal AI operating environment. Answer concisely and with clear markdown structure.',
-          temperature: options.temperature ?? 0.7,
-          maxOutputTokens: options.maxTokens,
-          topP: options.topP,
-        },
+        config: generationConfig as any,
       });
 
       const text = response.text || '';
@@ -224,14 +229,15 @@ export class GeminiProvider implements AIProvider {
       const ai = this.getClient();
       const contents = this.formatContents(options.prompt, options.conversationHistory);
 
+      const streamConfig: Record<string, unknown> = {
+        systemInstruction: options.systemInstruction,
+        maxOutputTokens: options.maxTokens,
+      };
+      if (!model.startsWith('gemini-3.')) streamConfig.temperature = options.temperature ?? 0.7;
       const streamResponse = await ai.models.generateContentStream({
         model,
         contents,
-        config: {
-          systemInstruction: options.systemInstruction,
-          temperature: options.temperature ?? 0.7,
-          maxOutputTokens: options.maxTokens,
-        },
+        config: streamConfig as any,
       });
 
       let fullText = '';
@@ -265,15 +271,16 @@ export class GeminiProvider implements AIProvider {
       const contents = this.formatContents(options.prompt, options.conversationHistory);
       const convertedSchema = this.convertToGeminiSchema(options.jsonSchema);
 
+      const structuredConfig: Record<string, unknown> = {
+        systemInstruction: options.systemInstruction,
+        responseMimeType: 'application/json',
+        responseSchema: convertedSchema as any,
+      };
+      if (!model.startsWith('gemini-3.')) structuredConfig.temperature = options.temperature ?? 0.2;
       const response = await ai.models.generateContent({
         model,
         contents,
-        config: {
-          systemInstruction: options.systemInstruction,
-          temperature: options.temperature ?? 0.2, // lower temperature for deterministic structure
-          responseMimeType: 'application/json',
-          responseSchema: convertedSchema as any,
-        },
+        config: structuredConfig as any,
       });
 
       const rawText = response.text?.trim() || '{}';
@@ -310,16 +317,17 @@ export class GeminiProvider implements AIProvider {
       const contents = this.formatContents(options.prompt, options.conversationHistory);
       const functionDeclarations = this.convertTools(options.tools);
 
+      const toolConfig: Record<string, unknown> = {
+        systemInstruction:
+          options.systemInstruction ||
+          'You are Angel. When the user prompt requires a tool to be called, invoke the appropriate function with accurate parameters.',
+        tools: [{ functionDeclarations }],
+      };
+      if (!model.startsWith('gemini-3.')) toolConfig.temperature = options.temperature ?? 0.3;
       const response = await ai.models.generateContent({
         model,
         contents,
-        config: {
-          systemInstruction:
-            options.systemInstruction ||
-            'You are Angel. When the user prompt requires a tool to be called, invoke the appropriate function with accurate parameters.',
-          temperature: options.temperature ?? 0.3,
-          tools: [{ functionDeclarations }],
-        },
+        config: toolConfig as any,
       });
 
       const extractedToolCalls: ToolCallRequest[] = [];
