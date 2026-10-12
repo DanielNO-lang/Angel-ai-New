@@ -1,3 +1,6 @@
+import { appendFileSync } from 'node:fs';
+
+async function main() {
 const baseUrl = (process.env.ANGEL_BASE_URL || 'https://angel-ai-new-git-main-angel-0908.vercel.app').replace(/\/$/, '');
 const expectedSha = process.env.GITHUB_SHA || '';
 const deadline = Date.now() + 8 * 60 * 1000;
@@ -61,3 +64,12 @@ if (!answer || /offline fallback|pending configuration|not configured/i.test(ans
   throw new Error(`AI generation did not return a live model answer: ${answer.slice(0, 300)}`);
 }
 console.log(`PASS live generation: provider=${generation.data.provider || 'unknown'}, model=${generation.data.modelId || 'unknown'}, chars=${answer.length}`);
+
+}
+
+main().catch((error) => {
+  const reason = String(error?.message || error).replace(/[\r\n]+/g, ' ').replace(/AIza[0-9A-Za-z_-]{20,}/g, '[REDACTED_KEY]').slice(0, 180);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `reason=${reason}\n`);
+  console.error(error);
+  process.exitCode = 1;
+});
