@@ -31,6 +31,8 @@ export interface CreateAppOptions {
 
 export async function createApp(options: CreateAppOptions = {}): Promise<Express> {
   const app = express();
+  // Vercel terminates TLS at its edge; trust its immediate proxy so per-client rate limits use the real IP.
+  app.set('trust proxy', 1);
 
   app.use(express.json({ limit: '32mb' }));
 
