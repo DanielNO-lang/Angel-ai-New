@@ -196,6 +196,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.get('/api/integrations/status', (req: Request, res: Response) => {
     const supabase = getSupabaseServerStatus();
     const isVercelRuntime = Boolean(process.env.VERCEL);
+    const isVercelApiConfigured = vercelService.isConfigured();
     const hasGithubToken = Boolean(process.env.GITHUB_TOKEN);
     const hasGithubRepo = Boolean(process.env.GITHUB_REPO_NAME);
     const outboundUrl = process.env.OUTBOUND_WEBHOOK_URL || process.env.ZAPIER_OUTBOUND_WEBHOOK_URL;
@@ -233,12 +234,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           : 'Pending Configuration: Set GITHUB_TOKEN in environment secrets.',
       },
       vercel: {
-        configured: isVercelRuntime || Boolean(process.env.VERCEL_PROJECT_ID),
+        configured: isVercelApiConfigured,
+        apiConfigured: isVercelApiConfigured,
         isVercelRuntime,
         projectId: process.env.VERCEL_PROJECT_ID ? `${process.env.VERCEL_PROJECT_ID.slice(0, 6)}...` : null,
-        statusText: isVercelRuntime
-          ? 'Running on Vercel Serverless runtime.'
-          : 'Vercel-ready: Configured with framework-standard vercel.json and portable api router.',
+        statusText: isVercelApiConfigured
+          ? 'Vercel API token configured; project and deployment operations are available.'
+          : isVercelRuntime
+            ? 'Running on Vercel, but VERCEL_TOKEN is missing; project and deployment API actions are disabled.'
+            : 'Vercel API token is not configured.',
       },
       automation: {
         configured: Boolean(outboundUrl),
