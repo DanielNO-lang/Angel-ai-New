@@ -19,6 +19,7 @@ import { mediaService } from './server/services/mediaService';
 import { voiceService } from './server/services/voiceService';
 import { intelligenceService } from './server/services/intelligenceService';
 import { readingService } from './server/services/readingService';
+import { runWorkflowExecution, approveWorkflowExecution } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
 import { vercelService } from './server/services/vercelService';
 
@@ -265,6 +266,162 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   app.get('/api/supabase/ddl', (_req: Request, res: Response) => {
     res.type('text/plain').send(getSupabaseDDL());
+  });
+
+  // ============================================================================
+  // PERSISTENT WORKFLOW API
+  // ============================================================================
+
+  app.get('/api/workflows', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    try {
+      const { data, error } = await auth.client.from('workflows')
+        .select('*')
+        .eq('user_id', auth.userId)
+        .order('updated_at', { ascending: false });
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ workflows: data || [] });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/workflows', requireSupabaseUser, rateLimit(20), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const body = req.body || {};
+    if (typeof body.name !== 'string' || !body.name.trim()) {
+      return res.status(400).json({ error: 'Workflow name is required.' });
+    }
+    if (!Array.isArray(body.steps) || body.steps.length > 25) {
+      return res.status(400).json({ error: 'Workflow steps must be an array containing no more than 25 steps.' });
+    }
+    const now = new Date().toISOString();
+    const workflow = {
+      id: String(body.id || `workflow_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
+      user_id: auth.userId,
+      name: body.name.trim().slice(0, 240),
+      description: String(body.description || '').slice(0, 5000),
+      status: body.status === 'active' ? 'active' : 'draft',
+      trigger: body.trigger && typeof body.trigger === 'object' ? body.trigger : { type: 'manual' },
+      conditions: Array.isArray(body.conditions) ? body.conditions : [],
+      steps: body.steps,
+      schedule: typeof body.schedule === 'string' ? body.schedule : null,
+      codename: typeof body.codename === 'string' ? body.codename.slice(0, 120) : null,
+      category: typeof body.category === 'string' ? body.category.slice(0, 80) : 'general',
+      version: typeof body.version === 'string' ? body.version.slice(0, 40) : '1.0.0',
+      enabled: body.enabled === true,
+      execution_chain: Array.isArray(body.executionChain) ? body.executionChain : [],
+      stages: Array.isArray(body.stages) ? body.stages : [],
+      permissions: Array.isArray(body.permissions) ? body.permissions.filter((p: unknown) => typeof p === 'string').slice(0, 50) : [],
+      project_id: typeof body.projectId === 'string' ? body.projectId : null,
+      agent_id: typeof body.agentId === 'string' ? body.agentId : null,
+      system_instructions: typeof body.systemInstructions === 'string' ? body.systemInstructions.slice(0, 12000) : null,
+      is_template: false,
+      tags: Array.isArray(body.tags) ? body.tags.filter((tag: unknown) => typeof tag === 'string').slice(0, 30) : [],
+      created_at: now,
+      updated_at: now,
+    };
+    try {
+      const { data, error } = await auth.client.from('workflows').insert(workflow).select('*').single();
+      if (error) return res.status(400).json({ error: error.message });
+      return res.status(201).json({ workflow: data });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.put('/api/workflows/:id', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const body = req.body || {};
+    const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+    const allowed: Record<string, string> = {
+      name: 'name', description: 'description', status: 'status', trigger: 'trigger',
+      conditions: 'conditions', steps: 'steps', schedule: 'schedule', codename: 'codename',
+      category: 'category', version: 'version', enabled: 'enabled', permissions: 'permissions',
+      projectId: 'project_id', agentId: 'agent_id', systemInstructions: 'system_instructions',
+      tags: 'tags', executionChain: 'execution_chain', stages: 'stages',
+    };
+    for (const [inputKey, dbKey] of Object.entries(allowed)) {
+      if (Object.prototype.hasOwnProperty.call(body, inputKey)) updates[dbKey] = body[inputKey];
+    }
+    if (updates.steps !== undefined && (!Array.isArray(updates.steps) || updates.steps.length > 25)) {
+      return res.status(400).json({ error: 'Workflow steps must contain no more than 25 steps.' });
+    }
+    if (updates.name !== undefined && (typeof updates.name !== 'string' || !updates.name.trim())) {
+      return res.status(400).json({ error: 'Workflow name cannot be empty.' });
+    }
+    try {
+      const { data, error } = await auth.client.from('workflows').update(updates)
+        .eq('id', req.params.id).eq('user_id', auth.userId).select('*').maybeSingle();
+      if (error) return res.status(400).json({ error: error.message });
+      if (!data) return res.status(404).json({ error: 'Workflow not found.' });
+      return res.json({ workflow: data });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.delete('/api/workflows/:id', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    try {
+      // Archive instead of hard-delete so execution history and audit trails remain intact.
+      const { data, error } = await auth.client.from('workflows').update({
+        enabled: false,
+        status: 'archived',
+        updated_at: new Date().toISOString(),
+      }).eq('id', req.params.id).eq('user_id', auth.userId).select('id').maybeSingle();
+      if (error) return res.status(400).json({ error: error.message });
+      if (!data) return res.status(404).json({ error: 'Workflow not found.' });
+      return res.json({ success: true, archived: true, id: data.id });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/workflows/:id/run', requireSupabaseUser, rateLimit(10), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    try {
+      const { data: workflow, error } = await auth.client.from('workflows').select('*')
+        .eq('id', req.params.id).eq('user_id', auth.userId).maybeSingle();
+      if (error) return res.status(500).json({ error: error.message });
+      if (!workflow) return res.status(404).json({ error: 'Workflow not found.' });
+      if (workflow.status === 'archived') return res.status(409).json({ error: 'Archived workflows cannot run.' });
+      const result = await runWorkflowExecution({
+        client: auth.client,
+        userId: auth.userId,
+        accessToken: auth.accessToken,
+        workflow,
+        input: req.body?.input && typeof req.body.input === 'object' ? req.body.input : {},
+      });
+      return res.json(result);
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/workflows/:id/approve', requireSupabaseUser, rateLimit(10), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const { executionId, decision } = req.body || {};
+    if (typeof executionId !== 'string' || !['approve', 'reject'].includes(decision)) {
+      return res.status(400).json({ error: 'executionId and decision (approve or reject) are required.' });
+    }
+    try {
+      const { data: workflow, error } = await auth.client.from('workflows').select('*')
+        .eq('id', req.params.id).eq('user_id', auth.userId).maybeSingle();
+      if (error) return res.status(500).json({ error: error.message });
+      if (!workflow) return res.status(404).json({ error: 'Workflow not found.' });
+      const result = await approveWorkflowExecution({
+        client: auth.client,
+        userId: auth.userId,
+        accessToken: auth.accessToken,
+        workflow,
+        executionId,
+        decision,
+      });
+      return res.json(result);
+    } catch (err) {
+      return res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+    }
   });
 
   // ============================================================================
