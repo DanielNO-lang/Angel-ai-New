@@ -10,9 +10,10 @@
 
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
+import { createHash } from 'node:crypto';
 import { executeAgentPipeline } from './server/orchestrator';
 import { providerRegistry } from './server/providers';
-import { getSupabaseServerStatus, getSupabaseAuthClient, getSupabaseClientForUser, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
+import { getSupabaseServerStatus, getSupabaseAuthClient, getSupabaseClient, getSupabaseClientForUser, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
 import { automationService, AutomationEventType } from './server/services/automationService';
 import { dispatchZapierEvent } from './server/zapier_service';
 import { mediaService } from './server/services/mediaService';
@@ -39,21 +40,52 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     next();
   });
 
-  // Rate Limiting Map
+  // Distributed rate limiting uses Supabase RPC when the server-role client is available.
+  // A local per-instance fallback keeps preview/dev environments usable without privileged credentials.
   const ipCounters = new Map<string, { count: number; resetAt: number }>();
-  const rateLimit = (maxRequests: number = 60) => (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || 'client';
+  const rateLimit = (maxRequests: number = 60) => async (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || 'unknown-client';
+    const route = String((req as any).route?.path || req.path || '/');
     const now = Date.now();
-    const entry = ipCounters.get(ip);
+    const fallbackKey = `${ip}:${route}`;
+
+    try {
+      const serviceClient = getSupabaseClient();
+      if (serviceClient) {
+        const key = createHash('sha256').update(fallbackKey).digest('hex');
+        const { data, error } = await serviceClient.rpc('consume_api_rate_limit', {
+          p_key: key,
+          p_limit: maxRequests,
+          p_window_seconds: 60,
+        });
+        if (!error && data && typeof data.allowed === 'boolean') {
+          res.setHeader('X-RateLimit-Limit', String(maxRequests));
+          res.setHeader('X-RateLimit-Remaining', String(data.remaining ?? 0));
+          if (data.resetAt) res.setHeader('X-RateLimit-Reset', String(Math.ceil(Date.parse(data.resetAt) / 1000)));
+          if (!data.allowed) return res.status(429).json({ error: 'Too many requests. Please slow down.' });
+          return next();
+        }
+        if (error) console.error('[RateLimit] Durable limiter unavailable; using local fallback:', error.message);
+      }
+    } catch (error) {
+      console.error('[RateLimit] Durable limiter failed; using local fallback:', error);
+    }
+
+    const entry = ipCounters.get(fallbackKey);
     if (!entry || now > entry.resetAt) {
-      ipCounters.set(ip, { count: 1, resetAt: now + 60000 });
+      ipCounters.set(fallbackKey, { count: 1, resetAt: now + 60000 });
+      res.setHeader('X-RateLimit-Limit', String(maxRequests));
+      res.setHeader('X-RateLimit-Remaining', String(Math.max(maxRequests - 1, 0)));
       return next();
     }
     if (entry.count >= maxRequests) {
+      res.setHeader('Retry-After', String(Math.max(1, Math.ceil((entry.resetAt - now) / 1000))));
       return res.status(429).json({ error: 'Too many requests. Please slow down.' });
     }
     entry.count++;
-    next();
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(maxRequests - entry.count, 0)));
+    return next();
   };
 
   // Supabase JWT authentication for user-owned cloud persistence routes.
