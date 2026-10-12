@@ -30,7 +30,7 @@ export interface CreateAppOptions {
 export async function createApp(options: CreateAppOptions = {}): Promise<Express> {
   const app = express();
 
-  app.use(express.json({ limit: '25mb' }));
+  app.use(express.json({ limit: '32mb' }));
 
   // Security Headers
   app.use((_req, res, next) => {
@@ -1445,7 +1445,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     try {
       const auth = (req as any).angelAuth;
       const artifact = await mediaService.generateImage(req.body);
-      return res.status(artifact.status === 'completed' ? 200 : 502).json(await persistMediaArtifact(auth, artifact));
+      const saved = await persistMediaArtifact(auth, artifact);
+      mediaService.deleteArtifact(artifact.id);
+      return res.status(artifact.status === 'completed' ? 200 : 502).json(saved);
     } catch (err) {
       console.error('[Media Image Generation]', err);
       return res.status(502).json({ error: err instanceof Error ? err.message : 'Image generation failed.' });
@@ -1461,6 +1463,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       const auth = (req as any).angelAuth;
       const artifact = await mediaService.generateVideo(req.body);
       const persisted = await persistMediaArtifact(auth, artifact);
+      mediaService.deleteArtifact(artifact.id);
       return res.status(artifact.status === 'completed' ? 200 : 501).json(persisted);
     } catch (err) {
       console.error('[Media Video Generation]', err);
@@ -1479,7 +1482,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     try {
       const auth = (req as any).angelAuth;
       const artifact = await mediaService.editImage(req.body);
-      return res.status(artifact.status === 'completed' ? 200 : 502).json(await persistMediaArtifact(auth, artifact));
+      const saved = await persistMediaArtifact(auth, artifact);
+      mediaService.deleteArtifact(artifact.id);
+      return res.status(artifact.status === 'completed' ? 200 : 502).json(saved);
     } catch (err) {
       console.error('[Media Image Edit]', err);
       return res.status(502).json({ error: err instanceof Error ? err.message : 'Image editing failed.' });
