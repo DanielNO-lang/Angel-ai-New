@@ -88,6 +88,28 @@ export function getSupabaseClient(): SupabaseClient | null {
   return cachedClient;
 }
 
+
+/**
+ * Create a request-scoped client that carries a verified user's Supabase JWT.
+ * RLS remains active for every read/write; privileged service-role credentials
+ * are deliberately never used for user-owned workspace data.
+ */
+export function getSupabaseClientForUser(accessToken: string): SupabaseClient | null {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !anonKey || !accessToken) return null;
+
+  try {
+    return createClient(url, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    });
+  } catch (err) {
+    console.error('[Supabase Service] Failed to initialize user-scoped client:', err);
+    return null;
+  }
+}
+
 export function getSupabaseServerStatus(): SupabaseServerStatus {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -185,8 +207,9 @@ export function calculateVelocityMetrics(
   };
 }
 
-export async function getTasksVelocity(fallbackTasks: any[] = []): Promise<TaskVelocityMetrics> {
-  const supabase = getSupabaseClient();
+export async function getTasksVelocity(fallbackTasks: any[] = [], userClient?: SupabaseClient): Promise<TaskVelocityMetrics> {
+  // Never query all users' tasks through a service-role client for a user-facing metric.
+  const supabase = userClient;
   if (supabase) {
     try {
       const { data, error } = await supabase.from('tasks').select('*');
@@ -200,8 +223,8 @@ export async function getTasksVelocity(fallbackTasks: any[] = []): Promise<TaskV
   return calculateVelocityMetrics(fallbackTasks, false);
 }
 
-export async function syncTasksToSupabase(tasks: any[]): Promise<{ success: boolean; syncedCount: number; message: string }> {
-  const supabase = getSupabaseClient();
+export async function syncTasksToSupabase(tasks: any[], userId: string, accessToken: string): Promise<{ success: boolean; syncedCount: number; message: string }> {
+  const supabase = getSupabaseClientForUser(accessToken);
   if (!supabase) {
     return {
       success: false,
@@ -213,6 +236,7 @@ export async function syncTasksToSupabase(tasks: any[]): Promise<{ success: bool
   try {
     const formatted = tasks.map((t) => ({
       id: t.id,
+      user_id: userId,
       title: t.title,
       description: t.description || '',
       status: t.status || 'todo',
@@ -250,132 +274,192 @@ export async function syncTasksToSupabase(tasks: any[]): Promise<{ success: bool
  * Universal Multi-Entity Cloud Synchronization
  * Synchronizes profiles, tasks, memories, projects, agents, conversations, and workflows
  */
-export async function syncAllEntitiesToSupabase(payload: SyncPayload): Promise<SyncResult> {
-  const supabase = getSupabaseClient();
+export async function syncAllEntitiesToSupabase(
+  payload: SyncPayload,
+  userId: string,
+  accessToken: string
+): Promise<SyncResult> {
+  const supabase = getSupabaseClientForUser(accessToken);
   const counts: Record<string, number> = {};
+  const errors: string[] = [];
 
   if (!supabase) {
     return {
       success: false,
       syncedCounts: counts,
       timestamp: new Date().toISOString(),
-      message: 'Supabase credentials not configured in server environment.',
+      message: 'Supabase user-scoped client is not configured.',
     };
   }
 
+  const now = new Date().toISOString();
+  const upsert = async (table: string, rows: Array<Record<string, any>>, key: string) => {
+    if (!rows.length) return;
+    const { error } = await supabase.from(table).upsert(rows, { onConflict: table === 'settings' ? 'user_id' : 'id' });
+    if (error) {
+      errors.push(`${key}: ${error.message}`);
+      return;
+    }
+    counts[key] = rows.length;
+  };
+
   try {
-    // 1. Sync Tasks
-    if (payload.tasks && payload.tasks.length > 0) {
-      const formattedTasks = payload.tasks.map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        description: t.description || '',
-        status: t.status || 'todo',
-        priority: t.priority || 'medium',
-        due_date: t.dueDate || null,
-        agent_id: t.agentId || null,
-        project_id: t.projectId || null,
-        subtasks: t.subtasks || [],
-        tags: t.tags || [],
-        created_at: t.createdAt || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
-      const { error } = await supabase.from('tasks').upsert(formattedTasks, { onConflict: 'id' });
-      if (!error) counts.tasks = formattedTasks.length;
+    if (payload.profile) {
+      const p = payload.profile;
+      await upsert('profiles', [{
+        id: userId,
+        name: String(p.name || p.full_name || ''),
+        email: String(p.email || ''),
+        initials: String(p.initials || ''),
+        avatar_url: p.avatarUrl || p.avatar_url || null,
+        status: String(p.status || 'online'),
+        updated_at: now,
+      }], 'profile');
     }
 
-    // 2. Sync Memories
-    if (payload.memories && payload.memories.length > 0) {
-      const formattedMemories = payload.memories.map((m: any) => ({
-        id: m.id,
-        title: m.title,
-        content: m.content,
-        type: m.type || 'important_fact',
-        confidence: m.confidence ?? 1.0,
-        tags: m.tags || [],
-        agent_id: m.agentId || null,
-        project_id: m.projectId || null,
-        is_pinned: m.isPinned ?? false,
-        created_at: m.createdAt || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
-      const { error } = await supabase.from('memories').upsert(formattedMemories, { onConflict: 'id' });
-      if (!error) counts.memories = formattedMemories.length;
-    }
+    await upsert('agents', (payload.agents || []).map((a: any) => ({
+      id: a.id,
+      user_id: userId,
+      name: a.name || 'Agent',
+      description: a.description || '',
+      role: a.role || null,
+      instructions: a.instructions || null,
+      model: a.model || null,
+      status: a.status || 'active',
+      config: a.config || {},
+      created_at: a.createdAt || now,
+      updated_at: now,
+    })), 'agents');
 
-    // 3. Sync Projects
-    if (payload.projects && payload.projects.length > 0) {
-      const formattedProjects = payload.projects.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        description: p.description || '',
-        status: p.status || 'active',
-        tags: p.tags || [],
-        goals: p.goals || [],
-        instructions: p.instructions || '',
-        due_date: p.dueDate || null,
-        created_at: p.createdAt || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
-      const { error } = await supabase.from('projects').upsert(formattedProjects, { onConflict: 'id' });
-      if (!error) counts.projects = formattedProjects.length;
-    }
+    await upsert('conversations', (payload.conversations || []).map((c: any) => ({
+      id: c.id,
+      user_id: userId,
+      title: c.title || 'New conversation',
+      mode: c.mode || 'chat',
+      model: c.model || c.modelId || null,
+      metadata: c.metadata || {},
+      created_at: c.createdAt || now,
+      updated_at: now,
+    })), 'conversations');
 
-    // 4. Sync Library Items
-    if (payload.libraryItems && payload.libraryItems.length > 0) {
-      const formattedLib = payload.libraryItems.map((l: any) => ({
-        id: l.id,
-        title: l.title,
-        description: l.description || '',
-        category: l.category || 'documents',
-        type: l.type || 'document',
-        url: l.url || null,
-        mime_type: l.mimeType || null,
-        tags: l.tags || [],
-        project_id: l.projectId || null,
-        is_favorite: l.isFavorite ?? false,
-        created_at: l.createdAt || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }));
-      const { error } = await supabase.from('library_items').upsert(formattedLib, { onConflict: 'id' });
-      if (!error) counts.libraryItems = formattedLib.length;
-    }
+    await upsert('messages', (payload.messages || []).map((m: any) => ({
+      id: m.id,
+      user_id: userId,
+      conversation_id: m.conversationId || m.conversation_id,
+      role: m.role || 'user',
+      content: typeof m.content === 'string' ? m.content : '',
+      attachments: m.attachments || [],
+      metadata: m.metadata || {},
+      created_at: m.createdAt || now,
+    })), 'messages');
 
-    // 5. Sync Workflows
-    if (payload.workflows && payload.workflows.length > 0) {
-      const formattedWfs = payload.workflows.map((w: any) => ({
-        id: w.id,
-        name: w.name,
-        description: w.description || '',
-        codename: w.codename || null,
-        category: w.category || 'general',
-        version: w.version || '1.0.0',
-        enabled: w.enabled ?? true,
-        trigger: w.trigger || { type: 'manual' },
-        conditions: w.conditions || [],
-        steps: w.steps || [],
-        execution_chain: w.executionChain || [],
-        stages: w.stages || [],
-        permissions: w.permissions || [],
-        project_id: w.projectId || null,
-        agent_id: w.agentId || null,
-        system_instructions: w.systemInstructions || null,
-        is_template: w.isTemplate ?? false,
-        tags: w.tags || [],
-        created_at: w.createdAt || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        last_executed_at: w.lastExecutedAt || null,
-        execution_count: w.executionCount ?? 0,
-      }));
-      const { error } = await supabase.from('workflows').upsert(formattedWfs, { onConflict: 'id' });
-      if (!error) counts.workflows = formattedWfs.length;
+    await upsert('tasks', (payload.tasks || []).map((t: any) => ({
+      id: t.id,
+      user_id: userId,
+      title: t.title || 'Untitled task',
+      description: t.description || '',
+      status: t.status || 'todo',
+      priority: t.priority || 'medium',
+      due_date: t.dueDate || t.due_date || null,
+      recurring: t.recurring || null,
+      agent_id: t.agentId || t.agent_id || null,
+      conversation_id: t.conversationId || t.conversation_id || null,
+      project_id: t.projectId || t.project_id || null,
+      subtasks: t.subtasks || [],
+      tags: t.tags || [],
+      completed_at: t.completedAt || t.completed_at || null,
+      created_at: t.createdAt || t.created_at || now,
+      updated_at: now,
+    })), 'tasks');
+
+    await upsert('memories', (payload.memories || []).map((m: any) => ({
+      id: m.id,
+      user_id: userId,
+      title: m.title || 'Memory',
+      content: m.content || '',
+      type: m.type || 'important_fact',
+      confidence: m.confidence ?? 1,
+      tags: m.tags || [],
+      agent_id: m.agentId || m.agent_id || null,
+      project_id: m.projectId || m.project_id || null,
+      is_pinned: m.isPinned ?? m.is_pinned ?? false,
+      created_at: m.createdAt || m.created_at || now,
+      updated_at: now,
+    })), 'memories');
+
+    await upsert('projects', (payload.projects || []).map((p: any) => ({
+      id: p.id,
+      user_id: userId,
+      name: p.name || 'Untitled project',
+      description: p.description || '',
+      status: p.status || 'active',
+      tags: p.tags || [],
+      goals: p.goals || [],
+      instructions: p.instructions || '',
+      due_date: p.dueDate || p.due_date || null,
+      created_at: p.createdAt || p.created_at || now,
+      updated_at: now,
+    })), 'projects');
+
+    await upsert('library_items', (payload.libraryItems || []).map((l: any) => ({
+      id: l.id,
+      user_id: userId,
+      title: l.title || 'Untitled item',
+      description: l.description || '',
+      category: l.category || 'documents',
+      type: l.type || 'document',
+      url: l.url || null,
+      mime_type: l.mimeType || l.mime_type || null,
+      tags: l.tags || [],
+      project_id: l.projectId || l.project_id || null,
+      is_favorite: l.isFavorite ?? l.is_favorite ?? false,
+      created_at: l.createdAt || l.created_at || now,
+      updated_at: now,
+    })), 'libraryItems');
+
+    await upsert('workflows', (payload.workflows || []).map((w: any) => ({
+      id: w.id,
+      user_id: userId,
+      name: w.name || 'Untitled workflow',
+      description: w.description || '',
+      status: w.status || 'draft',
+      codename: w.codename || null,
+      category: w.category || 'general',
+      version: w.version || '1.0.0',
+      enabled: w.enabled ?? true,
+      trigger: w.trigger || { type: 'manual' },
+      conditions: w.conditions || [],
+      steps: w.steps || [],
+      execution_chain: w.executionChain || w.execution_chain || [],
+      stages: w.stages || [],
+      permissions: w.permissions || [],
+      project_id: w.projectId || w.project_id || null,
+      agent_id: w.agentId || w.agent_id || null,
+      system_instructions: w.systemInstructions || w.system_instructions || null,
+      is_template: w.isTemplate ?? w.is_template ?? false,
+      tags: w.tags || [],
+      last_executed_at: w.lastExecutedAt || w.last_executed_at || null,
+      execution_count: w.executionCount ?? w.execution_count ?? 0,
+      schedule: w.schedule || null,
+      created_at: w.createdAt || w.created_at || now,
+      updated_at: now,
+    })), 'workflows');
+
+    if (payload.settings) {
+      await upsert('settings', [{
+        user_id: userId,
+        preferences: payload.settings.preferences || payload.settings,
+        updated_at: now,
+      }], 'settings');
     }
 
     return {
-      success: true,
+      success: errors.length === 0,
       syncedCounts: counts,
-      timestamp: new Date().toISOString(),
-      message: `Synchronized ${Object.values(counts).reduce((a, b) => a + b, 0)} records across Supabase tables.`,
+      timestamp: now,
+      message: errors.length
+        ? `Partial sync: ${Object.values(counts).reduce((a, b) => a + b, 0)} records saved; ${errors.join('; ')}`
+        : `Synchronized ${Object.values(counts).reduce((a, b) => a + b, 0)} records across Supabase tables.`,
     };
   } catch (err) {
     return {
