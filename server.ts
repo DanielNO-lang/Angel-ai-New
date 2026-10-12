@@ -637,18 +637,26 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // ============================================================================
 
   // Outbound Dispatch API (Internal workspace & client events)
-  app.post('/api/automation/dispatch', requireAdmin, async (req: Request, res: Response) => {
+  app.post('/api/automation/dispatch', requireSupabaseUser, rateLimit(30), async (req: Request, res: Response) => {
     const { event, data, overrideUrl, callbackUrl } = req.body;
 
-    if (!event) {
-      return res.status(400).json({ error: 'event type is required' });
+    const allowedEvents: AutomationEventType[] = [
+      'task.created', 'task.completed', 'agent.executed', 'message.received',
+      'memory.created', 'memory.updated', 'workflow.completed',
+    ];
+    if (!event || !allowedEvents.includes(event as AutomationEventType)) {
+      return res.status(400).json({ error: 'A supported event type is required.' });
+    }
+    // Destinations are server-controlled. User payloads cannot turn this route
+    // into an arbitrary outbound request or override the configured webhook.
+    if (overrideUrl || callbackUrl) {
+      return res.status(400).json({ error: 'Custom webhook destinations are not allowed on this endpoint.' });
     }
 
     try {
       const result = await automationService.dispatchEvent(
         event as AutomationEventType,
-        data || {},
-        { overrideUrl, callbackUrl }
+        data || {}
       );
       res.json(result);
     } catch (err) {
