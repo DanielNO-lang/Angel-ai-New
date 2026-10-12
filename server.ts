@@ -81,6 +81,23 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   };
 
+  const attachOptionalSupabaseUser = async (req: Request, res: Response, next: NextFunction) => {
+    const header = req.headers.authorization || '';
+    const accessToken = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!accessToken) return next();
+
+    const client = getSupabaseClientForUser(accessToken);
+    if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured on the server.' });
+    try {
+      const { data, error } = await client.auth.getUser(accessToken);
+      if (error || !data.user) return res.status(401).json({ error: 'Your session is invalid or expired.' });
+      (req as any).angelAuth = { userId: data.user.id, accessToken, client };
+      return next();
+    } catch {
+      return res.status(401).json({ error: 'Your session could not be verified.' });
+    }
+  };
+
   // ============================================================================
   // API ROUTES
   // ============================================================================
@@ -538,7 +555,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Agent Lab 9-Step Execution Pipeline
-  app.post('/api/agent/execute', async (req: Request, res: Response) => {
+  app.post('/api/agent/execute', attachOptionalSupabaseUser, async (req: Request, res: Response) => {
     const {
       agentId,
       agentName,
@@ -555,9 +572,17 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (!taskPrompt || !agentId) {
       return res.status(400).json({ error: 'agentId and taskPrompt are required' });
     }
+    const auth = (req as any).angelAuth;
+    const requestedTools = Array.isArray(allowedTools) ? allowedTools : [];
+    const writeTools = ['task_manager', 'task_create', 'tasks', 'memory_vault', 'memory_write', 'memory'];
+    if (!auth && requestedTools.some((tool: string) => writeTools.includes(tool))) {
+      return res.status(401).json({ error: 'Sign in to enable persistent task and memory tools.' });
+    }
 
     try {
       const result = await executeAgentPipeline({
+        userId: auth?.userId,
+        accessToken: auth?.accessToken,
         agentId,
         agentName: agentName || 'Specialized Agent',
         systemInstructions: systemInstructions || 'You are an Angel AI specialized agent.',
