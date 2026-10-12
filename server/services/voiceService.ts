@@ -42,11 +42,7 @@ class VoiceService {
    */
   async transcribeAudio(req: TranscribeAudioRequest): Promise<{ text: string; confidence: number; provider: string }> {
     if (!this.hasApiKey()) {
-      return {
-        text: 'Transcription pending live GEMINI_API_KEY configuration.',
-        confidence: 0.85,
-        provider: 'offline_fallback',
-      };
+      throw new Error('Voice transcription is unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -94,11 +90,7 @@ class VoiceService {
     text: string;
   }> {
     if (!this.hasApiKey()) {
-      return {
-        mimeType: 'audio/wav',
-        isFallback: true,
-        text: req.text,
-      };
+      throw new Error('Speech synthesis is unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -143,18 +135,10 @@ class VoiceService {
         }
       }
 
-      return {
-        mimeType: 'audio/wav',
-        isFallback: true,
-        text: req.text,
-      };
+      throw new Error('The speech model returned no audio data.');
     } catch (err) {
       console.error('[VoiceService.synthesizeSpeech error]', err);
-      return {
-        mimeType: 'audio/wav',
-        isFallback: true,
-        text: req.text,
-      };
+      throw new Error(`Speech synthesis failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 }

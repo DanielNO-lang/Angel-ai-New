@@ -163,11 +163,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      return {
-        text: `[Angel AI Offline Fallback]: GEMINI_API_KEY is pending configuration. Request received: "${options.prompt.slice(0, 80)}". Configure API credentials in Settings > Secrets to activate live model synthesis.`,
-        provider: this.id,
-        modelId: model,
-      };
+      throw new Error('Gemini generation is unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -220,9 +216,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      const fallback = `[Angel AI Offline Fallback]: GEMINI_API_KEY is not configured. Received query: "${options.prompt}".`;
-      onChunk(fallback);
-      return fallback;
+      throw new Error('Gemini streaming is unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -304,12 +298,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      return {
-        text: `[Offline Mode] Tool call dispatch skipped because GEMINI_API_KEY is not configured.`,
-        toolCalls: [],
-        provider: this.id,
-        modelId: model,
-      };
+      throw new Error('Gemini tool calling is unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -362,13 +351,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      return {
-        analysis:
-          '### Multimodal Visual Understanding (Pending Configuration)\n\nVisual frame was captured and formatted successfully by Angel.\n\nHowever, live multimodal visual reasoning with Gemini 3.8 Flash is currently **Pending Configuration**:\n- **Missing Key**: `GEMINI_API_KEY` is not present in server environment.\n- **Action Required**: Configure your Gemini API key in **Settings > API & Model Routing** to activate real-time frame comprehension.\n\n*Note*: Visual capture pipeline, device selection, bounding box cropping, and multimodal context bridging are active and functional.',
-        provider: this.id,
-        modelId: model,
-        isPendingConfig: true,
-      };
+      throw new Error('Gemini vision is unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -418,14 +401,7 @@ export class GeminiProvider implements AIProvider {
     const inputTexts = Array.isArray(texts) ? texts : [texts];
 
     if (!this.isConfigured()) {
-      // Deterministic pseudo-embedding for offline/test environments
-      return inputTexts.map((txt) => {
-        const vector: number[] = new Array(64).fill(0);
-        for (let i = 0; i < txt.length; i++) {
-          vector[i % 64] += txt.charCodeAt(i) / 1000;
-        }
-        return vector;
-      });
+      throw new Error('Gemini embeddings are unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
