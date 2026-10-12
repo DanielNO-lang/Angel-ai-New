@@ -1437,6 +1437,29 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
+  app.post('/api/media/artifacts/:id/poll', requireSupabaseUser, rateLimit(20), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    try {
+      const { data: row, error } = await auth.client.from('media_artifacts').select('*')
+        .eq('id', req.params.id).eq('user_id', auth.userId).maybeSingle();
+      if (error) return res.status(500).json({ error: 'Could not load media job.' });
+      if (!row) return res.status(404).json({ error: 'Media job not found.' });
+      if (row.type !== 'video') return res.status(400).json({ error: 'Only video jobs can be polled.' });
+      if (row.status !== 'queued' && row.status !== 'processing') {
+        return res.json(await mediaRowToArtifact(auth, row));
+      }
+      const artifact = await mediaRowToArtifact(auth, row);
+      const updated = await mediaService.pollVideoGeneration(artifact);
+      const saved = await persistMediaArtifact(auth, updated);
+      mediaService.deleteArtifact(updated.id);
+      const status = updated.status === 'completed' ? 200 : updated.status === 'failed' ? 502 : 202;
+      return res.status(status).json(saved);
+    } catch (err) {
+      console.error('[Media Video Poll]', err);
+      return res.status(502).json({ error: err instanceof Error ? err.message : 'Could not update video generation status.' });
+    }
+  });
+
   app.post('/api/media/generate-image', requireSupabaseUser, rateLimit(8), async (req: Request, res: Response) => {
     const { prompt } = req.body || {};
     if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 12000) {
@@ -1464,7 +1487,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       const artifact = await mediaService.generateVideo(req.body);
       const persisted = await persistMediaArtifact(auth, artifact);
       mediaService.deleteArtifact(artifact.id);
-      return res.status(artifact.status === 'completed' ? 200 : 501).json(persisted);
+      return res.status(artifact.status === 'completed' ? 200 : artifact.status === 'processing' || artifact.status === 'queued' ? 202 : 502).json(persisted);
     } catch (err) {
       console.error('[Media Video Generation]', err);
       return res.status(502).json({ error: err instanceof Error ? err.message : 'Video generation failed.' });
