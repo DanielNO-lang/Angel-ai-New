@@ -775,7 +775,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       const name = typeof updates.name === 'string' ? updates.name.trim().slice(0, 120) : existingName;
       const avatarUrl = typeof updates.avatarUrl === 'string' ? updates.avatarUrl.slice(0, 2048) : (user.user_metadata?.avatar_url || null);
       const title = typeof updates.title === 'string' ? updates.title.trim().slice(0, 120) : (user.user_metadata?.title || undefined);
-      const initials = name.split(/\\s+/).map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
+      const initials = name.split(/\s+/).map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
       const { data: existing } = await auth.client.from('profiles').select('plan').eq('id', user.id).maybeSingle();
       const { error: dbError } = await auth.client.from('profiles').upsert({
         id: user.id,
