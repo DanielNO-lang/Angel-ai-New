@@ -142,6 +142,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       status: 'ok',
       workspace: 'Angel AI',
       timestamp: new Date().toISOString(),
+      commitSha: process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || null,
       supabase,
       providers,
       environment: process.env.NODE_ENV || 'development',
