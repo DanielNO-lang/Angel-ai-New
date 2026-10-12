@@ -698,7 +698,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       try {
         const target = new URL(callbackUrl);
         const allowedHosts = (process.env.WEBHOOK_CALLBACK_ALLOWLIST || '')
-          .split(/[,;\\s]+/)
+          .split(/[,;\s]+/)
           .map((host) => host.trim().toLowerCase())
           .filter(Boolean);
         if (['https:', 'http:'].includes(target.protocol) && allowedHosts.includes(target.hostname.toLowerCase())) {
