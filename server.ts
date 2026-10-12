@@ -10,7 +10,6 @@
 
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { executeAgentPipeline } from './server/orchestrator';
 import { providerRegistry } from './server/providers';
 import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
@@ -832,6 +831,10 @@ async function startServer() {
   // VITE / STATIC FILE SERVING
   // ============================================================================
   if (process.env.NODE_ENV !== 'production') {
+    // Load Vite only for the standalone development server. Keeping this as a
+    // dynamic import prevents serverless production functions from loading Vite's
+    // native Rolldown bindings during cold start.
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
