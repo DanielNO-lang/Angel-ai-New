@@ -15,7 +15,6 @@
  */
 
 import { offlineDb, QueuedMutation } from './db/offlineDb';
-import { getClientSupabase } from './supabaseService';
 import { SyncStatus, Task, Memory, Project, Workflow, Conversation, Message } from '../types';
 
 export type ConflictResolutionStrategy = 'client_wins' | 'server_wins' | 'last_write_wins' | 'merge';
@@ -346,26 +345,6 @@ class SyncService {
       this.setStatus('synced');
       this.lastSyncedAt = new Date().toISOString();
     }
-  }
-
-  private canSyncDirectly(entityType: string): boolean {
-    return ['task', 'memory', 'project', 'workflow', 'conversation', 'message'].includes(entityType);
-  }
-
-  private async syncViaSupabaseClient(client: any, mutation: QueuedMutation): Promise<void> {
-    const tableName = this.getTableName(mutation.entityType);
-    if (!tableName) return;
-
-    if (mutation.action === 'delete') {
-      const { error } = await client.from(tableName).delete().eq('id', mutation.entityId);
-      if (error) throw error;
-      return;
-    }
-
-    // Upsert with conflict resolution
-    const formatted = this.formatEntityForSupabase(mutation.entityType, mutation.payload);
-    const { error } = await client.from(tableName).upsert(formatted, { onConflict: 'id' });
-    if (error) throw error;
   }
 
   private async syncViaServerProxy(mutation: QueuedMutation): Promise<void> {
