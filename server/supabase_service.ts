@@ -90,6 +90,24 @@ export function getSupabaseClient(): SupabaseClient | null {
 
 
 /**
+ * Anonymous-key client for server-side Supabase Auth entry points such as
+ * sign-up, password sign-in, and password recovery. Never uses service-role.
+ */
+export function getSupabaseAuthClient(): SupabaseClient | null {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !anonKey) return null;
+  try {
+    return createClient(url, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  } catch (err) {
+    console.error('[Supabase Service] Failed to initialize auth client:', err);
+    return null;
+  }
+}
+
+/**
  * Create a request-scoped client that carries a verified user's Supabase JWT.
  * RLS remains active for every read/write; privileged service-role credentials
  * are deliberately never used for user-owned workspace data.
