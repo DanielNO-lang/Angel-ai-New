@@ -278,3 +278,43 @@ export async function approveWorkflowExecution(options: {
     permissionsSnapshot: Array.isArray(savedInput.permissionsSnapshot) ? savedInput.permissionsSnapshot : undefined,
   });
 }
+
+/**
+ * Run enabled event-triggered workflows belonging to the authenticated user.
+ * Event data is passed as workflow input; RLS scopes both discovery and writes.
+ */
+export async function triggerMatchingWorkflows(options: {
+  client: SupabaseClient;
+  userId: string;
+  accessToken: string;
+  event: AutomationEventType;
+  data: JsonRecord;
+}): Promise<JsonRecord[]> {
+  const { client, userId, accessToken, event, data } = options;
+  const { data: workflows, error } = await client.from('workflows')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('enabled', true);
+  if (error) throw new Error(`Could not load event-triggered workflows: ${error.message}`);
+
+  const matches = (workflows || []).filter((workflow: JsonRecord) => {
+    const trigger = workflow.trigger || {};
+    const triggerType = String(trigger.type || '').toLowerCase();
+    const configuredEvent = String(trigger.event || trigger.eventType || trigger.event_type || '').toLowerCase();
+    return workflow.status !== 'archived' &&
+      (triggerType === 'event' || triggerType === 'webhook' || triggerType === 'on_event') &&
+      configuredEvent === event.toLowerCase();
+  }).slice(0, 10);
+
+  const results: JsonRecord[] = [];
+  for (const workflow of matches) {
+    results.push(await runWorkflowExecution({
+      client,
+      userId,
+      accessToken,
+      workflow,
+      input: { event, data },
+    }));
+  }
+  return results;
+}
