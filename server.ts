@@ -425,6 +425,76 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // ============================================================================
+  // EXECUTION HISTORY & CANCELLATION
+  // ============================================================================
+
+  app.get('/api/executions', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const requestedLimit = Number(req.query.limit || 30);
+    const limit = Number.isFinite(requestedLimit) ? Math.min(100, Math.max(1, Math.floor(requestedLimit))) : 30;
+    try {
+      const { data, error } = await auth.client.from('executions')
+        .select('id, workflow_id, agent_id, status, input, output, error, started_at, completed_at, created_at')
+        .eq('user_id', auth.userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ executions: data || [] });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/workflows/:id/executions', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const requestedLimit = Number(req.query.limit || 30);
+    const limit = Number.isFinite(requestedLimit) ? Math.min(100, Math.max(1, Math.floor(requestedLimit))) : 30;
+    try {
+      const { data, error } = await auth.client.from('executions')
+        .select('id, workflow_id, agent_id, status, input, output, error, started_at, completed_at, created_at')
+        .eq('user_id', auth.userId)
+        .eq('workflow_id', req.params.id)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ executions: data || [] });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/executions/:id/cancel', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    try {
+      const { data: execution, error: lookupError } = await auth.client.from('executions')
+        .select('id, status')
+        .eq('id', req.params.id)
+        .eq('user_id', auth.userId)
+        .maybeSingle();
+      if (lookupError) return res.status(500).json({ error: lookupError.message });
+      if (!execution) return res.status(404).json({ error: 'Execution not found.' });
+      if (execution.status === 'running') {
+        const { error } = await auth.client.from('executions').update({ status: 'cancel_requested' })
+          .eq('id', execution.id).eq('user_id', auth.userId).eq('status', 'running');
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ success: true, status: 'cancel_requested', id: execution.id });
+      }
+      if (execution.status === 'awaiting_approval') {
+        const { error } = await auth.client.from('executions').update({
+          status: 'cancelled',
+          error: 'Execution cancelled by the user.',
+          completed_at: new Date().toISOString(),
+        }).eq('id', execution.id).eq('user_id', auth.userId);
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ success: true, status: 'cancelled', id: execution.id });
+      }
+      return res.status(409).json({ error: `Execution cannot be cancelled from status "${execution.status}".` });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // ============================================================================
   // MODEL CATALOG & CAPABILITY ROUTING
   // ============================================================================
 
