@@ -205,8 +205,9 @@ export async function runWorkflowExecution(options: WorkflowRunOptions): Promise
       } else if (stepType === 'transform') {
         const source = step.value ?? step.template ?? '';
         const value = typeof source === 'string'
-          ? source.replace(/\\{\\{\\s*([a-zA-Z0-9_.-]+)\\s*\\}\\}/g, (_match: string, path: string) => {
-              const resolved = getPath({ input, results }, path.replace(/^input\\./, '').replace(/^results\\./, ''));
+          ? source.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_match: string, path: string) => {
+              const normalizedPath = path.replace(/^input\./, '').replace(/^results\./, '');
+              const resolved = getPath({ input, results }, normalizedPath);
               return resolved == null ? '' : String(resolved);
             })
           : source;
