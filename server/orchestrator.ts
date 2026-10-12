@@ -159,6 +159,39 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
       .map((m) => `• [${m.type.toUpperCase()}] ${m.title}: ${m.content}`)
       .join('\n');
 
+    // Execute deterministic read-only tools before model synthesis so the model
+    // receives actual tool output instead of merely a list of planned tools.
+    const toolContextResults: Array<{ tool: string; result: string }> = [];
+
+    if (plannedTools.includes('workspace_search')) {
+      const queryTerms = lowerPrompt.split(/[^a-z0-9]+/i).filter((term) => term.length > 2);
+      const searchable = [
+        ...(request.context?.activeTasks || []).map((item) => ({ kind: 'task', title: item.title, content: `${item.status} ${item.priority}` })),
+        ...candidateMemories.map((item) => ({ kind: 'memory', title: item.title, content: item.content })),
+        ...(request.context?.conversationHistory || []).map((item) => ({ kind: item.role, title: item.role, content: item.content })),
+      ];
+      const matches = searchable
+        .map((item) => ({
+          ...item,
+          score: queryTerms.reduce((score, term) => score + (`${item.title} ${item.content}`.toLowerCase().includes(term) ? 1 : 0), 0),
+        }))
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 5)
+        .map(({ kind, title, content }) => ({ kind, title, excerpt: content.slice(0, 260) }));
+      toolContextResults.push({ tool: 'workspace_search', result: JSON.stringify(matches) });
+      toolsExecuted.push('workspace_search');
+      addLog('execution', `Workspace search returned ${matches.length} matching context item(s).`, { tool: 'workspace_search', resultCount: matches.length });
+    }
+
+    if (plannedTools.includes('time_utility')) {
+      const now = new Date();
+      const result = JSON.stringify({ iso: now.toISOString(), unixMs: now.getTime(), timezone: 'UTC' });
+      toolContextResults.push({ tool: 'time_utility', result });
+      toolsExecuted.push('time_utility');
+      addLog('execution', 'Time utility returned the current server timestamp in UTC.', { tool: 'time_utility' });
+    }
+
     // 4. TOOL PLANNING
     const tools = request.allowedTools || [];
     const plannedTools: string[] = [];
@@ -211,7 +244,7 @@ ${activeTasksSummary || 'None currently active.'}
 ### RECALLED MEMORIES & USER DIRECTIVES:
 ${formattedMemories || 'No specific memory overrides.'}
 
-### OPERATIONAL DIRECTIVE:
+### EXECUTED TOOL RESULTS:\n${toolContextResults.map((item) => `[${item.tool}] ${item.result}`).join('\\n') || 'No read-only tools executed.'}\n\n### OPERATIONAL DIRECTIVE:
 Execute with discipline and high craft. Do not invent external keys, URLs, or repository states. Never claim a task or memory was saved unless the tool confirms persistence. If you recommend new action items or detect durable user preferences, formulate them clearly.`;
 
     const provider = modelRouter.getProvider(providerId);
