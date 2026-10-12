@@ -18,6 +18,7 @@ import { dispatchZapierEvent } from './server/zapier_service';
 import { mediaService } from './server/services/mediaService';
 import { voiceService } from './server/services/voiceService';
 import { intelligenceService } from './server/services/intelligenceService';
+import { readingService } from './server/services/readingService';
 import { githubService } from './server/services/githubService';
 import { vercelService } from './server/services/vercelService';
 
@@ -978,6 +979,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.delete('/api/media/artifacts/:id', (req: Request, res: Response) => {
     const deleted = mediaService.deleteArtifact(req.params.id);
     res.json({ success: deleted });
+  });
+
+  // ============================================================================
+  // READING & DOCUMENT UNDERSTANDING
+  // ============================================================================
+
+  app.post(['/api/reading/analyze', '/api/documents/read'], rateLimit(10), async (req: Request, res: Response) => {
+    try {
+      const result = await readingService.analyze(req.body || {});
+      res.json({ success: true, ...result });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const clientInputError = /provide document|exceeds the|unsupported file type/i.test(message);
+      res.status(clientInputError ? 400 : 502).json({ error: message });
+    }
   });
 
   // ============================================================================
