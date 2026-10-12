@@ -1,10 +1,11 @@
 /**
  * ANGEL AI — Vercel Serverless Function Adapter
- * Framework-standard entry point for Vercel deployments.
- * Mounts the portable Express application router without maintaining long-running sockets.
+ * Load the bundled server build so Node ESM does not fail on extensionless
+ * TypeScript imports inside the server tree.
  */
+import serverModule from '../dist/server.cjs';
 
-import { createApp } from '../server.ts';
+const { createApp } = serverModule as { createApp: (options?: { isServerless?: boolean }) => Promise<any> };
 
 let appPromise: Promise<any> | null = null;
 
