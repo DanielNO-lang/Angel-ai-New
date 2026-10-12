@@ -50,7 +50,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const fallbackKey = `${ip}:${route}`;
 
     try {
-      const serviceClient = getSupabaseClient();
+      const serviceStatus = getSupabaseServerStatus();
+      const serviceClient = serviceStatus.hasServiceRoleKey ? getSupabaseClient() : null;
       if (serviceClient) {
         const key = createHash('sha256').update(fallbackKey).digest('hex');
         const { data, error } = await serviceClient.rpc('consume_api_rate_limit', {
