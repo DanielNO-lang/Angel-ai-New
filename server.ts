@@ -1294,62 +1294,217 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.get('/api/media/artifacts', (req: Request, res: Response) => {
+  // ============================================================================
+  // PRIVATE MEDIA ARTIFACTS — Supabase Storage + RLS-scoped metadata
+  // ============================================================================
+  const mediaRowToArtifact = async (auth: any, row: any) => {
+    let url = typeof row.url === 'string' ? row.url : '';
+    if (row.storage_path) {
+      const { data, error } = await auth.client.storage.from('angel-media')
+        .createSignedUrl(row.storage_path, 3600);
+      url = !error && data?.signedUrl ? data.signedUrl : '';
+    }
+    return {
+      id: row.id,
+      title: row.title,
+      prompt: row.prompt,
+      negativePrompt: row.negative_prompt || undefined,
+      type: row.type,
+      category: row.category,
+      url,
+      mimeType: row.mime_type,
+      aspectRatio: row.aspect_ratio,
+      modelId: row.model_id,
+      status: row.status,
+      progress: row.progress,
+      tags: row.tags || [],
+      projectId: row.project_id || undefined,
+      taskId: row.task_id || undefined,
+      conversationId: row.conversation_id || undefined,
+      fileSizeBytes: row.file_size_bytes || undefined,
+      width: row.width || undefined,
+      height: row.height || undefined,
+      durationSec: row.duration_sec || undefined,
+      seed: row.seed || undefined,
+      metadata: row.metadata || {},
+      error: row.error || undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  };
+
+  const persistMediaArtifact = async (auth: any, artifact: any) => {
+    let storagePath: string | null = null;
+    let storedUrl = '';
+    const dataUri = typeof artifact.url === 'string'
+      ? artifact.url.match(/^data:([^;]+);base64,([\s\S]+)$/)
+      : null;
+    if (dataUri) {
+      const mimeType = dataUri[1].toLowerCase();
+      const extensions: Record<string, string> = {
+        'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp',
+        'video/mp4': 'mp4', 'application/pdf': 'pdf',
+      };
+      const extension = extensions[mimeType];
+      if (!extension) throw new Error('Generated media type is not supported for private storage.');
+      const bytes = Buffer.from(dataUri[2], 'base64');
+      if (bytes.byteLength > 20 * 1024 * 1024) throw new Error('Generated media exceeds the 20 MB storage limit.');
+      storagePath = `${auth.userId}/${artifact.id}.${extension}`;
+      const { error: uploadError } = await auth.client.storage.from('angel-media').upload(storagePath, bytes, {
+        contentType: mimeType,
+        upsert: true,
+      });
+      if (uploadError) throw new Error(`Could not store generated media: ${uploadError.message}`);
+    } else if (artifact.url && /^https:\/\//i.test(artifact.url)) {
+      // Only provider-originated HTTPS URLs may be stored as external assets.
+      storedUrl = artifact.url;
+    }
+
+    const row = {
+      id: artifact.id,
+      user_id: auth.userId,
+      title: String(artifact.title || 'Untitled media').slice(0, 240),
+      prompt: String(artifact.prompt || '').slice(0, 12000),
+      negative_prompt: artifact.negativePrompt || null,
+      type: artifact.type,
+      category: artifact.category,
+      storage_path: storagePath,
+      url: storedUrl,
+      mime_type: artifact.mimeType || 'application/octet-stream',
+      aspect_ratio: artifact.aspectRatio || '16:9',
+      model_id: String(artifact.modelId || 'unknown').slice(0, 160),
+      status: artifact.status || 'failed',
+      progress: Math.min(100, Math.max(0, Number(artifact.progress) || 0)),
+      tags: Array.isArray(artifact.tags) ? artifact.tags.filter((tag: unknown) => typeof tag === 'string').slice(0, 30) : [],
+      project_id: artifact.projectId || null,
+      task_id: artifact.taskId || null,
+      conversation_id: artifact.conversationId || null,
+      file_size_bytes: storagePath ? undefined : artifact.fileSizeBytes || null,
+      width: artifact.width || null,
+      height: artifact.height || null,
+      duration_sec: artifact.durationSec || null,
+      seed: artifact.seed || null,
+      metadata: artifact.metadata && typeof artifact.metadata === 'object' ? artifact.metadata : {},
+      error: artifact.error ? String(artifact.error).slice(0, 2000) : null,
+      created_at: artifact.createdAt || new Date().toISOString(),
+      updated_at: artifact.updatedAt || new Date().toISOString(),
+    };
+    const { data, error } = await auth.client.from('media_artifacts')
+      .upsert(row, { onConflict: 'id' }).select('*').single();
+    if (error) throw new Error(`Could not persist media artifact: ${error.message}`);
+    return mediaRowToArtifact(auth, data);
+  };
+
+  app.get('/api/media/artifacts', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
     const { category, projectId, taskId, search } = req.query as Record<string, string>;
-    const artifacts = mediaService.listArtifacts({ category, projectId, taskId, search });
-    res.json({ artifacts, count: artifacts.length });
-  });
-
-  app.get('/api/media/artifacts/:id', (req: Request, res: Response) => {
-    const artifact = mediaService.getArtifact(req.params.id);
-    if (!artifact) {
-      return res.status(404).json({ error: 'Artifact not found' });
+    try {
+      let query = auth.client.from('media_artifacts').select('*')
+        .eq('user_id', auth.userId)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (category && category !== 'all') query = query.eq('category', category);
+      if (projectId) query = query.eq('project_id', projectId);
+      if (taskId) query = query.eq('task_id', taskId);
+      const { data, error } = await query;
+      if (error) return res.status(500).json({ error: 'Could not load media artifacts.' });
+      let rows = data || [];
+      if (search) {
+        const needle = search.toLowerCase();
+        rows = rows.filter((row: any) => String(row.title).toLowerCase().includes(needle)
+          || String(row.prompt).toLowerCase().includes(needle)
+          || (row.tags || []).some((tag: string) => tag.toLowerCase().includes(needle)));
+      }
+      const artifacts = await Promise.all(rows.map((row: any) => mediaRowToArtifact(auth, row)));
+      return res.json({ artifacts, count: artifacts.length });
+    } catch (err) {
+      console.error('[Media Artifact List]', err);
+      return res.status(500).json({ error: 'Could not load media artifacts.' });
     }
-    res.json(artifact);
   });
 
-  app.post('/api/media/generate-image', rateLimit(8), async (req: Request, res: Response) => {
+  app.get('/api/media/artifacts/:id', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    try {
+      const { data, error } = await auth.client.from('media_artifacts').select('*')
+        .eq('id', req.params.id).eq('user_id', auth.userId).maybeSingle();
+      if (error) return res.status(500).json({ error: 'Could not load media artifact.' });
+      if (!data) return res.status(404).json({ error: 'Media artifact not found.' });
+      return res.json(await mediaRowToArtifact(auth, data));
+    } catch (err) {
+      console.error('[Media Artifact Detail]', err);
+      return res.status(500).json({ error: 'Could not load media artifact.' });
+    }
+  });
+
+  app.post('/api/media/generate-image', requireSupabaseUser, rateLimit(8), async (req: Request, res: Response) => {
     const { prompt } = req.body || {};
-    if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ error: 'prompt is required' });
+    if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 12000) {
+      return res.status(400).json({ error: 'prompt must contain 1 to 12,000 characters.' });
     }
     try {
+      const auth = (req as any).angelAuth;
       const artifact = await mediaService.generateImage(req.body);
-      res.json(artifact);
+      return res.status(artifact.status === 'completed' ? 200 : 502).json(await persistMediaArtifact(auth, artifact));
     } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      console.error('[Media Image Generation]', err);
+      return res.status(502).json({ error: err instanceof Error ? err.message : 'Image generation failed.' });
     }
   });
 
-  app.post('/api/media/generate-video', rateLimit(3), async (req: Request, res: Response) => {
+  app.post('/api/media/generate-video', requireSupabaseUser, rateLimit(3), async (req: Request, res: Response) => {
     const { prompt } = req.body || {};
-    if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ error: 'prompt is required' });
+    if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 12000) {
+      return res.status(400).json({ error: 'prompt must contain 1 to 12,000 characters.' });
     }
     try {
+      const auth = (req as any).angelAuth;
       const artifact = await mediaService.generateVideo(req.body);
-      res.json(artifact);
+      const persisted = await persistMediaArtifact(auth, artifact);
+      return res.status(artifact.status === 'completed' ? 200 : 501).json(persisted);
     } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      console.error('[Media Video Generation]', err);
+      return res.status(502).json({ error: err instanceof Error ? err.message : 'Video generation failed.' });
     }
   });
 
-  app.post('/api/media/edit', rateLimit(8), async (req: Request, res: Response) => {
+  app.post('/api/media/edit', requireSupabaseUser, rateLimit(8), async (req: Request, res: Response) => {
     const { baseImageBase64, prompt } = req.body || {};
-    if (!baseImageBase64 || !prompt) {
-      return res.status(400).json({ error: 'baseImageBase64 and prompt are required' });
+    if (typeof baseImageBase64 !== 'string' || !baseImageBase64 || typeof prompt !== 'string' || !prompt.trim()) {
+      return res.status(400).json({ error: 'baseImageBase64 and prompt are required.' });
+    }
+    if (baseImageBase64.length > 28_000_000 || prompt.length > 12000) {
+      return res.status(413).json({ error: 'Image or prompt exceeds the supported size limit.' });
     }
     try {
+      const auth = (req as any).angelAuth;
       const artifact = await mediaService.editImage(req.body);
-      res.json(artifact);
+      return res.status(artifact.status === 'completed' ? 200 : 502).json(await persistMediaArtifact(auth, artifact));
     } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      console.error('[Media Image Edit]', err);
+      return res.status(502).json({ error: err instanceof Error ? err.message : 'Image editing failed.' });
     }
   });
 
-  app.delete('/api/media/artifacts/:id', (req: Request, res: Response) => {
-    const deleted = mediaService.deleteArtifact(req.params.id);
-    res.json({ success: deleted });
+  app.delete('/api/media/artifacts/:id', requireSupabaseUser, rateLimit(10), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    try {
+      const { data: artifact, error: lookupError } = await auth.client.from('media_artifacts').select('id,storage_path')
+        .eq('id', req.params.id).eq('user_id', auth.userId).maybeSingle();
+      if (lookupError) return res.status(500).json({ error: 'Could not verify media artifact ownership.' });
+      if (!artifact) return res.status(404).json({ error: 'Media artifact not found.' });
+      if (artifact.storage_path) {
+        const { error: storageError } = await auth.client.storage.from('angel-media').remove([artifact.storage_path]);
+        if (storageError) return res.status(500).json({ error: 'Could not delete the stored media file.' });
+      }
+      const { error } = await auth.client.from('media_artifacts').delete()
+        .eq('id', artifact.id).eq('user_id', auth.userId);
+      if (error) return res.status(500).json({ error: 'Could not delete media artifact metadata.' });
+      return res.json({ success: true, id: artifact.id });
+    } catch (err) {
+      console.error('[Media Artifact Delete]', err);
+      return res.status(500).json({ error: 'Could not delete media artifact.' });
+    }
   });
 
   // ============================================================================
