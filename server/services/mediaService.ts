@@ -312,7 +312,10 @@ class MediaService {
    */
   async generateVideo(req: GenerateVideoRequest): Promise<MediaArtifact> {
     const id = 'vid_' + crypto.randomBytes(8).toString('hex');
-    const modelId = req.modelId || 'veo-3.1-generate-preview';
+    const requestedModel = req.modelId === 'veo-3.1-lite-generate-preview' ? 'veo-3.1-fast-generate-preview' : req.modelId;
+    const modelId = requestedModel || 'veo-3.1-generate-preview';
+    const requestedDuration = Number(req.durationSeconds || 8);
+    const durationSeconds = [4, 6, 8].includes(requestedDuration) ? requestedDuration : 8;
     const now = new Date().toISOString();
     const artifact: MediaArtifact = {
       id,
@@ -329,7 +332,7 @@ class MediaService {
       tags: ['Video', 'Cinematic', 'Veo'],
       projectId: req.projectId,
       taskId: req.taskId,
-      durationSec: req.durationSeconds || 5,
+      durationSec: durationSeconds,
       createdAt: now,
       updatedAt: now,
     };
@@ -349,6 +352,7 @@ class MediaService {
         config: {
           aspectRatio: artifact.aspectRatio,
           numberOfVideos: 1,
+          durationSeconds,
         },
       });
       const operationName = (operation as any).name;
