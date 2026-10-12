@@ -134,15 +134,48 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
 
     // 3. MEMORY RETRIEVAL
     let candidateMemories = request.memories || [];
-    // Respect agent memory access permissions if defined
-    if (request.memoryAccess) {
-      if (request.memoryAccess.canRead === false) {
-        candidateMemories = [];
-      } else if (request.memoryAccess.types && request.memoryAccess.types.length > 0) {
-        candidateMemories = candidateMemories.filter((m) =>
-          request.memoryAccess!.types!.includes(m.type)
-        );
+    // Pull durable user memories from Supabase when this run has a verified
+    // user session. Client-provided memory is only supplemental context.
+    if (request.memoryAccess?.canRead !== false && userDb && request.userId) {
+      try {
+        const { data, error } = await userDb
+          .from('memories')
+          .select('title, content, type, agent_id, project_id')
+          .eq('user_id', request.userId)
+          .order('updated_at', { ascending: false })
+          .limit(12);
+        if (error) {
+          addLog('memory_retrieval', 'Persistent memory lookup failed; using supplied context only.', { reason: error.message });
+        } else if (Array.isArray(data)) {
+          const persisted = data.map((memory: any) => ({
+            title: String(memory.title || 'Memory'),
+            content: String(memory.content || ''),
+            type: String(memory.type || 'important_fact'),
+            agentId: memory.agent_id || undefined,
+            projectId: memory.project_id || undefined,
+          }));
+          const combined = [...candidateMemories, ...persisted];
+          const seen = new Set<string>();
+          candidateMemories = combined.filter((memory) => {
+            const key = `${memory.title.toLowerCase()}::${memory.content.toLowerCase()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        }
+      } catch (error) {
+        addLog('memory_retrieval', 'Persistent memory lookup threw an error; using supplied context only.', {
+          reason: error instanceof Error ? error.message : String(error),
+        });
       }
+    }
+    // Respect agent memory access permissions if defined.
+    if (request.memoryAccess?.canRead === false) {
+      candidateMemories = [];
+    } else if (request.memoryAccess?.types && request.memoryAccess.types.length > 0) {
+      candidateMemories = candidateMemories.filter((memory) =>
+        request.memoryAccess!.types!.includes(memory.type)
+      );
     }
 
     addLog(
