@@ -418,7 +418,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Streaming Text Generation (Server-Sent Events)
-  app.post(['/api/ai/stream', '/api/chat/stream'], async (req: Request, res: Response) => {
+  app.post(['/api/ai/stream', '/api/chat/stream'], rateLimit(30), async (req: Request, res: Response) => {
     const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
 
     if (!prompt) {
@@ -457,7 +457,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Single-Shot Generation
-  app.post(['/api/ai/generate', '/api/chat/generate'], async (req: Request, res: Response) => {
+  app.post(['/api/ai/generate', '/api/chat/generate'], rateLimit(25), async (req: Request, res: Response) => {
     const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
 
     if (!prompt) {
@@ -483,7 +483,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Structured Output Enforcement
-  app.post('/api/ai/structured', async (req: Request, res: Response) => {
+  app.post('/api/ai/structured', rateLimit(15), async (req: Request, res: Response) => {
     const { prompt, systemInstruction, conversationHistory, jsonSchema, schemaName, modelId, providerId, temperature } = req.body;
 
     if (!prompt || !jsonSchema) {
@@ -510,7 +510,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Discoverable Tool Call
-  app.post('/api/ai/tool-call', async (req: Request, res: Response) => {
+  app.post('/api/ai/tool-call', rateLimit(15), async (req: Request, res: Response) => {
     const { prompt, systemInstruction, conversationHistory, tools, modelId, providerId, temperature } = req.body;
 
     if (!prompt || !tools || !Array.isArray(tools)) {
@@ -536,7 +536,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Multimodal Vision Inspection
-  app.post(['/api/ai/vision', '/api/visual/inspect'], async (req: Request, res: Response) => {
+  app.post(['/api/ai/vision', '/api/visual/inspect'], rateLimit(15), async (req: Request, res: Response) => {
     const { base64Data, mimeType, prompt, modelId, providerId, systemInstruction } = req.body;
 
     if (!base64Data) {
@@ -567,7 +567,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Vector Embeddings
-  app.post('/api/ai/embeddings', async (req: Request, res: Response) => {
+  app.post('/api/ai/embeddings', rateLimit(20), async (req: Request, res: Response) => {
     const { texts, modelId, providerId } = req.body;
 
     if (!texts) {
@@ -585,7 +585,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Agent Lab 9-Step Execution Pipeline
-  app.post('/api/agent/execute', attachOptionalSupabaseUser, async (req: Request, res: Response) => {
+  app.post('/api/agent/execute', attachOptionalSupabaseUser, rateLimit(10), async (req: Request, res: Response) => {
     const {
       agentId,
       agentName,
@@ -756,7 +756,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     };
   };
 
-  app.post('/api/auth/signup', async (req: Request, res: Response) => {
+  app.post('/api/auth/signup', rateLimit(8), async (req: Request, res: Response) => {
     const { email, password, name } = req.body || {};
     if (typeof email !== 'string' || !email.includes('@') || typeof password !== 'string' || password.length < 8) {
       return res.status(400).json({ error: 'A valid email and password of at least 8 characters are required.' });
@@ -784,7 +784,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/auth/signin', async (req: Request, res: Response) => {
+  app.post('/api/auth/signin', rateLimit(12), async (req: Request, res: Response) => {
     const { email, password } = req.body || {};
     if (typeof email !== 'string' || typeof password !== 'string') {
       return res.status(400).json({ error: 'Email and password are required.' });
@@ -822,7 +822,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/auth/recovery', async (req: Request, res: Response) => {
+  app.post('/api/auth/recovery', rateLimit(5), async (req: Request, res: Response) => {
     const email = req.body?.email;
     if (typeof email !== 'string' || !email.includes('@')) {
       return res.status(400).json({ error: 'A valid email address is required.' });
@@ -936,7 +936,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     res.json(artifact);
   });
 
-  app.post('/api/media/generate-image', async (req: Request, res: Response) => {
+  app.post('/api/media/generate-image', rateLimit(8), async (req: Request, res: Response) => {
     const { prompt } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'prompt is required' });
@@ -949,7 +949,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/media/generate-video', async (req: Request, res: Response) => {
+  app.post('/api/media/generate-video', rateLimit(3), async (req: Request, res: Response) => {
     const { prompt } = req.body || {};
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'prompt is required' });
@@ -962,7 +962,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/media/edit', async (req: Request, res: Response) => {
+  app.post('/api/media/edit', rateLimit(8), async (req: Request, res: Response) => {
     const { baseImageBase64, prompt } = req.body || {};
     if (!baseImageBase64 || !prompt) {
       return res.status(400).json({ error: 'baseImageBase64 and prompt are required' });
@@ -984,7 +984,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // VOICE & AUDIO INTELLIGENCE
   // ============================================================================
 
-  app.post('/api/voice/transcribe', async (req: Request, res: Response) => {
+  app.post('/api/voice/transcribe', rateLimit(15), async (req: Request, res: Response) => {
     const { base64Audio } = req.body || {};
     if (!base64Audio) {
       return res.status(400).json({ error: 'base64Audio is required' });
@@ -997,7 +997,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/voice/tts', async (req: Request, res: Response) => {
+  app.post('/api/voice/tts', rateLimit(15), async (req: Request, res: Response) => {
     const { text, voiceName, stylePrompt } = req.body || {};
     if (!text) {
       return res.status(400).json({ error: 'text is required' });
