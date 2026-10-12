@@ -56,11 +56,11 @@ export const UNIVERSAL_MODEL_CATALOG: ModelMetadata[] = [
     tier: 'free',
   },
   {
-    id: 'gemini-3.8-pro',
-    name: 'Gemini 3.8 Pro',
+    id: 'gemini-3.1-pro-preview',
+    name: 'Gemini 3.1 Pro Preview',
     provider: 'gemini',
-    description: 'Frontier intelligence model for deep technical analysis, codebase architecture, and multi-agent synthesis.',
-    contextWindow: 2097152,
+    description: 'Preview reasoning model for deep technical analysis, complex problem solving, and multi-agent synthesis.',
+    contextWindow: 1048576,
     maxOutputTokens: 8192,
     capabilities: {
       vision: true,
