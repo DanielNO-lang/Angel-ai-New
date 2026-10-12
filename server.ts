@@ -1166,6 +1166,134 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
+  // ============================================================================
+  // CONVERSATION HISTORY API — persistent, user-owned chat records
+  // All operations use the verified user's JWT so Supabase RLS remains active.
+  // ============================================================================
+
+  app.get('/api/conversations', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const limit = Math.min(100, Math.max(1, Number.parseInt(String(req.query.limit || '50'), 10) || 50));
+    try {
+      const { data, error } = await auth.client.from('conversations')
+        .select('*')
+        .eq('user_id', auth.userId)
+        .order('updated_at', { ascending: false })
+        .limit(limit);
+      if (error) return res.status(500).json({ error: 'Could not load conversation history.' });
+      return res.json({ conversations: data || [], count: data?.length || 0 });
+    } catch (err) {
+      console.error('[Conversations List]', err);
+      return res.status(500).json({ error: 'Could not load conversation history.' });
+    }
+  });
+
+  app.post('/api/conversations', requireSupabaseUser, rateLimit(20), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const body = req.body || {};
+    const title = typeof body.title === 'string' ? body.title.trim().slice(0, 240) : 'New conversation';
+    const allowedModes = ['chat', 'agent', 'research', 'reading'];
+    const mode = allowedModes.includes(body.mode) ? body.mode : 'chat';
+    const id = typeof body.id === 'string' && /^[a-zA-Z0-9_-]{1,160}$/.test(body.id)
+      ? body.id
+      : `conv_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const now = new Date().toISOString();
+    try {
+      const { data, error } = await auth.client.from('conversations').insert({
+        id, user_id: auth.userId, title, mode,
+        model: typeof body.model === 'string' ? body.model.slice(0, 120) : null,
+        metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {},
+        created_at: now, updated_at: now,
+      }).select('*').single();
+      if (error) return res.status(400).json({ error: 'Could not create conversation. The ID may already exist.' });
+      return res.status(201).json({ conversation: data });
+    } catch (err) {
+      console.error('[Conversations Create]', err);
+      return res.status(500).json({ error: 'Could not create conversation.' });
+    }
+  });
+
+  app.get('/api/conversations/:id/messages', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const limit = Math.min(500, Math.max(1, Number.parseInt(String(req.query.limit || '100'), 10) || 100));
+    try {
+      const { data: conversation, error: conversationError } = await auth.client.from('conversations')
+        .select('id').eq('id', req.params.id).eq('user_id', auth.userId).maybeSingle();
+      if (conversationError) return res.status(500).json({ error: 'Could not verify conversation ownership.' });
+      if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
+      let query = auth.client.from('messages').select('*')
+        .eq('conversation_id', req.params.id).eq('user_id', auth.userId)
+        .order('created_at', { ascending: true }).limit(limit);
+      if (typeof req.query.before === 'string' && !Number.isNaN(Date.parse(req.query.before))) {
+        query = query.lt('created_at', new Date(req.query.before).toISOString());
+      }
+      const { data, error } = await query;
+      if (error) return res.status(500).json({ error: 'Could not load conversation messages.' });
+      return res.json({ messages: data || [], count: data?.length || 0 });
+    } catch (err) {
+      console.error('[Conversation Messages List]', err);
+      return res.status(500).json({ error: 'Could not load conversation messages.' });
+    }
+  });
+
+  app.post('/api/conversations/:id/messages', requireSupabaseUser, rateLimit(60), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const body = req.body || {};
+    if (!['user', 'assistant'].includes(body.role)) {
+      return res.status(400).json({ error: 'Message role must be user or assistant.' });
+    }
+    if (typeof body.content !== 'string' || !body.content.trim() || body.content.length > 100000) {
+      return res.status(400).json({ error: 'Message content must contain 1 to 100,000 characters.' });
+    }
+    try {
+      const { data: conversation, error: conversationError } = await auth.client.from('conversations')
+        .select('id,title').eq('id', req.params.id).eq('user_id', auth.userId).maybeSingle();
+      if (conversationError) return res.status(500).json({ error: 'Could not verify conversation ownership.' });
+      if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
+      const now = new Date().toISOString();
+      const { data, error } = await auth.client.from('messages').insert({
+        id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+        conversation_id: conversation.id,
+        user_id: auth.userId,
+        role: body.role,
+        content: body.content,
+        attachments: Array.isArray(body.attachments) ? body.attachments.slice(0, 20) : [],
+        metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {},
+        created_at: now,
+      }).select('*').single();
+      if (error) return res.status(400).json({ error: 'Could not save message.' });
+      const title = body.role === 'user' && (!conversation.title || conversation.title === 'New conversation')
+        ? body.content.trim().replace(/\s+/g, ' ').slice(0, 72)
+        : conversation.title;
+      await auth.client.from('conversations').update({ title, updated_at: now })
+        .eq('id', conversation.id).eq('user_id', auth.userId);
+      return res.status(201).json({ message: data });
+    } catch (err) {
+      console.error('[Conversation Message Create]', err);
+      return res.status(500).json({ error: 'Could not save message.' });
+    }
+  });
+
+  app.delete('/api/conversations/:id', requireSupabaseUser, rateLimit(10), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    try {
+      const { data: conversation, error: lookupError } = await auth.client.from('conversations')
+        .select('id').eq('id', req.params.id).eq('user_id', auth.userId).maybeSingle();
+      if (lookupError) return res.status(500).json({ error: 'Could not verify conversation ownership.' });
+      if (!conversation) return res.status(404).json({ error: 'Conversation not found.' });
+      const { error: messagesError } = await auth.client.from('messages').delete()
+        .eq('conversation_id', conversation.id).eq('user_id', auth.userId);
+      if (messagesError) return res.status(500).json({ error: 'Could not delete conversation messages.' });
+      const { error: deleteError } = await auth.client.from('conversations').delete()
+        .eq('id', conversation.id).eq('user_id', auth.userId);
+      if (deleteError) return res.status(500).json({ error: 'Could not delete conversation.' });
+      return res.json({ success: true, id: conversation.id });
+    } catch (err) {
+      console.error('[Conversation Delete]', err);
+      return res.status(500).json({ error: 'Could not delete conversation.' });
+    }
+  });
+
   app.get('/api/media/artifacts', (req: Request, res: Response) => {
     const { category, projectId, taskId, search } = req.query as Record<string, string>;
     const artifacts = mediaService.listArtifacts({ category, projectId, taskId, search });
