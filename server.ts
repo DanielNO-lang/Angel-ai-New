@@ -19,7 +19,7 @@ import { mediaService } from './server/services/mediaService';
 import { voiceService } from './server/services/voiceService';
 import { intelligenceService } from './server/services/intelligenceService';
 import { readingService } from './server/services/readingService';
-import { runWorkflowExecution, approveWorkflowExecution } from './server/services/workflowService';
+import { runWorkflowExecution, approveWorkflowExecution, triggerMatchingWorkflows } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
 import { vercelService } from './server/services/vercelService';
 
@@ -816,7 +816,22 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         event as AutomationEventType,
         data || {}
       );
-      res.json(result);
+      const auth = (req as any).angelAuth;
+      let triggeredWorkflows: any[] = [];
+      let workflowTriggerError: string | undefined;
+      try {
+        triggeredWorkflows = await triggerMatchingWorkflows({
+          client: auth.client,
+          userId: auth.userId,
+          accessToken: auth.accessToken,
+          event: event as AutomationEventType,
+          data: data && typeof data === 'object' ? data : {},
+        });
+      } catch (triggerError) {
+        workflowTriggerError = triggerError instanceof Error ? triggerError.message : String(triggerError);
+        console.error('[Workflow Event Trigger Error]', workflowTriggerError);
+      }
+      res.json({ ...result, triggeredWorkflows, workflowTriggerError });
     } catch (err) {
       console.error('[Automation Dispatch Error]', err);
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
