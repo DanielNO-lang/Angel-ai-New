@@ -48,6 +48,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const route = String((req as any).route?.path || req.path || '/');
     const now = Date.now();
     const fallbackKey = `${ip}:${route}`;
+    if (ipCounters.size > 5000) {
+      for (const [key, value] of ipCounters) {
+        if (now > value.resetAt) ipCounters.delete(key);
+      }
+    }
 
     try {
       const serviceStatus = getSupabaseServerStatus();
