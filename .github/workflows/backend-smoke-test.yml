@@ -40,6 +40,8 @@ jobs:
       - name: Publish backend smoke status
         if: always()
         uses: actions/github-script@v7
+        env:
+          SMOKE_REASON: ${{ steps.smoke.outputs.reason }}
         with:
           script: |
             const outcome = '${{ steps.smoke.outcome }}';
@@ -50,6 +52,6 @@ jobs:
               sha: context.sha,
               state,
               context: 'Angel Backend Smoke Test',
-              description: state === 'success' ? 'Production API and live Gemini generation passed' : String('${{ steps.smoke.outputs.reason }}' || 'Smoke test failed; inspect Actions logs').slice(0, 140),
+              description: state === 'success' ? 'Production API and live Gemini generation passed' : String(process.env.SMOKE_REASON || 'Smoke test failed; inspect Actions logs').slice(0, 140),
               target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
             });
