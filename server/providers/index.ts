@@ -31,17 +31,25 @@ export class ProviderRegistry {
   }
 
   getProvider(providerId?: string): AIProvider {
-    if (providerId && this.providers.has(providerId)) {
-      const p = this.providers.get(providerId)!;
-      if (p.isConfigured()) return p;
+    if (providerId) {
+      const requested = this.providers.get(providerId);
+      if (requested?.isConfigured()) return requested;
     }
 
-    // Default to Gemini as primary
+    // Prefer the configured primary provider, then fail over to any configured
+    // provider instead of returning an unavailable provider just because it was
+    // requested by the UI or a saved agent configuration.
     const primary = this.providers.get(this.primaryProviderId);
-    if (!primary) {
-      throw new Error(`Primary provider '${this.primaryProviderId}' is not registered.`);
+    if (primary?.isConfigured()) return primary;
+
+    for (const provider of this.providers.values()) {
+      if (provider.isConfigured()) return provider;
     }
-    return primary;
+
+    if (primary) return primary;
+    const first = this.providers.values().next().value as AIProvider | undefined;
+    if (first) return first;
+    throw new Error('No AI providers are registered.');
   }
 
   /**
