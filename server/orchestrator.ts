@@ -8,6 +8,7 @@
 import { modelRouter } from './providers';
 import { dispatchZapierEvent } from './zapier_service';
 import { getSupabaseClientForUser } from './supabase_service';
+import { researchService } from './services/researchService';
 
 export interface ExecutionStepLog {
   stage:
@@ -218,6 +219,36 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
       .map((m) => `• [${m.type.toUpperCase()}] ${m.title}: ${m.content}`)
       .join('\n');
 
+    // 4. TOOL PLANNING
+    const tools = request.allowedTools || [];
+    const plannedTools: string[] = [];
+    const lowerPrompt = request.taskPrompt.toLowerCase();
+
+    if (tools.includes('workspace_search') || tools.includes('search')) {
+      plannedTools.push('workspace_search');
+    }
+    if ((tools.includes('task_manager') || tools.includes('task_create') || tools.includes('tasks')) &&
+        (lowerPrompt.includes('task') || lowerPrompt.includes('todo') || lowerPrompt.includes('action item') || lowerPrompt.includes('plan'))) {
+      plannedTools.push('task_manager');
+    }
+    if ((tools.includes('memory_vault') || tools.includes('memory_write') || tools.includes('memory')) &&
+        (lowerPrompt.includes('remember') || lowerPrompt.includes('preference') || lowerPrompt.includes('store') || lowerPrompt.includes('fact'))) {
+      plannedTools.push('memory_vault');
+    }
+    if (tools.includes('time_utility') && (lowerPrompt.includes('time') || lowerPrompt.includes('date') || lowerPrompt.includes('deadline'))) {
+      plannedTools.push('time_utility');
+    }
+    const requestsWebResearch = /\b(search|research|browse|latest|current|news|sources?|verify|look up|find online|internet)\b/i.test(request.taskPrompt);
+    if (requestsWebResearch && tools.some((tool) => ['web_search', 'web_research', 'browser_search'].includes(tool))) {
+      plannedTools.push('web_search');
+    }
+
+    addLog(
+      'tool_planning',
+      `Evaluated tool registry against permissions. Active tools: [${tools.join(', ')}]. Planned invocations: [${plannedTools.join(', ') || 'none'}].`,
+      { allowedTools: tools, plannedTools }
+    );
+
     // Execute deterministic read-only tools before model synthesis so the model
     // receives actual tool output instead of merely a list of planned tools.
     const toolContextResults: Array<{ tool: string; result: string }> = [];
@@ -251,34 +282,26 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
       addLog('execution', 'Time utility returned the current server timestamp in UTC.', { tool: 'time_utility' });
     }
 
-    // 4. TOOL PLANNING
-    const tools = request.allowedTools || [];
-    const plannedTools: string[] = [];
-    const lowerPrompt = request.taskPrompt.toLowerCase();
-
-    if (tools.includes('workspace_search') || tools.includes('search')) {
-      plannedTools.push('workspace_search');
-    }
-    if ((tools.includes('task_manager') || tools.includes('task_create') || tools.includes('tasks')) &&
-        (lowerPrompt.includes('task') || lowerPrompt.includes('todo') || lowerPrompt.includes('action item') || lowerPrompt.includes('plan'))) {
-      plannedTools.push('task_manager');
-    }
-    if ((tools.includes('memory_vault') || tools.includes('memory_write') || tools.includes('memory')) &&
-        (lowerPrompt.includes('remember') || lowerPrompt.includes('preference') || lowerPrompt.includes('store') || lowerPrompt.includes('fact'))) {
-      plannedTools.push('memory_vault');
-    }
-    if (tools.includes('time_utility') && (lowerPrompt.includes('time') || lowerPrompt.includes('date') || lowerPrompt.includes('deadline'))) {
-      plannedTools.push('time_utility');
-    }
-
-    addLog(
-      'tool_planning',
-      `Evaluated tool registry against permissions. Active tools: [${tools.join(', ')}]. Planned invocations: [${plannedTools.join(', ') || 'none'}].`,
-      {
-        allowedTools: tools,
-        plannedTools,
+    if (plannedTools.includes('web_search')) {
+      try {
+        const research = await researchService.search(request.taskPrompt, { modelId: 'gemini-3.8-flash', maxSources: 6 });
+        toolContextResults.push({
+          tool: 'web_search',
+          result: JSON.stringify({ answer: research.answer, sources: research.sources, searchQueries: research.searchQueries }),
+        });
+        toolsExecuted.push('web_search');
+        addLog('execution', `Grounded web research returned ${research.sources.length} source(s).`, {
+          tool: 'web_search',
+          sourceCount: research.sources.length,
+          queryCount: research.searchQueries.length,
+        });
+      } catch (error) {
+        addLog('execution', 'Web research failed; continuing without external search results.', {
+          tool: 'web_search',
+          reason: error instanceof Error ? error.message : String(error),
+        });
       }
-    );
+    }
 
     // 5. EXECUTION
     const providerId = request.modelConfig?.provider || 'gemini';
