@@ -1,0 +1,36 @@
+name: Backend smoke test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server.ts'
+      - 'server/**'
+      - 'api/**'
+      - 'package.json'
+      - 'vercel.json'
+      - 'scripts/backend-smoke.mjs'
+      - '.github/workflows/backend-smoke-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: angel-backend-smoke
+  cancel-in-progress: true
+
+jobs:
+  production-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Wait for deployment and verify live backend
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          ANGEL_BASE_URL: https://angel-ai-new-git-main-angel-0908.vercel.app
+        run: node scripts/backend-smoke.mjs
