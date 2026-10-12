@@ -2032,7 +2032,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const response = await fetch('/api/agent/execute', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
         body: JSON.stringify({
           agentId: agent.id,
           agentName: agent.name,
