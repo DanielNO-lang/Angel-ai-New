@@ -220,8 +220,11 @@ export async function runWorkflowExecution(options: WorkflowRunOptions): Promise
         const source = step.value ?? step.template ?? '';
         const value = typeof source === 'string'
           ? source.replace(/\{\{\s*([a-zA-Z0-9_.-]+)\s*\}\}/g, (_match: string, path: string) => {
-              const normalizedPath = path.replace(/^input\./, '').replace(/^results\./, '');
-              const resolved = getPath({ input, results }, normalizedPath);
+              const resolved = path.startsWith('input.')
+                ? getPath(input, path.slice(6))
+                : path.startsWith('results.')
+                  ? getPath(results, path.slice(8))
+                  : getPath({ input, results }, path);
               return resolved == null ? '' : String(resolved);
             })
           : source;
@@ -304,6 +307,12 @@ export async function approveWorkflowExecution(options: {
 
   const savedInput = execution.input || {};
   const savedOutput = execution.output || {};
+  const { error: resumeError } = await client.from('executions').update({
+    status: 'running',
+    error: null,
+    completed_at: null,
+  }).eq('id', executionId).eq('user_id', userId).eq('status', 'awaiting_approval');
+  if (resumeError) throw new Error(`Could not resume approved workflow: ${resumeError.message}`);
   return runWorkflowExecution({
     client,
     userId,
@@ -342,8 +351,8 @@ export async function triggerMatchingWorkflows(options: {
     const triggerType = String(trigger.type || '').toLowerCase();
     const configuredEvent = String(trigger.event || trigger.eventType || trigger.event_type || '').toLowerCase();
     return workflow.status !== 'archived' &&
-      (triggerType === 'event' || triggerType === 'webhook' || triggerType === 'on_event') &&
-      configuredEvent === event.toLowerCase();
+      ((triggerType === 'event' || triggerType === 'webhook' || triggerType === 'on_event') &&
+        configuredEvent === event.toLowerCase()) || triggerType === event.toLowerCase();
   }).slice(0, 10);
 
   const results: JsonRecord[] = [];
