@@ -95,7 +95,7 @@ export async function runWorkflowExecution(options: WorkflowRunOptions): Promise
   }
 
   const persistState = async (status: string, extra: JsonRecord = {}) => {
-    const completedAt = ['completed', 'failed', 'rejected', 'skipped'].includes(status) ? new Date().toISOString() : null;
+    const completedAt = ['completed', 'failed', 'rejected', 'skipped', 'cancelled'].includes(status) ? new Date().toISOString() : null;
     const { error } = await client.from('executions').update({
       status,
       input: { payload: input, stepsSnapshot: steps, permissionsSnapshot: permissions, pendingStepIndex: extra.pendingStepIndex },
@@ -108,6 +108,17 @@ export async function runWorkflowExecution(options: WorkflowRunOptions): Promise
 
   try {
     for (let index = options.startIndex || 0; index < steps.length; index++) {
+      const { data: runState, error: stateError } = await client.from('executions')
+        .select('status')
+        .eq('id', executionId)
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (stateError) throw new Error(`Could not check workflow cancellation state: ${stateError.message}`);
+      if (runState?.status === 'cancel_requested') {
+        await persistState('cancelled', { reason: 'Execution cancelled by the user.', lastCompletedStep: index - 1 });
+        return { executionId, workflowId, status: 'cancelled', results, reason: 'Execution cancelled by the user.' };
+      }
+
       const step = steps[index] || {};
       const stepId = String(step.id || `step_${index + 1}`);
       const stepType = String(step.type || step.action || 'ai').toLowerCase();
@@ -218,6 +229,17 @@ export async function runWorkflowExecution(options: WorkflowRunOptions): Promise
 
       results.push(result);
       await persistState('running', { lastCompletedStep: index, stepCount: steps.length });
+    }
+
+    const { data: finalRunState, error: finalStateError } = await client.from('executions')
+      .select('status')
+      .eq('id', executionId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (finalStateError) throw new Error(`Could not verify final workflow state: ${finalStateError.message}`);
+    if (finalRunState?.status === 'cancel_requested') {
+      await persistState('cancelled', { reason: 'Execution cancelled by the user.' });
+      return { executionId, workflowId, status: 'cancelled', results, reason: 'Execution cancelled by the user.' };
     }
 
     const completedAt = new Date().toISOString();
