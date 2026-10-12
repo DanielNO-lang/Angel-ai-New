@@ -1460,7 +1460,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/media/generate-image', requireSupabaseUser, rateLimit(8), async (req: Request, res: Response) => {
+  app.post('/api/media/generate-image', attachOptionalSupabaseUser, rateLimit(8), async (req: Request, res: Response) => {
     const { prompt } = req.body || {};
     if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 12000) {
       return res.status(400).json({ error: 'prompt must contain 1 to 12,000 characters.' });
@@ -1468,7 +1468,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     try {
       const auth = (req as any).angelAuth;
       const artifact = await mediaService.generateImage(req.body);
-      const saved = await persistMediaArtifact(auth, artifact);
+      const saved = auth ? await persistMediaArtifact(auth, artifact) : artifact;
       mediaService.deleteArtifact(artifact.id);
       return res.status(artifact.status === 'completed' ? 200 : 502).json(saved);
     } catch (err) {
@@ -1494,7 +1494,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/media/edit', requireSupabaseUser, rateLimit(8), async (req: Request, res: Response) => {
+  app.post('/api/media/edit', attachOptionalSupabaseUser, rateLimit(8), async (req: Request, res: Response) => {
     const { baseImageBase64, prompt } = req.body || {};
     if (typeof baseImageBase64 !== 'string' || !baseImageBase64 || typeof prompt !== 'string' || !prompt.trim()) {
       return res.status(400).json({ error: 'baseImageBase64 and prompt are required.' });
@@ -1505,7 +1505,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     try {
       const auth = (req as any).angelAuth;
       const artifact = await mediaService.editImage(req.body);
-      const saved = await persistMediaArtifact(auth, artifact);
+      const saved = auth ? await persistMediaArtifact(auth, artifact) : artifact;
       mediaService.deleteArtifact(artifact.id);
       return res.status(artifact.status === 'completed' ? 200 : 502).json(saved);
     } catch (err) {
