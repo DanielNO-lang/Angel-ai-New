@@ -50,5 +50,6 @@ jobs:
               sha: context.sha,
               state,
               context: 'Angel Backend Smoke Test',
-              description: state === 'success' ? 'Production API and live Gemini generation passed' : 'Production backend smoke test failed; inspect Actions logs'
+              description: state === 'success' ? 'Production API and live Gemini generation passed' : String('${{ steps.smoke.outputs.reason }}' || 'Smoke test failed; inspect Actions logs').slice(0, 140),
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
             });
