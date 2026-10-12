@@ -299,7 +299,6 @@ class SyncService {
     this.isSyncing = true;
     this.setStatus('syncing');
 
-    const supabaseClient = getClientSupabase();
     let syncFailed = false;
     let failureError: string | null = null;
 
@@ -307,13 +306,9 @@ class SyncService {
       try {
         await offlineDb.syncQueue.update(mutation.id, { status: 'syncing' });
 
-        // Method 1: If direct Supabase client is configured in browser
-        if (false && supabaseClient && this.canSyncDirectly(mutation.entityType)) {
-          await this.syncViaSupabaseClient(supabaseClient, mutation);
-        } else {
-          // Method 2: Sync via server-side proxy route
-          await this.syncViaServerProxy(mutation);
-        }
+        // Route cloud writes through the authenticated server sync layer so each
+        // entity is normalized consistently and checked against the user's JWT/RLS.
+        await this.syncViaServerProxy(mutation);
 
         // Successfully synced mutation: remove from queue
         await offlineDb.syncQueue.delete(mutation.id);
