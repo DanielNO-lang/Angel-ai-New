@@ -167,14 +167,9 @@ class MediaService {
 
     this.artifacts.set(id, artifact);
 
-    // Asynchronously dispatch model execution
-    this.executeImageGeneration(artifact, req).catch((err) => {
-      console.error('[MediaService executeImageGeneration Error]', err);
-      artifact.status = 'failed';
-      artifact.error = err instanceof Error ? err.message : String(err);
-      artifact.updatedAt = new Date().toISOString();
-    });
-
+    // Await the provider result so the API can persist a final, truthful artifact
+    // instead of returning a process-local job that disappears between serverless calls.
+    await this.executeImageGeneration(artifact, req);
     return artifact;
   }
 
