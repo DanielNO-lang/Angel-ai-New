@@ -767,29 +767,30 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.put('/api/auth/profile', requireSupabaseUser, async (req: Request, res: Response) => {
     const auth = (req as any).angelAuth;
     const updates = req.body || {};
-    const safeMetadata: Record<string, string> = {};
-    if (typeof updates.name === 'string') safeMetadata.name = updates.name.trim().slice(0, 120);
-    if (typeof updates.avatarUrl === 'string') safeMetadata.avatar_url = updates.avatarUrl.slice(0, 2048);
-    if (typeof updates.title === 'string') safeMetadata.title = updates.title.trim().slice(0, 120);
     try {
-      const { data: authData, error: authError } = await auth.client.auth.updateUser({ data: safeMetadata });
-      if (authError || !authData.user) return res.status(400).json({ error: authError?.message || 'Profile update failed.' });
+      const { data: authData, error: authError } = await auth.client.auth.getUser(auth.accessToken);
+      if (authError || !authData.user) return res.status(401).json({ error: 'Your session is invalid or expired.' });
       const user = authData.user;
-      const profile = profileFromAuthUser(user);
-      const initials = profile.name.split(/\\s+/).map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
+      const existingName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Angel User';
+      const name = typeof updates.name === 'string' ? updates.name.trim().slice(0, 120) : existingName;
+      const avatarUrl = typeof updates.avatarUrl === 'string' ? updates.avatarUrl.slice(0, 2048) : (user.user_metadata?.avatar_url || null);
+      const title = typeof updates.title === 'string' ? updates.title.trim().slice(0, 120) : (user.user_metadata?.title || undefined);
+      const initials = name.split(/\\s+/).map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
       const { data: existing } = await auth.client.from('profiles').select('plan').eq('id', user.id).maybeSingle();
       const { error: dbError } = await auth.client.from('profiles').upsert({
         id: user.id,
-        name: profile.name,
-        email: profile.email,
+        name,
+        email: user.email || '',
         initials,
-        avatar_url: profile.avatarUrl || null,
+        avatar_url: avatarUrl,
         status: 'online',
         plan: existing?.plan || 'Free',
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });
       if (dbError) return res.status(500).json({ error: dbError.message });
-      return res.json({ success: true, profile });
+      // The client updates Supabase user_metadata directly; this endpoint persists the
+      // public profile row without pretending a server-side auth session is stored.
+      return res.json({ success: true, profile: { id: user.id, email: user.email || '', name, avatarUrl, title, role: 'user', createdAt: user.created_at } });
     } catch (err) {
       return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
