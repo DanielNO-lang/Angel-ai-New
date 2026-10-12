@@ -193,12 +193,26 @@ export function subscribeToSupabaseTasks(onUpdate: () => void): () => void {
  */
 export async function pushTasksToSupabase(tasks: Task[]): Promise<boolean> {
   try {
+    const client = getClientSupabase();
+    if (!client) return false;
+    const { data: sessionData, error: sessionError } = await client.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (sessionError || !accessToken) return false;
+
     const res = await fetch('/api/supabase/sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify({ tasks }),
     });
-    return res.ok;
+    if (!res.ok) {
+      console.warn('[Supabase Sync] Server rejected task sync:', res.status);
+      return false;
+    }
+    const result = await res.json();
+    return result.success === true;
   } catch (err) {
     console.warn('[Supabase Sync] Failed to push tasks:', err);
     return false;
