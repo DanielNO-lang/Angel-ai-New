@@ -1645,7 +1645,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Dispatch automation event: task.created
     fetch('/api/automation/dispatch', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}) },
       body: JSON.stringify({
         event: 'task.created',
         data: {
@@ -1698,7 +1698,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (newStatus === 'completed') {
           fetch('/api/automation/dispatch', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}) },
             body: JSON.stringify({
               event: 'task.completed',
               data: {
@@ -1755,7 +1755,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Dispatch automation event: memory.created
     fetch('/api/automation/dispatch', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}) },
       body: JSON.stringify({
         event: 'memory.created',
         data: {
@@ -1780,7 +1780,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Dispatch automation event: memory.updated
         fetch('/api/automation/dispatch', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}) },
           body: JSON.stringify({
             event: 'memory.updated',
             data: {
@@ -2203,7 +2203,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const response = await fetch('/api/automation/dispatch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}) },
         body: JSON.stringify({ event, data, ...options }),
       });
       const result = await response.json();
