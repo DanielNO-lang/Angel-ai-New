@@ -691,20 +691,33 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
 
     const { event, data, callbackUrl } = req.body;
-    console.log(`[Angel Inbound Webhook Received] Event: ${event}`, data);
+    console.log(`[Angel Inbound Webhook Received] Event: ${String(event || 'custom.event').slice(0, 100)}`);
 
-    // If caller provided a callbackUrl, report asynchronous receipt acknowledgment
+    // Callback destinations must be explicitly allowlisted to prevent SSRF.
     if (callbackUrl && typeof callbackUrl === 'string') {
-      fetch(callbackUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: 'acknowledged',
-          event,
-          receivedAt: new Date().toISOString(),
-          source: 'angel-ai-workspace',
-        }),
-      }).catch((e) => console.warn('[Callback Notification Failed]', e));
+      try {
+        const target = new URL(callbackUrl);
+        const allowedHosts = (process.env.WEBHOOK_CALLBACK_ALLOWLIST || '')
+          .split(/[,;\\s]+/)
+          .map((host) => host.trim().toLowerCase())
+          .filter(Boolean);
+        if (['https:', 'http:'].includes(target.protocol) && allowedHosts.includes(target.hostname.toLowerCase())) {
+          fetch(target.toString(), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              status: 'acknowledged',
+              event,
+              receivedAt: new Date().toISOString(),
+              source: 'angel-ai-workspace',
+            }),
+          }).catch((e) => console.warn('[Callback Notification Failed]', e));
+        } else {
+          console.warn('[Angel Webhook] Callback omitted because its host is not allowlisted.');
+        }
+      } catch {
+        console.warn('[Angel Webhook] Callback omitted because the URL is invalid.');
+      }
     }
 
     res.json({
