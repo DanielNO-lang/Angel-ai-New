@@ -20,6 +20,7 @@ import { mediaService } from './server/services/mediaService';
 import { voiceService } from './server/services/voiceService';
 import { intelligenceService } from './server/services/intelligenceService';
 import { readingService } from './server/services/readingService';
+import { researchService } from './server/services/researchService';
 import { runWorkflowExecution, approveWorkflowExecution, triggerMatchingWorkflows } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
 import { vercelService } from './server/services/vercelService';
@@ -850,6 +851,29 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
   });
+
+  // Grounded web research — Google Search is executed by Gemini and sources are returned explicitly.
+  const webResearchHandler = async (req: Request, res: Response) => {
+    const body = req.body || {};
+    if (typeof body.query !== 'string' || body.query.trim().length < 3 || body.query.trim().length > 2000) {
+      return res.status(400).json({ error: 'query must contain 3 to 2,000 characters.' });
+    }
+    try {
+      const result = await researchService.search(body.query, {
+        modelId: 'gemini-3.8-flash',
+        maxSources: Number(body.maxSources) || 6,
+      });
+      if (!result.answer) return res.status(502).json({ error: 'The research provider returned no answer.' });
+      return res.json(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Web research failed.';
+      console.error('[Web Research]', message);
+      return res.status(message.includes('not configured') ? 503 : 502).json({ error: message });
+    }
+  };
+
+  app.post('/api/research/search', attachOptionalSupabaseUser, rateLimit(8), webResearchHandler);
+  app.post('/api/web/search', attachOptionalSupabaseUser, rateLimit(8), webResearchHandler);
 
   // Agent Lab 9-Step Execution Pipeline
   app.post('/api/agent/execute', attachOptionalSupabaseUser, rateLimit(10), async (req: Request, res: Response) => {
