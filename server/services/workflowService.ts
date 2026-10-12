@@ -96,13 +96,16 @@ export async function runWorkflowExecution(options: WorkflowRunOptions): Promise
 
   const persistState = async (status: string, extra: JsonRecord = {}) => {
     const completedAt = ['completed', 'failed', 'rejected', 'skipped', 'cancelled'].includes(status) ? new Date().toISOString() : null;
-    const { error } = await client.from('executions').update({
+    let updateQuery = client.from('executions').update({
       status,
       input: { payload: input, stepsSnapshot: steps, permissionsSnapshot: permissions, pendingStepIndex: extra.pendingStepIndex },
       output: { results, ...extra },
       error: extra.error || null,
       completed_at: completedAt,
     }).eq('id', executionId).eq('user_id', userId);
+    // Do not overwrite a concurrent cancellation request with a routine running/approval update.
+    if (status === 'running' || status === 'awaiting_approval') updateQuery = updateQuery.eq('status', 'running');
+    const { error } = await updateQuery;
     if (error) throw new Error(`Could not persist workflow execution state: ${error.message}`);
   };
 
