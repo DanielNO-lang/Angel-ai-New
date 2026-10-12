@@ -119,8 +119,34 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
     });
 
     // 2. CONTEXT PREPARATION
+    let activeTasks = request.context?.activeTasks || [];
+    if (activeTasks.length === 0 && userDb && request.userId) {
+      try {
+        const { data, error } = await userDb
+          .from('tasks')
+          .select('id, title, status, priority')
+          .eq('user_id', request.userId)
+          .neq('status', 'completed')
+          .order('updated_at', { ascending: false })
+          .limit(12);
+        if (error) {
+          addLog('context_preparation', 'Could not load persisted active tasks.', { reason: error.message });
+        } else if (Array.isArray(data)) {
+          activeTasks = data.map((task: any) => ({
+            id: String(task.id),
+            title: String(task.title || 'Untitled task'),
+            status: String(task.status || 'todo'),
+            priority: String(task.priority || 'medium'),
+          }));
+        }
+      } catch (error) {
+        addLog('context_preparation', 'Active-task lookup failed; using supplied context only.', {
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     const historyCount = request.context?.conversationHistory?.length || 0;
-    const taskCount = request.context?.activeTasks?.length || 0;
+    const taskCount = activeTasks.length;
     addLog(
       'context_preparation',
       `Assembling workspace context: Project "${request.context?.projectName || 'Primary'}", ${historyCount} conversational turns, ${taskCount} active tasks.`,
@@ -199,7 +225,7 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
     if (plannedTools.includes('workspace_search')) {
       const queryTerms = lowerPrompt.split(/[^a-z0-9]+/i).filter((term) => term.length > 2);
       const searchable = [
-        ...(request.context?.activeTasks || []).map((item) => ({ kind: 'task', title: item.title, content: `${item.status} ${item.priority}` })),
+        ...activeTasks.map((item) => ({ kind: 'task', title: item.title, content: `${item.status} ${item.priority}` })),
         ...candidateMemories.map((item) => ({ kind: 'memory', title: item.title, content: item.content })),
         ...(request.context?.conversationHistory || []).map((item) => ({ kind: item.role, title: item.role, content: item.content })),
       ];
@@ -263,7 +289,7 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
       temperature: request.modelConfig?.temperature ?? 0.4,
     });
 
-    const activeTasksSummary = (request.context?.activeTasks || [])
+    const activeTasksSummary = activeTasks
       .map((t) => `• [${t.priority.toUpperCase()}] ${t.title} (Status: ${t.status})`)
       .join('\n');
 
