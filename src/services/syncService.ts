@@ -397,7 +397,7 @@ class SyncService {
    * Trigger immediate workspace synchronization
    */
   public async syncNow(token?: string | null): Promise<void> {
-    if (token) this.sessionToken = token;
+    if (token !== undefined) this.sessionToken = token;
     await this.processQueue();
   }
 }
