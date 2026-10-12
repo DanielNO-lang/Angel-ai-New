@@ -308,7 +308,7 @@ class SyncService {
         await offlineDb.syncQueue.update(mutation.id, { status: 'syncing' });
 
         // Method 1: If direct Supabase client is configured in browser
-        if (supabaseClient && this.canSyncDirectly(mutation.entityType)) {
+        if (false && supabaseClient && this.canSyncDirectly(mutation.entityType)) {
           await this.syncViaSupabaseClient(supabaseClient, mutation);
         } else {
           // Method 2: Sync via server-side proxy route
@@ -374,9 +374,13 @@ class SyncService {
   }
 
   private async syncViaServerProxy(mutation: QueuedMutation): Promise<void> {
+    if (!this.sessionToken) {
+      throw new Error('Sign in is required before workspace changes can sync to the cloud.');
+    }
+
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
-      ...(this.sessionToken ? { Authorization: `Bearer ${this.sessionToken}` } : {}),
+      Authorization: `Bearer ${this.sessionToken}`,
     };
 
     if (mutation.entityType === 'task') {
@@ -385,17 +389,33 @@ class SyncService {
         headers,
         body: JSON.stringify({ tasks: [mutation.payload] }),
       });
-      if (!res.ok) throw new Error(`Task sync endpoint returned ${res.status}`);
-    } else {
-      // Universal entity sync via server cloud data
-      const res = await fetch('/api/user/cloud-data', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ [mutation.entityType]: mutation.payload }),
-      });
-      if (!res.ok && res.status !== 401) {
-        throw new Error(`Cloud data endpoint returned ${res.status}`);
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || result.success !== true) {
+        throw new Error(result.message || result.error || `Task sync endpoint returned ${res.status}`);
       }
+      return;
+    }
+
+    const entityKey: Record<string, string> = {
+      memory: 'memories',
+      project: 'projects',
+      workflow: 'workflows',
+      conversation: 'conversations',
+      message: 'messages',
+      library_item: 'libraryItems',
+      agent: 'agents',
+    };
+    const key = entityKey[mutation.entityType];
+    if (!key) throw new Error(`Unsupported cloud entity: ${mutation.entityType}`);
+
+    const res = await fetch('/api/supabase/sync-all', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ [key]: [mutation.payload] }),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok || result.success !== true) {
+      throw new Error(result.message || result.error || `Cloud sync endpoint returned ${res.status}`);
     }
   }
 
