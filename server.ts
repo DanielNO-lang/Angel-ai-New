@@ -113,7 +113,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       const { data, error } = await client.auth.getUser(accessToken);
       if (error || !data.user) return res.status(401).json({ error: 'Your session is invalid or expired.' });
       const allowlist = (process.env.ADMIN_EMAILS || '')
-        .split(/[,;\\s]+/)
+        .split(/[,;\s]+/)
         .map((email) => email.trim().toLowerCase())
         .filter(Boolean);
       if (allowlist.length === 0) return res.status(503).json({ error: 'Administrative access is not configured.' });
