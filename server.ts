@@ -12,7 +12,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { executeAgentPipeline } from './server/orchestrator';
 import { providerRegistry } from './server/providers';
-import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
+import { getSupabaseServerStatus, getSupabaseClientForUser, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
 import { automationService, AutomationEventType } from './server/services/automationService';
 import { dispatchZapierEvent } from './server/zapier_service';
 import { authService } from './server/services/authService';
@@ -53,6 +53,33 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
     entry.count++;
     next();
+  };
+
+  // Supabase JWT authentication for user-owned cloud persistence routes.
+  // All database reads/writes below use the caller's JWT so PostgreSQL RLS applies.
+  const requireSupabaseUser = async (req: Request, res: Response, next: NextFunction) => {
+    const header = req.headers.authorization || '';
+    const accessToken = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Sign in to synchronize your workspace.' });
+    }
+
+    const client = getSupabaseClientForUser(accessToken);
+    if (!client) {
+      return res.status(503).json({ error: 'Supabase authentication is not configured on the server.' });
+    }
+
+    try {
+      const { data, error } = await client.auth.getUser(accessToken);
+      if (error || !data.user) {
+        return res.status(401).json({ error: 'Your session is invalid or expired. Please sign in again.' });
+      }
+      (req as any).angelAuth = { userId: data.user.id, accessToken, client };
+      return next();
+    } catch (error) {
+      console.error('[Supabase Auth] Token verification failed:', error);
+      return res.status(401).json({ error: 'Your session could not be verified.' });
+    }
   };
 
   // ============================================================================
@@ -142,9 +169,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // 3. Supabase Real-Time Project Velocity & Completion Status
-  app.get('/api/supabase/velocity', async (req: Request, res: Response) => {
+  app.get('/api/supabase/velocity', requireSupabaseUser, async (req: Request, res: Response) => {
     try {
-      const metrics = await getTasksVelocity([]);
+      const metrics = await getTasksVelocity([], (req as any).angelAuth.client);
       res.json(metrics);
     } catch (err) {
       console.error('[API /api/supabase/velocity Error]', err);
@@ -152,11 +179,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/supabase/velocity', async (req: Request, res: Response) => {
+  app.post('/api/supabase/velocity', requireSupabaseUser, async (req: Request, res: Response) => {
     try {
       const { tasks } = req.body || {};
       const fallbackTasks = Array.isArray(tasks) ? tasks : [];
-      const metrics = await getTasksVelocity(fallbackTasks);
+      const metrics = await getTasksVelocity(fallbackTasks, (req as any).angelAuth.client);
       res.json(metrics);
     } catch (err) {
       console.error('[API /api/supabase/velocity POST Error]', err);
@@ -164,13 +191,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/supabase/sync', async (req: Request, res: Response) => {
+  app.post('/api/supabase/sync', requireSupabaseUser, async (req: Request, res: Response) => {
     try {
       const { tasks } = req.body || {};
       if (!Array.isArray(tasks)) {
         return res.status(400).json({ error: 'tasks array is required' });
       }
-      const result = await syncTasksToSupabase(tasks);
+      const auth = (req as any).angelAuth;
+      const result = await syncTasksToSupabase(tasks, auth.userId, auth.accessToken);
       res.json(result);
     } catch (err) {
       console.error('[API /api/supabase/sync Error]', err);
@@ -178,9 +206,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/supabase/sync-all', async (req: Request, res: Response) => {
+  app.post('/api/supabase/sync-all', requireSupabaseUser, async (req: Request, res: Response) => {
     try {
-      const result = await syncAllEntitiesToSupabase(req.body || {});
+      const auth = (req as any).angelAuth;
+      const result = await syncAllEntitiesToSupabase(req.body || {}, auth.userId, auth.accessToken);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
