@@ -87,14 +87,15 @@ class ReadingService {
     }
 
     const modelId = request.modelId || 'gemini-3.8-flash';
+    const generationConfig: Record<string, unknown> = {
+      systemInstruction: 'You are Angel AI Reading: precise, evidence-led, and careful with source material. If the document is unreadable or incomplete, say so.',
+      maxOutputTokens: 8192,
+    };
+    if (!modelId.startsWith('gemini-3.')) generationConfig.temperature = 0.2;
     const response = await this.getClient().models.generateContent({
       model: modelId,
       contents: [{ role: 'user', parts }],
-      config: {
-        systemInstruction: 'You are Angel AI Reading: precise, evidence-led, and careful with source material. If the document is unreadable or incomplete, say so.',
-        temperature: 0.2,
-        maxOutputTokens: 8192,
-      },
+      config: generationConfig as any,
     });
 
     const resultText = response.text?.trim();
