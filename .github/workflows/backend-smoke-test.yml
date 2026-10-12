@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: angel-backend-smoke
@@ -30,7 +31,24 @@ jobs:
         with:
           node-version: 22
       - name: Wait for deployment and verify live backend
+        id: smoke
         env:
           GITHUB_SHA: ${{ github.sha }}
           ANGEL_BASE_URL: https://angel-ai-new-git-main-angel-0908.vercel.app
         run: node scripts/backend-smoke.mjs
+
+      - name: Publish backend smoke status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const outcome = '${{ steps.smoke.outcome }}';
+            const state = outcome === 'success' ? 'success' : outcome === 'cancelled' ? 'error' : 'failure';
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state,
+              context: 'Angel Backend Smoke Test',
+              description: state === 'success' ? 'Production API and live Gemini generation passed' : 'Production backend smoke test failed; inspect Actions logs'
+            });
