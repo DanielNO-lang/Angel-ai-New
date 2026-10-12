@@ -1265,6 +1265,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setAuthError(data.error || 'Unable to create your account. Please check your details.');
         return { success: false };
       }
+      if (data.requiresEmailConfirmation && data.profile) {
+        return {
+          success: true,
+          requiresEmailConfirmation: true,
+          message: data.message || 'Your account has been created. Check your email to confirm it, then sign in.',
+        };
+      }
       if (!data.token || !data.profile) {
         setAuthError('The registration service returned an incomplete response. Please try again.');
         return { success: false };
