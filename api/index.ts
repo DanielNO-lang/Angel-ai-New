@@ -1,13 +1,11 @@
 /**
- * ANGEL AI — Vercel Serverless Function Adapter
- * Load the bundled server build so Node ESM does not fail on extensionless
- * TypeScript imports inside the server tree.
+ * ANGEL AI — Vercel Serverless Function Adapter.
+ * The backend bundle is emitted as native ESM so Node can load ESM-only
+ * dependencies (including Vite) without require() compatibility failures.
  */
-import serverModule from '../dist/server.cjs';
+import { createApp } from '../dist/server.js';
 
-const { createApp } = serverModule as { createApp: (options?: { isServerless?: boolean }) => Promise<any> };
-
-let appPromise: Promise<any> | null = null;
+let appPromise: ReturnType<typeof createApp> | null = null;
 
 export default async function handler(req: any, res: any) {
   if (!appPromise) {
