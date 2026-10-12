@@ -12,10 +12,9 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { executeAgentPipeline } from './server/orchestrator';
 import { providerRegistry } from './server/providers';
-import { getSupabaseServerStatus, getSupabaseClientForUser, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
+import { getSupabaseServerStatus, getSupabaseAuthClient, getSupabaseClientForUser, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
 import { automationService, AutomationEventType } from './server/services/automationService';
 import { dispatchZapierEvent } from './server/zapier_service';
-import { authService } from './server/services/authService';
 import { mediaService } from './server/services/mediaService';
 import { voiceService } from './server/services/voiceService';
 import { intelligenceService } from './server/services/intelligenceService';
@@ -668,84 +667,183 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // AUTHENTICATION & USER DATA OWNERSHIP
   // ============================================================================
 
+  const profileFromAuthUser = (user: any) => {
+    const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Angel User';
+    return {
+      id: user.id,
+      email: user.email || '',
+      name,
+      avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || undefined,
+      title: user.user_metadata?.title || undefined,
+      role: 'user' as const,
+      createdAt: user.created_at || new Date().toISOString(),
+    };
+  };
+
   app.post('/api/auth/signup', async (req: Request, res: Response) => {
+    const { email, password, name } = req.body || {};
+    if (typeof email !== 'string' || !email.includes('@') || typeof password !== 'string' || password.length < 8) {
+      return res.status(400).json({ error: 'A valid email and password of at least 8 characters are required.' });
+    }
+    const client = getSupabaseAuthClient();
+    if (!client) return res.status(503).json({ error: 'Supabase Auth is not configured on the server.' });
     try {
-      const { email, password, name } = req.body || {};
-      const result = await authService.signUp(email, password, name);
-      res.json({ success: true, ...result });
+      const { data, error } = await client.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: { data: { name: typeof name === 'string' ? name.trim() : '' } },
+      });
+      if (error) return res.status(400).json({ error: error.message });
+      if (!data.user) return res.status(400).json({ error: 'Supabase did not return a user record.' });
+      const profile = profileFromAuthUser(data.user);
+      return res.status(data.session ? 200 : 202).json({
+        success: true,
+        profile,
+        token: data.session?.access_token || null,
+        requiresEmailConfirmation: !data.session,
+        message: data.session ? 'Account created.' : 'Check your email to confirm your account before signing in.',
+      });
     } catch (err) {
-      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
   });
 
   app.post('/api/auth/signin', async (req: Request, res: Response) => {
+    const { email, password } = req.body || {};
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+    const client = getSupabaseAuthClient();
+    if (!client) return res.status(503).json({ error: 'Supabase Auth is not configured on the server.' });
     try {
-      const { email, password } = req.body || {};
-      const result = await authService.signIn(email, password);
-      res.json({ success: true, ...result });
+      const { data, error } = await client.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      if (error || !data.user || !data.session) {
+        return res.status(401).json({ error: error?.message || 'Unable to establish an authenticated session.' });
+      }
+      return res.json({ success: true, profile: profileFromAuthUser(data.user), token: data.session.access_token });
     } catch (err) {
-      res.status(401).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
   });
 
-  app.post('/api/auth/signout', (req: Request, res: Response) => {
-    const token = req.headers.authorization;
-    authService.signOut(token);
-    res.json({ success: true, message: 'Signed out successfully' });
+  app.post('/api/auth/signout', requireSupabaseUser, (_req: Request, res: Response) => {
+    // The browser Supabase client owns and revokes its session. This endpoint
+    // intentionally does not maintain a second, in-memory server session store.
+    res.json({ success: true, message: 'Use the active Supabase client to complete sign-out.' });
   });
 
-  app.get('/api/auth/session', (req: Request, res: Response) => {
-    const token = req.headers.authorization;
-    const user = authService.authenticateToken(token);
-    if (!user) {
-      return res.status(401).json({ authenticated: false, error: 'Session expired or invalid' });
+  app.get('/api/auth/session', requireSupabaseUser, async (req: Request, res: Response) => {
+    try {
+      const auth = (req as any).angelAuth;
+      const { data, error } = await auth.client.auth.getUser(auth.accessToken);
+      if (error || !data.user) return res.status(401).json({ authenticated: false, error: 'Session expired or invalid.' });
+      return res.json({ authenticated: true, profile: profileFromAuthUser(data.user) });
+    } catch (err) {
+      return res.status(401).json({ authenticated: false, error: err instanceof Error ? err.message : String(err) });
     }
-    res.json({ authenticated: true, profile: authService.toProfileDTO(user) });
   });
 
-  app.post('/api/auth/recovery', (req: Request, res: Response) => {
-    const { email } = req.body || {};
-    const result = authService.requestRecovery(email);
-    res.json(result);
+  app.post('/api/auth/recovery', async (req: Request, res: Response) => {
+    const email = req.body?.email;
+    if (typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: 'A valid email address is required.' });
+    }
+    const client = getSupabaseAuthClient();
+    if (!client) return res.status(503).json({ error: 'Supabase Auth is not configured on the server.' });
+    try {
+      const redirectTo = process.env.AUTH_RECOVERY_REDIRECT_URL || process.env.APP_URL;
+      const { error } = await client.auth.resetPasswordForEmail(email.trim().toLowerCase(), redirectTo ? { redirectTo } : undefined);
+      if (error) console.warn('[Supabase Auth] Recovery request could not be completed:', error.message);
+      // Keep the response generic to prevent account enumeration.
+      return res.json({ success: true, message: 'If an account exists for this email, password reset instructions will be sent.' });
+    } catch {
+      return res.json({ success: true, message: 'If an account exists for this email, password reset instructions will be sent.' });
+    }
   });
 
-  app.put('/api/auth/profile', (req: Request, res: Response) => {
-    const token = req.headers.authorization;
-    const user = authService.authenticateToken(token);
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+  app.put('/api/auth/profile', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const updates = req.body || {};
+    const safeMetadata: Record<string, string> = {};
+    if (typeof updates.name === 'string') safeMetadata.name = updates.name.trim().slice(0, 120);
+    if (typeof updates.avatarUrl === 'string') safeMetadata.avatar_url = updates.avatarUrl.slice(0, 2048);
+    if (typeof updates.title === 'string') safeMetadata.title = updates.title.trim().slice(0, 120);
+    try {
+      const { data: authData, error: authError } = await auth.client.auth.updateUser({ data: safeMetadata });
+      if (authError || !authData.user) return res.status(400).json({ error: authError?.message || 'Profile update failed.' });
+      const user = authData.user;
+      const profile = profileFromAuthUser(user);
+      const initials = profile.name.split(/\\s+/).map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
+      const { data: existing } = await auth.client.from('profiles').select('plan').eq('id', user.id).maybeSingle();
+      const { error: dbError } = await auth.client.from('profiles').upsert({
+        id: user.id,
+        name: profile.name,
+        email: profile.email,
+        initials,
+        avatar_url: profile.avatarUrl || null,
+        status: 'online',
+        plan: existing?.plan || 'Free',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' });
+      if (dbError) return res.status(500).json({ error: dbError.message });
+      return res.json({ success: true, profile });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.get('/api/user/cloud-data', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const tables = [
+      ['profile', 'profiles', 'id'],
+      ['settings', 'settings', 'user_id'],
+      ['tasks', 'tasks', 'user_id'],
+      ['memories', 'memories', 'user_id'],
+      ['projects', 'projects', 'user_id'],
+      ['agents', 'agents', 'user_id'],
+      ['conversations', 'conversations', 'user_id'],
+      ['messages', 'messages', 'user_id'],
+      ['workflows', 'workflows', 'user_id'],
+      ['libraryItems', 'library_items', 'user_id'],
+    ] as const;
+    try {
+      const entries = await Promise.all(tables.map(async ([key, table, ownerColumn]) => {
+        const query = auth.client.from(table).select('*').eq(ownerColumn, auth.userId);
+        const { data, error } = key === 'profile' || key === 'settings'
+          ? await query.maybeSingle()
+          : await query;
+        if (error) throw new Error(`${table}: ${error.message}`);
+        return [key, data || (key === 'profile' || key === 'settings' ? null : [])] as const;
+      }));
+      return res.json({ success: true, userId: auth.userId, data: Object.fromEntries(entries) });
+    } catch (err) {
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post('/api/user/cloud-data', requireSupabaseUser, async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const body = req.body || {};
+    const aliases: Record<string, string> = {
+      task: 'tasks', memory: 'memories', project: 'projects', workflow: 'workflows',
+      conversation: 'conversations', message: 'messages', library_item: 'libraryItems', agent: 'agents',
+    };
+    const payload: Record<string, any> = {};
+    for (const [key, value] of Object.entries(body)) {
+      const target = aliases[key] || key;
+      if (Array.isArray(value)) payload[target] = value;
+      else if (value && typeof value === 'object') payload[target] = [value];
     }
     try {
-      const updated = authService.updateProfile(user.id, req.body || {});
-      res.json({ success: true, profile: updated });
+      const result = await syncAllEntitiesToSupabase(payload, auth.userId, auth.accessToken);
+      return res.status(result.success ? 200 : 500).json(result);
     } catch (err) {
-      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
   });
-
-  app.get('/api/user/cloud-data', (req: Request, res: Response) => {
-    const token = req.headers.authorization;
-    const user = authService.authenticateToken(token);
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized: Sign in required for cloud persistence' });
-    }
-    const data = authService.getUserCloudData(user.id);
-    res.json({ success: true, data });
-  });
-
-  app.post('/api/user/cloud-data', (req: Request, res: Response) => {
-    const token = req.headers.authorization;
-    const user = authService.authenticateToken(token);
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized: Sign in required for cloud persistence' });
-    }
-    const data = authService.saveUserCloudData(user.id, req.body || {});
-    res.json({ success: true, data });
-  });
-
-  // ============================================================================
-  // MEDIA STUDIO & GENERATION ENGINE
-  // ============================================================================
 
   app.get('/api/media/artifacts', (req: Request, res: Response) => {
     const { category, projectId, taskId, search } = req.query as Record<string, string>;
