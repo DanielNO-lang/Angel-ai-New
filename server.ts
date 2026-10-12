@@ -98,6 +98,36 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   };
 
+  // Privileged integrations are restricted to verified Supabase identities
+  // explicitly listed in ADMIN_EMAILS. No public client can trigger deploys,
+  // mutate GitHub issues, or dispatch arbitrary outbound webhooks.
+  const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    const header = req.headers.authorization || '';
+    const accessToken = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!accessToken) return res.status(401).json({ error: 'Sign in with an authorized administrator account.' });
+
+    const client = getSupabaseClientForUser(accessToken);
+    if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured on the server.' });
+
+    try {
+      const { data, error } = await client.auth.getUser(accessToken);
+      if (error || !data.user) return res.status(401).json({ error: 'Your session is invalid or expired.' });
+      const allowlist = (process.env.ADMIN_EMAILS || '')
+        .split(/[,;\\s]+/)
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean);
+      if (allowlist.length === 0) return res.status(503).json({ error: 'Administrative access is not configured.' });
+      if (!data.user.email || !allowlist.includes(data.user.email.toLowerCase())) {
+        return res.status(403).json({ error: 'Administrator permission is required for this operation.' });
+      }
+      (req as any).angelAuth = { userId: data.user.id, accessToken, client, email: data.user.email, isAdmin: true };
+      return next();
+    } catch (err) {
+      console.error('[Admin Auth] Authorization check failed:', err);
+      return res.status(401).json({ error: 'Your session could not be verified.' });
+    }
+  };
+
   // ============================================================================
   // API ROUTES
   // ============================================================================
@@ -248,12 +278,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // GITHUB REAL INTEGRATION ENDPOINTS
   // ============================================================================
 
-  app.get('/api/integrations/github/test', async (_req: Request, res: Response) => {
+  app.get('/api/integrations/github/test', requireAdmin, async (_req: Request, res: Response) => {
     const result = await githubService.testConnection();
     res.json(result);
   });
 
-  app.get('/api/integrations/github/repo_details', async (req: Request, res: Response) => {
+  app.get('/api/integrations/github/repo_details', requireAdmin, async (req: Request, res: Response) => {
     const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
     const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
     try {
@@ -264,7 +294,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.get('/api/integrations/github/list_branches', async (req: Request, res: Response) => {
+  app.get('/api/integrations/github/list_branches', requireAdmin, async (req: Request, res: Response) => {
     const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
     const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
     try {
@@ -275,7 +305,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.get('/api/integrations/github/list_files', async (req: Request, res: Response) => {
+  app.get('/api/integrations/github/list_files', requireAdmin, async (req: Request, res: Response) => {
     const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
     const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
     const path = (req.query.path as string) || '';
@@ -288,7 +318,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.get('/api/integrations/github/file_content', async (req: Request, res: Response) => {
+  app.get('/api/integrations/github/file_content', requireAdmin, async (req: Request, res: Response) => {
     const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
     const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
     const path = req.query.path as string;
@@ -302,7 +332,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.get('/api/integrations/github/list_issues', async (req: Request, res: Response) => {
+  app.get('/api/integrations/github/list_issues', requireAdmin, async (req: Request, res: Response) => {
     const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
     const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
     try {
@@ -313,7 +343,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/integrations/github/create_issue', async (req: Request, res: Response) => {
+  app.post('/api/integrations/github/create_issue', requireAdmin, async (req: Request, res: Response) => {
     const { owner, repo, title, body } = req.body || {};
     if (!title) return res.status(400).json({ error: 'title is required' });
     try {
@@ -329,7 +359,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.get('/api/integrations/github/list_prs', async (req: Request, res: Response) => {
+  app.get('/api/integrations/github/list_prs', requireAdmin, async (req: Request, res: Response) => {
     const owner = (req.query.owner as string) || process.env.GITHUB_REPO_OWNER || 'angel-ai';
     const repo = (req.query.repo as string) || process.env.GITHUB_REPO_NAME || 'angel-workspace';
     try {
@@ -344,12 +374,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // VERCEL REAL INTEGRATION ENDPOINTS
   // ============================================================================
 
-  app.get('/api/integrations/vercel/test', async (_req: Request, res: Response) => {
+  app.get('/api/integrations/vercel/test', requireAdmin, async (_req: Request, res: Response) => {
     const result = await vercelService.testConnection();
     res.json(result);
   });
 
-  app.get('/api/integrations/vercel/projects', async (_req: Request, res: Response) => {
+  app.get('/api/integrations/vercel/projects', requireAdmin, async (_req: Request, res: Response) => {
     try {
       const projects = await vercelService.listProjects();
       res.json(projects);
@@ -358,7 +388,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.get('/api/integrations/vercel/deployments', async (req: Request, res: Response) => {
+  app.get('/api/integrations/vercel/deployments', requireAdmin, async (req: Request, res: Response) => {
     try {
       const projectId = req.query.projectId as string | undefined;
       const deployments = await vercelService.listDeployments(projectId);
@@ -368,7 +398,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/integrations/vercel/trigger_deploy', async (req: Request, res: Response) => {
+  app.post('/api/integrations/vercel/trigger_deploy', requireAdmin, async (req: Request, res: Response) => {
     try {
       const { projectId } = req.body || {};
       const result = await vercelService.triggerRedeployment(projectId);
@@ -607,7 +637,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // ============================================================================
 
   // Outbound Dispatch API (Internal workspace & client events)
-  app.post('/api/automation/dispatch', async (req: Request, res: Response) => {
+  app.post('/api/automation/dispatch', requireAdmin, async (req: Request, res: Response) => {
     const { event, data, overrideUrl, callbackUrl } = req.body;
 
     if (!event) {
@@ -628,7 +658,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Automation Delivery Telemetry & History
-  app.get('/api/automation/history', (req: Request, res: Response) => {
+  app.get('/api/automation/history', requireAdmin, (req: Request, res: Response) => {
     const history = automationService.getDeliveryHistory();
     res.json({
       history,
@@ -678,7 +708,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Trigger Test Webhook Outbound
-  app.post('/api/webhooks/test-dispatch', async (req: Request, res: Response) => {
+  app.post('/api/webhooks/test-dispatch', requireAdmin, async (req: Request, res: Response) => {
     const { event, data, overrideUrl } = req.body;
     const result = await automationService.dispatchEvent(
       (event as AutomationEventType) || 'task.created',
