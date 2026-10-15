@@ -81,7 +81,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.use('/api', rateLimit(120));
   app.use(['/api/ai', '/api/chat', '/api/voice', '/api/media'], rateLimit(24));
 
-  const requireAdminApiKey = async (req: Request, res: Response, next: NextFunction) => {
+  const requireVerifiedAdminSession = async (req: Request, res: Response, next: NextFunction) => {
     const authorization = req.headers.authorization;
     const token = typeof authorization === 'string' && authorization.startsWith('Bearer ')
       ? authorization.slice(7).trim()
@@ -116,9 +116,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   };
 
   // Privileged integrations can read private repositories and trigger deployments.
-  app.use('/api/integrations/github', requireAdminApiKey);
-  app.use('/api/integrations/vercel', requireAdminApiKey);
-  app.use('/api/automation', requireAdminApiKey);
+  app.use('/api/integrations/github', requireVerifiedAdminSession);
+  app.use('/api/integrations/vercel', requireVerifiedAdminSession);
+  app.use('/api/automation', requireVerifiedAdminSession);
 
   // ============================================================================
   // API ROUTES
@@ -243,7 +243,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     });
   });
 
-  app.get('/api/supabase/ddl', requireAdminApiKey, (_req: Request, res: Response) => {
+  app.get('/api/supabase/ddl', requireVerifiedAdminSession, (_req: Request, res: Response) => {
     res.type('text/plain').send(getSupabaseDDL());
   });
 
@@ -719,7 +719,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Trigger Test Webhook Outbound
-  app.post('/api/webhooks/test-dispatch', requireAdminApiKey, async (req: Request, res: Response) => {
+  app.post('/api/webhooks/test-dispatch', requireVerifiedAdminSession, async (req: Request, res: Response) => {
     const { event, data, overrideUrl } = req.body;
     const result = await automationService.dispatchEvent(
       (event as AutomationEventType) || 'task.created',
