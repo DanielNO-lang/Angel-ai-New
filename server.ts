@@ -332,7 +332,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         res.setHeader('Retry-After', '60');
         return res.status(429).json({
           success: false,
-          error: 'Google Search grounding quota is exhausted for the configured Gemini API key. No search results were returned. Restore Gemini API quota/billing or configure an approved alternative search provider.',
+          error: 'Google Search grounding quota is exhausted for the Gemini API project used by the configured key. No search results were returned. Restore Gemini API quota/billing or configure an approved alternative search provider.',
           retryAfterSeconds: 60,
         });
       }
