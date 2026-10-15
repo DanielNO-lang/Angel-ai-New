@@ -24,6 +24,96 @@ CREATE TABLE IF NOT EXISTS public.agents (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS public.projects (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'active',
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  goals TEXT[] NOT NULL DEFAULT '{}',
+  instructions TEXT NOT NULL DEFAULT '',
+  due_date TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.tasks (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'todo',
+  priority TEXT NOT NULL DEFAULT 'medium',
+  due_date TIMESTAMPTZ,
+  recurring TEXT,
+  agent_id TEXT,
+  conversation_id TEXT,
+  project_id TEXT REFERENCES public.projects(id) ON DELETE SET NULL,
+  subtasks JSONB NOT NULL DEFAULT '[]'::jsonb,
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.memories (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'important_fact',
+  confidence NUMERIC NOT NULL DEFAULT 1.0,
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  agent_id TEXT,
+  project_id TEXT REFERENCES public.projects(id) ON DELETE SET NULL,
+  is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.library_items (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL DEFAULT 'documents',
+  type TEXT NOT NULL DEFAULT 'document',
+  url TEXT,
+  mime_type TEXT,
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  project_id TEXT REFERENCES public.projects(id) ON DELETE SET NULL,
+  is_favorite BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.workflows (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  codename TEXT,
+  category TEXT NOT NULL DEFAULT 'general',
+  version TEXT NOT NULL DEFAULT '1.0.0',
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  trigger JSONB NOT NULL DEFAULT '{"type":"manual"}'::jsonb,
+  conditions JSONB NOT NULL DEFAULT '[]'::jsonb,
+  steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+  execution_chain JSONB NOT NULL DEFAULT '[]'::jsonb,
+  stages TEXT[] NOT NULL DEFAULT '{}',
+  permissions TEXT[] NOT NULL DEFAULT '{}',
+  project_id TEXT REFERENCES public.projects(id) ON DELETE SET NULL,
+  agent_id TEXT REFERENCES public.agents(id) ON DELETE SET NULL,
+  system_instructions TEXT,
+  is_template BOOLEAN NOT NULL DEFAULT FALSE,
+  tags TEXT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_executed_at TIMESTAMPTZ,
+  execution_count INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS public.conversations (
   id TEXT PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
