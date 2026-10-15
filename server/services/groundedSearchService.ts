@@ -35,7 +35,7 @@ export async function searchGroundedWeb(query: string, requestedResults = 5): Pr
   const resultLimit = Math.max(1, Math.min(5, Math.floor(requestedResults || 5)));
   const ai = getClient();
   const response = await ai.models.generateContent({
-    model: 'gemini-3.7-flash',
+    model: 'gemini-3.8-flash',
     contents: [
       'Research the query using Google Search grounding. Answer with current, factual information. Distinguish confirmed facts from developing or unverified claims. Do not invent sources or dates. Keep the answer concise and useful.',
       '',
