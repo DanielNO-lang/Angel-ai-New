@@ -55,7 +55,7 @@ Fix it in Google AI Studio:
 
 Official guidance: [Gemini API rate limits](https://ai.google.dev/gemini-api/docs/rate-limits), [Gemini API billing](https://ai.google.dev/gemini-api/docs/billing), and [Gemini troubleshooting](https://ai.google.dev/gemini-api/docs/troubleshooting).
 
-## 5. Remaining Supabase dashboard setting
+## 6. Remaining Supabase dashboard setting
 
 The Supabase security advisor currently reports **Leaked Password Protection Disabled**. Enable it in the Supabase Dashboard under **Authentication → Settings / Security and Protection** (the exact section label can vary), then save. This is an Auth configuration setting, not a SQL migration.
 
