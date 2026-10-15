@@ -93,7 +93,10 @@ class AutomationService {
     // 2. HMAC SHA-256 signature comparison
     if (signatureHeader) {
       const expectedSignature = this.generateSignature(payloadString, configuredSecret);
-      const supplied = Buffer.from(signatureHeader, 'utf8');
+      const normalizedSignature = signatureHeader.startsWith('sha256=')
+        ? signatureHeader.slice('sha256='.length)
+        : signatureHeader;
+      const supplied = Buffer.from(normalizedSignature, 'utf8');
       const expected = Buffer.from(expectedSignature, 'utf8');
       if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
         return { authorized: true };
