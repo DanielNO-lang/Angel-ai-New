@@ -10,6 +10,7 @@
 
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
+import crypto from 'crypto';
 import { executeAgentPipeline } from './server/orchestrator.js';
 import { providerRegistry } from './server/providers/index.js';
 import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
