@@ -5,6 +5,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import { NavigationTab } from './types';
 import { AnimatePresence, motion } from 'motion/react';
 import { AppProvider, useAngel } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
@@ -69,8 +70,8 @@ const WorkspaceContent: React.FC = () => {
 
   // Section Scroll Anchor: Reset scroll position to top whenever active section changes or clicked
   const mainScrollRef = useRef<HTMLElement>(null);
-  const previousTabRef = useRef<string>('home');
-  const currentTabRef = useRef<string>(activeTab);
+  const previousTabRef = useRef<NavigationTab>('home');
+  const currentTabRef = useRef<NavigationTab>(activeTab);
 
   useEffect(() => {
     if (activeTab !== currentTabRef.current) {
