@@ -29,6 +29,13 @@ test('webhook HMAC accepts a valid signature', () => {
   const signature = automationService.generateSignature(payload, 'unit-test-secret');
   assert.equal(automationService.verifyInboundRequest(payload, signature).authorized, true);
   assert.equal(automationService.verifyInboundRequest(payload, `sha256=${signature}`).authorized, true);
+  assert.equal(automationService.verifyInboundRequest(payload, `SHA256=${signature.toUpperCase()}`).authorized, true);
+});
+
+test('Bearer-prefixed shared secret is accepted', () => {
+  process.env.WEBHOOK_SECRET = 'unit-test-secret';
+  process.env.NODE_ENV = 'production';
+  assert.equal(automationService.verifyInboundRequest('{}', undefined, 'Bearer unit-test-secret').authorized, true);
 });
 
 test('malformed webhook signature is rejected without throwing', () => {
