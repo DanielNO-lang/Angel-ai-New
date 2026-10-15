@@ -891,7 +891,7 @@ export class ToolRegistry {
       };
     }
 
-    if ((tool.permissions?.length || tool.authRequired) && !context.authorizedToolPermissions?.includes(name)) {
+    if (tool.permissions?.length || tool.authRequired) {
       return {
         success: false,
         data: null,
