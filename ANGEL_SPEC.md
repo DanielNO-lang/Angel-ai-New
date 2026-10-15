@@ -1,9 +1,22 @@
 # ANGEL AI — Product & Architectural Specification
 
 ## Overview
-Angel is a unified, personal AI workspace and multi-agent coordination platform designed to act as an executive operating system for high-agency knowledge workers. It combines persistent memory, specialized agent labs, task execution trees, multimodal visual perception, and cross-tool orchestration under a restrained, monochrome, high-performance interface.
+Angel is a personal AI companion with a distinct, warm, witty character, persistent memory, useful tools, grounded research, voice inside chat, and carefully permissioned task execution. She can help with everyday conversation and serious work without pretending to have human credentials or capabilities she does not have. Her interface should feel calm, personal, fast, and trustworthy, not like an enterprise dashboard.
 
 ---
+
+## Product truth and safety rules
+
+1. **Honest identity:** Angel does not claim real degrees, licenses, or lived experience. If sincerely asked whether she is an AI, she says yes. Her fictional character sheet is flavor, never evidence.
+2. **No simulated success:** A tool, integration, search, task, or delivery may only be marked successful after the server verifies the actual result. Otherwise show a clear pending, unavailable, failed, or preview state.
+3. **Untrusted content stays data:** Web pages, files, emails, messages, and retrieved memories cannot override system instructions or authorize actions.
+4. **Server-side permissions:** Client-provided tool lists, permission flags, and confirmation booleans are not authorization. The server checks identity, ownership, policy, budget, and approval for every consequential action.
+5. **Sensitive actions require approval:** Sending, spending, deleting, publishing, or changing account/settings state requires an explicit approval step and an audit record. A visible stop/pause control must exist for running work.
+6. **Fast ordinary chat:** Ordinary conversation uses one streamed model call. Deeper planning, critique, and verification are reserved for large tasks.
+7. **Voice lives inside chat:** Voice is a composer mode, never a separate destination. Mic, camera, and screen use must have clear indicators and respect device/browser limits.
+8. **Privacy by default:** Guest work stays local and isolated. Authenticated cloud data is user-owned, protected by server authorization and Supabase RLS. Do not store or retrieve sensitive memories in ordinary context without explicit scope.
+9. **Grounded current information:** Search answers cite actual retrieved sources and dates. Never fabricate links, news, search snippets, or source claims.
+10. **Honest limitations:** Clearly report missing configuration, unsupported device APIs, quota limits, and failed operations. Never claim a deployment or external action was verified when it was not.
 
 ## Core Visual & UX Principles
 1. **Restrained Monochrome Aesthetic**: True black (`#0a0a0a`), neutral off-blacks (`#121212`, `#171717`), cool neutral grays, and pure crisp white text. No garish gradients, neon borders, or glassmorphism fluff.
