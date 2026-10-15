@@ -313,6 +313,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.json(result);
     } catch (err) {
       console.error('[API /api/search/web Error]', err);
+      const status = typeof (err as any)?.status === 'number' ? (err as any).status : 0;
+      if (status === 429) {
+        res.setHeader('Retry-After', '60');
+        return res.status(429).json({
+          success: false,
+          error: 'Google Search grounding quota is exhausted for the configured Gemini API key. No search results were returned. Restore Gemini API quota/billing or configure an approved alternative search provider.',
+          retryAfterSeconds: 60,
+        });
+      }
+      if (status === 401 || status === 403) {
+        return res.status(503).json({
+          success: false,
+          error: 'Google Search grounding is not authorized for the configured Gemini API key. Check the key, project, and grounding/model access.',
+        });
+      }
       return res.status(502).json({
         success: false,
         error: 'Grounded web search failed. No unverified or synthetic results were returned.',
