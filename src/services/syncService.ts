@@ -354,7 +354,7 @@ class SyncService {
   }
 
   private canSyncDirectly(entityType: string): boolean {
-    return ['task', 'memory', 'project', 'workflow', 'conversation', 'message'].includes(entityType);
+    return ['task', 'memory', 'project', 'workflow', 'conversation', 'message', 'library_item'].includes(entityType);
   }
 
   private async syncViaSupabaseClient(client: any, mutation: QueuedMutation): Promise<void> {
@@ -367,9 +367,19 @@ class SyncService {
       return;
     }
 
-    // Upsert with conflict resolution
+    // Derive ownership from the verified Supabase session, never from the queued payload.
+    const { data: userData, error: userError } = await client.auth.getUser();
+    if (userError || !userData?.user?.id) {
+      throw new Error('Cloud sync requires a valid signed-in Supabase session.');
+    }
+
+    // Upsert with conflict resolution and server-enforced RLS ownership.
     const formatted = this.formatEntityForSupabase(mutation.entityType, mutation.payload);
-    const { error } = await client.from(tableName).upsert(formatted, { onConflict: 'id' });
+    if (!formatted || typeof formatted !== 'object') {
+      throw new Error('The queued workspace item has an invalid payload.');
+    }
+    const ownedRecord = { ...formatted, user_id: userData.user.id };
+    const { error } = await client.from(tableName).upsert(ownedRecord, { onConflict: 'id' });
     if (error) throw error;
   }
 
