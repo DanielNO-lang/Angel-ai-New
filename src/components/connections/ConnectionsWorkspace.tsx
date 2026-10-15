@@ -34,11 +34,20 @@ import {
   Cpu,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
+import { getClientSupabase } from '../../services/supabaseService';
 
 export type IntegrationTab = 'github' | 'vercel' | 'supabase' | 'webhooks' | 'google';
 
 export const ConnectionsWorkspace: React.FC = () => {
   const { settings, tasks, memories, projects, isGuest } = useAngel();
+
+  const getAdminHeaders = async (): Promise<Record<string, string>> => {
+    const client = getClientSupabase();
+    if (!client) return {};
+    const result = await client.auth.getSession();
+    const token = result.data.session?.access_token;
+    return token ? { Authorization: 'Bearer ' + token } : {};
+  };
   const isLight = settings.theme === 'light';
 
   const [activeTab, setActiveTab] = useState<IntegrationTab>('github');
@@ -78,20 +87,20 @@ export const ConnectionsWorkspace: React.FC = () => {
   const loadGitHubDetails = async () => {
     setIsLoading(true);
     try {
-      const testRes = await fetch('/api/integrations/github/test');
+      const testRes = await fetch('/api/integrations/github/test', { headers: await getAdminHeaders() });
       const testData = await testRes.json();
       setGhStatus(testData);
 
-      const repoRes = await fetch('/api/integrations/github/repo_details');
+      const repoRes = await fetch('/api/integrations/github/repo_details', { headers: await getAdminHeaders() });
       if (repoRes.ok) setGhRepo(await repoRes.json());
 
-      const branchRes = await fetch('/api/integrations/github/list_branches');
+      const branchRes = await fetch('/api/integrations/github/list_branches', { headers: await getAdminHeaders() });
       if (branchRes.ok) setGhBranches(await branchRes.json());
 
-      const filesRes = await fetch('/api/integrations/github/list_files');
+      const filesRes = await fetch('/api/integrations/github/list_files', { headers: await getAdminHeaders() });
       if (filesRes.ok) setGhFiles(await filesRes.json());
 
-      const issuesRes = await fetch('/api/integrations/github/list_issues');
+      const issuesRes = await fetch('/api/integrations/github/list_issues', { headers: await getAdminHeaders() });
       if (issuesRes.ok) setGhIssues(await issuesRes.json());
     } catch (err) {
       console.warn('[GitHub load error]', err);
@@ -102,14 +111,14 @@ export const ConnectionsWorkspace: React.FC = () => {
 
   const loadVercelDetails = async () => {
     try {
-      const testRes = await fetch('/api/integrations/vercel/test');
+      const testRes = await fetch('/api/integrations/vercel/test', { headers: await getAdminHeaders() });
       const testData = await testRes.json();
       setVercelStatus(testData);
 
-      const projRes = await fetch('/api/integrations/vercel/projects');
+      const projRes = await fetch('/api/integrations/vercel/projects', { headers: await getAdminHeaders() });
       if (projRes.ok) setVercelProjects(await projRes.json());
 
-      const depRes = await fetch('/api/integrations/vercel/deployments');
+      const depRes = await fetch('/api/integrations/vercel/deployments', { headers: await getAdminHeaders() });
       if (depRes.ok) setVercelDeployments(await depRes.json());
     } catch (err) {
       console.warn('[Vercel load error]', err);
@@ -121,7 +130,7 @@ export const ConnectionsWorkspace: React.FC = () => {
       const velRes = await fetch('/api/supabase/velocity');
       if (velRes.ok) setSupabaseStats(await velRes.json());
 
-      const ddlRes = await fetch('/api/supabase/ddl');
+      const ddlRes = await fetch('/api/supabase/ddl', { headers: await getAdminHeaders() });
       if (ddlRes.ok) setDdlCode(await ddlRes.text());
     } catch (err) {
       console.warn('[Supabase load error]', err);
@@ -132,7 +141,7 @@ export const ConnectionsWorkspace: React.FC = () => {
     setIsDeploying(true);
     setStatusMessage({ type: 'info', text: 'Dispatching Vercel production build...' });
     try {
-      const res = await fetch('/api/integrations/vercel/trigger_deploy', { method: 'POST' });
+      const res = await fetch('/api/integrations/vercel/trigger_deploy', { method: 'POST', headers: await getAdminHeaders() });
       const data = await res.json();
       if (data.success) {
         setStatusMessage({ type: 'success', text: data.message });
@@ -157,7 +166,7 @@ export const ConnectionsWorkspace: React.FC = () => {
     try {
       const res = await fetch('/api/supabase/sync-all', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...await getAdminHeaders() }
         body: JSON.stringify({ tasks, memories, projects }),
       });
       const data = await res.json();
@@ -195,7 +204,7 @@ export const ConnectionsWorkspace: React.FC = () => {
 
   const handleViewFile = async (path: string) => {
     try {
-      const res = await fetch(`/api/integrations/github/file_content?path=${encodeURIComponent(path)}`);
+      const res = await fetch(`/api/integrations/github/file_content?path=${encodeURIComponent(path)}`, { headers: await getAdminHeaders() });
       if (res.ok) {
         const data = await res.json();
         setSelectedFileContent(data.content);
