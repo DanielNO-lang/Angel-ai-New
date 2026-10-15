@@ -44,7 +44,7 @@ export interface CreateAppOptions {
 export async function createApp(options: CreateAppOptions = {}): Promise<Express> {
   const app = express();
 
-  app.use(express.json({ limit: '25mb' }));
+  app.use(express.json({ limit: '10mb' }));
 
   // Security Headers
   app.use((_req, res, next) => {
@@ -58,6 +58,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   const rateLimit = (maxRequests: number = 60) => (req: Request, res: Response, next: NextFunction) => {
     const ip = req.ip || (req.headers['x-forwarded-for'] as string) || 'client';
     const now = Date.now();
+    if (ipCounters.size > 5000) {
+      for (const [key, value] of ipCounters) {
+        if (now > value.resetAt) ipCounters.delete(key);
+      }
+    }
     const entry = ipCounters.get(ip);
     if (!entry || now > entry.resetAt) {
       ipCounters.set(ip, { count: 1, resetAt: now + 60000 });
@@ -69,6 +74,34 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     entry.count++;
     next();
   };
+
+  // Apply shared server-side rate limits. These are a baseline, not a substitute
+  // for a distributed limiter when running multiple serverless instances.
+  app.use('/api', rateLimit(120));
+  app.use(['/api/ai', '/api/chat', '/api/voice', '/api/media'], rateLimit(24));
+
+  const requireAdminApiKey = (req: Request, res: Response, next: NextFunction) => {
+    const configured = process.env.ANGEL_ADMIN_API_KEY;
+    if (!configured) {
+      return res.status(503).json({
+        error: 'Administrative integration endpoints are disabled until ANGEL_ADMIN_API_KEY and a proper admin-authenticated caller are configured.',
+      });
+    }
+    const supplied = req.headers['x-angel-admin-key'];
+    if (typeof supplied !== 'string') {
+      return res.status(401).json({ error: 'Admin authorization required.' });
+    }
+    const a = Buffer.from(supplied, 'utf8');
+    const b = Buffer.from(configured, 'utf8');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      return res.status(401).json({ error: 'Admin authorization required.' });
+    }
+    next();
+  };
+
+  // Privileged integrations can read private repositories and trigger deployments.
+  app.use('/api/integrations/github', requireAdminApiKey);
+  app.use('/api/integrations/vercel', requireAdminApiKey);
 
   // ============================================================================
   // API ROUTES
@@ -179,30 +212,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/supabase/sync', async (req: Request, res: Response) => {
-    try {
-      const { tasks } = req.body || {};
-      if (!Array.isArray(tasks)) {
-        return res.status(400).json({ error: 'tasks array is required' });
-      }
-      const result = await syncTasksToSupabase(tasks);
-      res.json(result);
-    } catch (err) {
-      console.error('[API /api/supabase/sync Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
+  // Legacy server-side sync used a service-role client without deriving user_id
+  // from a verified Supabase access token. Disable it until ownership-scoped sync exists.
+  app.post('/api/supabase/sync', (_req: Request, res: Response) => {
+    res.status(503).json({
+      error: 'Legacy server-side sync is temporarily disabled until authenticated, user-scoped Supabase persistence is enabled. Existing local/offline workspace data remains available.',
+    });
   });
 
-  app.post('/api/supabase/sync-all', async (req: Request, res: Response) => {
-    try {
-      const result = await syncAllEntitiesToSupabase(req.body || {});
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
+  app.post('/api/supabase/sync-all', (_req: Request, res: Response) => {
+    res.status(503).json({
+      error: 'Legacy bulk sync is temporarily disabled until authenticated, user-scoped Supabase persistence is enabled.',
+    });
   });
 
-  app.get('/api/supabase/ddl', (_req: Request, res: Response) => {
+  app.get('/api/supabase/ddl', requireAdminApiKey, (_req: Request, res: Response) => {
     res.type('text/plain').send(getSupabaseDDL());
   });
 
@@ -693,6 +717,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // ============================================================================
 
   app.post('/api/auth/signup', async (req: Request, res: Response) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ error: 'Serverless fallback authentication is not durable. Configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY and use Supabase Auth.' });
+    }
     try {
       const { email, password, name } = req.body || {};
       const result = await authService.signUp(email, password, name);
@@ -703,6 +730,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   app.post('/api/auth/signin', async (req: Request, res: Response) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ error: 'Serverless fallback authentication is not durable. Configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY and use Supabase Auth.' });
+    }
     try {
       const { email, password } = req.body || {};
       const result = await authService.signIn(email, password);
