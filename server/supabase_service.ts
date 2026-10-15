@@ -189,17 +189,9 @@ export function calculateVelocityMetrics(
 }
 
 export async function getTasksVelocity(fallbackTasks: any[] = []): Promise<TaskVelocityMetrics> {
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.from('tasks').select('*');
-      if (!error && Array.isArray(data) && data.length > 0) {
-        return calculateVelocityMetrics(data, true);
-      }
-    } catch {
-      // Fall through to fallback
-    }
-  }
+  // Never aggregate the whole tasks table with a service-role client from a public route.
+  // Until a verified user's access token is passed through to an RLS-scoped query,
+  // calculate only from the explicitly supplied workspace tasks.
   return calculateVelocityMetrics(fallbackTasks, false);
 }
 
