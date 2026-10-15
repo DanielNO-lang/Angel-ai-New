@@ -141,6 +141,42 @@ CREATE TABLE IF NOT EXISTS public.messages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Add columns expected by the current workspace model when upgrading an older schema.
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS codename TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS tagline TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS system_instructions TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS model_config JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS tools TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS permissions TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS memory_access JSONB NOT NULL DEFAULT '{"canRead":true,"canWrite":false,"types":[]}'::jsonb;
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS execution_mode TEXT NOT NULL DEFAULT 'assisted';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS owner_id TEXT;
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS avatar_icon TEXT NOT NULL DEFAULT 'bot';
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS is_built_in BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.agents ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT 'New conversation';
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS agent_id TEXT;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS project_id TEXT;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS is_secret BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS message_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS last_message_preview TEXT;
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS content TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS agent_id TEXT;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS attachments JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS tool_calls JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 -- Ensure the established workspace tables carry an owner key for RLS.
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE public.memories ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
