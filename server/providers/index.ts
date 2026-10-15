@@ -83,8 +83,7 @@ export class ProviderRegistry {
     for (const [id, prov] of this.providers.entries()) {
       statusMap[id] = prov.isConfigured();
     }
-    // Gemini is our primary server-side provider in AI Studio
-    statusMap['gemini'] = true;
+    // Configuration status must reflect real server credentials; never advertise an unconfigured model as ready.
     return getAvailableModels(statusMap);
   }
 }
