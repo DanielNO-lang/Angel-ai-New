@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Menu,
+  ArrowLeft,
   Search,
   Minus,
   Maximize2,
@@ -84,10 +84,10 @@ export const MobileTopBar: React.FC = () => {
           className={`p-2 rounded-xl transition-colors cursor-pointer ${
             isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-white/10 text-neutral-300'
           }`}
-          aria-label="Open navigation drawer"
-          title="Open Menu"
+          aria-label="Back to navigation menu"
+          title="Back to menu"
         >
-          <Menu className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5" />
         </button>
 
         <div
