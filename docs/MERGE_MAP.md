@@ -107,6 +107,29 @@ These are code-review findings, not proof of a live production exploit. Confirm 
 ### P11 — Career / craft layer
 - Begin with six skill files and rubric-based practice tasks. Add more only after measured evaluations.
 
+## Implemented in the current hardening branch
+
+- Removed the hard-coded demo account and master-password bypass from the server fallback authentication service.
+- Production server-side fallback sign-up/sign-in now returns an explicit configuration error rather than issuing an in-memory session that disappears on a serverless cold start.
+- Gemini generate/stream paths throw a configuration error instead of fabricating a response when no key is present; model catalog availability now reflects actual provider configuration.
+- Added baseline API rate limits and reduced the JSON request size cap.
+- Private GitHub/Vercel integrations, automation history/dispatch, the DDL endpoint, and test dispatch require a verified Supabase user whose email is in `ADMIN_EMAILS`. The Connections UI now attaches the active Supabase access token.
+- Disabled legacy service-role sync endpoints that lacked verified owner scoping. The client sync path now derives `user_id` from the verified Supabase session, scopes deletes to that owner, and maps task/memory/project/workflow/conversation/message/library/agent records to database columns.
+- Changed the public velocity endpoint to calculate from supplied workspace tasks rather than aggregating every user's tasks with a service-role client.
+- Added an owner-scoped SQL migration for core workspace tables and RLS policies, a setup guide, webhook/provider tests, and CI for tests/type-check/build.
+- Webhook signature verification uses constant-time comparisons, rejects malformed signatures safely, ignores client-selected outbound destinations, and only attempts callbacks to an explicit HTTPS hostname allowlist.
+- Removed the one-off write-enabled workflow that performed scripted UI edits.
+
+## Still not complete
+
+- The Supabase migration has **not** been applied to the live database from this repository workflow. The owner must run it in the correct Supabase project's SQL Editor after taking a backup and reviewing any legacy rows.
+- Build, lint, automated tests, CI, and Vercel preview have not yet been confirmed green. Do not merge until these checks finish.
+- Full route-by-route user authentication is still incomplete for general AI/media/voice endpoints. Rate limits reduce abuse but do not replace user-level quotas or authentication.
+- Agent Lab still needs a server-side tool registry, permissions derived from server policy, approvals, durable audit events, budgets, and pause/stop controls before consequential actions can be enabled.
+- Real grounded web search and citation extraction are not yet implemented in this slice.
+- Durable webhook delivery history/retries and full end-to-end tests are still outstanding.
+- Existing Supabase rows with NULL `user_id` will be hidden by the new RLS policies. They must be reviewed and assigned to the correct owners deliberately, never mass-assigned to the first account.
+
 ## Definition of done for each capability
 - A real implementation exists in the baseline repository.
 - Success and failure states are distinguishable and never simulated as success.
