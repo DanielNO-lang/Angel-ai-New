@@ -4,9 +4,9 @@ This branch hardens the backend and adds an owner-scoped Supabase migration. It 
 
 ## 1. Database migration status
 
-**Completed:** The migration `angel_owner_scoped_workspace` was applied to the active Angel Supabase project `qltiogotxbxwzwmnypwu` on 2026-10-15 and confirmed in the migration history. Before applying it, the core workspace tables were verified to contain zero rows, so there were no existing task/memory/project/chat records to reassign.
+**Completed:** The migrations `angel_owner_scoped_workspace` and `memory_provenance_sensitivity` were applied to the active Angel Supabase project `qltiogotxbxwzwmnypwu` on 2026-10-15 and confirmed in the migration history. Before applying it, the core workspace tables were verified to contain zero rows, so there were no existing task/memory/project/chat records to reassign.
 
-For a new environment, use the repository migration file `supabase/migrations/20261015000100_owner_scoped_workspace.sql` through Supabase migrations or **SQL Editor → New query**. Back up any database with existing user data first. Existing rows with a NULL `user_id` are intentionally hidden by owner policies; never bulk-assign those rows to the first user. Review and map legacy rows to their actual owner first.
+For a new environment, apply both repository migrations in order: `supabase/migrations/20261015000100_owner_scoped_workspace.sql`, then `supabase/migrations/20261015193000_memory_provenance_sensitivity.sql`, using Supabase migrations or **SQL Editor → New query**. Back up any database with existing user data first. Existing rows with a NULL `user_id` are intentionally hidden by owner policies; never bulk-assign those rows to the first user. Review and map legacy rows to their actual owner first.
 
 The migration creates missing core workspace tables, adds owner columns and current workspace fields, and applies owner policies for tasks, memories, projects, workflows, library items, agents, conversations, and messages.
 
