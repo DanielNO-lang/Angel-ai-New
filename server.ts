@@ -671,7 +671,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       received: true,
       event: event || 'custom.event',
       authorized: true,
-      callbackNotified: Boolean(callbackUrl && typeof callbackUrl === 'string' && isAllowedCallbackUrl(callbackUrl)),
+      callbackAttempted: Boolean(callbackUrl && typeof callbackUrl === 'string' && isAllowedCallbackUrl(callbackUrl)),
       timestamp: new Date().toISOString(),
     });
   });
