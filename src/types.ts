@@ -169,6 +169,10 @@ export interface Memory {
   content: string;
   confidence: number; // 0 to 1
   source?: string; // conversation ID, manual input, or agent
+  sensitivity?: 'normal' | 'sensitive';
+  importance?: number;
+  lastAccessedAt?: string;
+  expiresAt?: string;
   tags: string[];
   agentId?: string;
   projectId?: string;
