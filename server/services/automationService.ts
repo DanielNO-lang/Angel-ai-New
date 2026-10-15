@@ -204,7 +204,7 @@ class AutomationService {
         id: `del_${Date.now()}`,
         eventId,
         event,
-        destinationUrl,
+        destinationUrl: this.destinationHost(destinationUrl),
         status: response.ok ? 'delivered' : 'failed',
         httpStatus: response.status,
         durationMs,
@@ -231,7 +231,7 @@ class AutomationService {
         id: `del_${Date.now()}`,
         eventId,
         event,
-        destinationUrl,
+        destinationUrl: this.destinationHost(destinationUrl),
         status: 'failed',
         durationMs,
         timestamp,
@@ -239,7 +239,7 @@ class AutomationService {
         payloadSummary: summary,
       };
 
-      this.recordDelivery(record);
+      await this.recordDelivery(record);
 
       return {
         dispatched: false,
