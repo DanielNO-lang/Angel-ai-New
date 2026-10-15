@@ -8,6 +8,7 @@
  */
 
 import crypto from 'crypto';
+import { getSupabaseClient } from '../supabase_service.js';
 
 function constantTimeStringEqual(left: string, right: string): boolean {
   const a = Buffer.from(left, 'utf8');
@@ -160,7 +161,7 @@ class AutomationService {
         error: 'OUTBOUND_WEBHOOK_URL / ZAPIER_OUTBOUND_WEBHOOK_URL not set in environment.',
         payloadSummary: summary,
       };
-      this.recordDelivery(pendingRecord);
+      await this.recordDelivery(pendingRecord);
 
       return {
         dispatched: false,
@@ -212,7 +213,7 @@ class AutomationService {
         payloadSummary: summary,
       };
 
-      this.recordDelivery(record);
+      await this.recordDelivery(record);
 
       return {
         dispatched: response.ok,
@@ -251,25 +252,91 @@ class AutomationService {
   /**
    * Internal ring buffer to keep recent deliveries for UI diagnostics
    */
-  private recordDelivery(record: WebhookDeliveryRecord) {
+  private async recordDelivery(record: WebhookDeliveryRecord): Promise<void> {
     this.deliveryHistory.unshift(record);
-    if (this.deliveryHistory.length > this.maxHistorySize) {
-      this.deliveryHistory.pop();
+    if (this.deliveryHistory.length > this.maxHistorySize) this.deliveryHistory.pop();
+
+    // The delivery ledger is durable in production. Never store full webhook URLs,
+    // query strings, or payloads because they can contain credentials or personal data.
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    try {
+      const destinationHost = this.destinationHost(record.destinationUrl);
+      const { error } = await supabase.from('webhook_deliveries').upsert({
+        id: record.id,
+        event_id: record.eventId,
+        event: record.event,
+        destination_host: destinationHost,
+        status: record.status,
+        http_status: record.httpStatus ?? null,
+        duration_ms: record.durationMs,
+        timestamp: record.timestamp,
+        error: record.error ?? null,
+        payload_summary: record.payloadSummary,
+      }, { onConflict: 'id' });
+      if (error) console.error('[Automation] Could not persist delivery history:', error.message);
+    } catch (error) {
+      console.error('[Automation] Durable delivery history unavailable:', error);
+    }
+  }
+
+  private destinationHost(value: string): string {
+    try {
+      return new URL(value).hostname.slice(0, 255);
+    } catch {
+      return 'unconfigured';
     }
   }
 
   /**
-   * Returns recent webhook deliveries
+   * Returns recent webhook deliveries from durable storage where configured.
    */
+  public async getRecentDeliveryHistory(limit = 50): Promise<WebhookDeliveryRecord[]> {
+    const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('webhook_deliveries')
+            .select('*')
+            .order('timestamp', { ascending: false })
+            .limit(safeLimit);
+          if (!error && Array.isArray(data)) {
+            return data.map((row: any) => ({
+              id: row.id,
+              eventId: row.event_id,
+              event: row.event,
+              destinationUrl: row.destination_host || 'unknown',
+              status: row.status,
+              httpStatus: row.http_status ?? undefined,
+              durationMs: row.duration_ms ?? 0,
+              timestamp: row.timestamp,
+              error: row.error ?? undefined,
+              payloadSummary: row.payload_summary || '',
+            }));
+          }
+          if (error) console.error('[Automation] Could not read durable delivery history:', error.message);
+        } catch (error) {
+          console.error('[Automation] Durable delivery history read failed:', error);
+        }
+      }
+    }
+    return this.deliveryHistory.slice(0, safeLimit);
+  }
+
   public getDeliveryHistory(): WebhookDeliveryRecord[] {
     return [...this.deliveryHistory];
   }
 
-  /**
-   * Clears delivery history
-   */
-  public clearDeliveryHistory() {
+  public async clearDeliveryHistory(): Promise<void> {
     this.deliveryHistory = [];
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    const { error } = await supabase.from('webhook_deliveries').delete().neq('id', '');
+    if (error) throw error;
   }
 }
 
