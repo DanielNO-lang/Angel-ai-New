@@ -20,6 +20,7 @@ import { authService } from './server/services/authService.js';
 import { mediaService } from './server/services/mediaService.js';
 import { voiceService } from './server/services/voiceService.js';
 import { intelligenceService } from './server/services/intelligenceService.js';
+import { searchGroundedWeb } from './server/services/groundedSearchService.js';
 import { githubService } from './server/services/githubService.js';
 import { vercelService } from './server/services/vercelService.js';
 
@@ -79,7 +80,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // Apply shared server-side rate limits. These are a baseline, not a substitute
   // for a distributed limiter when running multiple serverless instances.
   app.use('/api', rateLimit(120));
-  app.use(['/api/ai', '/api/chat', '/api/voice', '/api/media'], rateLimit(24));
+  app.use(['/api/ai', '/api/chat', '/api/voice', '/api/media', '/api/search'], rateLimit(24));
 
   const requireVerifiedAdminSession = async (req: Request, res: Response, next: NextFunction) => {
     const authorization = req.headers.authorization;
@@ -253,6 +254,29 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   app.get('/api/models', (_req: Request, res: Response) => {
     res.json(providerRegistry.getModelCatalog());
+  });
+
+  // Real grounded web search. Sources must come from Google Search grounding metadata.
+  app.post('/api/search/web', async (req: Request, res: Response) => {
+    const query = req.body?.query;
+    const numResults = req.body?.numResults;
+    if (typeof query !== 'string' || !query.trim()) {
+      return res.status(400).json({ success: false, error: 'A search query is required.' });
+    }
+    if (!process.env.GEMINI_API_KEY?.trim()) {
+      return res.status(503).json({ success: false, error: 'Grounded web search is not configured on the server.' });
+    }
+    try {
+      const result = await searchGroundedWeb(query, typeof numResults === 'number' ? numResults : 5);
+      if (!result.success) return res.status(502).json(result);
+      return res.json(result);
+    } catch (err) {
+      console.error('[API /api/search/web Error]', err);
+      return res.status(502).json({
+        success: false,
+        error: 'Grounded web search failed. No unverified or synthetic results were returned.',
+      });
+    }
   });
 
   // ============================================================================
