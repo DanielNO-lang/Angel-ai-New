@@ -359,7 +359,7 @@ class SyncService {
 
   private async syncViaSupabaseClient(client: any, mutation: QueuedMutation): Promise<void> {
     const tableName = this.getTableName(mutation.entityType);
-    if (!tableName) return;
+    if (!tableName) throw new Error(`Unsupported cloud sync entity: ${mutation.entityType}`);
 
     // Derive ownership from the verified Supabase session, never from the queued payload.
     const { data: userData, error: userError } = await client.auth.getUser();
@@ -407,8 +407,8 @@ class SyncService {
         headers,
         body: JSON.stringify({ [mutation.entityType]: mutation.payload }),
       });
-      if (!res.ok && res.status !== 401) {
-        throw new Error(`Cloud data endpoint returned ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`Cloud data endpoint returned ${res.status}; the mutation was not confirmed as saved.`);
       }
     }
   }
