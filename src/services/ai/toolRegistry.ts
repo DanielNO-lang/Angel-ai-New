@@ -456,43 +456,60 @@ export const timeUtilityTool: WorkspaceTool = {
 export const webSearchTool: WorkspaceTool = {
   id: 'web_search',
   name: 'web_search',
-  description: 'Search the live web for verified documentation, market facts, technical guides, or news.',
+  description: 'Search the live web using Google Search grounding. Return only source URLs and titles supplied by real grounding metadata.',
   category: 'web',
   inputSchema: {
     type: 'object',
     properties: {
       query: { type: 'string', description: 'The search query.' },
-      numResults: { type: 'number', description: 'Number of results (1-5).' },
+      numResults: { type: 'number', description: 'Number of grounded sources (1-5).' },
     },
     required: ['query'],
   },
-  outputSchema: { type: 'object', description: 'Web search results with titles, snippets, and URLs.' },
+  outputSchema: { type: 'object', description: 'Grounded answer and source links returned by the server.' },
   execute: async (input) => {
-    const q = String(input.query || '').trim();
-    if (!q) return { success: false, data: null, summary: 'Search query is empty.' };
+    const query = String(input.query || '').trim();
+    if (!query) {
+      return { success: false, data: null, summary: 'Search query is empty.', error: 'A search query is required.' };
+    }
 
-    return {
-      success: true,
-      data: {
-        query: q,
-        results: [
-          {
-            title: `${q} — Architecture & Documentation`,
-            snippet: `Verified technical specifications and live documentation for "${q}". Real-time knowledge grounded via Angel search pipelines.`,
-            url: `https://www.google.com/search?q=${encodeURIComponent(q)}`,
-          },
-          {
-            title: `${q} — Latest Updates & Implementation`,
-            snippet: `Ecosystem updates, community benchmarks, and release notes regarding ${q}.`,
-            url: `https://github.com/search?q=${encodeURIComponent(q)}`,
-          },
-        ],
-      },
-      summary: `Dispatched web search for "${q}" (2 results retrieved).`,
-    };
+    try {
+      const response = await fetch('/api/search/web', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          numResults: typeof input.numResults === 'number' ? input.numResults : 5,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success !== true || !Array.isArray(payload.sources)) {
+        const error = typeof payload.error === 'string' ? payload.error : 'Grounded web search failed.';
+        return { success: false, data: null, summary: error, error };
+      }
+
+      return {
+        success: true,
+        data: {
+          query: payload.query,
+          answer: payload.answer,
+          sources: payload.sources,
+          timestamp: payload.timestamp,
+          grounding: true,
+        },
+        summary: 'Grounded search completed with ' + payload.sources.length + ' real source(s).',
+      };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : 'Grounded web search failed.';
+      return {
+        success: false,
+        data: null,
+        summary: 'Grounded web search is unavailable. No synthetic search results were returned.',
+        error,
+      };
+    }
   },
 };
-
 /**
  * 6. project_manager
  */
