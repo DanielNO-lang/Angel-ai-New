@@ -22,6 +22,20 @@ import { intelligenceService } from './server/services/intelligenceService.js';
 import { githubService } from './server/services/githubService.js';
 import { vercelService } from './server/services/vercelService.js';
 
+function isAllowedCallbackUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') return false;
+    const allowedHosts = (process.env.ANGEL_CALLBACK_HOST_ALLOWLIST || '')
+      .split(',')
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean);
+    return allowedHosts.includes(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 export interface CreateAppOptions {
   isServerless?: boolean;
 }
@@ -640,7 +654,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     console.log(`[Angel Inbound Webhook Received] Event: ${event}`, data);
 
     // If caller provided a callbackUrl, report asynchronous receipt acknowledgment
-    if (callbackUrl && typeof callbackUrl === 'string') {
+    if (callbackUrl && typeof callbackUrl === 'string' && isAllowedCallbackUrl(callbackUrl)) {
       fetch(callbackUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -657,6 +671,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       received: true,
       event: event || 'custom.event',
       authorized: true,
+      callbackNotified: Boolean(callbackUrl && typeof callbackUrl === 'string' && isAllowedCallbackUrl(callbackUrl)),
       timestamp: new Date().toISOString(),
     });
   });
