@@ -13,7 +13,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { executeAgentPipeline } from './server/orchestrator.js';
 import { providerRegistry } from './server/providers/index.js';
-import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
+import { getSupabaseServerStatus, getSupabaseClient, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
 import { automationService, AutomationEventType } from './server/services/automationService.js';
 import { dispatchZapierEvent } from './server/zapier_service.js';
 import { authService } from './server/services/authService.js';
@@ -81,23 +81,38 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.use('/api', rateLimit(120));
   app.use(['/api/ai', '/api/chat', '/api/voice', '/api/media'], rateLimit(24));
 
-  const requireAdminApiKey = (req: Request, res: Response, next: NextFunction) => {
-    const configured = process.env.ANGEL_ADMIN_API_KEY;
-    if (!configured) {
-      return res.status(503).json({
-        error: 'Administrative integration endpoints are disabled until ANGEL_ADMIN_API_KEY and a proper admin-authenticated caller are configured.',
-      });
+  const requireAdminApiKey = async (req: Request, res: Response, next: NextFunction) => {
+    const authorization = req.headers.authorization;
+    const token = typeof authorization === 'string' && authorization.startsWith('Bearer ')
+      ? authorization.slice(7).trim()
+      : '';
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (!token || adminEmails.length === 0) {
+      return res.status(401).json({ error: 'A verified, allowlisted administrator session is required.' });
     }
-    const supplied = req.headers['x-angel-admin-key'];
-    if (typeof supplied !== 'string') {
-      return res.status(401).json({ error: 'Admin authorization required.' });
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase authentication is not configured for admin authorization.' });
     }
-    const a = Buffer.from(supplied, 'utf8');
-    const b = Buffer.from(configured, 'utf8');
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-      return res.status(401).json({ error: 'Admin authorization required.' });
+
+    try {
+      const { data, error } = await supabase.auth.getUser(token);
+      const user = data?.user;
+      const email = user?.email?.toLowerCase();
+      const verified = Boolean(user?.email_confirmed_at || user?.confirmed_at);
+      if (error || !user || !email || !verified || !adminEmails.includes(email)) {
+        return res.status(403).json({ error: 'Administrator access denied.' });
+      }
+      res.locals.authenticatedAdmin = { id: user.id, email };
+      return next();
+    } catch {
+      return res.status(401).json({ error: 'Unable to verify administrator session.' });
     }
-    next();
   };
 
   // Privileged integrations can read private repositories and trigger deployments.
