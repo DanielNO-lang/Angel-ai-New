@@ -791,6 +791,8 @@ export const automationWebhookTool: WorkspaceTool = {
   name: 'automation_webhook',
   description: 'Dispatch real-time outbound automation event to configured Zapier or custom webhook endpoints.',
   category: 'automation',
+  permissions: ['webhook:dispatch'],
+  authRequired: 'automation',
   inputSchema: {
     type: 'object',
     properties: {
