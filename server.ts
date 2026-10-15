@@ -118,6 +118,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // Privileged integrations can read private repositories and trigger deployments.
   app.use('/api/integrations/github', requireAdminApiKey);
   app.use('/api/integrations/vercel', requireAdminApiKey);
+  app.use('/api/automation', requireAdminApiKey);
 
   // ============================================================================
   // API ROUTES
@@ -718,7 +719,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Trigger Test Webhook Outbound
-  app.post('/api/webhooks/test-dispatch', async (req: Request, res: Response) => {
+  app.post('/api/webhooks/test-dispatch', requireAdminApiKey, async (req: Request, res: Response) => {
     const { event, data, overrideUrl } = req.body;
     const result = await automationService.dispatchEvent(
       (event as AutomationEventType) || 'task.created',
