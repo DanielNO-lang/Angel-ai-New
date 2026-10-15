@@ -369,6 +369,39 @@ export const VoiceModeView: React.FC = () => {
     handleProcessUserPrompt(prompt);
   };
 
+  const handleStopSpeaking = () => {
+    voiceEngine.stopSpeaking();
+    setIsSpeaking(false);
+  };
+
+  // Cross-system integrations
+  const handleSendToChat = () => {
+    const convId = createConversation(undefined, undefined, `Voice Session: ${transcript.slice(0, 24)}`);
+    setActiveTab('chat');
+    sendMessage(`[Voice Session Transcript]: "${transcript}"\n\n[Angel Response]: "${angelResponse}"`);
+  };
+
+  const handleSaveAsTask = () => {
+    createTask({
+      title: transcript.slice(0, 60) || 'Follow up from voice interaction',
+      description: `Originating voice transcript:\n"${transcript}"\n\nAngel Response:\n"${angelResponse}"`,
+      priority: 'medium',
+      status: 'todo',
+      subtasks: [],
+      tags: ['voice-memo', 'automated-task'],
+    });
+  };
+
+  const handleSaveAsMemory = () => {
+    createMemory({
+      title: `Voice Note: ${transcript.slice(0, 40)}`,
+      content: `Transcript: ${transcript}\nResponse: ${angelResponse}`,
+      type: 'conversation_derived',
+      confidence: 0.95,
+      tags: ['voice', 'oral-input'],
+    });
+  };
+
   // Voice mode is an explicit opt-in listening session. Spoken commands are
   // processed only from final recognition results, and the exact standalone
   // phrase "end conversation" is the only phrase that closes the session.
@@ -416,39 +449,6 @@ export const VoiceModeView: React.FC = () => {
       if (command) void handleProcessUserPrompt(command);
     };
   }, [handleProcessUserPrompt, handleSendToChat, handleSaveAsTask, handleSaveAsMemory, setActiveTab]);
-
-  const handleStopSpeaking = () => {
-    voiceEngine.stopSpeaking();
-    setIsSpeaking(false);
-  };
-
-  // Cross-system integrations
-  const handleSendToChat = () => {
-    const convId = createConversation(undefined, undefined, `Voice Session: ${transcript.slice(0, 24)}`);
-    setActiveTab('chat');
-    sendMessage(`[Voice Session Transcript]: "${transcript}"\n\n[Angel Response]: "${angelResponse}"`);
-  };
-
-  const handleSaveAsTask = () => {
-    createTask({
-      title: transcript.slice(0, 60) || 'Follow up from voice interaction',
-      description: `Originating voice transcript:\n"${transcript}"\n\nAngel Response:\n"${angelResponse}"`,
-      priority: 'medium',
-      status: 'todo',
-      subtasks: [],
-      tags: ['voice-memo', 'automated-task'],
-    });
-  };
-
-  const handleSaveAsMemory = () => {
-    createMemory({
-      title: `Voice Note: ${transcript.slice(0, 40)}`,
-      content: `Transcript: ${transcript}\nResponse: ${angelResponse}`,
-      type: 'conversation_derived',
-      confidence: 0.95,
-      tags: ['voice', 'oral-input'],
-    });
-  };
 
   return (
     <div
