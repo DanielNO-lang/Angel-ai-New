@@ -163,11 +163,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      return {
-        text: `[Angel AI Offline Fallback]: GEMINI_API_KEY is pending configuration. Request received: "${options.prompt.slice(0, 80)}". Configure API credentials in Settings > Secrets to activate live model synthesis.`,
-        provider: this.id,
-        modelId: model,
-      };
+      throw new Error('GEMINI_API_KEY is not configured. No model response was generated.');
     }
 
     try {
@@ -215,9 +211,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      const fallback = `[Angel AI Offline Fallback]: GEMINI_API_KEY is not configured. Received query: "${options.prompt}".`;
-      onChunk(fallback);
-      return fallback;
+      throw new Error('GEMINI_API_KEY is not configured. No model response was generated.');
     }
 
     try {
