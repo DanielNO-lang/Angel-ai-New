@@ -42,12 +42,25 @@ After the migration and deployment:
 - Agent tool execution still needs the full server-side approval/policy engine before consequential actions can be enabled.
 - Grounded search, durable webhook audit history, and the full approval ledger remain future implementation work.
 
+## 5. Gemini grounded-search quota blocker
+
+The real `POST /api/search/web` endpoint was tested against Vercel Preview. Google returned `429 RESOURCE_EXHAUSTED` with a quota/billing message. The endpoint now returns an explicit 429 explanation and does not manufacture results. This is an external Gemini project quota issue, not a failed code build.
+
+Fix it in Google AI Studio:
+1. Open [Google AI Studio](https://aistudio.google.com/) and select the Google project associated with the `GEMINI_API_KEY` used by Vercel.
+2. Open **Dashboard → Usage** and **Rate limits**. Check the selected project, the configured model, and the separate Search grounding limits. Gemini quotas are project-based, not per API key.
+3. If you hit a temporary per-minute limit, wait for the reset and retry. If you exhausted free-tier/day quota or a spend cap, open **Billing**, link an active billing account or add prepaid credits if prompted, and review the project's spend cap. Request a rate-limit increase only if the normal workload consistently exceeds the current tier.
+4. Confirm the API key used by Vercel belongs to that same project. Keep the key server-side and do not paste it into chat or commit it to GitHub.
+5. Retry the grounded-search feature from the signed-in Angel Preview after AI Studio shows quota available.
+
+Official guidance: [Gemini API rate limits](https://ai.google.dev/gemini-api/docs/rate-limits), [Gemini API billing](https://ai.google.dev/gemini-api/docs/billing), and [Gemini troubleshooting](https://ai.google.dev/gemini-api/docs/troubleshooting).
+
 ## 5. Remaining Supabase dashboard setting
 
 The Supabase security advisor currently reports **Leaked Password Protection Disabled**. Enable it in the Supabase Dashboard under **Authentication → Settings / Security and Protection** (the exact section label can vary), then save. This is an Auth configuration setting, not a SQL migration.
 
 The `api_rate_limits` table now has an explicit `service_role`-only RLS policy, and the atomic `consume_api_rate_limit` RPC is restricted to `service_role`; the latest security advisor no longer reports the table as policy-less. Webhook delivery history and privileged admin access audits are also stored in service-role-only tables.
 
-## 6. Verification status
+## 7. Verification status
 
 The repository includes CI for tests, type-checking, and production build. Do not merge until the GitHub Actions results are green and the Vercel Preview has been checked. A successful Git commit is not proof of a successful build or production deployment.
