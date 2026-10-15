@@ -4,7 +4,7 @@ This branch hardens the backend and adds an owner-scoped Supabase migration. It 
 
 ## 1. Database migration status
 
-**Completed:** The migrations `angel_owner_scoped_workspace`, `memory_provenance_sensitivity`, `api_rate_limits_service_only`, and `distributed_api_rate_limit_rpc_hardening` were applied to the active Angel Supabase project `qltiogotxbxwzwmnypwu` on 2026-10-15 and confirmed in the migration history. Before applying it, the core workspace tables were verified to contain zero rows, so there were no existing task/memory/project/chat records to reassign.
+**Completed:** The migrations `angel_owner_scoped_workspace`, `memory_provenance_sensitivity`, `api_rate_limits_service_only`, `distributed_api_rate_limit_rpc_hardening`, `durable_webhook_history`, and `admin_audit_events` were applied to the active Angel Supabase project `qltiogotxbxwzwmnypwu` on 2026-10-15 and confirmed in the migration history. Before applying it, the core workspace tables were verified to contain zero rows, so there were no existing task/memory/project/chat records to reassign.
 
 For a new environment, apply the repository migrations in order: `supabase/migrations/20261015000100_owner_scoped_workspace.sql`, `supabase/migrations/20261015193000_memory_provenance_sensitivity.sql`, then `supabase/migrations/20261015194000_api_rate_limits_service_only.sql`, and `supabase/migrations/20261015195000_distributed_rate_limit_rpc.sql`, using Supabase migrations or **SQL Editor → New query**. Back up any database with existing user data first. Existing rows with a NULL `user_id` are intentionally hidden by owner policies; never bulk-assign those rows to the first user. Review and map legacy rows to their actual owner first.
 
@@ -46,7 +46,7 @@ After the migration and deployment:
 
 The Supabase security advisor currently reports **Leaked Password Protection Disabled**. Enable it in the Supabase Dashboard under **Authentication → Settings / Security and Protection** (the exact section label can vary), then save. This is an Auth configuration setting, not a SQL migration.
 
-The `api_rate_limits` table now has an explicit `service_role`-only RLS policy, and the atomic `consume_api_rate_limit` RPC is restricted to `service_role`; the latest security advisor no longer reports the table as policy-less.
+The `api_rate_limits` table now has an explicit `service_role`-only RLS policy, and the atomic `consume_api_rate_limit` RPC is restricted to `service_role`; the latest security advisor no longer reports the table as policy-less. Webhook delivery history and privileged admin access audits are also stored in service-role-only tables.
 
 ## 6. Verification status
 
