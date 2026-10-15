@@ -733,13 +733,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Automation Delivery Telemetry & History
-  app.get('/api/automation/history', (req: Request, res: Response) => {
-    const history = automationService.getDeliveryHistory();
-    res.json({
-      history,
-      totalCount: history.length,
-      timestamp: new Date().toISOString(),
-    });
+  app.get('/api/automation/history', async (_req: Request, res: Response) => {
+    try {
+      const history = await automationService.getRecentDeliveryHistory(50);
+      res.json({
+        history,
+        totalCount: history.length,
+        timestamp: new Date().toISOString(),
+        durable: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      });
+    } catch (err) {
+      res.status(500).json({ error: 'Unable to read webhook delivery history.' });
+    }
   });
 
   // Inbound Webhook Listener (Zapier / Make / n8n / GitHub / custom services)
