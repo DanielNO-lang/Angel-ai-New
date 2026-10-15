@@ -298,6 +298,11 @@ export const memoryVaultTool: WorkspaceTool = {
         type: 'string',
         description: 'Search keyword when action is "retrieve".',
       },
+      sensitivity: {
+        type: 'string',
+        description: 'Mark the saved memory normal or sensitive. Sensitive memories are excluded from ordinary context retrieval.',
+        enum: ['normal', 'sensitive'],
+      },
     },
     required: ['action'],
   },
@@ -310,7 +315,7 @@ export const memoryVaultTool: WorkspaceTool = {
 
     if (action === 'list_pinned') {
       const pinned = context.memories
-        .filter((m) => m.isPinned)
+        .filter((m) => m.isPinned && m.sensitivity !== 'sensitive')
         .map((m) => ({ id: m.id, title: m.title, content: m.content, type: m.type }));
 
       return {
@@ -323,6 +328,7 @@ export const memoryVaultTool: WorkspaceTool = {
     if (action === 'retrieve') {
       const q = String(input.query || '').toLowerCase().trim();
       const results = context.memories
+        .filter((m) => m.sensitivity !== 'sensitive')
         .filter(
           (m) =>
             m.title.toLowerCase().includes(q) ||
@@ -360,6 +366,7 @@ export const memoryVaultTool: WorkspaceTool = {
           confidence: 0.95,
           tags: ['assistant-memorized'],
           source: 'conversation',
+          sensitivity: input.sensitivity === 'sensitive' ? 'sensitive' : 'normal',
           isPinned: false,
         });
 
