@@ -354,7 +354,7 @@ class SyncService {
   }
 
   private canSyncDirectly(entityType: string): boolean {
-    return ['task', 'memory', 'project', 'workflow', 'conversation', 'message', 'library_item'].includes(entityType);
+    return ['task', 'memory', 'project', 'workflow', 'conversation', 'message', 'library_item', 'agent'].includes(entityType);
   }
 
   private async syncViaSupabaseClient(client: any, mutation: QueuedMutation): Promise<void> {
@@ -429,6 +429,8 @@ class SyncService {
         return 'messages';
       case 'library_item':
         return 'library_items';
+      case 'agent':
+        return 'agents';
       default:
         return null;
     }
@@ -479,6 +481,105 @@ class SyncService {
         updated_at: payload.updatedAt || new Date().toISOString(),
         last_executed_at: payload.lastExecutedAt || null,
         execution_count: payload.executionCount ?? 0,
+      };
+    }
+
+    if (entityType === 'memory') {
+      return {
+        id: payload.id,
+        title: payload.title,
+        content: payload.content,
+        type: payload.type || 'important_fact',
+        confidence: payload.confidence ?? 1,
+        tags: payload.tags || [],
+        agent_id: payload.agentId || null,
+        project_id: payload.projectId || null,
+        is_pinned: payload.isPinned ?? false,
+        created_at: payload.createdAt || new Date().toISOString(),
+        updated_at: payload.updatedAt || new Date().toISOString(),
+      };
+    }
+
+    if (entityType === 'project') {
+      return {
+        id: payload.id,
+        name: payload.name,
+        description: payload.description || '',
+        status: payload.status || 'active',
+        tags: payload.tags || [],
+        goals: payload.goals || [],
+        instructions: payload.instructions || '',
+        due_date: payload.dueDate || null,
+        created_at: payload.createdAt || new Date().toISOString(),
+        updated_at: payload.updatedAt || new Date().toISOString(),
+      };
+    }
+
+    if (entityType === 'conversation') {
+      return {
+        id: payload.id,
+        title: payload.title || 'New conversation',
+        agent_id: payload.agentId || null,
+        project_id: payload.projectId || null,
+        is_pinned: payload.pinned ?? false,
+        is_archived: payload.isArchived ?? false,
+        is_secret: payload.isSecret ?? false,
+        message_count: payload.messageCount ?? 0,
+        last_message_preview: payload.lastMessagePreview || null,
+        created_at: payload.createdAt || new Date().toISOString(),
+        updated_at: payload.updatedAt || new Date().toISOString(),
+      };
+    }
+
+    if (entityType === 'message') {
+      return {
+        id: payload.id,
+        conversation_id: payload.conversationId,
+        role: payload.role,
+        content: payload.content || '',
+        agent_id: payload.agentId || null,
+        attachments: payload.attachments || [],
+        tool_calls: payload.toolCalls || [],
+        created_at: payload.createdAt || new Date().toISOString(),
+      };
+    }
+
+    if (entityType === 'library_item') {
+      return {
+        id: payload.id,
+        title: payload.title,
+        description: payload.description || '',
+        category: payload.category || 'documents',
+        type: payload.type || 'document',
+        url: payload.url || null,
+        mime_type: payload.mimeType || null,
+        tags: payload.tags || [],
+        project_id: payload.projectId || null,
+        is_favorite: payload.isFavorite ?? false,
+        created_at: payload.createdAt || new Date().toISOString(),
+        updated_at: payload.updatedAt || new Date().toISOString(),
+      };
+    }
+
+    if (entityType === 'agent') {
+      return {
+        id: payload.id,
+        name: payload.name,
+        codename: payload.codename || '',
+        tagline: payload.tagline || '',
+        description: payload.description || '',
+        system_instructions: payload.systemInstructions || '',
+        model_config: payload.modelConfig || {},
+        tools: payload.tools || [],
+        permissions: payload.permissions || [],
+        memory_access: payload.memoryAccess || { canRead: true, canWrite: false, types: [] },
+        execution_mode: payload.executionMode || 'assisted',
+        status: payload.status || 'active',
+        owner_id: payload.ownerId || null,
+        avatar_icon: payload.avatarIcon || 'bot',
+        is_built_in: payload.isBuiltIn ?? false,
+        created_at: payload.createdAt || new Date().toISOString(),
+        updated_at: payload.updatedAt || new Date().toISOString(),
       };
     }
 
