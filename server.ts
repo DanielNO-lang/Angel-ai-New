@@ -57,24 +57,65 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   // Rate Limiting Map
   const ipCounters = new Map<string, { count: number; resetAt: number }>();
-  const rateLimit = (maxRequests: number = 60) => (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || 'client';
+  const rateLimit = (maxRequests: number = 60) => async (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || 'unknown';
+    const scope = req.baseUrl || '/api';
     const now = Date.now();
+    const localKey = scope + ':' + ip;
+
+    // Use the existing atomic Supabase RPC in production so limits are shared
+    // across serverless instances. Preview/local environments fall back to memory.
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          const key = crypto.createHash('sha256').update(localKey).digest('hex');
+          const { data, error } = await supabase.rpc('consume_api_rate_limit', {
+            p_key: key,
+            p_limit: maxRequests,
+            p_window_seconds: 60,
+          });
+          const decision = data && typeof data === 'object' && !Array.isArray(data)
+            ? data as { allowed?: boolean; remaining?: number; resetAt?: string }
+            : null;
+          if (!error && decision && typeof decision.allowed === 'boolean') {
+            res.setHeader('X-RateLimit-Limit', String(maxRequests));
+            res.setHeader('X-RateLimit-Remaining', String(decision.remaining ?? 0));
+            if (!decision.allowed) {
+              const resetAt = decision.resetAt ? Date.parse(decision.resetAt) : now + 60000;
+              const retryAfter = Math.max(1, Math.ceil((resetAt - now) / 1000));
+              res.setHeader('Retry-After', String(retryAfter));
+              return res.status(429).json({ error: 'Too many requests. Please slow down.', retryAfterSeconds: retryAfter });
+            }
+            return next();
+          }
+        }
+      } catch (error) {
+        console.warn('[RateLimit] Distributed limiter unavailable; using local fallback.', error);
+      }
+    }
+
     if (ipCounters.size > 5000) {
       for (const [key, value] of ipCounters) {
         if (now > value.resetAt) ipCounters.delete(key);
       }
     }
-    const entry = ipCounters.get(ip);
+    const entry = ipCounters.get(localKey);
     if (!entry || now > entry.resetAt) {
-      ipCounters.set(ip, { count: 1, resetAt: now + 60000 });
+      ipCounters.set(localKey, { count: 1, resetAt: now + 60000 });
+      res.setHeader('X-RateLimit-Limit', String(maxRequests));
+      res.setHeader('X-RateLimit-Remaining', String(Math.max(0, maxRequests - 1)));
       return next();
     }
     if (entry.count >= maxRequests) {
-      return res.status(429).json({ error: 'Too many requests. Please slow down.' });
+      const retryAfter = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({ error: 'Too many requests. Please slow down.', retryAfterSeconds: retryAfter });
     }
     entry.count++;
-    next();
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(0, maxRequests - entry.count)));
+    return next();
   };
 
   // Apply shared server-side rate limits. These are a baseline, not a substitute
