@@ -116,13 +116,16 @@ These are code-review findings, not proof of a live production exploit. Confirm 
 - Private GitHub/Vercel integrations, automation history/dispatch, the DDL endpoint, and test dispatch require a verified Supabase user whose email is in `ADMIN_EMAILS`. The Connections UI now attaches the active Supabase access token.
 - Disabled legacy service-role sync endpoints that lacked verified owner scoping. The client sync path now derives `user_id` from the verified Supabase session, scopes deletes to that owner, and maps task/memory/project/workflow/conversation/message/library/agent records to database columns.
 - Changed the public velocity endpoint to calculate from supplied workspace tasks rather than aggregating every user's tasks with a service-role client.
+- Replaced the fabricated `web_search` tool responses with a real Google Search grounding service and `/api/search/web` endpoint. Source URLs are extracted from provider grounding metadata; if the provider does not return source metadata, the tool reports failure instead of manufacturing search links.
+- Added memory provenance/sensitivity columns to Supabase, persisted those fields in the browser sync mapper, and excluded sensitive memories from automatic model context and ordinary memory retrieval.
+- Prevented automatic model tool selection/execution of privileged GitHub, Vercel, and webhook tools; those remain explicit authenticated integration actions.
 - Added an owner-scoped SQL migration for core workspace tables and RLS policies, a setup guide, webhook/provider tests, and CI for tests/type-check/build.
 - Webhook signature verification uses constant-time comparisons, rejects malformed signatures safely, ignores client-selected outbound destinations, and only attempts callbacks to an explicit HTTPS hostname allowlist.
 - Removed the one-off write-enabled workflow that performed scripted UI edits.
 
 ## Still not complete
 
-- The owner-scoped migration was applied to the active Angel Supabase project on 2026-10-15 and verified in migration history. Before applying it, the core workspace tables were confirmed empty, so there were no legacy records to reassign. New environments still need the migration applied.
+- The owner-scoped migration and the memory provenance/sensitivity migration were applied to the active Angel Supabase project on 2026-10-15 and verified in migration history. Before applying it, the core workspace tables were confirmed empty, so there were no legacy records to reassign. New environments still need the migration applied.
 - Vercel Preview for commit `283a95a2af9be70efc73bb3da752217fd8f63ca0` reached READY; `/`, `/api/health`, and `/api/ai/providers` returned HTTP 200. The newest docs-only commit must still finish its Preview deployment. GitHub Actions tests/type-check status has not reported a run, so those checks are not yet confirmed.
 - Full route-by-route user authentication is still incomplete for general AI/media/voice endpoints. Rate limits reduce abuse but do not replace user-level quotas or authentication.
 - Agent Lab still needs a server-side tool registry, permissions derived from server policy, approvals, durable audit events, budgets, and pause/stop controls before consequential actions can be enabled.
