@@ -170,6 +170,7 @@ ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS last_message_preview T
 ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 ALTER TABLE public.conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS conversation_id TEXT REFERENCES public.conversations(id) ON DELETE CASCADE;
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user';
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS content TEXT NOT NULL DEFAULT '';
 ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS agent_id TEXT;
