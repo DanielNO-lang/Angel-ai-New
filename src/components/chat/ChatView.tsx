@@ -2,13 +2,13 @@
  * ANGEL AI — Conversational Intelligence Workspace
  * Matches Image 1 ("New Chat (Empty State)"), Image 4, and Image 5 Panel 10:
  * - Empty state with Angel Emblem, "Hello again, Danny 🔮", action chips (Think, Search Engine, Browse Web, Model)
- * - "Try searching for:" suggestions: Latest tech news, Design a marketing plan, Python tutorial, Healthy meal ideas
+ * - "Suggestions" suggestions: Latest tech news, Design a marketing plan, Python tutorial, Healthy meal ideas
  * - Streaming chat with tool inspection, agent selection, attachments, and rich markdown
  * - Composer dock with attachments, mic, Voice Node, and submission
  * - 100% reactive Light Mode and Dark Mode support
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -215,12 +215,23 @@ export const ChatView: React.FC = () => {
     setActiveTab('canvas');
   };
 
-  const quickSearchSuggestions = [
-    { label: 'Latest tech news', prompt: 'Summarize the latest major tech and AI breakthroughs today.' },
-    { label: 'Design a marketing plan', prompt: 'Outline a go-to-market product launch marketing strategy.' },
-    { label: 'Python tutorial', prompt: 'Provide a beginner-friendly tutorial for building a fast REST API with FastAPI in Python.' },
-    { label: 'Healthy meal ideas', prompt: 'Suggest 5 quick high-protein nutritious meal prep ideas with recipes.' },
-  ];
+  const quickSearchSuggestions = useMemo(() => {
+    const pool = [
+      { label: 'Research something new', prompt: 'Research a topic I care about and cite reliable sources.' },
+      { label: 'Create an image', prompt: 'Help me plan an image concept and create it if image generation is available.' },
+      { label: 'Make a video', prompt: 'Help me plan a short video with a clear storyboard and visual style.' },
+      { label: 'Write something', prompt: 'Help me draft or improve a document in a clear, natural style.' },
+      { label: 'Learn a difficult idea', prompt: 'Explain a difficult concept clearly, with examples.' },
+      { label: 'Plan my next steps', prompt: 'Turn my goal into a practical step-by-step plan.' },
+      { label: 'Compare options', prompt: 'Compare useful options for my goal and explain the trade-offs.' },
+      { label: 'Build a workflow', prompt: 'Help me design a reliable workflow for a repetitive task.' },
+    ];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 3);
+  }, []);
 
   return (
     <div
@@ -377,7 +388,7 @@ export const ChatView: React.FC = () => {
               </div>
 
               {/* Suggestions Prompt (Image 1: "Try searching for:") */}
-              <div className="w-full space-y-2.5 pt-2">
+              <div className="w-full max-w-md space-y-2 pt-1">
                 <span
                   className={`text-[11px] font-semibold uppercase tracking-wider block ${
                     isLight ? 'text-slate-400' : 'text-neutral-400'
@@ -385,18 +396,18 @@ export const ChatView: React.FC = () => {
                 >
                   Try searching for:
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                <div className="grid grid-cols-1 gap-1.5 text-left">
                   {quickSearchSuggestions.map((sug) => (
                     <button
                       key={sug.label}
                       onClick={() => sendMessage(sug.prompt)}
-                      className={`p-3 rounded-xl transition-all duration-200 transform-gpu hover:-translate-y-0.5 ${
+                      className={`px-3 py-2 rounded-xl transition-all duration-200 transform-gpu hover:-translate-y-0.5 ${
                         isLight
                           ? 'bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-700 shadow-2xs'
                           : 'bg-[#121622]/90 hover:bg-[#181E2E] border border-white/5 text-neutral-300 shadow-md'
                       }`}
                     >
-                      <span className="text-xs font-semibold block">{sug.label}</span>
+                      <span className="text-[12px] font-semibold block">{sug.label}</span>
                       <span className="text-[10px] opacity-60 line-clamp-1 mt-0.5">{sug.prompt}</span>
                     </button>
                   ))}
