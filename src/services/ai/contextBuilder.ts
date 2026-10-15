@@ -134,7 +134,8 @@ export class ContextBuilder {
     const promptTokenSet = new Set(promptWords);
 
     // 2. Select Relevant Memories deliberately, respecting Agent Memory Access Config
-    let filteredMemories = allMemories;
+    // Sensitive memories never enter ordinary model context automatically.
+    let filteredMemories = allMemories.filter((memory) => memory.sensitivity !== 'sensitive');
     if (agent.memoryAccess) {
       if (agent.memoryAccess.canRead === false) {
         filteredMemories = [];
