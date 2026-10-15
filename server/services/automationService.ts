@@ -93,7 +93,9 @@ class AutomationService {
     // 2. HMAC SHA-256 signature comparison
     if (signatureHeader) {
       const expectedSignature = this.generateSignature(payloadString, configuredSecret);
-      if (crypto.timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expectedSignature))) {
+      const supplied = Buffer.from(signatureHeader, 'utf8');
+      const expected = Buffer.from(expectedSignature, 'utf8');
+      if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
         return { authorized: true };
       }
     }
@@ -119,8 +121,9 @@ class AutomationService {
   }> {
     const eventId = `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const timestamp = new Date().toISOString();
+    // Never let an unauthenticated request choose an arbitrary outbound destination.
+    // Per-request override URLs are intentionally ignored; configure the destination server-side.
     const destinationUrl =
-      options?.overrideUrl ||
       process.env.OUTBOUND_WEBHOOK_URL ||
       process.env.ZAPIER_OUTBOUND_WEBHOOK_URL;
 
