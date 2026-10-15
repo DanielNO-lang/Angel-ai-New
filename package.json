@@ -13,7 +13,8 @@
     "start": "node server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js server.cjs",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx --test server/services/*.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
