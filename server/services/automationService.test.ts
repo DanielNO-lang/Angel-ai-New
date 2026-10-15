@@ -28,6 +28,7 @@ test('webhook HMAC accepts a valid signature', () => {
   const payload = JSON.stringify({ event: 'task.created', id: 'test-1' });
   const signature = automationService.generateSignature(payload, 'unit-test-secret');
   assert.equal(automationService.verifyInboundRequest(payload, signature).authorized, true);
+  assert.equal(automationService.verifyInboundRequest(payload, `sha256=${signature}`).authorized, true);
 });
 
 test('malformed webhook signature is rejected without throwing', () => {
