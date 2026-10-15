@@ -11,9 +11,11 @@ import crypto from 'crypto';
 import { getSupabaseClient } from '../supabase_service.js';
 
 function constantTimeStringEqual(left: string, right: string): boolean {
-  const a = Buffer.from(left, 'utf8');
-  const b = Buffer.from(right, 'utf8');
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  // Hashing both inputs to fixed-length buffers avoids timingSafeEqual throwing
+  // on unequal lengths while keeping the comparison constant-time.
+  const a = crypto.createHash('sha256').update(left, 'utf8').digest();
+  const b = crypto.createHash('sha256').update(right, 'utf8').digest();
+  return crypto.timingSafeEqual(a, b);
 }
 
 export type AutomationEventType =
@@ -92,18 +94,19 @@ class AutomationService {
       };
     }
 
-    // 1. Direct secret token comparison
-    if (secretHeader && constantTimeStringEqual(secretHeader, configuredSecret)) {
-      return { authorized: true };
+    // 1. Direct secret token comparison; tolerate standard Authorization syntax.
+    if (secretHeader) {
+      const presented = secretHeader.replace(/^Bearer\s+/i, '').trim();
+      if (presented && constantTimeStringEqual(presented, configuredSecret)) {
+        return { authorized: true };
+      }
     }
 
-    // 2. HMAC SHA-256 signature comparison
+    // 2. HMAC SHA-256 signature comparison. Accept prefixed or bare hex signatures.
     if (signatureHeader) {
-      const expectedSignature = this.generateSignature(payloadString, configuredSecret);
-      const normalizedSignature = signatureHeader.startsWith('sha256=')
-        ? signatureHeader.slice('sha256='.length)
-        : signatureHeader;
-      if (constantTimeStringEqual(normalizedSignature, expectedSignature)) {
+      const presented = signatureHeader.replace(/^sha256=/i, '').trim().toLowerCase();
+      const expected = this.generateSignature(payloadString, configuredSecret).toLowerCase();
+      if (presented && constantTimeStringEqual(presented, expected)) {
         return { authorized: true };
       }
     }
