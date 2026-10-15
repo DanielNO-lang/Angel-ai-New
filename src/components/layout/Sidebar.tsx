@@ -141,6 +141,7 @@ export const Sidebar: React.FC = () => {
     icon: React.FC<{ className?: string }>;
     tabTarget?: NavigationTab;
     onClickCustom?: () => void;
+    badge?: string;
   }> = [
     { id: 'chat', label: 'Chat', icon: MessageSquare, tabTarget: 'chat' },
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
