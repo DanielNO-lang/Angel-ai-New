@@ -122,13 +122,13 @@ These are code-review findings, not proof of a live production exploit. Confirm 
 
 ## Still not complete
 
-- The Supabase migration has **not** been applied to the live database from this repository workflow. The owner must run it in the correct Supabase project's SQL Editor after taking a backup and reviewing any legacy rows.
-- Build, lint, automated tests, CI, and Vercel preview have not yet been confirmed green. Do not merge until these checks finish.
+- The owner-scoped migration was applied to the active Angel Supabase project on 2026-10-15 and verified in migration history. Before applying it, the core workspace tables were confirmed empty, so there were no legacy records to reassign. New environments still need the migration applied.
+- Vercel Preview for commit `283a95a2af9be70efc73bb3da752217fd8f63ca0` reached READY; `/`, `/api/health`, and `/api/ai/providers` returned HTTP 200. The newest docs-only commit must still finish its Preview deployment. GitHub Actions tests/type-check status has not reported a run, so those checks are not yet confirmed.
 - Full route-by-route user authentication is still incomplete for general AI/media/voice endpoints. Rate limits reduce abuse but do not replace user-level quotas or authentication.
 - Agent Lab still needs a server-side tool registry, permissions derived from server policy, approvals, durable audit events, budgets, and pause/stop controls before consequential actions can be enabled.
 - Real grounded web search and citation extraction are not yet implemented in this slice.
 - Durable webhook delivery history/retries and full end-to-end tests are still outstanding.
-- Existing Supabase rows with NULL `user_id` will be hidden by the new RLS policies. They must be reviewed and assigned to the correct owners deliberately, never mass-assigned to the first account.
+- The Supabase security advisor still reports leaked-password protection disabled; enable it in the Auth dashboard. It also reports `api_rate_limits` has RLS enabled without a policy, which keeps ordinary user access denied; retain server-only access unless the design changes.
 
 ## Definition of done for each capability
 - A real implementation exists in the baseline repository.
