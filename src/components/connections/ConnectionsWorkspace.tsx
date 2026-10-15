@@ -39,7 +39,7 @@ import { getClientSupabase } from '../../services/supabaseService';
 export type IntegrationTab = 'github' | 'vercel' | 'supabase' | 'webhooks' | 'google';
 
 export const ConnectionsWorkspace: React.FC = () => {
-  const { settings, tasks, memories, projects, isGuest } = useAngel();
+  const { settings, tasks, memories, projects, isGuest, triggerManualSync } = useAngel();
 
   const getAdminHeaders = async (): Promise<Record<string, string>> => {
     const client = getClientSupabase();
@@ -158,26 +158,19 @@ export const ConnectionsWorkspace: React.FC = () => {
 
   const handleSyncAllSupabase = async () => {
     if (isGuest) {
-      setStatusMessage({ type: 'error', text: 'Guest workspaces are ephemeral and isolated from cloud persistence.' });
+      setStatusMessage({ type: 'error', text: 'Guest workspaces are local and isolated from cloud persistence.' });
       return;
     }
     setIsSyncingAll(true);
-    setStatusMessage({ type: 'info', text: 'Pushing tasks, memories, and projects to Supabase...' });
+    setStatusMessage({ type: 'info', text: 'Processing the account-scoped offline sync queue...' });
     try {
-      const res = await fetch('/api/supabase/sync-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...await getAdminHeaders() }
-        body: JSON.stringify({ tasks, memories, projects }),
+      await triggerManualSync();
+      setStatusMessage({
+        type: 'info',
+        text: 'Sync queue processing finished. Check the workspace Sync Status for any queued or failed records.',
       });
-      const data = await res.json();
-      if (data.success) {
-        setStatusMessage({ type: 'success', text: data.message });
-        loadSupabaseDetails();
-      } else {
-        setStatusMessage({ type: 'error', text: data.message });
-      }
     } catch (err) {
-      setStatusMessage({ type: 'error', text: String(err) });
+      setStatusMessage({ type: 'error', text: err instanceof Error ? err.message : String(err) });
     } finally {
       setIsSyncingAll(false);
     }
