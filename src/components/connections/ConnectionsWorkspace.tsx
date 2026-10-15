@@ -188,7 +188,7 @@ export const ConnectionsWorkspace: React.FC = () => {
     try {
       const res = await fetch('/api/webhooks/test-dispatch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...await getAdminHeaders() },
         body: JSON.stringify({
           event: testEventName,
           data: { timestamp: new Date().toISOString(), workspace: 'Angel AI', triggeredBy: 'ConnectionsWorkspace' },
