@@ -724,16 +724,23 @@ export const githubIntegrationTool: WorkspaceTool = {
   },
   outputSchema: { type: 'object', description: 'GitHub API response payload.' },
   execute: async (input) => {
-    const owner = input.owner || 'danielokohnwachukwu22';
-    const repo = input.repo || 'angel-ai-workspace';
     const action = input.action || 'repo_details';
+    // Pass repository overrides only when explicitly supplied. Otherwise the
+    // server uses its configured GITHUB_REPO_OWNER / GITHUB_REPO_NAME.
+    const query = new URLSearchParams();
+    if (input.owner) query.set('owner', String(input.owner));
+    if (input.repo) query.set('repo', String(input.repo));
+    const qs = query.toString();
 
-    const res = await fetch(`/api/integrations/github/${action}?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`);
+    const res = await fetch(`/api/integrations/github/${action}${qs ? `?${qs}` : ''}`);
     if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      const detail = typeof payload.error === 'string' ? payload.error : 'GitHub integration request failed.';
       return {
         success: false,
         data: null,
-        summary: `GitHub action "${action}" requires GITHUB_TOKEN configured in server secrets.`,
+        summary: detail,
+        error: detail,
       };
     }
 
@@ -741,7 +748,7 @@ export const githubIntegrationTool: WorkspaceTool = {
     return {
       success: true,
       data,
-      summary: `Successfully executed GitHub operation "${action}" on ${owner}/${repo}.`,
+      summary: `Successfully executed GitHub operation "${action}"${input.owner && input.repo ? ` on ${input.owner}/${input.repo}` : ' on the configured repository'}.`,
     };
   },
 };
