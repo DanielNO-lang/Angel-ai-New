@@ -21,6 +21,7 @@ import { mediaService } from './server/services/mediaService.js';
 import { voiceService } from './server/services/voiceService.js';
 import { intelligenceService } from './server/services/intelligenceService.js';
 import { searchGroundedWeb } from './server/services/groundedSearchService.js';
+import { recordAdminAuditEvent } from './server/services/auditService.js';
 import { githubService } from './server/services/githubService.js';
 import { vercelService } from './server/services/vercelService.js';
 
@@ -151,6 +152,19 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         return res.status(403).json({ error: 'Administrator access denied.' });
       }
       res.locals.authenticatedAdmin = { id: user.id, email };
+      res.on('finish', () => {
+        const admin = res.locals.authenticatedAdmin as { id: string; email: string } | undefined;
+        if (!admin) return;
+        void recordAdminAuditEvent({
+          userId: admin.id,
+          email: admin.email,
+          method: req.method,
+          route: (req.baseUrl + req.path).slice(0, 500),
+          statusCode: res.statusCode,
+          requestId: typeof req.headers['x-vercel-id'] === 'string' ? req.headers['x-vercel-id'] : undefined,
+          ip: req.ip,
+        });
+      });
       return next();
     } catch {
       return res.status(401).json({ error: 'Unable to verify administrator session.' });
