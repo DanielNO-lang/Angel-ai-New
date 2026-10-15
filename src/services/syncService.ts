@@ -361,16 +361,20 @@ class SyncService {
     const tableName = this.getTableName(mutation.entityType);
     if (!tableName) return;
 
-    if (mutation.action === 'delete') {
-      const { error } = await client.from(tableName).delete().eq('id', mutation.entityId);
-      if (error) throw error;
-      return;
-    }
-
     // Derive ownership from the verified Supabase session, never from the queued payload.
     const { data: userData, error: userError } = await client.auth.getUser();
     if (userError || !userData?.user?.id) {
       throw new Error('Cloud sync requires a valid signed-in Supabase session.');
+    }
+
+    if (mutation.action === 'delete') {
+      const { error } = await client
+        .from(tableName)
+        .delete()
+        .eq('id', mutation.entityId)
+        .eq('user_id', userData.user.id);
+      if (error) throw error;
+      return;
     }
 
     // Upsert with conflict resolution and server-enforced RLS ownership.
