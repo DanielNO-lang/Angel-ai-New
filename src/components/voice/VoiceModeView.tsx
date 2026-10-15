@@ -131,6 +131,7 @@ export const VoiceModeView: React.FC = () => {
   }, []);
 
   const recognitionRef = useRef<any>(null);
+  const voiceCommandHandlerRef = useRef<(spokenText: string) => void>(() => {});
 
   const voices = [
     'Kore (Balanced)',
@@ -273,7 +274,7 @@ export const VoiceModeView: React.FC = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (SpeechRecognition && !isMuted && isListening) {
+    if (SpeechRecognition && !isMuted && isListening && !isSpeaking) {
       try {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
@@ -283,11 +284,13 @@ export const VoiceModeView: React.FC = () => {
         recognition.onresult = (event: any) => {
           let currentTranscript = '';
           for (let i = event.resultIndex; i < event.results.length; ++i) {
-            currentTranscript += event.results[i][0].transcript;
+            const result = event.results[i];
+            const spoken = String(result?.[0]?.transcript || '').trim();
+            currentTranscript += spoken;
+            // Run commands only on final speech segments, never on interim hypotheses.
+            if (result.isFinal && spoken) voiceCommandHandlerRef.current(spoken);
           }
-          if (currentTranscript.trim()) {
-            setTranscript(currentTranscript);
-          }
+          if (currentTranscript.trim()) setTranscript(currentTranscript.trim());
         };
 
         recognition.onerror = () => {
@@ -316,7 +319,7 @@ export const VoiceModeView: React.FC = () => {
         }
       }
     };
-  }, [isMuted, isListening]);
+  }, [isMuted, isListening, isSpeaking]);
 
   // Text to Speech playback function with neural TTS and fallback
   const speakAngelResponse = async (text: string) => {
@@ -365,6 +368,54 @@ export const VoiceModeView: React.FC = () => {
   const handleSimulatePrompt = (prompt: string) => {
     handleProcessUserPrompt(prompt);
   };
+
+  // Voice mode is an explicit opt-in listening session. Spoken commands are
+  // processed only from final recognition results, and the exact standalone
+  // phrase "end conversation" is the only phrase that closes the session.
+  useEffect(() => {
+    voiceCommandHandlerRef.current = (spokenText: string) => {
+      const normalized = spokenText.trim().toLowerCase().replace(/[.!?,]+$/g, '').trim();
+      if (!normalized) return;
+
+      if (normalized === 'end conversation') {
+        voiceEngine.stopSpeaking();
+        setIsSpeaking(false);
+        setIsListening(false);
+        setActiveTab('chat');
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?(?:stop speaking|stop talking|be quiet)$/.test(normalized)) {
+        voiceEngine.stopSpeaking();
+        setIsSpeaking(false);
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?(?:mute microphone|mute mic)$/.test(normalized)) {
+        setIsMuted(true);
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?(?:resume listening|unmute microphone|unmute mic)$/.test(normalized)) {
+        setIsMuted(false);
+        setIsListening(true);
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?send (?:this|the transcript) to chat$/.test(normalized)) {
+        handleSendToChat();
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?save (?:this|that) as a task$/.test(normalized)) {
+        handleSaveAsTask();
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?save (?:this|that) as a memory$/.test(normalized)) {
+        handleSaveAsMemory();
+        return;
+      }
+
+      // Wake words are optional while Voice Mode is visibly active.
+      const command = spokenText.trim().replace(/^(?:(?:hey|hello|okay)\s+)?angel[,:]?\s*/i, '').trim();
+      if (command) void handleProcessUserPrompt(command);
+    };
+  }, [handleProcessUserPrompt, handleSendToChat, handleSaveAsTask, handleSaveAsMemory, setActiveTab]);
 
   const handleStopSpeaking = () => {
     voiceEngine.stopSpeaking();
