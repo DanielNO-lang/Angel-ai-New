@@ -108,7 +108,7 @@ export function getSupabaseServerStatus(): SupabaseServerStatus {
     message: isConfigured
       ? hasServiceRoleKey
         ? 'Supabase server credentials detected, including the service-role key.'
-        : 'Supabase URL and anon/publishable key detected. Privileged server-side sync may be limited by Row Level Security until SUPABASE_SERVICE_ROLE_KEY is configured.'
+        : 'Supabase URL and anon/publishable key detected. Owner-scoped browser sync uses RLS; legacy privileged server-side bulk sync is disabled.'
       : 'Supabase credentials are incomplete. Angel is running with local workspace synchronization where available.',
   };
 }
