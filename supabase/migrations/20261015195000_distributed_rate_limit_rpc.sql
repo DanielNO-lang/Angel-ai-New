@@ -10,7 +10,6 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_row public.api_rate_limits%ROWTYPE;
-  v_expired BOOLEAN;
 BEGIN
   IF p_key IS NULL OR length(p_key) = 0 OR length(p_key) > 200
      OR p_limit < 1 OR p_window_seconds < 1 OR p_window_seconds > 3600 THEN
@@ -33,8 +32,6 @@ BEGIN
     END,
     updated_at = now()
   RETURNING * INTO v_row;
-
-  v_expired := v_row.window_started_at + make_interval(secs => p_window_seconds) <= now();
 
   RETURN QUERY SELECT
     (v_row.request_count <= p_limit),
