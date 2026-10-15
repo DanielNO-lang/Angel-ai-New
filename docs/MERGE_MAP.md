@@ -121,6 +121,7 @@ These are code-review findings, not proof of a live production exploit. Confirm 
 - Prevented automatic model tool selection/execution of privileged GitHub, Vercel, and webhook tools; those remain explicit authenticated integration actions.
 - Added an owner-scoped SQL migration for core workspace tables and RLS policies, a setup guide, webhook/provider tests, and CI for tests/type-check/build.
 - Webhook signature verification uses constant-time comparisons, rejects malformed signatures safely, ignores client-selected outbound destinations, and only attempts callbacks to an explicit HTTPS hostname allowlist.
+- Wired the production limiter to the existing atomic `consume_api_rate_limit` Supabase RPC (with hashed IP/scope keys and in-memory fallback for preview/local), preserving the existing JSONB return contract and service-role-only execution.
 - Removed the one-off write-enabled workflow that performed scripted UI edits.
 
 ## Still not complete
