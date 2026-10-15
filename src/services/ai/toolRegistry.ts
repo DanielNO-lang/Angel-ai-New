@@ -860,7 +860,11 @@ export class ToolRegistry {
    * Generates model-discoverable tool declarations formatted for model function calling
    */
   getDiscoverableDeclarations(): ModelDiscoverableTool[] {
-    return this.getAllTools().map((tool) => ({
+    // Integration credentials and consequential capabilities are not exposed to
+    // automatic model tool selection. They require explicit, authenticated UI actions.
+    return this.getAllTools()
+      .filter((tool) => !(tool.permissions?.length) && !tool.authRequired)
+      .map((tool) => ({
       id: tool.id,
       name: tool.name,
       description: tool.description,
@@ -884,6 +888,15 @@ export class ToolRegistry {
         data: null,
         summary: `Tool "${name}" is not registered in Angel workspace.`,
         error: `Tool not found: ${name}`,
+      };
+    }
+
+    if ((tool.permissions?.length || tool.authRequired) && !context.authorizedToolPermissions?.includes(name)) {
+      return {
+        success: false,
+        data: null,
+        summary: `Tool "${name}" requires an explicit authenticated integration action and cannot be run automatically from chat.`,
+        error: 'Explicit integration authorization required.',
       };
     }
 
