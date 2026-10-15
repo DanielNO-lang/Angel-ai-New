@@ -25,7 +25,8 @@ import { vercelService } from './server/services/vercelService.js';
 function isAllowedCallbackUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    if (url.protocol !== 'https:') return false;
+    if (url.protocol !== 'https:' || url.username || url.password) return false;
+    if (url.port && url.port !== '443') return false;
     const allowedHosts = (process.env.ANGEL_CALLBACK_HOST_ALLOWLIST || '')
       .split(',')
       .map((host) => host.trim().toLowerCase())
