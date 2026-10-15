@@ -9,6 +9,12 @@
 
 import crypto from 'crypto';
 
+function constantTimeStringEqual(left: string, right: string): boolean {
+  const a = Buffer.from(left, 'utf8');
+  const b = Buffer.from(right, 'utf8');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export type AutomationEventType =
   | 'task.created'
   | 'task.completed'
@@ -86,7 +92,7 @@ class AutomationService {
     }
 
     // 1. Direct secret token comparison
-    if (secretHeader && secretHeader === configuredSecret) {
+    if (secretHeader && constantTimeStringEqual(secretHeader, configuredSecret)) {
       return { authorized: true };
     }
 
@@ -96,9 +102,7 @@ class AutomationService {
       const normalizedSignature = signatureHeader.startsWith('sha256=')
         ? signatureHeader.slice('sha256='.length)
         : signatureHeader;
-      const supplied = Buffer.from(normalizedSignature, 'utf8');
-      const expected = Buffer.from(expectedSignature, 'utf8');
-      if (supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected)) {
+      if (constantTimeStringEqual(normalizedSignature, expectedSignature)) {
         return { authorized: true };
       }
     }
