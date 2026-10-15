@@ -11,13 +11,21 @@ import { getClientSupabase } from './supabaseService';
 
 let installed = false;
 
-async function currentSupabaseToken(): Promise<string | null> {
+async function currentToken(): Promise<string | null> {
   try {
     const client = getClientSupabase();
-    if (!client) return null;
-    const { data, error } = await client.auth.getSession();
-    if (error) return null;
-    return data.session?.access_token ?? null;
+    if (client) {
+      const { data, error } = await client.auth.getSession();
+      if (!error && data.session?.access_token) return data.session.access_token;
+    }
+  } catch {
+    // Fall through to the legacy development-session token if present.
+  }
+
+  try {
+    return typeof localStorage !== 'undefined'
+      ? localStorage.getItem('angel_auth_token')
+      : null;
   } catch {
     return null;
   }
@@ -56,7 +64,7 @@ export function installApiAuth(): void {
 
         // Respect explicit caller credentials; only fill in a missing header.
         if (!headers.has('Authorization')) {
-          const token = await currentSupabaseToken();
+          const token = await currentToken();
           if (token) {
             headers.set('Authorization', 'Bearer ' + token);
             return originalFetch(input, { ...init, headers });
