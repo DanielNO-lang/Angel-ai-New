@@ -250,6 +250,7 @@ export const Sidebar: React.FC = () => {
         onPointerLeave={handleMouseLeaveRail}
         style={{
           width: effectiveExpanded ? 240 : 60,
+          marginRight: isSidebarCollapsed && isHoverExpanded ? -180 : 0,
           position: isSidebarCollapsed && isHoverExpanded ? 'fixed' : 'relative',
           left: 0,
           top: 0,
