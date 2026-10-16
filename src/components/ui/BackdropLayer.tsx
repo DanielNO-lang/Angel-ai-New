@@ -51,7 +51,7 @@ export const BackdropLayer: React.FC<BackdropLayerProps> = ({
         <div className="absolute inset-0 bg-gradient-to-br from-[#050711] via-[#080B17] to-[#0D1123]" />
       )}
 
-      {/* 2. Official Luminous Angelic A Emblem in Flowing Wings Backdrop Image */}
+      {/* 2. Optional brand artwork, kept subtle so it never competes with workspace content. */}
       {!imageError && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <img
@@ -61,14 +61,13 @@ export const BackdropLayer: React.FC<BackdropLayerProps> = ({
             aria-hidden="true"
             className={`w-full h-full object-cover object-center select-none transition-all duration-700 ${
               isLight
-                ? 'opacity-20 mix-blend-multiply filter contrast-125 saturate-110'
+                ? 'opacity-[0.06] mix-blend-multiply'
                 : isMidnight
-                ? 'opacity-80 mix-blend-screen filter brightness-100 contrast-125'
-                : 'opacity-70 mix-blend-screen filter brightness-105 contrast-120'
+                ? 'opacity-[0.08] mix-blend-screen'
+                : 'opacity-[0.08] mix-blend-screen'
             }`}
             style={{
-              transform: 'scale(1.02)',
-              willChange: 'transform, opacity',
+              transform: 'none',
             }}
           />
         </div>
@@ -85,7 +84,7 @@ export const BackdropLayer: React.FC<BackdropLayerProps> = ({
         }`}
       />
 
-      {/* 4. Radiant Wing Light Blooms — Sampling directly from the picture's cyan & violet hues */}
+      {/* 4. Decorative blooms removed to reduce visual obstruction and GPU work. */}
       {/* Cyan-ice wingtip aura bloom (top-left) */}
       <div
         className="absolute -top-[10%] -left-[10%] w-[65vw] h-[65vh] rounded-full pointer-events-none blur-[120px]"
@@ -196,7 +195,7 @@ export const BackdropLayer: React.FC<BackdropLayerProps> = ({
         }}
       />
 
-      {/* 9. Celestial Specular Ray angled across the wings */}
+      {/* 9. Specular ray removed: keep the backdrop calm and consistent. */}
       <div
         className="absolute -top-[30%] left-[25%] w-[40vw] h-[120vh] transform rotate-25 pointer-events-none opacity-20 dark:opacity-15"
         style={{
