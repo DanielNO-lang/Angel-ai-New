@@ -508,6 +508,13 @@ export interface AngelSettings {
   fontSize: FontSize;
   compactMode: boolean;
   focusMode?: boolean;
+  conversationalStyle?: {
+    warmth: number;
+    humor: number;
+    directness: number;
+    empathy: number;
+    emotionalTone: 'balanced' | 'calm' | 'upbeat' | 'serious';
+  };
   personality: {
     tone: 'balanced' | 'strategic' | 'direct' | 'creative';
     verbosity: 'concise' | 'balanced' | 'thorough';
