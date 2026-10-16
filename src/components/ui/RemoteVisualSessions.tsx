@@ -33,6 +33,9 @@ export const RemoteVisualSessions: React.FC = () => {
   const deviceIdRef = useRef('');
 
   useEffect(() => {
+    setUserId('');
+    setSession(null); sessionRef.current = null;
+    setAvailable([]); setRemoteStream(null); setStatus('');
     deviceIdRef.current = `device-${typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
     let active = true;
     const client = getClientSupabase();
