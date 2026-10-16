@@ -45,7 +45,7 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps --no-audit --no-fund
       - name: Run backend smoke contract tests
         run: npm test
       - name: Build static Amplify frontend
