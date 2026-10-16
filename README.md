@@ -66,35 +66,47 @@ npm start
 
 ---
 
-## 3. Platform Deployment
+## 3. Deploy to Netlify
 
-### Deploy to Vercel
-This repository is pre-configured with a framework-standard `vercel.json` and a serverless API adapter (`api/index.ts`).
+Angel AI New is configured for Netlify hosting. The frontend is built by Vite into `dist`; the Express API runs as a Netlify Function and `/api/*` requests are routed to it.
 
-1. Push your repository to GitHub or GitLab.
-2. Import the repository in [Vercel](https://vercel.com/new).
-3. Set the Framework Preset to **Vite**.
-4. Configure Environment Variables in Project Settings:
-   - `GEMINI_API_KEY`: Your Google Gemini API key
-   - `SUPABASE_URL` & `SUPABASE_SERVICE_ROLE_KEY` (optional)
-   - `OUTBOUND_WEBHOOK_URL` & `WEBHOOK_SECRET` (optional)
-5. Deploy. Vercel routes `/api/*` to the serverless function and all other routes to the Vite single-page application.
+### Netlify build settings
 
-Alternatively, deploy using the Vercel CLI:
-```bash
-npm install -g vercel
-vercel
-vercel --prod
-```
+The repository's `netlify.toml` defines the build command, publish directory, Function directory, API rewrite, and SPA fallback:
 
-### Deploy to Docker / Google Cloud Run / Container Platforms
-The standalone server binds to `0.0.0.0:$PORT` (defaults to port 3000):
-```bash
-npm run build
-npm start
-```
+- **Build command:** `npm run build`
+- **Publish directory:** `dist`
+- **Node.js:** 22
+- **Function entry:** `netlify/functions/api.ts`
 
----
+Connect the Netlify project to the GitHub repository `DanielNO-lang/Angel-ai-New`. Deploy the `migration/netlify-preview` branch first to validate the preview before switching production deployment to `main`.
+
+### Environment variables
+
+Store variables in Netlify's project environment settings, never in source control.
+
+| Variable | Purpose |
+| :--- | :--- |
+| `VITE_SUPABASE_URL` | Public Supabase URL used by the browser |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Public Supabase publishable key used by the browser |
+| `SUPABASE_URL` | Supabase URL used by server code |
+| `SUPABASE_ANON_KEY` | Public/anon key used by server code |
+| `GEMINI_API_KEY` | **Secret.** Required for Gemini chat, streaming, and multimodal AI features |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Secret.** Server-only elevated database access, when needed |
+| `OPENAI_API_KEY` | Optional secret for the secondary AI provider |
+| `GITHUB_TOKEN` | Optional secret for in-app GitHub operations |
+| `GITHUB_REPO_OWNER` / `GITHUB_REPO_NAME` | Default repository for in-app GitHub operations |
+| `OUTBOUND_WEBHOOK_URL` / `WEBHOOK_SECRET` | Optional automation/webhook integration |
+
+Never use a `VITE_` prefix for private keys. Public Supabase keys are protected by the database's Row Level Security policies; a service-role key is never safe to expose in browser code.
+
+### Connecting Supabase authentication
+
+Keep the existing Supabase project and OAuth provider callback. In Supabase **Authentication → URL Configuration**, add the new production origin to the allowed redirect URLs:
+
+`https://angel-ai-new.netlify.app/**`
+
+Do not change the provider callback URL. Add a preview URL pattern only if preview deployments need sign-in.
 
 ## 4. Automation & Webhook Architecture
 

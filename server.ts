@@ -1463,10 +1463,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     return mediaRowToArtifact(auth, data);
   };
 
-  app.get('/api/media/artifacts', attachOptionalSupabaseUser, async (req: Request, res: Response) => {
+  app.get('/api/media/artifacts', requireSupabaseUser, async (req: Request, res: Response) => {
     const auth = (req as any).angelAuth;
     const { category, projectId, taskId, search } = req.query as Record<string, string>;
-    if (!auth) return res.json({ artifacts: [], count: 0, persistence: 'sign-in-required' });
     try {
       let query = auth.client.from('media_artifacts').select('*')
         .eq('user_id', auth.userId)
@@ -1696,8 +1695,8 @@ async function startServer() {
   });
 }
 
-// Only launch standalone server if not running inside a serverless environment (e.g. Vercel)
-if (!process.env.VERCEL) {
+// Avoid starting a listening server inside Netlify Functions or another serverless host.
+if (!process.env.NETLIFY && !process.env.VERCEL) {
   startServer().catch((err) => {
     console.error('[Angel AI Server Fatal Startup Error]', err);
   });
