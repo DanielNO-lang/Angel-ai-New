@@ -5,7 +5,7 @@
  * - 12-column responsive layout (4 cols worker catalog, 8 cols detailed workspace)
  * - Deterministic 9-step execution lifecycle pipeline (Requested → Context Prep → Memory Retrieval →
  *   Tool Planning → Execution → Validation → Action Output → Memory Update → Completed)
- * - Zero AI features: pure reliable automated task runners, cron workers, and pipeline orchestrators.
+ * - Real backend executions, selectable skill packs, and observed execution results.
  */
 
 import React, { useEffect, useState } from 'react';
