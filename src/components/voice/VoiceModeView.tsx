@@ -355,8 +355,10 @@ export const VoiceModeView: React.FC = () => {
         }),
       });
 
-      const data = await res.json();
-      const response = data.text || `Processing your command across active agent pipelines.`;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.message || `AI request failed (HTTP ${res.status}).`);
+      const response = typeof data.text === 'string' ? data.text.trim() : '';
+      if (!response) throw new Error('The AI service returned an empty response. Check model configuration or quota.');
       setAngelResponse(response);
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: response }]);
       await speakAngelResponse(response);
