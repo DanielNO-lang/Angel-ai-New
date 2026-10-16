@@ -119,7 +119,7 @@ export async function translateWithHyMT2(input: HyMT2TranslationInput): Promise<
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (config.apiKey) headers.Authorization = 'Bearer ' + config.apiKey;
-    response = await fetch(new URL('/chat/completions', endpoint).toString(), {
+    response = await fetch(config.baseUrl + '/chat/completions', {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody),
