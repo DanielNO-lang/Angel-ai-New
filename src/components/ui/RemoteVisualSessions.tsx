@@ -141,7 +141,8 @@ export const RemoteVisualSessions: React.FC = () => {
 
   const stopSharing = async () => {
     const channel = channelRef.current;
-    if (session && channel) await channel.send({ type: 'broadcast', event: 'visual-stop', payload: { type: 'stop', sessionId: session.id, from: deviceIdRef.current } });
+    const activeSession = sessionRef.current;
+    if (activeSession && channel) await channel.send({ type: 'broadcast', event: 'visual-stop', payload: { type: 'stop', sessionId: activeSession.id, from: deviceIdRef.current } });
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
     peersRef.current.forEach((p) => p.close());
