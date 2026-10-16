@@ -1,7 +1,7 @@
 /**
  * ANGEL AI — Conversational Intelligence Workspace
  * Matches Image 1 ("New Chat (Empty State)"), Image 4, and Image 5 Panel 10:
- * - Empty state with Angel Emblem, "Hello again, Danny 🔮", action chips (Think, Search Engine, Browse Web, Model)
+ * - Empty state with Angel Emblem, "Hello again, {userProfile.name?.trim().split(/\s+/)[0] || 'there'}", action chips (Think, Search Engine, Browse Web, Model)
  * - "Suggestions" suggestions: Latest tech news, Design a marketing plan, Python tutorial, Healthy meal ideas
  * - Streaming chat with tool inspection, agent selection, attachments, and rich markdown
  * - Composer dock with attachments, mic, Voice Node, and submission
@@ -400,7 +400,7 @@ export const ChatView: React.FC = () => {
                   {quickSearchSuggestions.map((sug) => (
                     <button
                       key={sug.label}
-                      onClick={() => sendMessage(sug.prompt)}
+                      onClick={() => { const label = sug.label.toLowerCase(); if (label.includes('image')) { setActiveTab('media_studio'); return; } if (label.includes('video')) { setActiveTab('media_studio'); return; } if (label.includes('workflow')) { setActiveTab('automation'); return; } if (label.includes('write')) { setActiveTab('canvas'); return; } void sendMessage(sug.prompt); }}
                       className={`px-3 py-2 rounded-xl transition-all duration-200 transform-gpu hover:-translate-y-0.5 ${
                         isLight
                           ? 'bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-700 shadow-2xs'
