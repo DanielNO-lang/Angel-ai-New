@@ -41,6 +41,61 @@ test('Angel backend smoke contract', async (t) => {
   const artifacts = await fetch(`${baseUrl}/api/media/artifacts`);
   assert.equal(artifacts.status, 401, 'private media must require a verified user');
 
+  const translationStatus = await fetch(`${baseUrl}/api/translation/status`);
+  assert.equal(translationStatus.status, 200);
+  const translationStatusBody = await translationStatus.json() as { provider?: string; model?: string; endpointConfigured?: boolean };
+  assert.equal(translationStatusBody.provider, 'hymt2');
+  assert.equal(translationStatusBody.model, 'tencent/Hy-MT2-1.8B');
+
+  const invalidTranslation = await fetch(`${baseUrl}/api/translation/translate`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text: 'Hello', targetLanguage: '' }),
+  });
+  assert.equal(invalidTranslation.status, 400, 'translation endpoint must validate target language');
+
+  // Exercise the Hy-MT2 adapter using a mocked upstream OpenAI-compatible endpoint.
+  const priorBaseUrl = process.env.HYMT2_API_BASE_URL;
+  const priorApiKey = process.env.HYMT2_API_KEY;
+  const priorModelId = process.env.HYMT2_MODEL_ID;
+  const nativeFetch = globalThis.fetch;
+  let upstreamRequest: { url: string; authorization?: string; body?: any } | undefined;
+  process.env.HYMT2_API_BASE_URL = 'https://hymt2-test.example/v1';
+  process.env.HYMT2_API_KEY = 'test-only-secret';
+  process.env.HYMT2_MODEL_ID = 'tencent/Hy-MT2-1.8B';
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const requestUrl = input instanceof Request ? input.url : String(input);
+    if (!requestUrl.startsWith('https://hymt2-test.example/')) return nativeFetch(input as any, init);
+    upstreamRequest = {
+      url: requestUrl,
+      authorization: new Headers(init?.headers).get('authorization') || undefined,
+      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+    };
+    return new Response(JSON.stringify({ model: 'tencent/Hy-MT2-1.8B', choices: [{ message: { content: '你好' } }] }), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+  try {
+    const translated = await nativeFetch(`${baseUrl}/api/translation/translate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: 'Hello', sourceLanguage: 'English', targetLanguage: 'Chinese' }),
+    });
+    assert.equal(translated.status, 200);
+    const translatedBody = await translated.json() as { success?: boolean; translation?: string; provider?: string };
+    assert.equal(translatedBody.success, true);
+    assert.equal(translatedBody.translation, '你好');
+    assert.equal(translatedBody.provider, 'hymt2');
+    assert.equal(upstreamRequest?.url, 'https://hymt2-test.example/v1/chat/completions');
+    assert.equal(upstreamRequest?.authorization, 'Bearer test-only-secret');
+    assert.match(upstreamRequest?.body?.messages?.[0]?.content || '', /English into Chinese/);
+  } finally {
+    globalThis.fetch = nativeFetch;
+    if (priorBaseUrl === undefined) delete process.env.HYMT2_API_BASE_URL; else process.env.HYMT2_API_BASE_URL = priorBaseUrl;
+    if (priorApiKey === undefined) delete process.env.HYMT2_API_KEY; else process.env.HYMT2_API_KEY = priorApiKey;
+    if (priorModelId === undefined) delete process.env.HYMT2_MODEL_ID; else process.env.HYMT2_MODEL_ID = priorModelId;
+  }
+
   const invalidResearch = await fetch(`${baseUrl}/api/research/search`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
