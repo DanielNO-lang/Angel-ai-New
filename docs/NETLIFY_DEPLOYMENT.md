@@ -38,7 +38,7 @@ The root `netlify.toml` configures:
 - Express API through `netlify/functions/api.ts`
 - `/api/*` routing before the SPA fallback
 
-The server startup guard checks the Netlify runtime so the function does not try to start a separate port listener.
+The build writes the server bundle to `server-build/`, outside the public `dist/` publish directory. The server startup guard checks the Netlify runtime so the function does not try to start a separate port listener.
 
 ## 4. Verification still required after linking
 
