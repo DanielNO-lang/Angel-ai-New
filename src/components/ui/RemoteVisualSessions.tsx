@@ -16,6 +16,7 @@ export const RemoteVisualSessions: React.FC = () => {
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState('');
   const [session, setSession] = useState<{ id: string; source: 'camera' | 'screen'; label: string } | null>(null);
+  const sessionRef = useRef<{ id: string; source: 'camera' | 'screen'; label: string } | null>(null);
   const [available, setAvailable] = useState<Array<{ id: string; source: 'camera' | 'screen'; label: string }>>([]);
   const [status, setStatus] = useState('');
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -66,7 +67,8 @@ export const RemoteVisualSessions: React.FC = () => {
         })
         .on('broadcast', { event: 'visual-request' }, async ({ payload }) => {
           const p = payload as Signal;
-          if (!session || !localStreamRef.current || p.sessionId !== session.id || !p.from) return;
+          const activeSession = sessionRef.current;
+          if (!activeSession || !localStreamRef.current || p.sessionId !== activeSession.id || !p.from) return;
           const peer = ensurePeer(p.from);
           localStreamRef.current.getTracks().forEach((track) => peer.addTrack(track, localStreamRef.current!));
           const offer = await peer.createOffer();
@@ -105,7 +107,7 @@ export const RemoteVisualSessions: React.FC = () => {
       peersRef.current.clear();
       if (channelRef.current) void getClientSupabase()?.removeChannel(channelRef.current);
     };
-  }, [session?.id]);
+  }, []);
 
   const startSharing = async (source: 'camera' | 'screen') => {
     const channel = channelRef.current;
@@ -120,6 +122,7 @@ export const RemoteVisualSessions: React.FC = () => {
       localStreamRef.current = stream;
       const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `session-${Date.now()}`;
       const next = { id, source, label: /Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'Phone' : 'Computer' };
+      sessionRef.current = next;
       setSession(next);
       setStatus(`Sharing ${source} is ready. On the other signed-in device, choose Connect.`);
       stream.getVideoTracks()[0].onended = () => { void stopSharing(); };
@@ -143,6 +146,7 @@ export const RemoteVisualSessions: React.FC = () => {
     localStreamRef.current = null;
     peersRef.current.forEach((p) => p.close());
     peersRef.current.clear();
+    sessionRef.current = null;
     setSession(null);
     setRemoteStream(null);
     setStatus('Remote sharing stopped.');
