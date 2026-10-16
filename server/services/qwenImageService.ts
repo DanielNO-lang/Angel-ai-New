@@ -132,7 +132,14 @@ export async function generateWithQwenImage(input: QwenImageInput): Promise<Qwen
     const markerIndex = input.imageDataUrl.indexOf(marker);
     if (input.imageDataUrl.startsWith('data:') && markerIndex > 5) {
       const base64 = input.imageDataUrl.slice(markerIndex + marker.length);
-      if (!base64 || !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) {
+      const validBase64 = [...base64].every((character, index) => {
+        const alphanumeric = (character >= 'A' && character <= 'Z') ||
+          (character >= 'a' && character <= 'z') ||
+          (character >= '0' && character <= '9');
+        return alphanumeric || character === '+' || character === '/' ||
+          (character === '=' && index >= base64.length - 2);
+      });
+      if (!base64 || !validBase64 || base64.length % 4 !== 0) {
         throw new QwenImageError('Reference image data URI is malformed.', 400, 'invalid_reference_image');
       }
       const inputBytes = Buffer.from(base64, 'base64').byteLength;
