@@ -35,6 +35,7 @@ import { PluginsView } from './components/plugins/PluginsView';
 import { CommandPalette } from './components/search/CommandPalette';
 import { BackdropLayer } from './components/ui/BackdropLayer';
 import { NetworkStatusToast } from './components/ui/NetworkStatusToast';
+import { DevicePresence } from './components/ui/DevicePresence';
 import { Maximize2 } from 'lucide-react';
 import {
   WorkspaceStageControls,
@@ -378,6 +379,7 @@ const WorkspaceContent: React.FC = () => {
 
       {/* Network Connectivity & PWA Service Worker Status Listener Toast */}
       <NetworkStatusToast />
+      <DevicePresence />
 
       {/* Global Workspace Search & Command Palette */}
       <CommandPalette />
