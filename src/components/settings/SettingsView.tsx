@@ -150,7 +150,7 @@ export const SettingsView: React.FC = () => {
   const [codeHighlighting, setCodeHighlighting] = useState(true);
 
   // Voice states
-  const [defaultVoice, setDefaultVoice] = useState('Nova (Balanced)');
+  const [defaultVoice, setDefaultVoice] = useState('UNIQUE (Kore)');
   const [speechRate, setSpeechRate] = useState('1.0x');
 
   // Privacy & Notifications
@@ -976,7 +976,7 @@ export const SettingsView: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-xs font-semibold block opacity-80">Active Voice Model</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {['Nova (Balanced)', 'Alloy (Direct)', 'Echo (Calm)', 'Shimmer (Warm)', 'Sol (Energetic)'].map((v) => (
+                  {['UNIQUE (Kore)', 'Kore (Firm)', 'Puck (Lively)', 'Charon (Informative)', 'Fenrir (Expressive)', 'Zephyr (Bright)'].map((v) => (
                     <button
                       key={v}
                       onClick={() => setDefaultVoice(v)}
