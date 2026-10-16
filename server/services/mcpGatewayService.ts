@@ -111,6 +111,43 @@ function textResult(value: unknown, isError = false) {
   };
 }
 
+function validateToolArguments(toolName: string, args: Record<string, unknown>): string | null {
+  const tool = TOOL_LIST.find((item) => item.name === toolName);
+  if (!tool) return 'Tool is not in Angel’s allowlist.';
+  const schema = tool.inputSchema as any;
+  const properties = schema.properties || {};
+  if (schema.additionalProperties === false) {
+    const extra = Object.keys(args).find((key) => !Object.prototype.hasOwnProperty.call(properties, key));
+    if (extra) return 'Unknown argument: ' + extra;
+  }
+  for (const required of (schema.required || []) as string[]) {
+    if (!Object.prototype.hasOwnProperty.call(args, required)) return 'Missing required argument: ' + required;
+  }
+  for (const [key, value] of Object.entries(args)) {
+    const rule = properties[key];
+    if (!rule) continue;
+    if (rule.type === 'string') {
+      if (typeof value !== 'string') return key + ' must be a string.';
+      if (typeof rule.minLength === 'number' && value.length < rule.minLength) return key + ' is too short.';
+      if (typeof rule.maxLength === 'number' && value.length > rule.maxLength) return key + ' exceeds the maximum length of ' + rule.maxLength + '.';
+      if (Array.isArray(rule.enum) && !rule.enum.includes(value)) return key + ' has an unsupported value.';
+    } else if (rule.type === 'integer') {
+      if (!Number.isInteger(value)) return key + ' must be an integer.';
+      if (typeof rule.minimum === 'number' && Number(value) < rule.minimum) return key + ' is below the minimum of ' + rule.minimum + '.';
+      if (typeof rule.maximum === 'number' && Number(value) > rule.maximum) return key + ' exceeds the maximum of ' + rule.maximum + '.';
+    } else if (rule.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value))) {
+      return key + ' must be a finite number.';
+    } else if (rule.type === 'boolean' && typeof value !== 'boolean') {
+      return key + ' must be a boolean.';
+    } else if (rule.type === 'array' && !Array.isArray(value)) {
+      return key + ' must be an array.';
+    } else if (rule.type === 'object' && (!value || typeof value !== 'object' || Array.isArray(value))) {
+      return key + ' must be an object.';
+    }
+  }
+  return null;
+}
+
 export async function handleAngelMcpMessage(
   input: unknown,
   handlers: McpGatewayHandlers,
@@ -175,6 +212,8 @@ export async function handleAngelMcpMessage(
     const args = req.params?.arguments && typeof req.params.arguments === 'object' && !Array.isArray(req.params.arguments)
       ? req.params.arguments as Record<string, unknown>
       : {};
+    const validationError = validateToolArguments(name, args);
+    if (validationError) return { statusCode: 200, body: rpcError(id, -32602, validationError) };
     try {
       let value: unknown;
       switch (name) {
