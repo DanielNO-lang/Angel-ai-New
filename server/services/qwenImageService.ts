@@ -125,8 +125,13 @@ export async function generateWithQwenImage(input: QwenImageInput): Promise<Qwen
     throw new QwenImageError('Unsupported Qwen Image 2.1 model. Use qwen-image-2.1-turbo or qwen-image-2.1-pro.', 400, 'unsupported_model');
   }
 
-  const prompt = [input.prompt.trim(), input.style?.trim() ? 'Style: ' + input.style.trim() : '']
-    .filter(Boolean).join('\n\n');
+  const prompt = [
+    input.prompt.trim(),
+    input.style?.trim() ? 'Style: ' + input.style.trim() : '',
+    // Qwen Image 2.1 does not support the negative_prompt request parameter.
+    // Preserve this UI input as a natural-language constraint in the positive prompt.
+    input.negativePrompt?.trim() ? 'Avoid including these elements: ' + input.negativePrompt.trim() : '',
+  ].filter(Boolean).join('\n\n');
   if (input.imageDataUrl) {
     const marker = ';base64,';
     const markerIndex = input.imageDataUrl.indexOf(marker);
