@@ -29,6 +29,7 @@ export const RemoteVisualSessions: React.FC = () => {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const peersRef = useRef(new Map<string, RTCPeerConnection>());
+  const pendingIceRef = useRef(new Map<string, RTCIceCandidateInit[]>());
   const localStreamRef = useRef<MediaStream | null>(null);
   const deviceIdRef = useRef('');
 
@@ -94,6 +95,9 @@ export const RemoteVisualSessions: React.FC = () => {
           if (p.to !== deviceIdRef.current || !p.from || !p.sdp) return;
           const peer = ensurePeer(p.from);
           await peer.setRemoteDescription(p.sdp);
+          const queuedCandidates = pendingIceRef.current.get(p.from) || [];
+          pendingIceRef.current.delete(p.from);
+          for (const candidate of queuedCandidates) { try { await peer.addIceCandidate(candidate); } catch { /* ignore stale candidate */ } }
           const answer = await peer.createAnswer();
           await peer.setLocalDescription(answer);
           await send('visual-answer', { type: 'answer', sessionId: p.sessionId, to: p.from, sdp: answer });
@@ -103,13 +107,25 @@ export const RemoteVisualSessions: React.FC = () => {
           const p = payload as Signal;
           if (p.to !== deviceIdRef.current || !p.from || !p.sdp) return;
           const peer = peersRef.current.get(p.from);
-          if (peer) await peer.setRemoteDescription(p.sdp);
+          if (peer) {
+            await peer.setRemoteDescription(p.sdp);
+            const queuedCandidates = pendingIceRef.current.get(p.from) || [];
+            pendingIceRef.current.delete(p.from);
+            for (const candidate of queuedCandidates) { try { await peer.addIceCandidate(candidate); } catch { /* ignore stale candidate */ } }
+          }
           setStatus('Remote visual connection established.');
         })
         .on('broadcast', { event: 'visual-ice' }, async ({ payload }) => {
           const p = payload as Signal;
           if (p.to !== deviceIdRef.current || !p.from || !p.candidate) return;
-          try { await ensurePeer(p.from).addIceCandidate(p.candidate); } catch { /* stale candidate after disconnect */ }
+          const peer = ensurePeer(p.from);
+          if (!peer.remoteDescription) {
+            const queued = pendingIceRef.current.get(p.from) || [];
+            queued.push(p.candidate);
+            pendingIceRef.current.set(p.from, queued);
+          } else {
+            try { await peer.addIceCandidate(p.candidate); } catch { /* stale candidate after disconnect */ }
+          }
         })
         .subscribe((state) => { if (state === 'SUBSCRIBED' && active) { setReady(true); setStatus('Private same-account device channel connected.'); } else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT' || state === 'CLOSED') { setReady(false); setStatus('Secure device signaling is unavailable. Confirm the Supabase private-channel migration and network connection.'); } });
     }).catch(() => setStatus('Could not initialize secure device signaling.'));
@@ -118,6 +134,7 @@ export const RemoteVisualSessions: React.FC = () => {
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
       peersRef.current.forEach((p) => p.close());
       peersRef.current.clear();
+      pendingIceRef.current.clear();
       if (channelRef.current) void getClientSupabase()?.removeChannel(channelRef.current);
       channelRef.current = null;
     };
@@ -194,6 +211,7 @@ export const RemoteVisualSessions: React.FC = () => {
     localStreamRef.current = null;
     peersRef.current.forEach((p) => p.close());
     peersRef.current.clear();
+    pendingIceRef.current.clear();
     sessionRef.current = null;
     setSession(null);
     setRemoteStream(null);
