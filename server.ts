@@ -818,7 +818,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const presented = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
       ? req.headers.authorization.slice(7).trim()
       : '';
-    if (!expected || !presented || crypto.createHash('sha256').update(expected).digest('hex') !== crypto.createHash('sha256').update(presented).digest('hex')) {
+    if (!expected || !presented || !crypto.timingSafeEqual(crypto.createHash('sha256').update(expected).digest(), crypto.createHash('sha256').update(presented).digest())) {
       return res.status(401).json({ error: 'A valid server-only CRON_SECRET is required.' });
     }
     const supabase = getSupabaseClient();
@@ -836,8 +836,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           agentName: typeof input.agentName === 'string' ? input.agentName : 'Angel',
           systemInstructions: typeof input.systemInstructions === 'string' ? input.systemInstructions : 'Complete the user request carefully and report limitations honestly.',
           taskPrompt: typeof input.taskPrompt === 'string' ? input.taskPrompt : '',
-          modelConfig: input.modelConfig && typeof input.modelConfig === 'object' ? input.modelConfig as Record<string, unknown> : undefined,
-          context: input.context && typeof input.context === 'object' ? input.context as Record<string, unknown> : undefined,
+          modelConfig: input.modelConfig && typeof input.modelConfig === 'object' ? input.modelConfig as any : undefined,
+          context: input.context && typeof input.context === 'object' ? input.context as any : undefined,
           allowedTools: [],
           permissions: [],
           memoryAccess: { canRead: false, canWrite: false, types: [] },
