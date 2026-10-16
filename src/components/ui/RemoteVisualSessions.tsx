@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Camera, MonitorUp, MonitorSmartphone, PhoneOff, Radio, ShieldCheck } from 'lucide-react';
 import { getClientSupabase } from '../../services/supabaseService';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { useAngel } from '../../context/AppContext';
 
 type Signal = { type: string; sessionId?: string; from?: string; to?: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit; source?: 'camera' | 'screen'; label?: string };
 const ICE: RTCConfiguration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
@@ -13,6 +14,7 @@ const ICE: RTCConfiguration = { iceServers: [{ urls: 'stun:stun.l.google.com:193
  * This streams media peer-to-peer; no frame data is sent through Supabase.
  */
 export const RemoteVisualSessions: React.FC = () => {
+  const { inspectVisualFrame } = useAngel();
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState('');
   const [session, setSession] = useState<{ id: string; source: 'camera' | 'screen'; label: string } | null>(null);
@@ -20,6 +22,11 @@ export const RemoteVisualSessions: React.FC = () => {
   const [available, setAvailable] = useState<Array<{ id: string; source: 'camera' | 'screen'; label: string }>>([]);
   const [status, setStatus] = useState('');
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [remoteSource, setRemoteSource] = useState<'camera' | 'screen'>('screen');
+  const [visualQuestion, setVisualQuestion] = useState('What should I notice or help with?');
+  const [visualAnswer, setVisualAnswer] = useState('');
+  const [analyzingFrame, setAnalyzingFrame] = useState(false);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const peersRef = useRef(new Map<string, RTCPeerConnection>());
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -132,9 +139,33 @@ export const RemoteVisualSessions: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      void remoteVideoRef.current.play().catch(() => undefined);
+    }
+  }, [remoteStream]);
+
+  const analyzeRemoteFrame = async () => {
+    const video = remoteVideoRef.current;
+    if (!video || !remoteStream || !video.videoWidth || analyzingFrame) return;
+    setAnalyzingFrame(true); setVisualAnswer('');
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not capture a frame from the remote device.');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const result = await inspectVisualFrame(canvas.toDataURL('image/jpeg', 0.85), 'Analyze this frame received from another device. User asks: ' + (visualQuestion.trim() || 'Describe the important details and useful next steps.') + '. Use only visible evidence, distinguish facts from uncertainty, and never claim to have controlled the remote device.', remoteSource, { intent: 'general_scene', systemInstruction: 'You are Angel, a practical visual assistant. Analyze only this explicitly captured remote-device frame and the user question. State uncertainty and do not claim to have clicked, typed, changed settings, or seen outside the frame.' });
+      setVisualAnswer(typeof result === 'string' ? result : result.analysis);
+    } catch (error) { setVisualAnswer(error instanceof Error ? error.message : 'Angel could not analyze this remote frame.'); }
+    finally { setAnalyzingFrame(false); }
+  };
+
   const connect = async (item: { id: string; source: 'camera' | 'screen'; label: string }) => {
     const channel = channelRef.current;
     if (!channel) return;
+    setRemoteSource(item.source); setVisualAnswer('');
     setStatus(`Requesting permission to view ${item.label}'s ${item.source}. The other device must be actively sharing.`);
     await channel.send({ type: 'broadcast', event: 'visual-request', payload: { type: 'request', sessionId: item.id, to: undefined, from: deviceIdRef.current } });
   };
@@ -150,6 +181,7 @@ export const RemoteVisualSessions: React.FC = () => {
     sessionRef.current = null;
     setSession(null);
     setRemoteStream(null);
+    setVisualAnswer('');
     setStatus('Remote sharing stopped.');
   };
 
@@ -166,7 +198,7 @@ export const RemoteVisualSessions: React.FC = () => {
           </div>
           {session && <button onClick={() => void stopSharing()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold"><PhoneOff className="h-3.5 w-3.5"/>Stop remote sharing</button>}
           {available.length > 0 && <div className="space-y-2"><p className="text-xs font-semibold">Available from your other devices</p>{available.map((item) => <div key={item.id} className="flex items-center gap-2 rounded-xl bg-white/5 p-2"><Radio className="h-4 w-4 text-emerald-300"/><div className="min-w-0 flex-1"><p className="truncate text-xs">{item.label}</p><p className="text-[11px] opacity-60">{item.source === 'camera' ? 'Camera' : 'Screen'}</p></div><button onClick={() => void connect(item)} className="rounded-lg bg-indigo-500 px-2 py-1.5 text-xs">Connect</button></div>)}</div>}
-          {remoteStream && <RemoteVideo stream={remoteStream}/>}
+          {remoteStream && <div className="space-y-2"><video ref={remoteVideoRef} autoPlay playsInline controls className="aspect-video w-full rounded-xl bg-black object-contain" aria-label="Remote device camera or screen"/><textarea value={visualQuestion} onChange={(e) => setVisualQuestion(e.target.value)} rows={2} placeholder="Ask Angel about the remote screen or camera…" className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs outline-none focus:border-indigo-400"/><button disabled={analyzingFrame} onClick={() => void analyzeRemoteFrame()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold disabled:opacity-50">{analyzingFrame ? <LoaderCircle className="h-3.5 w-3.5 animate-spin"/> : <Camera className="h-3.5 w-3.5"/>}Ask Angel about this frame</button>{visualAnswer && <div className="max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-white/5 p-2.5 text-xs leading-relaxed">{visualAnswer}</div>}</div>}
           {status && <p role="status" className="text-[11px] leading-relaxed text-white/65">{status}</p>}
         </div>
       </details>
