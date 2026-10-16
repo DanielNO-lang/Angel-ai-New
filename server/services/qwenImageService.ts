@@ -128,14 +128,27 @@ export async function generateWithQwenImage(input: QwenImageInput): Promise<Qwen
   const prompt = [input.prompt.trim(), input.style?.trim() ? 'Style: ' + input.style.trim() : '']
     .filter(Boolean).join('\n\n');
   if (input.imageDataUrl) {
-    const match = input.imageDataUrl.match(/^data:[^;]+;base64,([\\s\\S]+)$/);
-    if (match) {
-      const inputBytes = Buffer.from(match[1], 'base64').byteLength;
+    const marker = ';base64,';
+    const markerIndex = input.imageDataUrl.indexOf(marker);
+    if (input.imageDataUrl.startsWith('data:') && markerIndex > 5) {
+      const base64 = input.imageDataUrl.slice(markerIndex + marker.length);
+      if (!base64 || !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) {
+        throw new QwenImageError('Reference image data URI is malformed.', 400, 'invalid_reference_image');
+      }
+      const inputBytes = Buffer.from(base64, 'base64').byteLength;
       if (inputBytes === 0 || inputBytes > 10 * 1024 * 1024) {
         throw new QwenImageError('Reference image must be no larger than 10 MB.', 413, 'reference_image_too_large');
       }
-    } else if (!/^https:\\/\\//i.test(input.imageDataUrl)) {
-      throw new QwenImageError('Reference image must be an HTTPS URL or a valid base64 data URI.', 400, 'invalid_reference_image');
+    } else {
+      let referenceUrl: URL;
+      try {
+        referenceUrl = new URL(input.imageDataUrl);
+      } catch {
+        throw new QwenImageError('Reference image must be an HTTPS URL or a valid base64 data URI.', 400, 'invalid_reference_image');
+      }
+      if (referenceUrl.protocol !== 'https:') {
+        throw new QwenImageError('Remote reference images must use HTTPS.', 400, 'invalid_reference_image');
+      }
     }
   }
   const body: Record<string, unknown> = {
