@@ -14,7 +14,7 @@ const ICE: RTCConfiguration = { iceServers: [{ urls: 'stun:stun.l.google.com:193
  * This streams media peer-to-peer; no frame data is sent through Supabase.
  */
 export const RemoteVisualSessions: React.FC = () => {
-  const { inspectVisualFrame } = useAngel();
+  const { inspectVisualFrame, isSignedIn } = useAngel();
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState('');
   const [session, setSession] = useState<{ id: string; source: 'camera' | 'screen'; label: string } | null>(null);
@@ -114,7 +114,7 @@ export const RemoteVisualSessions: React.FC = () => {
       peersRef.current.clear();
       if (channelRef.current) void getClientSupabase()?.removeChannel(channelRef.current);
     };
-  }, []);
+  }, [isSignedIn]);
 
   const startSharing = async (source: 'camera' | 'screen') => {
     const channel = channelRef.current;
