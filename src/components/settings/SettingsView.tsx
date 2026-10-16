@@ -807,23 +807,9 @@ export const SettingsView: React.FC = () => {
                 <label className="block space-y-1.5 text-xs"><span>Emotional tone</span><select value={style.emotionalTone} onChange={(e) => updateStyle({ emotionalTone: e.target.value as typeof style.emotionalTone })} className={`ml-3 rounded-lg border px-3 py-2 ${isLight ? 'bg-white border-slate-200' : 'bg-neutral-900 border-white/10'}`}><option value="balanced">Balanced</option><option value="calm">Calm</option><option value="upbeat">Upbeat</option><option value="serious">Serious</option></select></label>
               </section>
 
-              {/* Default Model Selector */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Default Inference Model</label>
-                <select
-                  value={defaultModel}
-                  onChange={(e) => setDefaultModel(e.target.value)}
-                  className={`w-full max-w-sm px-3.5 py-2.5 rounded-xl text-xs border outline-none font-medium transition-colors ${
-                    isLight
-                      ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                      : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                  }`}
-                >
-                  <option value="Gemini 3.8 Flash">Gemini 3.8 Flash (Recommended • Fast & Multimodal)</option>
-                  <option value="GPT-4o">GPT-4o (Omni Reasoning)</option>
-                  <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet (Code & Writing)</option>
-                  <option value="Angel Core Autonomous">Angel Core Autonomous Orchestrator</option>
-                </select>
+              <div className={`rounded-2xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.03]'}`}>
+                <h3 className="text-sm font-semibold">AI provider</h3>
+                <p className="mt-1 text-xs opacity-70">The active model is selected by the server-side provider configuration. Model choices that are not connected are intentionally not offered here.</p>
               </div>
 
               {/* Language Selection */}
