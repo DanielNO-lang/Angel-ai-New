@@ -52,7 +52,7 @@ Visual Mode belongs in a chat popup with exactly two main sources: **Camera** an
 ### Cross-device boundary
 Cross-device presence can show that the same signed-in account has Angel open on another device. It does **not** grant remote camera, microphone, screen, file, or operating-system access.
 
-For actual remote visual assistance, the second device must explicitly open Angel, receive a request, approve a specific source, and grant its local browser permission. A secure WebRTC session would then need authenticated signaling, short-lived session tokens, peer connection cleanup, device-to-device consent, a visible capture indicator, and revocation. Do not send a screen/camera stream merely because another device is online. The current branch adds private same-user presence awareness; it does not yet implement remote WebRTC media relay or remote OS control.
+For actual remote visual assistance, the second device must explicitly open Angel, receive a request, approve a specific source, and grant its local browser permission. A secure WebRTC session would then need authenticated signaling, short-lived session tokens, peer connection cleanup, device-to-device consent, a visible capture indicator, and revocation. Do not send a screen/camera stream merely because another device is online. The current branch now includes private same-user presence awareness and a consent-first WebRTC camera/screen stream between signed-in Angel devices. TURN relay configuration and real two-device/network testing remain outstanding. Remote OS control is not implemented.
 
 ## Cross-device awareness and background work
 
@@ -79,6 +79,8 @@ Implemented in this branch:
 - User-directed frame questions for camera/screen analysis.
 - Explicit visual grounding instructions.
 - A private, authenticated Supabase Realtime presence channel for same-account devices, plus a small in-app notice and optional browser notification.
+- A WebRTC remote visual session panel for explicitly sharing camera/screen between signed-in devices, plus frame-specific visual questions answered by Angel.
+- A durable background-agent job queue, user-scoped status/cancellation endpoints, protected worker endpoint, and UI for queueing and tracking work.
 - Persona instructions for natural conversational behavior, emotional responsiveness, candor, grounded real-world information, visual limits, consent, and memory privacy.
 - Voice mode now reports failed/empty AI responses instead of claiming an agent pipeline was dispatched.
 - Sensitive memories remain excluded even when an agent-specific memory-type filter is applied.
@@ -86,8 +88,10 @@ Implemented in this branch:
 Still requires end-to-end verification and/or additional infrastructure:
 - Browser/device matrix testing for camera and screen capture, especially iOS and Android.
 - Supabase Realtime private-channel policy validation in the actual project.
-- Real cross-device remote camera/screen media relay over WebRTC, with approval on the sharing device.
-- Durable server-side background jobs and push notifications.
+- Apply the private Realtime and background-job migrations to the intended Supabase project.
+- Configure server-only `SUPABASE_SERVICE_ROLE_KEY` and `CRON_SECRET`, then configure an external scheduler or an eligible Vercel plan for the protected job worker. The current Vercel Hobby plan rejects per-minute cron and no daily-only schedule was added.
+- Configure a production TURN relay for reliable WebRTC across restrictive networks and test on separate physical devices.
+- Durable push notifications and remote operating-system control.
 - Provider-quality tests before claiming separate branded voice profiles or regional language quality.
 - Full automated build, typecheck, and browser E2E run on this branch.
 
