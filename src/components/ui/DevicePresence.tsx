@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MonitorSmartphone } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getClientSupabase } from '../../services/supabaseService';
+import { useAngel } from '../../context/AppContext';
 
 type PresenceMeta = { deviceId?: string; label?: string; platform?: string; lastSeen?: string };
 
@@ -17,6 +18,7 @@ function getDeviceLabel(): { label: string; platform: string } {
  * it does not grant remote camera, screen, microphone, or OS access.
  */
 export const DevicePresence: React.FC = () => {
+  const { isSignedIn } = useAngel();
   const [otherDevices, setOtherDevices] = useState<PresenceMeta[]>([]);
   const [notice, setNotice] = useState('');
   const identity = useMemo(() => {
@@ -77,7 +79,7 @@ export const DevicePresence: React.FC = () => {
       if (heartbeat) clearInterval(heartbeat);
       if (channel) void getClientSupabase()?.removeChannel(channel);
     };
-  }, [identity]);
+  }, [identity, isSignedIn]);
 
   if (!otherDevices.length && !notice) return null;
   return (
