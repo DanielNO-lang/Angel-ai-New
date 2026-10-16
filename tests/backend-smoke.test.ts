@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 
 // Prevent the standalone development listener from starting when importing server.ts.
-process.env.VERCEL = '1';
+process.env.NETLIFY = 'true';
 const { createApp } = await import('../server.ts');
 
 test('Angel backend smoke contract', async (t) => {
