@@ -38,6 +38,7 @@ export const DevicePresence: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
+    setOtherDevices([]); setNotice('');
     let channel: RealtimeChannel | null = null;
     let heartbeat: ReturnType<typeof setInterval> | undefined;
     const start = async () => {
