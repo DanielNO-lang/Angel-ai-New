@@ -1696,8 +1696,8 @@ async function startServer() {
   });
 }
 
-// Only launch standalone server if not running inside a serverless environment (e.g. Vercel)
-if (!process.env.VERCEL) {
+// Avoid starting a listening server inside Netlify Functions or another serverless host.
+if (!process.env.NETLIFY && !process.env.VERCEL) {
   startServer().catch((err) => {
     console.error('[Angel AI Server Fatal Startup Error]', err);
   });
