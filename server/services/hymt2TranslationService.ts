@@ -37,7 +37,7 @@ export class HyMT2Error extends Error {
 
 function getConfig() {
   return {
-    baseUrl: (process.env.HYMT2_API_BASE_URL || '').trim().replace(/\\/+$/, ''),
+    baseUrl: (process.env.HYMT2_API_BASE_URL || '').trim().replace(/\/+$/, ''),
     apiKey: (process.env.HYMT2_API_KEY || process.env.HF_TOKEN || '').trim(),
     model: (process.env.HYMT2_MODEL_ID || 'tencent/Hy-MT2-1.8B').trim(),
   };
