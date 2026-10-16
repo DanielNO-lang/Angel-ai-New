@@ -9,6 +9,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import crypto from 'crypto';
+import { generateWithQwenImage } from './qwenImageService';
 
 export type MediaJobStatus = 'queued' | 'processing' | 'completed' | 'failed';
 export type MediaType = 'image' | 'video' | 'document' | 'creation';
@@ -174,6 +175,31 @@ class MediaService {
   }
 
   private async executeImageGeneration(artifact: MediaArtifact, req: GenerateImageRequest): Promise<void> {
+    if (artifact.modelId.startsWith('qwen-image-2.1-')) {
+      try {
+        artifact.progress = 50;
+        artifact.updatedAt = new Date().toISOString();
+        const result = await generateWithQwenImage({
+          prompt: req.prompt,
+          negativePrompt: req.negativePrompt,
+          modelId: artifact.modelId,
+          aspectRatio: artifact.aspectRatio,
+          style: req.style,
+        });
+        artifact.url = result.url;
+        artifact.mimeType = result.mimeType;
+        artifact.modelId = result.model;
+        artifact.status = 'completed';
+        artifact.progress = 100;
+      } catch (err) {
+        artifact.status = 'failed';
+        artifact.progress = 0;
+        artifact.error = err instanceof Error ? err.message : 'Qwen Image generation failed.';
+      }
+      artifact.updatedAt = new Date().toISOString();
+      return;
+    }
+
     if (!this.hasApiKey()) {
       artifact.status = 'failed';
       artifact.progress = 0;
@@ -251,6 +277,30 @@ class MediaService {
     };
 
     this.artifacts.set(id, artifact);
+
+    if (modelId.startsWith('qwen-image-2.1-')) {
+      try {
+        const imageDataUrl = req.baseImageBase64.startsWith('data:')
+          ? req.baseImageBase64
+          : `data:${req.mimeType || 'image/png'};base64,${cleanBase64}`;
+        const result = await generateWithQwenImage({
+          prompt: req.prompt,
+          modelId,
+          imageDataUrl,
+        });
+        artifact.url = result.url;
+        artifact.mimeType = result.mimeType;
+        artifact.modelId = result.model;
+        artifact.status = 'completed';
+        artifact.progress = 100;
+      } catch (err) {
+        artifact.status = 'failed';
+        artifact.progress = 0;
+        artifact.error = err instanceof Error ? err.message : 'Qwen Image editing failed.';
+      }
+      artifact.updatedAt = new Date().toISOString();
+      return artifact;
+    }
 
     if (!this.hasApiKey()) {
       artifact.status = 'failed';

@@ -18,7 +18,7 @@ export interface ModelCapability {
 export interface ModelMetadata {
   id: string;
   name: string;
-  provider: 'gemini' | 'openai' | 'anthropic' | 'local';
+  provider: 'gemini' | 'openai' | 'anthropic' | 'local' | 'qwen';
   description: string;
   contextWindow: number;
   maxOutputTokens: number;
@@ -207,6 +207,48 @@ export const UNIVERSAL_MODEL_CATALOG: ModelMetadata[] = [
     costPer1kInput: 0.003,
     costPer1kOutput: 0.015,
     isAvailable: false, // Activated when ANTHROPIC_API_KEY is detected
+    tier: 'enterprise',
+  },
+
+  // Qwen Image 2.1 (image-only provider; requires Alibaba Cloud Model Studio configuration)
+  {
+    id: 'qwen-image-2.1-turbo',
+    name: 'Qwen Image 2.1 Turbo',
+    provider: 'qwen',
+    description: 'Fast hosted image generation and reference-image editing, including complex typography and transparent-layer workflows.',
+    contextWindow: 4500,
+    maxOutputTokens: 1,
+    capabilities: {
+      vision: true,
+      audioInput: false,
+      audioOutput: false,
+      toolCalling: false,
+      structuredOutput: false,
+      streaming: false,
+      embeddings: false,
+      thinking: false,
+    },
+    isAvailable: false,
+    tier: 'pro',
+  },
+  {
+    id: 'qwen-image-2.1-pro',
+    name: 'Qwen Image 2.1 Pro',
+    provider: 'qwen',
+    description: 'Higher-fidelity hosted image generation and editing with up to ten reference images on supported endpoints.',
+    contextWindow: 4500,
+    maxOutputTokens: 1,
+    capabilities: {
+      vision: true,
+      audioInput: false,
+      audioOutput: false,
+      toolCalling: false,
+      structuredOutput: false,
+      streaming: false,
+      embeddings: false,
+      thinking: false,
+    },
+    isAvailable: false,
     tier: 'enterprise',
   },
 

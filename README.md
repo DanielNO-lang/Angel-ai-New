@@ -17,7 +17,7 @@ Angel is a personal AI workspace and multi-agent system designed for autonomous 
 │  • Provider Abstraction (Gemini 3.8 Flash, OpenAI, Mock fallbacks)     │
 │  • 9-Step Autonomous Agent Execution Orchestrator                      │
 │  • Multi-Channel Visual Perception & ROI Processing Pipeline          │
-│  • Portable Serverless Adapter (`api/index.ts` for Vercel)             │
+│  • Netlify Functions adapter (`netlify/functions/api.ts`)             │
 │  • Automation & Webhook Dispatcher (HMAC SHA-256 signed events)        │
 └───────────────────┬────────────────────────────────┬───────────────────┘
                     │                                │
@@ -118,6 +118,14 @@ Angel exposes a dedicated translation API powered by Tencent Hy-MT2 when an Open
 - Set `HYMT2_API_BASE_URL`, `HYMT2_API_KEY` (if required), and `HYMT2_MODEL_ID` in Netlify's **server-side** environment settings. Never prefix these values with `VITE_`.
 
 See [the Hy-MT2 backend integration guide](./docs/HY-MT2-INTEGRATION.md) for setup and test examples.
+
+### Additional capability integrations
+
+Angel's source-repository capability work is documented in:
+- [Capability integration and runtime setup](./docs/ANGEL_CAPABILITY_INTEGRATIONS.md)
+- [Source repository feature map and coverage](./docs/ANGEL_CAPABILITY_SOURCE_MATRIX.md)
+
+This layer adds Qwen Image 2.1 routing, an authenticated MCP gateway and skills/resources, a remote Python sandbox bridge, and a Google ADK Python runner sample. The model and Python runtimes that require GPU resources or process isolation are external services, not code executed inside the Netlify Function. The capability status endpoint reports configuration state, not verified provider quota or successful inference.
 
 ## 4. Automation & Webhook Architecture
 

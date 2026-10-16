@@ -33,6 +33,7 @@ import {
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
 import { voiceEngine } from '../../services/voice/voiceService';
+import { routeAngelVoiceUtterance } from '../../services/voice/voiceCommandRouter';
 
 export const VoiceModeView: React.FC = () => {
   const {
@@ -131,6 +132,8 @@ export const VoiceModeView: React.FC = () => {
   }, []);
 
   const recognitionRef = useRef<any>(null);
+  const isSpeakingRef = useRef(false);
+  const finalVoiceRouteRef = useRef<(text: string) => void>(() => {});
 
   const voices = [
     'Kore (Balanced)',
@@ -268,7 +271,7 @@ export const VoiceModeView: React.FC = () => {
     return () => clearInterval(interval);
   }, [isListening, isSpeaking]);
 
-  // Web Speech API Integration
+  // Web Speech API: only finalized transcript segments may execute a command or trigger a reply.
   useEffect(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -281,30 +284,44 @@ export const VoiceModeView: React.FC = () => {
         recognition.lang = 'en-US';
 
         recognition.onresult = (event: any) => {
-          let currentTranscript = '';
+          let interimText = '';
+          let finalText = '';
           for (let i = event.resultIndex; i < event.results.length; ++i) {
-            currentTranscript += event.results[i][0].transcript;
+            const result = event.results[i];
+            const text = String(result?.[0]?.transcript || '');
+            if (result?.isFinal) finalText += text + ' ';
+            else interimText += text + ' ';
           }
-          if (currentTranscript.trim()) {
-            setTranscript(currentTranscript);
+          if (interimText.trim()) setTranscript(interimText.trim());
+          if (finalText.trim()) {
+            const finalized = finalText.trim();
+            setTranscript(finalized);
+            // Ignore Angel's own audio when it is speaking to reduce feedback loops.
+            if (!isSpeakingRef.current) finalVoiceRouteRef.current(finalized);
           }
         };
 
-        recognition.onerror = () => {
-          // Graceful fallback to simulated audio detection
+        recognition.onerror = (event: any) => {
+          // Browser speech engines vary by browser/permission. Keep the app alive and
+          // let the user see that listening may have stopped rather than executing partial speech.
+          if (event?.error === 'not-allowed' || event?.error === 'service-not-allowed') {
+            setIsListening(false);
+            setAngelResponse('Microphone access was denied. Allow microphone access in the browser, then resume listening.');
+          }
         };
 
         recognition.start();
         recognitionRef.current = recognition;
       } catch {
-        // Recognition already active or denied
+        // Recognition may already be active or browser access may have been denied.
       }
     } else if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch {
-        // Ignore
+        // Ignore.
       }
+      recognitionRef.current = null;
     }
 
     return () => {
@@ -312,8 +329,9 @@ export const VoiceModeView: React.FC = () => {
         try {
           recognitionRef.current.stop();
         } catch {
-          // Ignore
+          // Ignore.
         }
+        recognitionRef.current = null;
       }
     };
   }, [isMuted, isListening]);
@@ -325,8 +343,8 @@ export const VoiceModeView: React.FC = () => {
     await voiceEngine.speakText(
       text,
       voiceKey,
-      () => setIsSpeaking(true),
-      () => setIsSpeaking(false)
+      () => { isSpeakingRef.current = true; setIsSpeaking(true); },
+      () => { isSpeakingRef.current = false; setIsSpeaking(false); }
     );
   };
 
@@ -362,12 +380,56 @@ export const VoiceModeView: React.FC = () => {
     }
   };
 
+  const handleFinalVoiceUtterance = async (rawText: string) => {
+    const route = routeAngelVoiceUtterance(rawText);
+    if (route.kind === 'ignore') return;
+
+    if (route.kind === 'end-session') {
+      voiceEngine.stopSpeaking();
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      setIsListening(false);
+      setAngelResponse('Voice conversation ended.');
+      setActiveTab('chat');
+      return;
+    }
+
+    if (route.kind === 'control') {
+      if (route.action === 'pause-listening') setIsListening(false);
+      if (route.action === 'resume-listening') { setIsMuted(false); setIsListening(true); }
+      if (route.action === 'mute') setIsMuted(true);
+      if (route.action === 'unmute') setIsMuted(false);
+      if (route.action === 'stop-speaking') {
+        voiceEngine.stopSpeaking();
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+      }
+      return;
+    }
+
+    if (route.kind === 'navigate') {
+      if (route.newChat) createConversation();
+      setActiveTab(route.target);
+      const tabLabel = route.target.replace('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+      const response = route.newChat ? 'Starting a new chat.' : `Opening ${tabLabel}.`;
+      setAngelResponse(response);
+      if (isSpeakerOn) await speakAngelResponse(response);
+      return;
+    }
+
+    if (route.kind === 'prompt') await handleProcessUserPrompt(route.prompt);
+  };
+
+  // Keep the recognizer's stable event handler pointed at the latest React state/functions.
+  finalVoiceRouteRef.current = (text: string) => { void handleFinalVoiceUtterance(text); };
+
   const handleSimulatePrompt = (prompt: string) => {
     handleProcessUserPrompt(prompt);
   };
 
   const handleStopSpeaking = () => {
     voiceEngine.stopSpeaking();
+    isSpeakingRef.current = false;
     setIsSpeaking(false);
   };
 

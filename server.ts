@@ -2,7 +2,7 @@
  * ANGEL AI — Core Full-Stack Application Server & API Engine
  * Portable, framework-standard Express server supporting:
  *  - Standard Node.js / Docker container execution (Port 3000 or $PORT)
- *  - Vercel Serverless Function compatibility (via exported createApp / api/index.ts)
+ *  - Netlify Functions compatibility (via exported createApp / netlify/functions/api.ts)
  *  - Google Cloud Run & universal PaaS deployment
  *  - Full AI Provider & Tool Registry
  *  - Automation & Webhook Dispatch Architecture
@@ -22,6 +22,11 @@ import { intelligenceService } from './server/services/intelligenceService';
 import { readingService } from './server/services/readingService';
 import { researchService } from './server/services/researchService';
 import { getHyMT2Status, HyMT2Error, translateWithHyMT2 } from './server/services/hymt2TranslationService';
+import { getAdkBridgeStatus, AdkBridgeError, runAdkAgent } from './server/services/adkBridgeService';
+import { getPythonSandboxStatus, PythonSandboxError, executePythonSandbox } from './server/services/pythonExecutionBridge';
+import { listAngelSkills, getAngelSkill, buildAngelSkillContext } from './server/services/angelSkillsService';
+import { getAngelCapabilityCatalog } from './server/services/angelCapabilityCatalog';
+import { handleAngelMcpMessage } from './server/services/mcpGatewayService';
 import { runWorkflowExecution, approveWorkflowExecution, triggerMatchingWorkflows } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
 import { vercelService } from './server/services/vercelService';
@@ -32,7 +37,7 @@ export interface CreateAppOptions {
 
 export async function createApp(options: CreateAppOptions = {}): Promise<Express> {
   const app = express();
-  // Vercel terminates TLS at its edge; trust its immediate proxy so per-client rate limits use the real IP.
+  // Trust the hosting edge's immediate proxy hop so per-client rate limits can use the forwarded client IP.
   app.set('trust proxy', 1);
 
   app.use(express.json({ limit: '32mb' }));
@@ -189,7 +194,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       providers,
       environment: process.env.NODE_ENV || 'development',
       isServerless: Boolean(options.isServerless || process.env.VERCEL),
-      platform: process.env.VERCEL ? 'vercel' : 'node',
+      platform: process.env.NETLIFY ? 'netlify' : process.env.VERCEL ? 'vercel' : 'node',
     });
   });
 
@@ -581,6 +586,167 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // MODEL CATALOG & CAPABILITY ROUTING
   // ============================================================================
 
+  app.get('/api/integrations/capabilities', (_req: Request, res: Response) => {
+    res.json(getAngelCapabilityCatalog());
+  });
+
+  app.get('/api/agents/adk/status', (_req: Request, res: Response) => {
+    res.json(getAdkBridgeStatus());
+  });
+
+  app.post('/api/agents/adk/run', requireSupabaseUser, rateLimit(10), async (req: Request, res: Response) => {
+    const body = req.body || {};
+    if (typeof body.message !== 'string' || !body.message.trim() || body.message.length > 20000) {
+      return res.status(400).json({ error: 'message must contain 1 to 20,000 characters.' });
+    }
+    if (body.sessionId !== undefined && (typeof body.sessionId !== 'string' || body.sessionId.length > 160)) {
+      return res.status(400).json({ error: 'sessionId must be a string of no more than 160 characters.' });
+    }
+    try {
+      const auth = (req as any).angelAuth;
+      const result = await runAdkAgent({ message: body.message.trim(), sessionId: body.sessionId }, auth.userId);
+      return res.json(result);
+    } catch (error) {
+      if (error instanceof AdkBridgeError) return res.status(error.statusCode).json({ error: error.message, code: error.code });
+      console.error('[ADK bridge]', error);
+      return res.status(502).json({ error: 'Google ADK request failed.', code: 'adk_request_failed' });
+    }
+  });
+
+  app.get('/api/python/status', (_req: Request, res: Response) => {
+    res.json(getPythonSandboxStatus());
+  });
+
+  app.post('/api/python/execute', requireSupabaseUser, rateLimit(5), async (req: Request, res: Response) => {
+    const body = req.body || {};
+    if (typeof body.code !== 'string' || !body.code.trim()) {
+      return res.status(400).json({ error: 'code is required.' });
+    }
+    if (body.code.length > 20000) return res.status(413).json({ error: 'Python code must be 20,000 characters or fewer.' });
+    if (body.stdin !== undefined && (typeof body.stdin !== 'string' || body.stdin.length > 5000)) {
+      return res.status(400).json({ error: 'stdin must be a string of no more than 5,000 characters.' });
+    }
+    if (body.timeoutMs !== undefined && (!Number.isInteger(body.timeoutMs) || body.timeoutMs < 1000 || body.timeoutMs > 10000)) {
+      return res.status(400).json({ error: 'timeoutMs must be an integer between 1,000 and 10,000.' });
+    }
+    try {
+      const auth = (req as any).angelAuth;
+      const result = await executePythonSandbox({
+        code: body.code,
+        stdin: body.stdin,
+        timeoutMs: body.timeoutMs,
+      }, auth.userId);
+      return res.json({ success: true, language: 'python', ...result });
+    } catch (error) {
+      if (error instanceof PythonSandboxError) return res.status(error.statusCode).json({ error: error.message, code: error.code });
+      console.error('[Python sandbox bridge]', error);
+      return res.status(502).json({ error: 'Python execution failed.', code: 'sandbox_request_failed' });
+    }
+  });
+
+  app.get('/api/skills/catalog', requireSupabaseUser, (_req: Request, res: Response) => {
+    res.json({ skills: listAngelSkills(), count: listAngelSkills().length });
+  });
+
+  app.get('/api/skills/:id', requireSupabaseUser, (req: Request, res: Response) => {
+    const skill = getAngelSkill(String(req.params.id || ''));
+    if (!skill) return res.status(404).json({ error: 'Angel skill not found.' });
+    return res.json({ skill });
+  });
+
+  // Validate Streamable HTTP transport headers and Origin before processing MCP messages.
+  // Native clients with no Origin may connect with a Bearer token; browser origins must be allowlisted.
+  const validateMcpTransportHeaders = (req: Request, res: Response): boolean => {
+    const origin = req.headers.origin;
+    if (typeof origin === 'string' && origin.trim()) {
+      let normalizedOrigin: string;
+      try {
+        normalizedOrigin = new URL(origin).origin;
+      } catch {
+        res.status(403).json({ error: 'Invalid MCP Origin header.' });
+        return false;
+      }
+
+      const configuredOrigins = (process.env.ANGEL_MCP_ALLOWED_ORIGINS || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const allowedOrigins = new Set<string>([
+        'https://angel-ai-new.netlify.app',
+        'https://main--angel-ai-new.netlify.app',
+        ...configuredOrigins,
+      ]);
+      try {
+        if (process.env.APP_URL) allowedOrigins.add(new URL(process.env.APP_URL).origin);
+      } catch {
+        // Invalid optional APP_URL does not widen the origin allowlist.
+      }
+      if (!allowedOrigins.has(normalizedOrigin)) {
+        res.status(403).json({ error: 'MCP requests from this Origin are not allowed.' });
+        return false;
+      }
+    }
+
+    const protocolVersion = req.headers['mcp-protocol-version'];
+    const supportedVersions = ['2025-11-25', '2025-06-18', '2025-03-26'];
+    if (typeof protocolVersion === 'string' && !supportedVersions.includes(protocolVersion)) {
+      res.status(400).json({ error: 'Unsupported MCP-Protocol-Version.' });
+      return false;
+    }
+    return true;
+  };
+
+  // Stateless authenticated MCP endpoint. All operations use an allowlisted handler table.
+  app.post('/api/mcp', requireSupabaseUser, rateLimit(30), async (req: Request, res: Response) => {
+    if (!validateMcpTransportHeaders(req, res)) return;
+    if (process.env.ANGEL_MCP_ENABLED === 'false') {
+      return res.status(503).json({ error: 'Angel MCP gateway is disabled by configuration.' });
+    }
+    const auth = (req as any).angelAuth;
+    const result = await handleAngelMcpMessage(req.body, {
+      getCapabilities: getAngelCapabilityCatalog,
+      translate: async (args) => translateWithHyMT2({
+        text: String(args.text || ''),
+        sourceLanguage: typeof args.sourceLanguage === 'string' ? args.sourceLanguage : 'Auto-detect',
+        targetLanguage: String(args.targetLanguage || ''),
+        style: typeof args.style === 'string' ? args.style : undefined,
+        context: typeof args.context === 'string' ? args.context : undefined,
+      }),
+      generateImage: async (args) => {
+        const artifact = await mediaService.generateImage({
+          prompt: String(args.prompt || ''),
+          negativePrompt: typeof args.negativePrompt === 'string' ? args.negativePrompt : undefined,
+          modelId: typeof args.modelId === 'string' ? args.modelId : undefined,
+          aspectRatio: typeof args.aspectRatio === 'string' ? args.aspectRatio as any : undefined,
+          style: typeof args.style === 'string' ? args.style : undefined,
+        });
+        try {
+          if (artifact.status !== 'completed') throw new Error(artifact.error || 'Image generation failed.');
+          return await persistMediaArtifact(auth, artifact);
+        } finally {
+          mediaService.deleteArtifact(artifact.id);
+        }
+      },
+      runPython: async (args) => executePythonSandbox({
+        code: String(args.code || ''),
+        stdin: typeof args.stdin === 'string' ? args.stdin : undefined,
+        timeoutMs: typeof args.timeoutMs === 'number' ? args.timeoutMs : undefined,
+      }, auth.userId),
+      runAdk: async (args) => runAdkAgent({
+        message: String(args.message || ''),
+        sessionId: typeof args.sessionId === 'string' ? args.sessionId : undefined,
+      }, auth.userId),
+    });
+    if (result.statusCode === 202) return res.status(202).end();
+    return res.status(result.statusCode).json(result.body);
+  });
+
+  app.get('/api/mcp', (req: Request, res: Response) => {
+    if (!validateMcpTransportHeaders(req, res)) return;
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Angel MCP does not offer server-sent event streams; use authenticated POST requests with JSON-RPC.' });
+  });
+
   app.get('/api/models', (_req: Request, res: Response) => {
     res.json(providerRegistry.getModelCatalog());
   });
@@ -949,7 +1115,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         accessToken: auth?.accessToken,
         agentId,
         agentName: agentName || 'Specialized Agent',
-        systemInstructions: systemInstructions || 'You are an Angel AI specialized agent.',
+        systemInstructions: [
+          systemInstructions || 'You are an Angel AI specialized agent.',
+          buildAngelSkillContext(req.body?.skillIds),
+        ].filter(Boolean).join('\n\n'),
         taskPrompt,
         modelConfig,
         context,
@@ -1570,8 +1739,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 12000) {
       return res.status(400).json({ error: 'prompt must contain 1 to 12,000 characters.' });
     }
+    const auth = (req as any).angelAuth;
+    if (typeof req.body?.modelId === 'string' && req.body.modelId.startsWith('qwen-image-2.1-') && !auth) {
+      return res.status(401).json({ error: 'Sign in before using the hosted Qwen Image provider.' });
+    }
     try {
-      const auth = (req as any).angelAuth;
       const artifact = await mediaService.generateImage(req.body);
       const saved = auth ? await persistMediaArtifact(auth, artifact) : artifact;
       mediaService.deleteArtifact(artifact.id);
@@ -1607,8 +1779,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (baseImageBase64.length > 28_000_000 || prompt.length > 12000) {
       return res.status(413).json({ error: 'Image or prompt exceeds the supported size limit.' });
     }
+    const auth = (req as any).angelAuth;
+    if (typeof req.body?.modelId === 'string' && req.body.modelId.startsWith('qwen-image-2.1-') && !auth) {
+      return res.status(401).json({ error: 'Sign in before using the hosted Qwen Image provider.' });
+    }
     try {
-      const auth = (req as any).angelAuth;
       const artifact = await mediaService.editImage(req.body);
       const saved = auth ? await persistMediaArtifact(auth, artifact) : artifact;
       mediaService.deleteArtifact(artifact.id);

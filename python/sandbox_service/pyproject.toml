@@ -1,0 +1,13 @@
+[project]
+name = "angel-python-sandbox"
+version = "0.1.0"
+description = "Authenticated Docker-isolated Python execution service for Angel AI"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.30.0",
+  "pydantic>=2.7.0",
+]
+
+[tool.uv]
+package = false

@@ -377,6 +377,8 @@ export const MediaStudioView: React.FC = () => {
                       <option value="gemini-3.1-flash-image">gemini-3.1-flash-image (High Quality)</option>
                       <option value="gemini-3.1-flash-lite-image">gemini-3.1-flash-lite-image (Fast)</option>
                       <option value="gemini-3-pro-image">gemini-3-pro-image (Pro Fidelity)</option>
+                      <option value="qwen-image-2.1-turbo">Qwen Image 2.1 Turbo (hosted)</option>
+                      <option value="qwen-image-2.1-pro">Qwen Image 2.1 Pro (hosted)</option>
                     </select>
                   </div>
 
