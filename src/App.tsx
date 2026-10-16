@@ -63,6 +63,25 @@ const WorkspaceContent: React.FC = () => {
   } = useAngel();
   const isLight = settings.theme === 'light' || (settings.theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches);
 
+  // Lightweight, local-only performance measurements. These log observed timings without
+  // transmitting usage data or adding a third-party analytics dependency.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('performance' in window)) return;
+    const frame = window.requestAnimationFrame(() => {
+      const navigation = window.performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+      const paints = window.performance.getEntriesByType('paint');
+      const firstContentfulPaint = paints.find((entry) => entry.name === 'first-contentful-paint');
+      if (import.meta.env.DEV) {
+        console.info('[Angel performance]', {
+          domInteractiveMs: navigation ? Math.round(navigation.domInteractive) : null,
+          loadEventMs: navigation?.loadEventEnd ? Math.round(navigation.loadEventEnd) : null,
+          firstContentfulPaintMs: firstContentfulPaint ? Math.round(firstContentfulPaint.startTime) : null,
+        });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
   useEffect(() => {
     try {
       const scale = localStorage.getItem('angel_font_scale');
