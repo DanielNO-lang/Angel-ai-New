@@ -52,7 +52,7 @@ export const VoiceModeView: React.FC = () => {
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isListening, setIsListening] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState('Kore (Balanced)');
+  const [selectedVoice, setSelectedVoice] = useState('UNIQUE (Kore)');
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
@@ -133,12 +133,15 @@ export const VoiceModeView: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const voiceCommandHandlerRef = useRef<(spokenText: string) => void>(() => {});
 
+  // UNIQUE is Angel's branded default profile. Provider voice names are shown honestly;
+  // aliases are not presented as separate trained voices unless a provider supplies them.
   const voices = [
-    'Kore (Balanced)',
-    'Puck (Direct)',
-    'Charon (Deep)',
-    'Fenrir (Authoritative)',
-    'Zephyr (Gentle)',
+    'UNIQUE (Kore)',
+    'Kore (Firm)',
+    'Puck (Lively)',
+    'Charon (Informative)',
+    'Fenrir (Expressive)',
+    'Zephyr (Bright)',
   ];
 
   useEffect(() => {
@@ -357,8 +360,9 @@ export const VoiceModeView: React.FC = () => {
       setAngelResponse(response);
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: response }]);
       await speakAngelResponse(response);
-    } catch {
-      const fallback = `Autonomous agent pipeline dispatched for your command: "${prompt}".`;
+    } catch (requestError) {
+      const detail = requestError instanceof Error ? requestError.message : 'The request failed before Angel received a response.';
+      const fallback = `I couldn't get a response from the AI service just now. ${detail}`;
       setAngelResponse(fallback);
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: fallback }]);
       await speakAngelResponse(fallback);
