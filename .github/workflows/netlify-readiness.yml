@@ -22,5 +22,7 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Type-check application and backend
+        run: npm run lint
       - name: Run tests and production build
         run: npm run build
