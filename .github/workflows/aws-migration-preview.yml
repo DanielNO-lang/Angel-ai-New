@@ -1,0 +1,58 @@
+name: AWS migration preview checks
+
+on:
+  push:
+    branches:
+      - migration/aws-amplify-preview
+    paths:
+      - 'amplify.yml'
+      - 'apprunner.yaml'
+      - 'server.ts'
+      - 'server/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'vite.config.ts'
+      - '.github/workflows/aws-migration-preview.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'amplify.yml'
+      - 'apprunner.yaml'
+      - 'server.ts'
+      - 'server/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+      - 'vite.config.ts'
+      - '.github/workflows/aws-migration-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aws-migration-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Run backend smoke contract tests
+        run: npm test
+      - name: Build static Amplify frontend
+        run: npx vite build
+      - name: Verify Amplify output
+        run: |
+          test -s dist/index.html
+          test ! -e dist/server.js
+          echo "Static frontend output verified; server bundle is not published by Amplify build."
