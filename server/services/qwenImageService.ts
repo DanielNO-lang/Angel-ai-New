@@ -78,13 +78,33 @@ function normalizeBaseUrl(raw: string): string {
   return raw.replace(/\/+$/, '');
 }
 
-function imagePayload(result: any, fallbackModel: string): QwenImageResult {
+async function imagePayload(result: any, fallbackModel: string): Promise<QwenImageResult> {
   const first = Array.isArray(result?.data) ? result.data[0] : undefined;
+  const model = typeof result?.model === 'string' ? result.model : fallbackModel;
   if (typeof first?.url === 'string' && /^https:\/\//i.test(first.url)) {
-    return { url: first.url, mimeType: 'image/png', model: typeof result?.model === 'string' ? result.model : fallbackModel };
+    let imageResponse: Response;
+    try {
+      imageResponse = await fetch(first.url, { signal: AbortSignal.timeout(15_000) });
+    } catch {
+      throw new QwenImageError('Qwen Image returned a temporary image URL that Angel could not download before expiry.', 502, 'image_download_failed');
+    }
+    if (!imageResponse.ok) throw new QwenImageError('Qwen Image image download failed with HTTP ' + imageResponse.status + '.', 502, 'image_download_failed');
+    const mimeType = (imageResponse.headers.get('content-type') || 'image/png').split(';')[0].trim().toLowerCase();
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) {
+      throw new QwenImageError('Qwen Image returned an unsupported image content type.', 502, 'unsupported_image_type');
+    }
+    const declaredSize = Number(imageResponse.headers.get('content-length') || 0);
+    if (declaredSize > 20 * 1024 * 1024) throw new QwenImageError('Generated image exceeds the 20 MB artifact size limit.', 502, 'image_too_large');
+    const bytes = Buffer.from(await imageResponse.arrayBuffer());
+    if (bytes.byteLength === 0 || bytes.byteLength > 20 * 1024 * 1024) {
+      throw new QwenImageError('Generated image is empty or exceeds the 20 MB artifact size limit.', 502, 'image_too_large');
+    }
+    return { url: `data:${mimeType};base64,${bytes.toString('base64')}`, mimeType, model };
   }
   if (typeof first?.b64_json === 'string' && first.b64_json.length > 0) {
-    return { url: 'data:image/png;base64,' + first.b64_json, mimeType: 'image/png', model: typeof result?.model === 'string' ? result.model : fallbackModel };
+    const bytes = Buffer.from(first.b64_json, 'base64');
+    if (bytes.byteLength > 20 * 1024 * 1024) throw new QwenImageError('Generated image exceeds the 20 MB artifact size limit.', 502, 'image_too_large');
+    return { url: 'data:image/png;base64,' + first.b64_json, mimeType: 'image/png', model };
   }
   throw new QwenImageError('Qwen Image returned no usable image URL or image data.', 502, 'empty_provider_response');
 }
@@ -154,5 +174,5 @@ export async function generateWithQwenImage(input: QwenImageInput): Promise<Qwen
   } catch {
     throw new QwenImageError('Qwen Image returned invalid JSON.', 502, 'invalid_provider_response');
   }
-  return imagePayload(result, model);
+  return await imagePayload(result, model);
 }
