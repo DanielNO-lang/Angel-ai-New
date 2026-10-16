@@ -250,10 +250,14 @@ export const Sidebar: React.FC = () => {
         onPointerLeave={handleMouseLeaveRail}
         style={{
           width: effectiveExpanded ? 240 : 60,
-          transition: 'width 0ms linear',
+          position: isSidebarCollapsed && isHoverExpanded ? 'fixed' : 'relative',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          transition: 'width 120ms ease-out',
           willChange: 'width',
         }}
-        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-2xl ${
+        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-40 border-r backdrop-blur-2xl ${
           isLight
             ? 'border-slate-200/60 bg-white/40 text-slate-800'
             : 'border-white/10 bg-white/[0.03] text-neutral-200 shadow-2xl'
