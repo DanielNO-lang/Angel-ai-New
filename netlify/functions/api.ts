@@ -1,5 +1,5 @@
 import serverless from "serverless-http";
-import { createApp } from "../../dist/server.js";
+import { createApp } from "../../server-build/server.js";
 
 // Reuse the initialized Express app across warm invocations.
 const appHandlerPromise = createApp({ isServerless: true }).then((app) => serverless(app));
