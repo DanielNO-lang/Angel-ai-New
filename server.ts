@@ -21,6 +21,7 @@ import { voiceService } from './server/services/voiceService';
 import { intelligenceService } from './server/services/intelligenceService';
 import { readingService } from './server/services/readingService';
 import { researchService } from './server/services/researchService';
+import { getHyMT2Status, HyMT2Error, translateWithHyMT2 } from './server/services/hymt2TranslationService';
 import { runWorkflowExecution, approveWorkflowExecution, triggerMatchingWorkflows } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
 import { vercelService } from './server/services/vercelService';
@@ -537,6 +538,42 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(409).json({ error: `Execution cannot be cancelled from status "${execution.status}".` });
     } catch (err) {
       return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // ============================================================================
+  // TENCENT HY-MT2 SPECIALIST TRANSLATION API
+  // ============================================================================
+
+  app.get('/api/translation/status', (_req: Request, res: Response) => {
+    res.json(getHyMT2Status());
+  });
+
+  // Dedicated translation specialist; provider tokens remain server-side.
+  app.post('/api/translation/translate', rateLimit(10), async (req: Request, res: Response) => {
+    const body = req.body || {};
+    const text = typeof body.text === 'string' ? body.text : '';
+    const targetLanguage = typeof body.targetLanguage === 'string' ? body.targetLanguage.trim() : '';
+    const sourceLanguage = typeof body.sourceLanguage === 'string' ? body.sourceLanguage.trim() : 'Auto-detect';
+    const style = typeof body.style === 'string' ? body.style : undefined;
+    const context = typeof body.context === 'string' ? body.context : undefined;
+
+    if (!text.trim()) return res.status(400).json({ error: 'text is required.' });
+    if (text.length > 30000) return res.status(413).json({ error: 'text must be 30,000 characters or fewer per request.' });
+    if (!targetLanguage || targetLanguage.length > 80) return res.status(400).json({ error: 'targetLanguage is required and must be 80 characters or fewer.' });
+    if (!sourceLanguage || sourceLanguage.length > 80) return res.status(400).json({ error: 'sourceLanguage must be 80 characters or fewer.' });
+    if (style && style.length > 500) return res.status(400).json({ error: 'style must be 500 characters or fewer.' });
+    if (context && context.length > 2000) return res.status(400).json({ error: 'context must be 2,000 characters or fewer.' });
+
+    try {
+      const result = await translateWithHyMT2({ text, sourceLanguage, targetLanguage, style, context });
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      if (error instanceof HyMT2Error) {
+        return res.status(error.statusCode).json({ error: error.message, code: error.code, provider: 'hymt2' });
+      }
+      console.error('[Hy-MT2 Translation]', error);
+      return res.status(502).json({ error: 'Hy-MT2 translation failed.', code: 'translation_failed', provider: 'hymt2' });
     }
   });
 
