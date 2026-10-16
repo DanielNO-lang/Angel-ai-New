@@ -92,6 +92,7 @@ export const SettingsView: React.FC = () => {
     signOut,
     activeSettingsSection,
     setActiveSettingsSection,
+    setActiveTab,
     isFocusMode,
     setIsFocusMode,
     exportWorkspaceData,
@@ -334,7 +335,7 @@ export const SettingsView: React.FC = () => {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => { if (item.id === 'skills' || item.id === 'plugins') { setActiveTab(item.id); return; } setActiveSection(item.id); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-colors border ${
                 isSelected
                   ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
@@ -386,7 +387,7 @@ export const SettingsView: React.FC = () => {
                     return (
                       <button
                         key={sec.id}
-                        onClick={() => setActiveSection(sec.id)}
+                        onClick={() => { if (sec.id === 'skills' || sec.id === 'plugins') { setActiveTab(sec.id); return; } setActiveSection(sec.id); }}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                           isSelected
                             ? isLight
