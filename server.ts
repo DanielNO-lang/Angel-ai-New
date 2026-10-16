@@ -1667,7 +1667,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
 async function startServer() {
   // In AI Studio and preview environments, the dev server must always listen on port 3000.
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT || 3000);
   const app = await createApp();
 
   // ============================================================================
