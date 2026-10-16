@@ -34,7 +34,10 @@ export const RemoteVisualSessions: React.FC = () => {
 
   useEffect(() => {
     setUserId('');
+    setReady(false);
     setSession(null); sessionRef.current = null;
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
     setAvailable([]); setRemoteStream(null); setStatus('');
     deviceIdRef.current = `device-${typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2)}`;
     let active = true;
@@ -83,7 +86,7 @@ export const RemoteVisualSessions: React.FC = () => {
           localStreamRef.current.getTracks().forEach((track) => peer.addTrack(track, localStreamRef.current!));
           const offer = await peer.createOffer();
           await peer.setLocalDescription(offer);
-          await send('visual-offer', { type: 'offer', sessionId: session.id, to: p.from, sdp: offer });
+          await send('visual-offer', { type: 'offer', sessionId: activeSession.id, to: p.from, sdp: offer });
           setStatus('A signed-in device requested your stream. Your camera/screen is shared only while this session remains active.');
         })
         .on('broadcast', { event: 'visual-offer' }, async ({ payload }) => {
@@ -116,6 +119,7 @@ export const RemoteVisualSessions: React.FC = () => {
       peersRef.current.forEach((p) => p.close());
       peersRef.current.clear();
       if (channelRef.current) void getClientSupabase()?.removeChannel(channelRef.current);
+      channelRef.current = null;
     };
   }, [isSignedIn]);
 
