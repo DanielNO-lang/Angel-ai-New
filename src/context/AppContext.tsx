@@ -199,7 +199,7 @@ interface AppContextType {
 
   // Agent Executions
   executions: AgentExecutionRecord[];
-  runAgentExecution: (agentId: string, prompt: string) => Promise<AgentExecutionRecord>;
+  runAgentExecution: (agentId: string, prompt: string, skillIds?: string[]) => Promise<AgentExecutionRecord>;
 
   // Visual Mode
   visualCaptures: VisualModeCapture[];
@@ -2007,7 +2007,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Agent Lab Execution Pipeline
-  const runAgentExecution = async (agentId: string, prompt: string): Promise<AgentExecutionRecord> => {
+  const runAgentExecution = async (agentId: string, prompt: string, skillIds: string[] = []): Promise<AgentExecutionRecord> => {
     setIsAgentProcessing(true);
     const agent = agents.find((a) => a.id === agentId) || agents[0];
     const executionRecord: AgentExecutionRecord = {
@@ -2056,6 +2056,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           allowedTools: agent.tools,
           permissions: agent.permissions,
           memoryAccess: agent.memoryAccess,
+          skillIds: [...new Set(skillIds.filter((id) => typeof id === 'string'))].slice(0, 4),
         }),
       });
 
