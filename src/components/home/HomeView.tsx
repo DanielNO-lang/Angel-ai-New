@@ -78,7 +78,7 @@ export const HomeView: React.FC = () => {
           {suggestions.map((item) => {
             const Icon = item.icon;
             return <li key={item.label}>
-              <button type="button" onClick={() => setPromptText(item.prompt)} className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition hover:border-indigo-400/40 ${isLight ? 'border-slate-200 bg-white/75 hover:bg-white' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
+              <button type="button" onClick={() => { const label = item.label.toLowerCase(); if (label.includes('workflow')) { setActiveTab('automation'); return; } if (label.includes('create something')) { setActiveTab('media_studio'); return; } if (label.includes('document')) { setActiveTab('canvas'); return; } setPromptText(item.prompt); }} className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition hover:border-indigo-400/40 ${isLight ? 'border-slate-200 bg-white/75 hover:bg-white' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
                 <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-500/10 text-indigo-300'}`}><Icon className="h-3.5 w-3.5" /></span>
                 <span className="min-w-0 flex-1">
                   <span className={`block text-[12px] font-medium ${isLight ? 'text-slate-800' : 'text-neutral-100'}`}>{item.label}</span>
