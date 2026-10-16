@@ -108,6 +108,17 @@ Keep the existing Supabase project and OAuth provider callback. In Supabase **Au
 
 Do not change the provider callback URL. Add a preview URL pattern only if preview deployments need sign-in.
 
+### Hy-MT2 translation backend
+
+Angel exposes a dedicated translation API powered by Tencent Hy-MT2 when an OpenAI-compatible inference endpoint is configured. The model weights are hosted separately; the Netlify Function proxies requests to that endpoint without downloading weights into Netlify.
+
+- `GET /api/translation/status` reports the model and endpoint configuration state.
+- `POST /api/translation/translate` accepts `{ "text": "Hello", "sourceLanguage": "English", "targetLanguage": "Chinese" }` and returns the translated text.
+- Optional `style` and `context` fields guide specialist translation.
+- Set `HYMT2_API_BASE_URL`, `HYMT2_API_KEY` (if required), and `HYMT2_MODEL_ID` in Netlify's **server-side** environment settings. Never prefix these values with `VITE_`.
+
+See [the Hy-MT2 backend integration guide](./docs/HY-MT2-INTEGRATION.md) for setup and test examples.
+
 ## 4. Automation & Webhook Architecture
 
 Angel features an event-driven automation layer with cryptographic HMAC SHA-256 payload signing.
