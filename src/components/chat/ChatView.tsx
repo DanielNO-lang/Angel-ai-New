@@ -71,6 +71,7 @@ export const ChatView: React.FC = () => {
     memories,
     setActiveTab,
     settings,
+    userProfile,
     setMobileMenuOpen,
   } = useAngel();
 
@@ -510,6 +511,13 @@ export const ChatView: React.FC = () => {
                     ) : (
                       <div className="markdown-body leading-relaxed text-sm">
                         <Markdown>{message.content}</Markdown>
+                      </div>
+                    )}
+
+                    {!isUser && !message.isStreaming && message.content.startsWith('[Angel Intelligence Notice]') && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-xs" role="alert">
+                        <span className="text-amber-500">This reply failed to complete.</span>
+                        <button type="button" className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 px-2 py-1 font-semibold hover:bg-amber-500/10" onClick={() => { const failedIndex = messages.findIndex((item) => item.id === message.id); const previousUser = messages.slice(0, failedIndex).reverse().find((item) => item.role === 'user'); if (previousUser) void sendMessage(previousUser.content, previousUser.attachments); }}><RotateCcw className="h-3 w-3" /> Retry</button>
                       </div>
                     )}
 
