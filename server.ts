@@ -654,8 +654,51 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     return res.json({ skill });
   });
 
+  // Validate Streamable HTTP transport headers and Origin before processing MCP messages.
+  // Native clients with no Origin may connect with a Bearer token; browser origins must be allowlisted.
+  const validateMcpTransportHeaders = (req: Request, res: Response): boolean => {
+    const origin = req.headers.origin;
+    if (typeof origin === 'string' && origin.trim()) {
+      let normalizedOrigin: string;
+      try {
+        normalizedOrigin = new URL(origin).origin;
+      } catch {
+        res.status(403).json({ error: 'Invalid MCP Origin header.' });
+        return false;
+      }
+
+      const configuredOrigins = (process.env.ANGEL_MCP_ALLOWED_ORIGINS || '')
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const allowedOrigins = new Set<string>([
+        'https://angel-ai-new.netlify.app',
+        'https://main--angel-ai-new.netlify.app',
+        ...configuredOrigins,
+      ]);
+      try {
+        if (process.env.APP_URL) allowedOrigins.add(new URL(process.env.APP_URL).origin);
+      } catch {
+        // Invalid optional APP_URL does not widen the origin allowlist.
+      }
+      if (!allowedOrigins.has(normalizedOrigin)) {
+        res.status(403).json({ error: 'MCP requests from this Origin are not allowed.' });
+        return false;
+      }
+    }
+
+    const protocolVersion = req.headers['mcp-protocol-version'];
+    const supportedVersions = ['2025-11-25', '2025-06-18', '2025-03-26'];
+    if (typeof protocolVersion === 'string' && !supportedVersions.includes(protocolVersion)) {
+      res.status(400).json({ error: 'Unsupported MCP-Protocol-Version.' });
+      return false;
+    }
+    return true;
+  };
+
   // Stateless authenticated MCP endpoint. All operations use an allowlisted handler table.
   app.post('/api/mcp', requireSupabaseUser, rateLimit(30), async (req: Request, res: Response) => {
+    if (!validateMcpTransportHeaders(req, res)) return;
     if (process.env.ANGEL_MCP_ENABLED === 'false') {
       return res.status(503).json({ error: 'Angel MCP gateway is disabled by configuration.' });
     }
@@ -698,9 +741,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     return res.status(result.statusCode).json(result.body);
   });
 
-  app.get('/api/mcp', (_req: Request, res: Response) => {
+  app.get('/api/mcp', (req: Request, res: Response) => {
+    if (!validateMcpTransportHeaders(req, res)) return;
     res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Angel MCP uses authenticated POST requests with JSON-RPC.' });
+    return res.status(405).json({ error: 'Angel MCP does not offer server-sent event streams; use authenticated POST requests with JSON-RPC.' });
   });
 
   app.get('/api/models', (_req: Request, res: Response) => {
