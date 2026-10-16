@@ -111,7 +111,7 @@ export const RemoteVisualSessions: React.FC = () => {
           if (p.to !== deviceIdRef.current || !p.from || !p.candidate) return;
           try { await ensurePeer(p.from).addIceCandidate(p.candidate); } catch { /* stale candidate after disconnect */ }
         })
-        .subscribe((state) => { if (state === 'SUBSCRIBED' && active) { setReady(true); setStatus('Private same-account device channel connected.'); } });
+        .subscribe((state) => { if (state === 'SUBSCRIBED' && active) { setReady(true); setStatus('Private same-account device channel connected.'); } else if (state === 'CHANNEL_ERROR' || state === 'TIMED_OUT' || state === 'CLOSED') { setReady(false); setStatus('Secure device signaling is unavailable. Confirm the Supabase private-channel migration and network connection.'); } });
     }).catch(() => setStatus('Could not initialize secure device signaling.'));
     return () => {
       active = false;
@@ -122,6 +122,14 @@ export const RemoteVisualSessions: React.FC = () => {
       channelRef.current = null;
     };
   }, [isSignedIn]);
+
+  useEffect(() => {
+    if (!session || !ready || !channelRef.current) return;
+    const announce = () => channelRef.current?.send({ type: 'broadcast', event: 'visual-available', payload: { type: 'available', sessionId: session.id, source: session.source, label: session.label, from: deviceIdRef.current } });
+    void announce();
+    const interval = window.setInterval(() => { void announce(); }, 10000);
+    return () => window.clearInterval(interval);
+  }, [session, ready]);
 
   const startSharing = async (source: 'camera' | 'screen') => {
     const channel = channelRef.current;
