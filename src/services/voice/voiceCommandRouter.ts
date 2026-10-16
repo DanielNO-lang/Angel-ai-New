@@ -2,7 +2,7 @@
  * Browser-safe, intent-aware voice routing inspired by Wheelhouse's utterance-boundary model.
  * This router intentionally handles Angel workspace commands only; it never executes OS-level input.
  */
-export type AngelWorkspaceTab = 'home' | 'chat' | 'tasks' | 'memories' | 'projects' | 'settings' | 'agent-lab' | 'media-studio';
+export type AngelWorkspaceTab = 'home' | 'chat' | 'tasks' | 'memories' | 'projects' | 'settings' | 'agent_lab' | 'media_studio';
 
 export type AngelVoiceRoute =
   | { kind: 'end-session' }
@@ -20,8 +20,8 @@ const NAVIGATION: Array<[RegExp, AngelWorkspaceTab]> = [
   [/^(?:please\s+)?(?:open|go to|go|switch to|navigate to)\s+(?:the\s+)?(?:memories|memory vault)(?: page)?[.!?]*$/i, 'memories'],
   [/^(?:please\s+)?(?:open|go to|go|switch to|navigate to)\s+(?:the\s+)?projects?(?: page)?[.!?]*$/i, 'projects'],
   [/^(?:please\s+)?(?:open|go to|go|switch to|navigate to)\s+(?:the\s+)?settings?(?: page)?[.!?]*$/i, 'settings'],
-  [/^(?:please\s+)?(?:open|go to|go|switch to|navigate to)\s+(?:the\s+)?(?:agent lab|agents)(?: page)?[.!?]*$/i, 'agent-lab'],
-  [/^(?:please\s+)?(?:open|go to|go|switch to|navigate to)\s+(?:the\s+)?(?:media studio|media)[.!?]*$/i, 'media-studio'],
+  [/^(?:please\s+)?(?:open|go to|go|switch to|navigate to)\s+(?:the\s+)?(?:agent lab|agents)(?: page)?[.!?]*$/i, 'agent_lab'],
+  [/^(?:please\s+)?(?:open|go to|go|switch to|navigate to)\s+(?:the\s+)?(?:media studio|media)[.!?]*$/i, 'media_studio'],
 ];
 
 export function routeAngelVoiceUtterance(raw: string): AngelVoiceRoute {
@@ -32,6 +32,9 @@ export function routeAngelVoiceUtterance(raw: string): AngelVoiceRoute {
   // Remove an optional natural greeting/address at utterance start but preserve the request.
   text = text.replace(/^(?:(?:hey|hello|hi|okay|ok)[,\s]+)?angel\b[\s,.:;-]*/i, '').trim();
   if (!text) return { kind: 'ignore' };
+  // Apply ending intent after removing the wake/address prefix, but still require
+  // a standalone farewell rather than a keyword embedded in a longer sentence.
+  if (END_SESSION.test(text)) return { kind: 'end-session' };
 
   if (/^(?:pause listening|pause voice|stop listening)[.!?]*$/i.test(text)) {
     return { kind: 'control', action: 'pause-listening' };
