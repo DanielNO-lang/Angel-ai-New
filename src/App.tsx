@@ -61,7 +61,7 @@ const WorkspaceContent: React.FC = () => {
     isFocusMode,
     toggleFocusMode,
   } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = settings.theme === 'light' || (settings.theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches);
 
   useEffect(() => {
     try {
@@ -297,7 +297,7 @@ const WorkspaceContent: React.FC = () => {
   return (
     <div
       className={`relative flex h-[100dvh] min-h-[100dvh] overflow-hidden font-sans antialiased selection:bg-indigo-600/30 selection:text-white transition-colors duration-500 ease-in-out ${
-        settings.theme === 'light'
+        isLight
           ? 'light text-slate-900 bg-transparent'
           : settings.theme === 'midnight'
           ? 'midnight dark text-white bg-transparent'
