@@ -67,6 +67,8 @@ export type SettingsSubSection =
   | 'privacy'
   | 'notifications'
   | 'connections'
+  | 'skills'
+  | 'plugins'
   | 'security';
 
 interface NavItem {
