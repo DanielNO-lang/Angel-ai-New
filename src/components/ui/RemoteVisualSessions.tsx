@@ -127,6 +127,7 @@ export const RemoteVisualSessions: React.FC = () => {
     const channel = channelRef.current;
     if (!channel || !ready || !userId) { setStatus('Sign in and wait for the secure device channel to connect first.'); return; }
     try {
+      if (sessionRef.current) await stopSharing();
       if (source === 'screen' && (!window.isSecureContext || !navigator.mediaDevices?.getDisplayMedia)) throw new Error('This browser does not support screen capture. Try the desktop browser or share a screenshot in chat.');
       if (source === 'camera' && !navigator.mediaDevices?.getUserMedia) throw new Error('Camera capture is not supported in this browser.');
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -200,8 +201,8 @@ export const RemoteVisualSessions: React.FC = () => {
         <div className="space-y-3 border-t border-white/10 p-3">
           <p className="text-xs leading-relaxed text-white/65"><ShieldCheck className="mr-1 inline h-3.5 w-3.5"/>Private to your signed-in account. Sharing always requires permission on the device providing the camera or screen.</p>
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => void startSharing('camera')} className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 px-2 py-2 text-xs hover:bg-white/10"><Camera className="h-3.5 w-3.5"/>Share camera</button>
-            <button onClick={() => void startSharing('screen')} className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 px-2 py-2 text-xs hover:bg-white/10"><MonitorUp className="h-3.5 w-3.5"/>Share screen</button>
+            <button disabled={!!session} onClick={() => void startSharing('camera')} className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 px-2 py-2 text-xs hover:bg-white/10 disabled:opacity-40"><Camera className="h-3.5 w-3.5"/>Share camera</button>
+            <button disabled={!!session} onClick={() => void startSharing('screen')} className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 px-2 py-2 text-xs hover:bg-white/10 disabled:opacity-40"><MonitorUp className="h-3.5 w-3.5"/>Share screen</button>
           </div>
           {session && <button onClick={() => void stopSharing()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold"><PhoneOff className="h-3.5 w-3.5"/>Stop remote sharing</button>}
           {available.length > 0 && <div className="space-y-2"><p className="text-xs font-semibold">Available from your other devices</p>{available.map((item) => <div key={item.id} className="flex items-center gap-2 rounded-xl bg-white/5 p-2"><Radio className="h-4 w-4 text-emerald-300"/><div className="min-w-0 flex-1"><p className="truncate text-xs">{item.label}</p><p className="text-[11px] opacity-60">{item.source === 'camera' ? 'Camera' : 'Screen'}</p></div><button onClick={() => void connect(item)} className="rounded-lg bg-indigo-500 px-2 py-1.5 text-xs">Connect</button></div>)}</div>}
