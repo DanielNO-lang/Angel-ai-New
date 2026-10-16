@@ -104,6 +104,8 @@ export const SettingsView: React.FC = () => {
   const activeSection = activeSettingsSection;
   const setActiveSection = setActiveSettingsSection;
   const [isSaved, setIsSaved] = useState(false);
+  const style = settings.conversationalStyle || { warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced' as const };
+  const updateStyle = (updates: Partial<typeof style>) => updateSettings({ conversationalStyle: { ...style, ...updates } });
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   // Profile form states
@@ -129,9 +131,6 @@ export const SettingsView: React.FC = () => {
     try { localStorage.setItem('angel_font_scale', fontScale); } catch {}
   }, [fontScale]);
 
-  useEffect(() => {
-    if (activeSection === 'visual' || activeSection === 'privacy') setActiveSection('account');
-  }, [activeSection, setActiveSection]);
   const [animationEffects, setAnimationEffects] = useState(true);
   const [uiDensity, setUiDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [soundEffects, setSoundEffects] = useState(true);
@@ -219,16 +218,24 @@ export const SettingsView: React.FC = () => {
           description: 'TTS synthesis & voice models',
         },
         {
+          id: 'visual',
+          label: 'Visual Mode',
+          icon: Eye,
+          description: 'Camera and screen sharing permissions',
+        },
+        {
           id: 'memory',
-          label: 'Memory Vault',
+          label: 'Private Memory',
           icon: Brain,
-          description: 'Context retention & episodic recall',
+          description: 'Review and control remembered information',
         },
       ],
     },
     {
-      category: 'Security & System',
+      category: 'Connections & Extensions',
       items: [
+        { id: 'skills', label: 'Skills', icon: Flame, description: 'Manage available capabilities' },
+        { id: 'plugins', label: 'Plugins', icon: LayoutGrid, description: 'Review installed extensions and permissions' },
         {
           id: 'notifications',
           label: 'Notifications',
@@ -790,6 +797,12 @@ export const SettingsView: React.FC = () => {
                   Model inference intelligence, prompt composer behavior, keyboard dispatching, and localization.
                 </p>
               </div>
+
+              <section className={`rounded-2xl border p-4 space-y-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.03]'}`}>
+                <div><h3 className="text-sm font-semibold">Conversational behavior</h3><p className="mt-1 text-xs opacity-70">Adjust how Angel communicates without changing her core identity.</p></div>
+                {([['warmth','Warmth'],['humor','Humor'],['directness','Directness'],['empathy','Empathy']] as const).map(([key,label]) => <label key={key} className="block space-y-1.5"><span className="flex justify-between text-xs"><span>{label}</span><span>{style[key]}%</span></span><input type="range" min={0} max={100} step={5} value={style[key]} onChange={(e) => updateStyle({ [key]: Number(e.target.value) })} className="w-full accent-indigo-500" /></label>)}
+                <label className="block space-y-1.5 text-xs"><span>Emotional tone</span><select value={style.emotionalTone} onChange={(e) => updateStyle({ emotionalTone: e.target.value as typeof style.emotionalTone })} className={`ml-3 rounded-lg border px-3 py-2 ${isLight ? 'bg-white border-slate-200' : 'bg-neutral-900 border-white/10'}`}><option value="balanced">Balanced</option><option value="calm">Calm</option><option value="upbeat">Upbeat</option><option value="serious">Serious</option></select></label>
+              </section>
 
               {/* Default Model Selector */}
               <div className="space-y-2">
