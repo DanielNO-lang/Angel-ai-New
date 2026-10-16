@@ -55,6 +55,23 @@ Use the existing `.env.example` as the variable-name inventory. Set values only 
 
 Do not create replacement Supabase credentials or change the existing Supabase project as part of the hosting migration. Verify the current project's Auth redirect URLs and Google OAuth settings separately after the preview hostname exists.
 
+## 4A. Where to obtain each value
+
+- `GEMINI_API_KEY`: Google AI Studio → **Get API key**. Create/use a key in the Google account that owns the Gemini project and check that API access/billing is enabled.
+- `OPENAI_API_KEY` (optional): OpenAI Platform → **API keys**. Only add it if you want the OpenAI provider fallback.
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`: Supabase Dashboard → the existing Angel project → **Project Settings → API** (the labels may show publishable/secret keys in newer projects). The publishable/anon key is browser-safe; the service-role/secret key is privileged and server-only.
+- `GITHUB_TOKEN` (optional): GitHub → **Settings → Developer settings → Personal access tokens**. Use the minimum repository permissions required for the specific integration features.
+- `OUTBOUND_WEBHOOK_URL` (optional): copy it from the trigger/catch-hook page of the automation service you actually use. Do not guess a webhook URL.
+- `WEBHOOK_SECRET` and `ZAPIER_WEBHOOK_SECRET`: create strong random values in a password manager or secrets manager, then use the same secret on the corresponding sender/receiver. Never commit these values.
+- `ADMIN_EMAILS`: enter the exact account email(s) that should be allowed to use admin-only integrations, separated by commas.
+- `WEBHOOK_CALLBACK_ALLOWLIST`: enter only the exact callback hostnames you intentionally trust, separated by commas. Do not use broad wildcards.
+
+Do not paste private API keys into this chat or commit them to the repository. Enter them directly in the AWS console's secrets/environment configuration. If a key has already been exposed publicly, revoke it and create a replacement.
+
+## Cost and usage guardrail
+
+The reported AWS credit balance is the user's dashboard figure, not an independently verified balance. App Runner can accrue ongoing charges while the service is running, and Amplify builds/hosting may also consume usage. Review the estimated costs and billing alert thresholds in AWS before creating or leaving services running. Stop or delete preview resources when testing is complete if they are no longer needed.
+
 ## 5. Route frontend API requests to App Runner
 
 After App Runner health check passes, open **Amplify → App settings → Rewrites and redirects** and add an API rewrite above the SPA fallback:
