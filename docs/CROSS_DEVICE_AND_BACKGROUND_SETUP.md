@@ -18,7 +18,7 @@ The server needs:
 - `SUPABASE_SERVICE_ROLE_KEY` as a server-only secret
 - `CRON_SECRET` as a long, random server-only secret
 
-The scheduled endpoint is `/api/jobs/worker`, configured to run once per minute. Vercel cron requests use GET; the endpoint accepts GET and POST but rejects requests without the bearer value matching `CRON_SECRET`. Confirm the selected Vercel plan supports cron and that the secret is configured in the target environment. Never expose `CRON_SECRET` or the service-role key to the browser.
+The protected worker endpoint is `/api/jobs/worker`. It accepts GET and POST but rejects requests without the bearer value matching `CRON_SECRET`. The connected Vercel Hobby account rejected a once-per-minute cron schedule because Hobby permits only daily cron jobs. Therefore this branch intentionally does not configure a misleading daily schedule. To run jobs automatically, configure an external scheduler (or upgrade the Vercel plan) to call this endpoint every minute with `Authorization: Bearer <CRON_SECRET>`. Never expose `CRON_SECRET` or the service-role key to the browser.
 
 ## 3. Background job API
 
@@ -27,7 +27,7 @@ The scheduled endpoint is `/api/jobs/worker`, configured to run once per minute.
 - `POST /api/jobs/:id/cancel` cancels only a job that is still queued.
 - `GET /api/jobs/worker` claims up to three queued jobs and executes them. It requires the cron secret.
 
-Jobs are not scheduled to execute until the migration is applied and the server environment is configured. The worker currently runs an agent pipeline without memory access or enabled tools by default. This is deliberate: a queued task cannot silently inherit broad account access.
+Jobs are not scheduled to execute until the migration is applied, the server environment is configured, and a scheduler is configured. Without an external scheduler or a suitable Vercel plan, jobs remain queued. The worker currently runs an agent pipeline without memory access or enabled tools by default. This is deliberate: a queued task cannot silently inherit broad account access.
 
 ## 4. Remote camera/screen
 
