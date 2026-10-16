@@ -1,13 +1,13 @@
 # Angel AI Backend Implementation Roadmap
 
-Last updated: 2026-10-12
+Last updated: 2026-10-16
 
 This document tracks backend behavior in the `Angel-ai-New` repository. A route or service is only considered complete after a real request and its persistence side effects have been verified.
 
 ## Architecture
 
 - **Frontend:** React/PWA, local-first workspace and offline mutation queue.
-- **API runtime:** Express server bundled as native ESM for Vercel serverless execution.
+- **API runtime:** Express server bundled as native ESM and hosted through Netlify Functions (`netlify/functions/api.ts`).
 - **Identity and persistence:** Supabase Auth + Postgres RLS. User-facing data access uses the caller's Supabase JWT, not the service-role key.
 - **AI providers:** provider registry and capability/model catalog; Gemini is the configured primary. OpenAI-compatible provider is available when configured.
 - **Agent execution:** orchestration pipeline with execution records, context retrieval, permission-aware task/memory tools and execution logs.
@@ -17,7 +17,7 @@ This document tracks backend behavior in the `Angel-ai-New` repository. A route 
 ## Implemented in code
 
 ### Runtime and reliability
-- Vercel API entry imports the generated ESM server bundle.
+- Netlify's API Function imports the generated ESM server bundle from `server-build/`.
 - Vite is dynamically imported only by the standalone development server, avoiding production cold-start loading of development bindings.
 - Health, provider, model and integration status endpoints are available.
 - Per-instance rate limits are applied to authentication, AI, agent, media, voice and automation endpoints.
@@ -76,8 +76,19 @@ This document tracks backend behavior in the `Angel-ai-New` repository. A route 
 11. **Integration credentials:** configure and test the user's chosen GitHub, Vercel and outbound webhook credentials; current status endpoints must be rechecked after configuration.
 12. **Security hardening:** review every API route for authentication, ownership, input limits, SSRF, secret exposure and error redaction.
 
+## Capability integrations added from source-repository research
+
+- Qwen Image 2.1: server-only hosted inference adapter and Media Studio model selection; outputs are downloaded immediately for authenticated artifact persistence.
+- Python: authenticated remote-execution bridge. Angel's Netlify function never evaluates submitted Python directly.
+- Google ADK: separate FastAPI/Python runtime sample and authenticated Angel API bridge. The sample uses in-memory sessions until a persistent ADK SessionService is configured.
+- MCP: authenticated JSON-RPC gateway with capability/skill resources, a narrow tool allowlist, schema validation, request-size limits, and origin/protocol-version validation.
+- Skills: curated, Angel-authored code review, test-first debugging, Python, MCP, ADK, translation, image, voice-accessibility, reverse-engineering and model-serving instruction packs. At most four selected packs are attached to one backend agent execution.
+- Model optimization / GPU Operator: documented external GPU build and serving path; neither component is falsely treated as a Netlify request-time dependency.
+- Voice: finalized-transcript routing for Angel workspace navigation and controls, with standalone farewell detection. This does not grant a browser global desktop input access.
+
 ## Verification record
 
-- The tested Vercel deployment returned HTTP 200 for `/api/health`, `/api/ai/providers`, `/api/integrations/status` and `/api/models`.
-- At that check, Supabase and Gemini were detected as configured; OpenAI, GitHub and outbound webhook integrations reported as unconfigured.
-- A successful health check proves the API runtime boots. It does **not** prove that model generation, stream transport, workflow execution or cloud sync passes end-to-end tests.
+- The repository includes backend smoke tests for the core API, Hy-MT2's mocked upstream contract, capability discovery, unauthenticated access control, voice-intent boundaries, skill selection limits, and MCP schema validation.
+- GitHub Actions must pass after the current feature branch is opened as a pull request before the work is treated as build-verified.
+- Capability/configuration status is not proof of live model inference. Real Qwen/Hy-MT2 calls require provider credentials; Python requires an independently deployed sandbox; ADK requires its own deployed Python service.
+- Netlify remains Angel's hosting target. The optional Vercel integration API is not a hosting/deployment path for this work.
