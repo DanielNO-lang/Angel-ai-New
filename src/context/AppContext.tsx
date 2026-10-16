@@ -498,6 +498,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       fontSize: 'sm', // Reduced by one size per user specification
       compactMode: false,
       focusMode: false,
+      conversationalStyle: { warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced' },
       personality: {
         tone: 'balanced',
         verbosity: 'balanced',
@@ -1490,10 +1491,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const currentConv = conversations.find((c) => c.id === targetConvId);
       const convProjectId = currentConv?.projectId || activeProjectId || undefined;
 
+      const style = settings.conversationalStyle || { warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced' as const };
+      const deliveryGuide = [
+        'ANGEL DELIVERY PREFERENCES (adapt delivery, never replace Angel’s stable identity):',
+        `Warmth: ${style.warmth}/100. Humor: ${style.humor}/100. Directness: ${style.directness}/100. Empathy: ${style.empathy}/100. Emotional tone: ${style.emotionalTone}.`,
+        'Be truthful, grounded, and clear. Do not invent lived experience or claim actions that did not happen. Preserve Angel’s stable personality and adapt only the delivery.',
+      ].join(' ');
+      const styledAgent = { ...agent, systemInstructions: [agent?.systemInstructions, deliveryGuide].filter(Boolean).join('\n\n') };
+
       await conversationService.sendMessage({
         conversationId: targetConvId,
         prompt: content,
-        agent,
+        agent: styledAgent,
         conversationHistory: convHistory,
         contextState: {
           memories,
