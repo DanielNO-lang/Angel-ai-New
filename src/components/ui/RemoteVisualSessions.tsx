@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Camera, MonitorUp, MonitorSmartphone, PhoneOff, Radio, ShieldCheck } from 'lucide-react';
+import { Camera, LoaderCircle, MonitorUp, MonitorSmartphone, PhoneOff, Radio, ShieldCheck } from 'lucide-react';
 import { getClientSupabase } from '../../services/supabaseService';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useAngel } from '../../context/AppContext';
