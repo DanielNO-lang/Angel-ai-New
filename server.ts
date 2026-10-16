@@ -813,7 +813,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     return res.json({ job: data });
   });
 
-  app.post('/api/jobs/worker', async (req: Request, res: Response) => {
+  app.all('/api/jobs/worker', async (req: Request, res: Response) => {
     const expected = process.env.CRON_SECRET || '';
     const presented = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
       ? req.headers.authorization.slice(7).trim()
