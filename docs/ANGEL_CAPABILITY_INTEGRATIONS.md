@@ -84,7 +84,7 @@ Response:
 {"stdout":"2\n","stderr":"","exitCode":0,"durationMs":12}
 ```
 
-The sandbox must enforce these limits independently. Do not point this integration at an ordinary machine or endpoint that executes arbitrary code in its main process.
+The repository includes a reference implementation at [python/sandbox_service/README.md](../python/sandbox_service/README.md). It must be deployed separately on a dedicated Linux VM with Docker Engine and the Python image pre-pulled. This service creates one no-network, resource-limited container per snippet. The Netlify function remains only the authenticated proxy. Do not point this integration at an ordinary machine or endpoint that executes arbitrary code in its main process.
 
 ## 5. Authenticated MCP endpoint
 
