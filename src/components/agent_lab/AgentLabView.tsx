@@ -8,7 +8,7 @@
  * - Zero AI features: pure reliable automated task runners, cron workers, and pipeline orchestrators.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Activity,
   ArrowRight,
@@ -73,6 +73,8 @@ export const AgentLabView: React.FC = () => {
     executions,
     runAgentExecution,
     settings,
+    sessionToken,
+    isSignedIn,
     createWorkflow,
     setMobileMenuOpen,
   } = useAngel();
@@ -91,10 +93,48 @@ export const AgentLabView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'draft'>('all');
 
-  // Execution State
+  // Real backend execution inputs and allowlisted reusable skill packs.
   const [isRunningPipeline, setIsRunningPipeline] = useState(false);
   const [activeStageIndex, setActiveStageIndex] = useState<number>(-1);
   const [executionLogs, setExecutionLogs] = useState<Array<{ stage: string; time: string; msg: string }>>([]);
+  const [runPrompt, setRunPrompt] = useState('');
+  const [backendSkillPacks, setBackendSkillPacks] = useState<Array<{ id: string; name: string; category: string; description: string }>>([]);
+  const [selectedSkillPackIds, setSelectedSkillPackIds] = useState<string[]>(['test-first-debugging']);
+  const [isLoadingSkillPacks, setIsLoadingSkillPacks] = useState(false);
+  const [skillPackNotice, setSkillPackNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isSignedIn || !sessionToken) {
+      setBackendSkillPacks([]);
+      setSkillPackNotice('Sign in to load and attach backend skill packs.');
+      return () => { cancelled = true; };
+    }
+
+    setIsLoadingSkillPacks(true);
+    setSkillPackNotice(null);
+    fetch('/api/skills/catalog', {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(response.status === 401 ? 'Your session needs to be refreshed.' : `HTTP ${response.status}`);
+        return await response.json() as { skills?: Array<{ id: string; name: string; category: string; description: string }> };
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        const packs = Array.isArray(payload.skills) ? payload.skills : [];
+        setBackendSkillPacks(packs);
+        setSelectedSkillPackIds((previous) => previous.filter((id) => packs.some((pack) => pack.id === id)).slice(0, 4));
+      })
+      .catch((error) => {
+        if (!cancelled) setSkillPackNotice(error instanceof Error ? error.message : 'Could not load backend skill packs.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingSkillPacks(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [isSignedIn, sessionToken]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -187,16 +227,13 @@ export const AgentLabView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  // Trigger Deterministic 9-Stage Pipeline Run
+  // Dispatch a real, authenticated backend agent execution instead of simulating stage completion.
   const handleRunPipeline = async () => {
-    if (!activeAgent || isRunningPipeline) return;
+    if (!activeAgent || isRunningPipeline || !runPrompt.trim()) return;
 
     setIsRunningPipeline(true);
     setActiveStageIndex(0);
     setExecutionLogs([]);
-
-    const now = new Date();
-    const startTime = now.toLocaleTimeString();
 
     const addLog = (stage: string, msg: string) => {
       setExecutionLogs((prev) => [
@@ -205,17 +242,31 @@ export const AgentLabView: React.FC = () => {
       ]);
     };
 
-    addLog('1. Trigger Ingestion', `Worker [${activeAgent.name}] received pipeline execution trigger.`);
+    const selectedPacks = selectedSkillPackIds.slice(0, 4);
+    addLog('requested', `Submitting the task to Angel's backend agent: ${activeAgent.name}.`);
+    addLog('skill_context', selectedPacks.length
+      ? `Attaching ${selectedPacks.length} curated skill pack(s): ${selectedPacks.join(', ')}.`
+      : 'No additional skill packs selected.');
 
-    for (let i = 0; i < PIPELINE_STAGES.length; i++) {
-      setActiveStageIndex(i);
-      const stage = PIPELINE_STAGES[i];
-      addLog(stage.label, `Executed ${stage.desc.toLowerCase()}`);
-      await new Promise((res) => setTimeout(res, 320));
+    try {
+      const result = await runAgentExecution(activeAgent.id, runPrompt.trim(), selectedPacks);
+      (result.logs || []).forEach((entry) => {
+        addLog(entry.stage || 'execution', entry.message || 'Backend execution event received.');
+      });
+
+      if (result.status === 'failed') {
+        setActiveStageIndex(-1);
+        addLog('failed', result.error || 'Backend agent execution failed.');
+      } else {
+        setActiveStageIndex(8);
+        addLog('completed', result.result || `Backend execution finished with status: ${result.status}.`);
+      }
+    } catch (error) {
+      setActiveStageIndex(-1);
+      addLog('failed', error instanceof Error ? error.message : 'Backend agent execution failed.');
+    } finally {
+      setIsRunningPipeline(false);
     }
-
-    addLog('9. Finalized', `Pipeline completed successfully for [${activeAgent.name}] in 2.88s.`);
-    setIsRunningPipeline(false);
   };
 
   // Import pre-built template from Workflow Library
@@ -465,11 +516,11 @@ export const AgentLabView: React.FC = () => {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={handleRunPipeline}
-                      disabled={isRunningPipeline}
+                      disabled={isRunningPipeline || !runPrompt.trim()}
                       className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
                     >
                       <Play className={`w-3.5 h-3.5 ${isRunningPipeline ? 'animate-spin' : ''}`} />
-                      <span>{isRunningPipeline ? 'Executing...' : 'Run Pipeline Now'}</span>
+                      <span>{isRunningPipeline ? 'Running backend...' : 'Run Backend Agent'}</span>
                     </button>
 
                     <button
@@ -523,6 +574,79 @@ export const AgentLabView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Backend task and curated-skill selection */}
+              <div className={`p-5 rounded-2xl border space-y-4 shadow-2xs ${
+                isLight ? 'bg-white border-slate-200/90 text-slate-800' : 'bg-[#121620] border-white/5 text-neutral-100'
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold tracking-tight">Backend task directive</h3>
+                    <p className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                      This submits a real request to Angel's backend orchestrator. It is not a simulated progress animation.
+                    </p>
+                  </div>
+                  <span className="text-[10px] opacity-60">{selectedSkillPackIds.length}/4 skill packs</span>
+                </div>
+
+                <textarea
+                  value={runPrompt}
+                  onChange={(event) => setRunPrompt(event.target.value)}
+                  rows={3}
+                  maxLength={20000}
+                  placeholder="Describe the task this worker should execute and what a successful result looks like..."
+                  className={`w-full resize-y rounded-xl border px-3 py-2.5 text-xs outline-none focus:border-indigo-500 ${
+                    isLight ? 'bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400' : 'bg-[#0E121B] border-white/10 text-neutral-100 placeholder-neutral-500'
+                  }`}
+                />
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide opacity-70">Curated backend skills</span>
+                    {isLoadingSkillPacks && <span className="text-[10px] opacity-60">Loading...</span>}
+                  </div>
+                  {backendSkillPacks.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {backendSkillPacks.map((skill) => {
+                        const checked = selectedSkillPackIds.includes(skill.id);
+                        const disabled = !checked && selectedSkillPackIds.length >= 4;
+                        return (
+                          <label
+                            key={skill.id}
+                            className={`flex items-start gap-2.5 rounded-xl border p-2.5 cursor-pointer transition-colors ${
+                              disabled ? 'opacity-40 cursor-not-allowed' : ''
+                            } ${isLight ? 'border-slate-200 hover:bg-slate-50' : 'border-white/10 hover:bg-white/5'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={disabled}
+                              onChange={() => setSelectedSkillPackIds((previous) =>
+                                checked ? previous.filter((id) => id !== skill.id) : previous.length < 4 ? [...previous, skill.id] : previous
+                              )}
+                              className="mt-0.5 accent-indigo-600"
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-xs font-semibold">{skill.name}</span>
+                              <span className="block text-[10px] uppercase tracking-wide opacity-50 mt-0.5">{skill.category}</span>
+                              <span className="block text-[11px] opacity-70 mt-1">{skill.description}</span>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className={`text-[11px] rounded-xl border p-3 ${
+                      isLight ? 'border-slate-200 text-slate-500 bg-slate-50' : 'border-white/10 text-neutral-400 bg-white/[0.02]'
+                    }`}>
+                      {skillPackNotice || (isLoadingSkillPacks ? 'Retrieving the backend skill catalog.' : 'No backend skill packs are available in this session.')}
+                    </p>
+                  )}
+                  {skillPackNotice && backendSkillPacks.length > 0 && (
+                    <p className="text-[10px] text-amber-500">{skillPackNotice}</p>
+                  )}
+                </div>
+              </div>
+
               {/* 2. 9-Stage Execution Pipeline Stepper Card */}
               <div
                 className={`p-5 rounded-2xl border space-y-4 shadow-2xs ${
@@ -540,7 +664,7 @@ export const AgentLabView: React.FC = () => {
                   </div>
                   {isRunningPipeline && (
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold animate-pulse">
-                      Running Stage {activeStageIndex + 1} of 9...
+                      Backend execution running...
                     </span>
                   )}
                 </div>
