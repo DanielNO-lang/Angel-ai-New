@@ -38,13 +38,13 @@ Migration branch: `migration/aws-amplify-preview`
 
 ### Chat reliability, authentication and data
 - **Implemented in code:** server routes for provider/model status, chat/streaming, Supabase-authenticated cloud data, conversations/messages, workflows, reading, voice, media and webhooks.
-- **Changed on this migration branch:** media-artifact listing now requires a verified Supabase user instead of returning an anonymous empty result. This aligns private media access with the existing backend smoke-test contract.
-- **Automated-tested:** awaiting the current GitHub Actions run. Earlier test execution found the anonymous media-artifact listing returned HTTP 200 where the security contract expected HTTP 401; the route has been corrected, but the corrected run must pass before this can be marked tested.
+- **Changed on this migration branch:** media-artifact listing now requires a verified Supabase user instead of returning an anonymous empty result. This aligns private media access with the existing backend smoke-test contract. The automated test passed after this correction.
+- **Automated-tested:** PASS. Earlier test execution found the anonymous media-artifact listing returned HTTP 200 where the security contract expected HTTP 401; the route was corrected and the backend smoke test subsequently passed.
 - **Awaiting configuration:** valid Supabase environment values, AI provider keys, webhook values where used, and verified Auth redirect URLs for the new preview host.
 
 ### AWS hosting migration
 - **Implemented in code/config:** `amplify.yml` for a static Vite/PWA build, `apprunner.yaml` for the Express API service, Node.js 22 runtime alignment, a managed-runtime `PORT` fix, and a non-deploying GitHub Actions validation workflow.
-- **Automated-tested:** current validation run is linked from the repository Actions page; do not mark the build/test gate as passed until the run concludes successfully.
+- **Automated-tested:** PASS on commit `eb546337a805181d29a59c42dcc60a1b6ec06145`: backend smoke contract test passed, static Vite build passed, and the artifact check confirmed `dist/index.html` exists while `dist/server.js` is not published by the frontend build. The same source/config files are present in the current branch; the latest commit after that pass only updates documentation.
 - **Awaiting configuration:** create the new Amplify app and App Runner service from the AWS Console, connect both to `migration/aws-amplify-preview`, add environment variables/secrets, configure Amplify API rewrite to the actual App Runner HTTPS hostname, and verify health/auth/AI/data flows.
 - **Production:** untouched. Do not merge to `main` or promote a production deploy without explicit authorization.
 
