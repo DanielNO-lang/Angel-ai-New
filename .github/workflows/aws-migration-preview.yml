@@ -7,6 +7,8 @@ on:
     paths:
       - 'amplify.yml'
       - 'apprunner.yaml'
+      - 'Dockerfile'
+      - 'buildspec.aws-ecr.yml'
       - 'server.ts'
       - 'server/**'
       - 'src/**'
@@ -20,6 +22,8 @@ on:
     paths:
       - 'amplify.yml'
       - 'apprunner.yaml'
+      - 'Dockerfile'
+      - 'buildspec.aws-ecr.yml'
       - 'server.ts'
       - 'server/**'
       - 'src/**'
@@ -38,7 +42,7 @@ concurrency:
 jobs:
   validate-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,3 +59,5 @@ jobs:
           test -s dist/index.html
           test ! -e dist/server.js
           echo "Static frontend output verified; server bundle is not published by Amplify build."
+      - name: Build ECS API container
+        run: docker build --tag angel-ai-api-preview:ci .
