@@ -127,6 +127,17 @@ export async function generateWithQwenImage(input: QwenImageInput): Promise<Qwen
 
   const prompt = [input.prompt.trim(), input.style?.trim() ? 'Style: ' + input.style.trim() : '']
     .filter(Boolean).join('\n\n');
+  if (input.imageDataUrl) {
+    const match = input.imageDataUrl.match(/^data:[^;]+;base64,([\\s\\S]+)$/);
+    if (match) {
+      const inputBytes = Buffer.from(match[1], 'base64').byteLength;
+      if (inputBytes === 0 || inputBytes > 10 * 1024 * 1024) {
+        throw new QwenImageError('Reference image must be no larger than 10 MB.', 413, 'reference_image_too_large');
+      }
+    } else if (!/^https:\\/\\//i.test(input.imageDataUrl)) {
+      throw new QwenImageError('Reference image must be an HTTPS URL or a valid base64 data URI.', 400, 'invalid_reference_image');
+    }
+  }
   const body: Record<string, unknown> = {
     model,
     prompt,
@@ -135,7 +146,9 @@ export async function generateWithQwenImage(input: QwenImageInput): Promise<Qwen
     prompt_extend: true,
     watermark: false,
   };
-  if (input.negativePrompt?.trim()) body.negative_prompt = input.negativePrompt.trim();
+  // Model Studio currently documents negative_prompt for Qwen Image 3.0, not 2.1.
+  // Do not send an unsupported extension field for the Qwen Image 2.1 adapter.
+
   if (input.imageDataUrl) body.image = input.imageDataUrl;
 
   let response: Response;
