@@ -264,32 +264,7 @@ export const Sidebar: React.FC = () => {
             : 'border-white/10 bg-white/[0.03] text-neutral-200 shadow-2xl'
         }`}
       >
-        {/* Angel Backdrop Integration — Carries the left portion of the Angel artwork seamlessly */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 select-none">
-          <img
-            src={angelBackdropImg}
-            alt=""
-            aria-hidden="true"
-            className={`w-[100vw] h-full max-w-none object-cover object-left select-none transition-opacity duration-500 ${
-              isLight
-                ? 'opacity-20 mix-blend-multiply filter contrast-125 saturate-110'
-                : 'opacity-70 mix-blend-screen filter brightness-105 contrast-125'
-            }`}
-          />
-          <div
-            className={`absolute inset-0 backdrop-blur-2xl ${
-              isLight ? 'bg-[#F4F6FC]/60' : 'bg-[#060813]/60'
-            }`}
-          />
-          <div
-            className="absolute -top-[10%] -left-[20%] w-[120%] h-[50%] rounded-full pointer-events-none blur-[60px]"
-            style={{
-              background: isLight
-                ? 'radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, transparent 70%)'
-                : 'radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 70%)',
-            }}
-          />
-        </div>
+        <div aria-hidden="true" className={`absolute inset-0 -z-10 pointer-events-none ${isLight ? 'bg-white/90' : 'bg-[#060813]/90'}`} />
 
         {/* ========================================================
             1. FIXED (UNSCROLLABLE) TOP REGION
