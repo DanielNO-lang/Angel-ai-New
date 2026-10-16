@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MonitorSmartphone } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { getClientSupabase } from '../services/supabaseService';
+import { getClientSupabase } from '../../services/supabaseService';
 
 type PresenceMeta = { deviceId?: string; label?: string; platform?: string; lastSeen?: string };
 
