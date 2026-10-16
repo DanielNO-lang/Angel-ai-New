@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { routeAngelVoiceUtterance } from '../src/services/voice/voiceCommandRouter';
+import { listAngelSkills, buildAngelSkillContext } from '../server/services/angelSkillsService';
+import { handleAngelMcpMessage } from '../server/services/mcpGatewayService';
+
 
 // Prevent the standalone development listener from starting when importing server.ts.
 process.env.NETLIFY = 'true';
@@ -33,7 +37,52 @@ test('Angel backend smoke contract', async (t) => {
 
   const models = await fetch(`${baseUrl}/api/models`);
   assert.equal(models.status, 200);
-  assert.ok(Array.isArray(await models.json()));
+  const modelCatalog = await models.json() as Array<{ id?: string; provider?: string }>;
+  assert.ok(Array.isArray(modelCatalog));
+  assert.ok(modelCatalog.some((model) => model.id === 'qwen-image-2.1-turbo' && model.provider === 'qwen'));
+  assert.ok(modelCatalog.some((model) => model.id === 'qwen-image-2.1-pro' && model.provider === 'qwen'));
+
+  const capabilityRes = await fetch(`${baseUrl}/api/integrations/capabilities`);
+  assert.equal(capabilityRes.status, 200);
+  const capabilityPayload = await capabilityRes.json() as { skillsCount?: number; capabilities?: Array<{ id: string; status: string; configured: boolean }> };
+  assert.ok((capabilityPayload.skillsCount || 0) >= 8);
+  for (const expected of ['qwen-image-2.1', 'hy-mt2', 'google-adk-python', 'mcp-gateway', 'python-sandbox', 'gpu-operator', 'wheelhouse-voice']) {
+    assert.ok(capabilityPayload.capabilities?.some((capability) => capability.id === expected), `missing capability status: ${expected}`);
+  }
+  assert.doesNotMatch(JSON.stringify(capabilityPayload), /QWEN_IMAGE_API_KEY|ANGEL_ADK_API_KEY|SUPABASE_SERVICE_ROLE_KEY/);
+
+  const pythonStatus = await fetch(`${baseUrl}/api/python/status`);
+  assert.equal(pythonStatus.status, 200);
+  const pythonStatusBody = await pythonStatus.json() as { configured?: boolean; serverExecutesUntrustedCodeLocally?: boolean };
+  assert.equal(pythonStatusBody.serverExecutesUntrustedCodeLocally, false);
+
+  const adkStatus = await fetch(`${baseUrl}/api/agents/adk/status`);
+  assert.equal(adkStatus.status, 200);
+  const adkStatusBody = await adkStatus.json() as { provider?: string; runtime?: string };
+  assert.equal(adkStatusBody.provider, 'google-adk-python');
+  assert.equal(adkStatusBody.runtime, 'external Python service');
+
+  const protectedCalls = [
+    fetch(`${baseUrl}/api/python/execute`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code: 'print(1 + 1)' }),
+    }),
+    fetch(`${baseUrl}/api/agents/adk/run`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ message: 'hello' }),
+    }),
+    fetch(`${baseUrl}/api/mcp`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-11-25' } }),
+    }),
+    fetch(`${baseUrl}/api/skills/catalog`),
+  ];
+  for (const response of await Promise.all(protectedCalls)) {
+    assert.equal(response.status, 401, 'sensitive tool and skill endpoints require a verified Supabase user');
+  }
 
   const conversations = await fetch(`${baseUrl}/api/conversations`);
   assert.equal(conversations.status, 401, 'conversation history must require a verified user');
@@ -102,4 +151,71 @@ test('Angel backend smoke contract', async (t) => {
     body: JSON.stringify({ query: '' }),
   });
   assert.equal(invalidResearch.status, 400, 'research endpoint must validate input before calling paid search');
+});
+
+
+
+test('Angel voice routing, skills, and MCP schema validation', async () => {
+  assert.deepEqual(routeAngelVoiceUtterance('Hello Angel, open Media Studio.'), {
+    kind: 'navigate',
+    target: 'media_studio',
+  });
+  assert.deepEqual(routeAngelVoiceUtterance('Hey Angel, end conversation.'), { kind: 'end-session' });
+  assert.deepEqual(routeAngelVoiceUtterance('Angel, pause listening.'), { kind: 'control', action: 'pause-listening' });
+  assert.deepEqual(routeAngelVoiceUtterance('Hey Angel, what is on my task list?'), {
+    kind: 'prompt',
+    prompt: 'what is on my task list?',
+  });
+  assert.deepEqual(routeAngelVoiceUtterance('I want to end this conversation with a summary.'), {
+    kind: 'prompt',
+    prompt: 'I want to end this conversation with a summary.',
+  });
+
+  const skills = listAngelSkills();
+  assert.ok(skills.length >= 8);
+  assert.ok(skills.some((skill) => skill.id === 'mcp-integration-builder'));
+  assert.ok(skills.some((skill) => skill.id === 'python-service-engineering'));
+  const skillContext = buildAngelSkillContext([
+    'secure-code-review',
+    'test-first-debugging',
+    'mcp-integration-builder',
+    'python-service-engineering',
+    'agent-workflow-designer',
+  ]);
+  assert.ok(skillContext.includes('ANGEL SKILL PACKS'));
+  assert.equal((skillContext.match(/^## /gm) || []).length, 4, 'an execution receives at most four selected skill packs');
+
+  const handlers = {
+    getCapabilities: () => ({ capabilities: [{ id: 'python-sandbox', configured: false }] }),
+    translate: async (args: Record<string, unknown>) => ({ translation: 'translated:' + String(args.text) }),
+    generateImage: async (args: Record<string, unknown>) => ({ image: 'test-artifact', prompt: args.prompt }),
+    runPython: async () => ({ stdout: '2\\n', stderr: '', exitCode: 0 }),
+    runAdk: async () => ({ response: 'test-response' }),
+  };
+
+  const initialize = await handleAngelMcpMessage({
+    jsonrpc: '2.0', id: 1, method: 'initialize',
+    params: { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'test-client', version: '1.0' } },
+  }, handlers);
+  assert.equal(initialize.statusCode, 200);
+  assert.equal((initialize.body as any).result?.serverInfo?.name, 'angel-ai');
+
+  const toolList = await handleAngelMcpMessage({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, handlers);
+  const toolNames = ((toolList.body as any).result?.tools || []).map((tool: any) => tool.name);
+  assert.ok(toolNames.includes('angel_python_execute'));
+  assert.ok(toolNames.includes('angel_adk_run'));
+  assert.ok(toolNames.includes('angel_translate'));
+
+  const invalidCall = await handleAngelMcpMessage({
+    jsonrpc: '2.0', id: 3, method: 'tools/call',
+    params: { name: 'angel_translate', arguments: { text: 'x'.repeat(30001), targetLanguage: 'French' } },
+  }, handlers);
+  assert.equal((invalidCall.body as any).error?.code, -32602, 'MCP schema validation must reject oversized input before invoking a provider');
+
+  const validCall = await handleAngelMcpMessage({
+    jsonrpc: '2.0', id: 4, method: 'tools/call',
+    params: { name: 'angel_translate', arguments: { text: 'Hello', targetLanguage: 'French' } },
+  }, handlers);
+  assert.equal((validCall.body as any).result?.content?.[0]?.type, 'text');
+  assert.match((validCall.body as any).result?.content?.[0]?.text || '', /translated:Hello/);
 });
