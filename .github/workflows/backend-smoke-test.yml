@@ -34,7 +34,7 @@ jobs:
         id: smoke
         env:
           GITHUB_SHA: ${{ github.sha }}
-          ANGEL_BASE_URL: https://angel-ai-new-git-main-angel-0908.vercel.app
+          ANGEL_BASE_URL: https://angel-ai-new.netlify.app
         run: node scripts/backend-smoke.mjs
 
       - name: Publish backend smoke status
@@ -52,6 +52,6 @@ jobs:
               sha: context.sha,
               state,
               context: 'Angel Backend Smoke Test',
-              description: state === 'success' ? 'Production API and live Gemini generation passed' : String(process.env.SMOKE_REASON || 'Smoke test failed; inspect Actions logs').slice(0, 140),
+              description: state === 'success' ? 'Netlify production API and live Gemini generation passed' : String(process.env.SMOKE_REASON || 'Smoke test failed; inspect Actions logs').slice(0, 140),
               target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}`
             });
