@@ -19,7 +19,7 @@ Amplify Hosting is the static React/Vite/PWA frontend host. Angel also has a sub
 
 1. In AWS App Runner, choose **Create service → Source code repository** and connect the same GitHub repository.
 2. Select `migration/aws-amplify-preview`.
-3. Use the managed Node.js runtime and the repository's `apprunner.yaml` configuration.
+3. Use the managed Node.js 22 runtime and the repository's `apprunner.yaml` configuration.
 4. The service build runs `npm install` and `npm run build`; start command is `node dist/server.js` on port `3000`.
 5. Set the server-side environment variables in the App Runner service configuration, not in GitHub or `apprunner.yaml`. Use **Secrets Manager or Parameter Store** for secret values where available.
 6. Wait for the service to become healthy and test `/api/health`. Record the HTTPS service URL. Do not connect the frontend to it until this health check succeeds.
