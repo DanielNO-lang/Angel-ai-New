@@ -37,6 +37,7 @@ import { BackdropLayer } from './components/ui/BackdropLayer';
 import { NetworkStatusToast } from './components/ui/NetworkStatusToast';
 import { DevicePresence } from './components/ui/DevicePresence';
 import { RemoteVisualSessions } from './components/ui/RemoteVisualSessions';
+import { BackgroundJobsPanel } from './components/ui/BackgroundJobsPanel';
 import { Maximize2 } from 'lucide-react';
 import {
   WorkspaceStageControls,
@@ -382,6 +383,7 @@ const WorkspaceContent: React.FC = () => {
       <NetworkStatusToast />
       <DevicePresence />
       <RemoteVisualSessions />
+      <BackgroundJobsPanel />
 
       {/* Global Workspace Search & Command Palette */}
       <CommandPalette />
