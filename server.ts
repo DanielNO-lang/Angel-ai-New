@@ -741,6 +741,128 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // ============================================================================
 
   // Outbound Dispatch API (Internal workspace & client events)
+  // Durable background agent jobs. User endpoints verify the Supabase bearer token;
+  // worker endpoint requires a separate server-only CRON_SECRET and service-role credentials.
+  const authenticateJobUser = async (req: Request, res: Response): Promise<{ id: string; email?: string } | null> => {
+    const authorization = req.headers.authorization;
+    const token = typeof authorization === 'string' && authorization.startsWith('Bearer ')
+      ? authorization.slice(7).trim()
+      : '';
+    if (!token) { res.status(401).json({ error: 'Sign in to manage background jobs.' }); return null; }
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      res.status(503).json({ error: 'Durable background jobs require server-side Supabase service-role configuration.' });
+      return null;
+    }
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) { res.status(401).json({ error: 'Your session could not be verified.' }); return null; }
+    return { id: data.user.id, email: data.user.email };
+  };
+
+  app.post('/api/jobs', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body as { kind?: unknown; title?: unknown; taskPrompt?: unknown; agentName?: unknown; systemInstructions?: unknown; modelConfig?: unknown; context?: unknown };
+    if (body.kind !== 'agent_execution' || typeof body.taskPrompt !== 'string' || !body.taskPrompt.trim() || body.taskPrompt.length > 20000) {
+      return res.status(400).json({ error: 'Provide kind=agent_execution and a taskPrompt between 1 and 20,000 characters.' });
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
+    const input = {
+      taskPrompt: body.taskPrompt.trim(),
+      agentName: typeof body.agentName === 'string' ? body.agentName.slice(0, 120) : 'Angel',
+      systemInstructions: typeof body.systemInstructions === 'string' ? body.systemInstructions.slice(0, 12000) : 'Complete the user request carefully. Be honest about uncertainty and tool limitations.',
+      modelConfig: body.modelConfig && typeof body.modelConfig === 'object' ? body.modelConfig : {},
+      context: body.context && typeof body.context === 'object' ? body.context : {},
+    };
+    const { data, error } = await supabase.from('angel_background_jobs').insert({
+      user_id: user.id,
+      kind: 'agent_execution',
+      title: typeof body.title === 'string' && body.title.trim() ? body.title.trim().slice(0, 160) : input.taskPrompt.slice(0, 100),
+      input,
+      status: 'queued',
+    }).select('id,kind,title,status,created_at').single();
+    if (error || !data) return res.status(500).json({ error: 'Could not queue the background job.', detail: error?.message });
+    return res.status(202).json({ job: data, message: 'Queued. The job will run when the background worker is scheduled.' });
+  });
+
+  app.get('/api/jobs', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+    const { data, error } = await supabase.from('angel_background_jobs')
+      .select('id,kind,title,status,result,error,created_at,started_at,finished_at,updated_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
+    if (error) return res.status(500).json({ error: 'Could not load background jobs.', detail: error.message });
+    return res.json({ jobs: data || [] });
+  });
+
+  app.post('/api/jobs/:id/cancel', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
+    const { data, error } = await supabase.from('angel_background_jobs')
+      .update({ status: 'cancelled', finished_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', req.params.id).eq('user_id', user.id).eq('status', 'queued')
+      .select('id,status').maybeSingle();
+    if (error) return res.status(500).json({ error: 'Could not cancel the background job.', detail: error.message });
+    if (!data) return res.status(409).json({ error: 'The job was not found, is already running, or has already finished.' });
+    return res.json({ job: data });
+  });
+
+  app.post('/api/jobs/worker', async (req: Request, res: Response) => {
+    const expected = process.env.CRON_SECRET || '';
+    const presented = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7).trim()
+      : '';
+    if (!expected || !presented || crypto.createHash('sha256').update(expected).digest('hex') !== crypto.createHash('sha256').update(presented).digest('hex')) {
+      return res.status(401).json({ error: 'A valid server-only CRON_SECRET is required.' });
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(503).json({ error: 'The background worker requires SUPABASE_SERVICE_ROLE_KEY.' });
+    }
+    const { data: jobs, error } = await supabase.rpc('claim_angel_background_jobs', { p_limit: 3 });
+    if (error) return res.status(500).json({ error: 'Could not claim queued jobs.', detail: error.message });
+    const results: Array<{ id: string; status: string }> = [];
+    for (const job of (jobs || []) as Array<{ id: string; user_id: string; input: Record<string, unknown> }>) {
+      try {
+        const input = job.input || {};
+        const result = await executeAgentPipeline({
+          agentId: 'background-agent',
+          agentName: typeof input.agentName === 'string' ? input.agentName : 'Angel',
+          systemInstructions: typeof input.systemInstructions === 'string' ? input.systemInstructions : 'Complete the user request carefully and report limitations honestly.',
+          taskPrompt: typeof input.taskPrompt === 'string' ? input.taskPrompt : '',
+          modelConfig: input.modelConfig && typeof input.modelConfig === 'object' ? input.modelConfig as Record<string, unknown> : undefined,
+          context: input.context && typeof input.context === 'object' ? input.context as Record<string, unknown> : undefined,
+          allowedTools: [],
+          permissions: [],
+          memoryAccess: { canRead: false, canWrite: false, types: [] },
+        });
+        const status = result.status === 'completed' ? 'completed' : 'failed';
+        const { error: saveError } = await supabase.from('angel_background_jobs').update({
+          status,
+          result: { output: result.output, executionId: result.executionId, toolsExecuted: result.toolsExecuted, logs: result.logs },
+          error: result.error || null,
+          finished_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }).eq('id', job.id).eq('status', 'running');
+        if (saveError) throw saveError;
+        results.push({ id: job.id, status });
+      } catch (jobError) {
+        const message = jobError instanceof Error ? jobError.message : 'Background execution failed.';
+        await supabase.from('angel_background_jobs').update({
+          status: 'failed', error: message.slice(0, 2000), finished_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+        }).eq('id', job.id).eq('status', 'running');
+        results.push({ id: job.id, status: 'failed' });
+      }
+    }
+    return res.json({ processed: results.length, jobs: results });
+  });
+
   app.post('/api/automation/dispatch', async (req: Request, res: Response) => {
     const { event, data, overrideUrl, callbackUrl } = req.body;
 
