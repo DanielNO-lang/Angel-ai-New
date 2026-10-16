@@ -8,7 +8,7 @@ Migration branch: `migration/aws-amplify-preview`
 
 - Production is not to be deployed or changed until the owner explicitly authorizes it.
 - No claim of real-device functionality without testing on a real device.
-- AWS Amplify/App Runner resources and credentials have not been created by this branch. The connected tools available to this session do not expose AWS account resource creation.
+- AWS Amplify/ECS resources and credentials have not been created by this branch. The connected tools available to this session do not expose AWS account resource creation. AWS App Runner closed to new customers in 2026; ECS Express Mode is the planned backend host for a new account.
 - The user reports 300 AWS credits remaining; this balance has not been independently read from AWS.
 - Supabase remains the existing data/auth provider. The migration must not create a replacement project or rotate credentials without a separate decision.
 - A successful frontend build is not proof that the API, authentication, AI provider, persistent data, workers, or mobile features work end to end.
@@ -43,9 +43,9 @@ Migration branch: `migration/aws-amplify-preview`
 - **Awaiting configuration:** valid Supabase environment values, AI provider keys, webhook values where used, and verified Auth redirect URLs for the new preview host.
 
 ### AWS hosting migration
-- **Implemented in code/config:** `amplify.yml` for a static Vite/PWA build, `apprunner.yaml` for the Express API service, Node.js 22 runtime alignment, a managed-runtime `PORT` fix, and a non-deploying GitHub Actions validation workflow.
-- **Automated-tested:** PASS on commit `eb546337a805181d29a59c42dcc60a1b6ec06145`: backend smoke contract test passed, static Vite build passed, and the artifact check confirmed `dist/index.html` exists while `dist/server.js` is not published by the frontend build. The same source/config files are present in the current branch; the latest commit after that pass only updates documentation.
-- **Awaiting configuration:** create the new Amplify app and App Runner service from the AWS Console, connect both to `migration/aws-amplify-preview`, add environment variables/secrets, configure Amplify API rewrite to the actual App Runner HTTPS hostname, and verify health/auth/AI/data flows.
+- **Implemented in code/config:** `amplify.yml` for a static Vite/PWA build; `Dockerfile` for a Node.js 22 Express API container; `buildspec.aws-ecr.yml` for CodeBuild to publish that image to ECR; Node.js 22 runtime alignment; a `PORT` fix; and a non-deploying GitHub Actions workflow that validates the frontend and container.
+- **Automated-tested:** Backend smoke contract test and static Vite build passed on commit `eb546337a805181d29a59c42dcc60a1b6ec06145`. A new CI run is required to validate the added Docker container build.
+- **Awaiting configuration:** create the Amplify app; create an ECR repository and CodeBuild project; build/push the container; create an ECS Express Mode service; configure server secrets and frontend variables; configure Amplify API rewrite to the actual ECS HTTPS hostname; then verify health/auth/AI/data flows.
 - **Production:** untouched. Do not merge to `main` or promote a production deploy without explicit authorization.
 
 ## Required end-to-end acceptance sequence
