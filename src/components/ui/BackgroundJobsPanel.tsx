@@ -51,7 +51,7 @@ export const BackgroundJobsPanel: React.FC = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not queue this task.');
       setPrompt('');
-      setMessage('Task queued. It will begin when the scheduled worker is available.');
+      setMessage('Task queued. It will run when the server-side worker is configured and online.');
       await loadJobs();
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Could not queue this task.'); }
     finally { setBusy(false); }
