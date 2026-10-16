@@ -140,7 +140,7 @@ export class ContextBuilder {
       if (agent.memoryAccess.canRead === false) {
         filteredMemories = [];
       } else if (agent.memoryAccess.types && agent.memoryAccess.types.length > 0) {
-        filteredMemories = allMemories.filter((m) => agent.memoryAccess.types.includes(m.type));
+        filteredMemories = allMemories.filter((m) => m.sensitivity !== 'sensitive' && agent.memoryAccess.types.includes(m.type));
       }
     }
 
