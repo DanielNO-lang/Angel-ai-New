@@ -1,0 +1,25 @@
+# Angel AI New: Netlify build and API routing
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["express"]
+
+# Keep the original /api/* path so Express's /api/... routes continue to match.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Vite SPA route fallback; keep after the API rewrite.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
