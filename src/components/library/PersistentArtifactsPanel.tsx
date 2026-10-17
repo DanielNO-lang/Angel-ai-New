@@ -34,7 +34,7 @@ export const PersistentArtifactsPanel: React.FC<{ isLight: boolean }> = ({ isLig
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 
-  const headers = useCallback(() => token ? { Authorization: `Bearer ${token}` } : {}, [token]);
+  const headers = useCallback((): Record<string, string> => token ? { Authorization: `Bearer ${token}` } : {}, [token]);
   const load = useCallback(async () => {
     if (!token) { setItems([]); return; }
     setLoading(true);
