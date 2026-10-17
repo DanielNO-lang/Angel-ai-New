@@ -196,9 +196,9 @@ export class ConversationService {
 
     let accumulatedText = '';
     let streamFailure = '';
+    let streamCompleted = false;
 
     try {
-      let streamSucceeded = false;
       try {
         const response = await fetch('/api/ai/stream', {
           method: 'POST',
@@ -246,16 +246,19 @@ export class ConversationService {
               if (!trimmed) continue;
               if (trimmed.startsWith('data: ')) {
                 const jsonStr = trimmed.slice(6).trim();
-                if (jsonStr === '[DONE]') continue;
+                if (jsonStr === '[DONE]') {
+                  streamCompleted = true;
+                  continue;
+                }
                 try {
                   const parsed = JSON.parse(jsonStr);
                   if (parsed.error) {
                     console.warn('[ConversationService] Stream reported error:', parsed.error);
                     throw new Error(parsed.error);
                   }
+                  if (parsed.done === true) streamCompleted = true;
                   if (parsed.chunk) {
                     accumulatedText += parsed.chunk;
-                    streamSucceeded = true;
                     if (onToken) {
                       onToken(parsed.chunk, accumulatedText);
                     }
@@ -268,10 +271,18 @@ export class ConversationService {
               }
             }
           }
+          if (!streamCompleted) {
+            throw new Error('The streaming connection ended before Angel received the completion signal.');
+          }
         }
       } catch (streamErr) {
         streamFailure = describeUnknownFailure(streamErr, 'Streaming request failed');
         console.warn('[ConversationService] Stream attempt failed, trying single-shot generate fallback:', streamFailure);
+        // Discard a partial stream so the single-shot fallback can return one complete answer.
+        if (!streamCompleted) {
+          accumulatedText = '';
+          if (onToken) onToken('', '');
+        }
       }
 
       // If streaming didn't produce text, fallback to /api/ai/generate
@@ -298,7 +309,6 @@ export class ConversationService {
             throw new Error('The AI provider returned an empty response.');
           }
           accumulatedText = genData.text.trim();
-          streamSucceeded = true;
           if (onToken) {
             onToken(accumulatedText, accumulatedText);
           }
