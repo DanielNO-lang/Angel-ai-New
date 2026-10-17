@@ -154,6 +154,13 @@ export interface SendMessageOptions {
   conversationId: string;
   prompt: string;
   agent: Agent;
+  conversationalStyle?: {
+    warmth: number;
+    humor: number;
+    directness: number;
+    empathy: number;
+    emotionalTone: 'balanced' | 'calm' | 'encouraging' | 'serious' | 'playful';
+  };
   conversationHistory: Message[];
   contextState: {
     memories: Memory[];
