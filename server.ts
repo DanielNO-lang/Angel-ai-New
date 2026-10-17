@@ -26,6 +26,8 @@ import { calculateRetryDelay, verifyWorkflowOutcome } from './server/services/ve
 import { recordAdminAuditEvent } from './server/services/auditService.js';
 import { githubService } from './server/services/githubService.js';
 import { vercelService } from './server/services/vercelService.js';
+import { evaluateBrowserAction, validateApprovedBrowserUrl, type BrowserActionKind } from './server/services/browserActionPolicy.js';
+import { callBrowserWorker, getBrowserWorkerStatus } from './server/services/browserWorkerService.js';
 
 function isAllowedCallbackUrl(value: string): boolean {
   try {
@@ -1096,6 +1098,363 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (error) return res.status(503).json({ error: 'Could not delete artifact.' });
     if (!data?.length) return res.status(404).json({ error: 'Artifact not found.' });
     return res.status(204).end();
+  });
+
+
+  // Browser automation is mediated by user-owned grants and an isolated Playwright worker.
+  // The worker remains unavailable unless a dedicated HTTPS service and server-only secret exist.
+  const browserActionKinds = ['navigate', 'read_page', 'click', 'fill_form', 'submit_form', 'screenshot'] as const;
+  type BrowserUiActionKind = typeof browserActionKinds[number];
+  type BrowserGrantRow = { id: string; user_id: string; host: string; scopes: string[]; created_at?: string; updated_at?: string };
+  type BrowserSessionRow = { id: string; user_id: string; worker_session_id: string; start_url: string; current_url: string; approved_hosts: string[]; status: string; created_at: string; last_activity_at: string; expires_at: string };
+  const browserPayloadHash = (kind: BrowserUiActionKind, url: string, selector?: string, value?: string) =>
+    crypto.createHash('sha256').update(JSON.stringify({
+      kind, url,
+      selector: typeof selector === 'string' ? selector : '',
+      value: typeof value === 'string' ? value : '',
+    })).digest('hex');
+  const loadBrowserGrants = async (userId: string): Promise<BrowserGrantRow[] | null> => {
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+    const { data, error } = await supabase.from('angel_browser_permission_grants')
+      .select('id,user_id,host,scopes,created_at,updated_at').eq('user_id', userId).order('host');
+    if (error) {
+      console.error('[Browser] Grant lookup failed:', error.message);
+      return null;
+    }
+    return (data || []) as BrowserGrantRow[];
+  };
+  const logBrowserAudit = async (entry: {
+    userId: string; sessionId?: string | null; actionId: string; actionKind: string;
+    host?: string | null; status: 'denied'|'prepared'|'started'|'completed'|'failed'|'cancelled'; message?: string;
+  }) => {
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
+    const { error } = await supabase.from('angel_browser_action_audit').insert({
+      user_id: entry.userId, session_id: entry.sessionId || null, action_id: entry.actionId,
+      action_kind: entry.actionKind, target_host: entry.host || null, status: entry.status,
+      message: (entry.message || '').slice(0, 300) || null,
+    });
+    if (error) console.error('[Browser] Audit event could not be persisted:', error.message);
+    return !error;
+  };
+
+  app.get('/api/browser/status', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const worker = getBrowserWorkerStatus();
+    const supabaseReady = Boolean(getSupabaseClient() && process.env.SUPABASE_SERVICE_ROLE_KEY);
+    return res.json({
+      configured: worker.configured && supabaseReady,
+      workerConfigured: worker.configured,
+      persistenceConfigured: supabaseReady,
+      reason: !supabaseReady ? 'Browser control requires server-side Supabase persistence.' : worker.reason,
+      supportedActions: browserActionKinds,
+      unsupportedActions: ['upload_file','download_file','purchase','delete','manage_credentials','operating_system_control'],
+    });
+  });
+
+  app.get('/api/browser/grants', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const grants = await loadBrowserGrants(user.id);
+    if (!grants) return res.status(503).json({ error: 'Browser permission storage is unavailable. Confirm the browser-control migration was applied.' });
+    return res.json({ grants });
+  });
+
+  app.post('/api/browser/grants', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    if (typeof body.host !== 'string' || !body.host.trim() || body.host.length > 253 ||
+        /[/*:\\s]/.test(body.host.trim()) || body.host.includes('://')) {
+      return res.status(400).json({ error: 'Enter one exact hostname only, for example docs.example.com. Wildcards, paths, ports, and URLs are not accepted.' });
+    }
+    const parsed = new URL('https://' + body.host.trim());
+    const host = parsed.hostname.toLowerCase().replace(/\.$/, '');
+    const checked = validateApprovedBrowserUrl('https://' + host, [host]);
+    if (!checked.allowed || parsed.pathname !== '/' || parsed.search || parsed.hash) {
+      return res.status(400).json({ error: checked.reason || 'Enter a valid public hostname.' });
+    }
+    const allowedScopes = new Set(['browser:read','browser:interact','browser:submit','browser:download','browser:upload','browser:purchase','browser:delete','browser:credentials']);
+    if (!Array.isArray(body.scopes) || body.scopes.length < 1 || body.scopes.length > 8 ||
+        body.scopes.some((scope: unknown) => typeof scope !== 'string' || !allowedScopes.has(scope)) ||
+        !body.scopes.includes('browser:read')) {
+      return res.status(400).json({ error: 'Choose supported browser permissions and include Read pages. Permissions can be narrowed or revoked later.' });
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser grants require server-side Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_browser_permission_grants').upsert({
+      user_id: user.id, host, scopes: [...new Set(body.scopes)], updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,host' }).select('id,user_id,host,scopes,created_at,updated_at').single();
+    if (error || !data) {
+      console.error('[Browser] Grant save failed:', error?.message || 'No row returned');
+      return res.status(503).json({ error: 'Could not save the browser permission grant. Confirm the browser-control migration was applied.' });
+    }
+    return res.status(201).json({ grant: data, message: 'Host saved. New browser sessions will use this grant.' });
+  });
+
+  app.delete('/api/browser/grants/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser grants require server-side Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_browser_permission_grants').delete()
+      .eq('id', req.params.id).eq('user_id', user.id).select('id').maybeSingle();
+    if (error) return res.status(503).json({ error: 'Could not revoke the browser grant.' });
+    if (!data) return res.status(404).json({ error: 'Browser grant not found.' });
+    return res.status(204).end();
+  });
+
+  app.get('/api/browser/sessions', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser sessions require server-side Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_browser_sessions')
+      .select('id,start_url,current_url,approved_hosts,status,created_at,last_activity_at,expires_at')
+      .eq('user_id', user.id).order('last_activity_at', { ascending: false }).limit(20);
+    if (error) return res.status(503).json({ error: 'Could not load browser sessions. Confirm the browser-control migration was applied.' });
+    const now = Date.now();
+    const sessions = (data || []).map((session: any) => ({
+      ...session,
+      status: session.status === 'active' && Date.parse(session.expires_at) <= now ? 'expired' : session.status,
+    }));
+    return res.json({ sessions });
+  });
+
+  app.post('/api/browser/sessions', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    if (typeof body.startUrl !== 'string' || body.startUrl.length > 2048) return res.status(400).json({ error: 'A starting HTTPS URL is required.' });
+    const grants = await loadBrowserGrants(user.id);
+    if (!grants) return res.status(503).json({ error: 'Browser grant storage is unavailable. Confirm the browser-control migration was applied.' });
+    const approvedHosts = grants.map((grant) => grant.host);
+    const target = validateApprovedBrowserUrl(body.startUrl, approvedHosts);
+    if (!target.allowed || !target.host) return res.status(403).json({ error: target.reason || 'The starting host is not approved.' });
+    const hostGrant = grants.find((grant) => grant.host === target.host);
+    if (!hostGrant?.scopes.includes('browser:read')) return res.status(403).json({ error: 'Grant Read pages permission for this host before starting a session.' });
+    const workerStatus = getBrowserWorkerStatus();
+    if (!workerStatus.configured) return res.status(503).json({ error: workerStatus.reason || 'The isolated browser worker is not configured.' });
+    const worker = await callBrowserWorker('v1/sessions', {
+      method: 'POST', timeoutMs: 25000,
+      body: { ownerId: user.id, startUrl: body.startUrl, approvedHosts },
+    });
+    const workerSessionId = typeof worker.data.sessionId === 'string' ? worker.data.sessionId : '';
+    const currentUrl = typeof worker.data.url === 'string' ? worker.data.url : '';
+    if (!worker.ok || !workerSessionId || !currentUrl) {
+      return res.status(worker.status >= 400 && worker.status < 500 ? worker.status : 502).json({
+        error: typeof worker.data.error === 'string' ? worker.data.error : 'The browser worker could not create a session.',
+        detail: typeof worker.data.detail === 'string' ? worker.data.detail : undefined,
+      });
+    }
+    const supabase = getSupabaseClient()!;
+    const { data, error } = await supabase.from('angel_browser_sessions').insert({
+      user_id: user.id, worker_session_id: workerSessionId, start_url: body.startUrl,
+      current_url: currentUrl, approved_hosts: approvedHosts, status: 'active',
+      last_activity_at: new Date().toISOString(),
+      expires_at: typeof worker.data.expiresAt === 'string' ? worker.data.expiresAt : new Date(Date.now() + 20 * 60_000).toISOString(),
+    }).select('id,start_url,current_url,approved_hosts,status,created_at,last_activity_at,expires_at').single();
+    if (error || !data) {
+      await callBrowserWorker('v1/sessions/' + encodeURIComponent(workerSessionId), { method: 'DELETE', body: { ownerId: user.id } });
+      console.error('[Browser] Session persistence failed:', error?.message || 'No row returned');
+      return res.status(503).json({ error: 'The browser session started but could not be securely saved. It was closed; confirm the browser-control migration.' });
+    }
+    await logBrowserAudit({ userId: user.id, sessionId: data.id, actionId: crypto.randomUUID(), actionKind: 'start_session', host: target.host, status: 'completed', message: 'Isolated browser session started.' });
+    return res.status(201).json({ session: data, title: typeof worker.data.title === 'string' ? worker.data.title : '' });
+  });
+
+  app.post('/api/browser/sessions/:id/prepare', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    const kind = body.kind as BrowserUiActionKind;
+    if (!browserActionKinds.includes(kind) || (body.url !== undefined && (typeof body.url !== 'string' || body.url.length > 2048)) ||
+        (body.selector !== undefined && (typeof body.selector !== 'string' || body.selector.length < 1 || body.selector.length > 500)) ||
+        (body.value !== undefined && (typeof body.value !== 'string' || body.value.length > 10000))) {
+      return res.status(400).json({ error: 'Action type or parameters are invalid.' });
+    }
+    if ((kind === 'click' || kind === 'fill_form' || kind === 'submit_form') && typeof body.selector !== 'string') {
+      return res.status(400).json({ error: 'This browser action needs an explicit page selector.' });
+    }
+    if (kind === 'fill_form' && typeof body.value !== 'string') return res.status(400).json({ error: 'Filling a field requires a value.' });
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser persistence is not configured.' });
+    const { data: session, error: sessionError } = await supabase.from('angel_browser_sessions')
+      .select('id,user_id,worker_session_id,current_url,approved_hosts,status,expires_at')
+      .eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (sessionError) return res.status(503).json({ error: 'Could not verify browser session ownership.' });
+    if (!session || session.status !== 'active') return res.status(404).json({ error: 'Active browser session was not found.' });
+    if (Date.parse(session.expires_at) <= Date.now()) return res.status(410).json({ error: 'Browser session expired. Start a new session.' });
+    const grants = await loadBrowserGrants(user.id);
+    if (!grants) return res.status(503).json({ error: 'Browser permission storage is unavailable.' });
+    const eligibleGrants = grants.filter((grant) => session.approved_hosts.includes(grant.host));
+    const approvedHosts = eligibleGrants.map((grant) => grant.host);
+    const targetUrl = kind === 'navigate' ? body.url : session.current_url;
+    const probe = validateApprovedBrowserUrl(targetUrl, approvedHosts);
+    if (!probe.allowed || !probe.host || !session.approved_hosts.includes(probe.host)) return res.status(403).json({ error: probe.reason || 'Target host is outside this session’s approved scope.' });
+    const hostGrant = eligibleGrants.find((grant) => grant.host === probe.host);
+    const policyKind: BrowserActionKind = kind === 'screenshot' ? 'read_page' : kind;
+    const actionId = crypto.randomUUID();
+    const decision = evaluateBrowserAction({
+      actionId, kind: policyKind, url: targetUrl, approvedHosts,
+      grantedScopes: hostGrant?.scopes || [], now: Date.now(),
+    });
+    if (!decision.allowed) {
+      await logBrowserAudit({ userId: user.id, sessionId: session.id, actionId, actionKind: kind, host: probe.host, status: 'denied', message: decision.reason || 'Permission denied.' });
+      return res.status(403).json({ error: decision.reason || 'The browser permission policy denied this action.' });
+    }
+    const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+    const { data: challenge, error } = await supabase.from('angel_browser_action_confirmations').insert({
+      user_id: user.id, session_id: session.id, action_id: actionId, action_kind: kind,
+      target_host: probe.host, target_url: targetUrl,
+      payload_hash: browserPayloadHash(kind, targetUrl, body.selector, body.value),
+      requires_confirmation: decision.requiresConfirmation, expires_at: expiresAt,
+    }).select('id,action_id,action_kind,target_host,target_url,requires_confirmation,expires_at').single();
+    if (error || !challenge) return res.status(503).json({ error: 'Could not prepare a one-time browser action. Confirm the browser-control migration was applied.' });
+    const summary = kind === 'navigate' ? 'Navigate to ' + targetUrl
+      : kind === 'read_page' ? 'Read visible page content from ' + targetUrl
+      : kind === 'screenshot' ? 'Capture a screenshot of ' + targetUrl
+      : kind === 'fill_form' ? 'Fill a form field on ' + targetUrl
+      : kind === 'submit_form' ? 'Click a form submission control on ' + targetUrl
+      : 'Click a page element on ' + targetUrl;
+    if (!await logBrowserAudit({ userId: user.id, sessionId: session.id, actionId, actionKind: kind, host: probe.host, status: 'prepared', message: decision.requiresConfirmation ? 'Prepared; explicit confirmation required.' : 'Prepared; read/interact permission checked.' })) {
+      return res.status(503).json({ error: 'The action could not be audited and therefore was not enabled.' });
+    }
+    return res.status(201).json({
+      challengeId: challenge.id, actionId, kind, host: probe.host, targetUrl,
+      requiresConfirmation: decision.requiresConfirmation, expiresAt, summary,
+    });
+  });
+
+  app.post('/api/browser/sessions/:id/execute', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    if (typeof body.challengeId !== 'string' || body.challengeId.length > 100) return res.status(400).json({ error: 'A prepared action challenge is required.' });
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser persistence is not configured.' });
+    const { data: session, error: sessionError } = await supabase.from('angel_browser_sessions')
+      .select('id,user_id,worker_session_id,current_url,approved_hosts,status,expires_at')
+      .eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (sessionError) return res.status(503).json({ error: 'Could not verify browser session ownership.' });
+    if (!session || session.status !== 'active') return res.status(404).json({ error: 'Active browser session was not found.' });
+    if (Date.parse(session.expires_at) <= Date.now()) return res.status(410).json({ error: 'Browser session expired. Start a new session.' });
+    const { data: challenge, error: challengeError } = await supabase.from('angel_browser_action_confirmations')
+      .select('id,action_id,action_kind,target_host,target_url,payload_hash,requires_confirmation,expires_at,used_at')
+      .eq('id', body.challengeId).eq('user_id', user.id).eq('session_id', session.id).maybeSingle();
+    if (challengeError) return res.status(503).json({ error: 'Could not verify the browser action confirmation.' });
+    if (!challenge || challenge.used_at || Date.parse(challenge.expires_at) <= Date.now()) return res.status(409).json({ error: 'This prepared action is missing, expired, or already used. Prepare it again.' });
+    const kind = challenge.action_kind as BrowserUiActionKind;
+    if (!browserActionKinds.includes(kind) || (body.kind !== undefined && body.kind !== kind)) return res.status(400).json({ error: 'Prepared action type does not match.' });
+    if (challenge.requires_confirmation && body.confirmed !== true) return res.status(428).json({ error: 'This action requires an explicit confirmation. Review the action summary and confirm before continuing.' });
+    const selector = typeof body.selector === 'string' ? body.selector : undefined;
+    const value = typeof body.value === 'string' ? body.value : undefined;
+    if ((kind === 'click' || kind === 'fill_form' || kind === 'submit_form') &&
+        (typeof selector !== 'string' || !selector.trim() || selector.length > 500)) return res.status(400).json({ error: 'The exact selector from the prepared action must be provided.' });
+    if ((kind === 'fill_form' && typeof value !== 'string') ||
+        (value !== undefined && value.length > 10000)) return res.status(400).json({ error: 'The prepared field value is invalid.' });
+    const actionUrl = kind === 'navigate' ? body.url : challenge.target_url;
+    if (kind === 'navigate' && typeof actionUrl !== 'string') return res.status(400).json({ error: 'The prepared navigation URL is required.' });
+    if (browserPayloadHash(kind, actionUrl, selector, value) !== challenge.payload_hash) return res.status(409).json({ error: 'The action details changed after preparation. Prepare it again to review the updated action.' });
+    const grants = await loadBrowserGrants(user.id);
+    if (!grants) return res.status(503).json({ error: 'Browser permission storage is unavailable.' });
+    const eligibleGrants = grants.filter((grant) => session.approved_hosts.includes(grant.host));
+    const approvedHosts = eligibleGrants.map((grant) => grant.host);
+    const probe = validateApprovedBrowserUrl(actionUrl, approvedHosts);
+    if (!probe.allowed || probe.host !== challenge.target_host) return res.status(403).json({ error: 'The host grant was revoked or no longer matches this prepared action.' });
+    const hostGrant = eligibleGrants.find((grant) => grant.host === probe.host);
+    const policyKind: BrowserActionKind = kind === 'screenshot' ? 'read_page' : kind;
+    const now = Date.now();
+    const decision = evaluateBrowserAction({
+      actionId: challenge.action_id, kind: policyKind, url: actionUrl, approvedHosts,
+      grantedScopes: hostGrant?.scopes || [], now,
+      confirmation: challenge.requires_confirmation && body.confirmed === true
+        ? { actionId: challenge.action_id, host: challenge.target_host, approvedAt: now }
+        : undefined,
+    });
+    if (!decision.allowed) {
+      await logBrowserAudit({ userId: user.id, sessionId: session.id, actionId: challenge.action_id, actionKind: kind, host: probe.host, status: 'denied', message: decision.reason || 'Permission revoked.' });
+      return res.status(403).json({ error: decision.reason || 'The browser permission policy denied this action.' });
+    }
+    // Atomically consume the challenge before the side effect to prevent replay/double-click execution.
+    const usedAt = new Date().toISOString();
+    const { data: consumed, error: consumeError } = await supabase.from('angel_browser_action_confirmations')
+      .update({ used_at: usedAt }).eq('id', challenge.id).eq('user_id', user.id)
+      .is('used_at', null).gt('expires_at', usedAt).select('id').maybeSingle();
+    if (consumeError) return res.status(503).json({ error: 'Could not consume the one-time action challenge.' });
+    if (!consumed) return res.status(409).json({ error: 'This browser action was already used or expired. Prepare it again.' });
+    const { data: audit, error: auditError } = await supabase.from('angel_browser_action_audit').insert({
+      user_id: user.id, session_id: session.id, action_id: challenge.action_id,
+      action_kind: kind, target_host: probe.host, status: 'started',
+      message: challenge.requires_confirmation ? 'User confirmed the prepared action.' : 'Prepared action executing.',
+    }).select('id').single();
+    if (auditError || !audit) return res.status(503).json({ error: 'The action could not be audited and therefore was not executed.' });
+    const response = await callBrowserWorker('v1/sessions/' + encodeURIComponent(session.worker_session_id) + '/actions', {
+      method: 'POST', timeoutMs: 25000,
+      body: {
+        ownerId: user.id, approvedHosts, actionId: challenge.action_id, kind,
+        expectedUrl: challenge.target_url,
+        ...(kind === 'navigate' ? { url: actionUrl } : {}),
+        ...(selector ? { selector } : {}),
+        ...(value !== undefined ? { value } : {}),
+      },
+    });
+    const workerUrl = typeof response.data.url === 'string' ? response.data.url : session.current_url;
+    if (kind === 'close' || response.data.closed === true) {
+      await supabase.from('angel_browser_sessions').update({ status: 'closed', last_activity_at: usedAt })
+        .eq('id', session.id).eq('user_id', user.id);
+    } else if (response.ok) {
+      await supabase.from('angel_browser_sessions').update({ current_url: workerUrl, last_activity_at: usedAt })
+        .eq('id', session.id).eq('user_id', user.id).eq('status', 'active');
+    }
+    const completed = response.ok;
+    await supabase.from('angel_browser_action_audit').update({
+      status: completed ? 'completed' : 'failed',
+      message: completed ? 'Browser action completed.' :
+        (typeof response.data.error === 'string' ? response.data.error : 'Browser worker action failed.').slice(0, 300),
+    }).eq('id', audit.id).eq('user_id', user.id);
+    if (!response.ok) return res.status(response.status >= 400 && response.status < 500 ? response.status : 502).json({
+      error: typeof response.data.error === 'string' ? response.data.error : 'Browser action failed.',
+      detail: typeof response.data.detail === 'string' ? response.data.detail : undefined,
+    });
+    return res.json({ result: response.data, message: 'Browser action completed by the isolated worker.' });
+  });
+
+  app.post('/api/browser/sessions/:id/close', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser persistence is not configured.' });
+    const { data: session, error } = await supabase.from('angel_browser_sessions')
+      .select('id,worker_session_id,status').eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (error) return res.status(503).json({ error: 'Could not verify browser session ownership.' });
+    if (!session) return res.status(404).json({ error: 'Browser session not found.' });
+    if (session.status === 'active') {
+      const closed = await callBrowserWorker('v1/sessions/' + encodeURIComponent(session.worker_session_id), {
+        method: 'DELETE', body: { ownerId: user.id }, timeoutMs: 5000,
+      });
+      if (!closed.ok && closed.status !== 404 && closed.status !== 410) {
+        return res.status(502).json({ error: typeof closed.data.error === 'string' ? closed.data.error : 'The worker did not confirm that the session closed.' });
+      }
+      await supabase.from('angel_browser_sessions').update({ status: 'closed', last_activity_at: new Date().toISOString() })
+        .eq('id', session.id).eq('user_id', user.id);
+    }
+    return res.json({ closed: true });
+  });
+
+  app.get('/api/browser/audit', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser audit storage is not configured.' });
+    const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 30));
+    const { data, error } = await supabase.from('angel_browser_action_audit')
+      .select('id,session_id,action_id,action_kind,target_host,status,message,created_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
+    if (error) return res.status(503).json({ error: 'Could not load browser activity history.' });
+    return res.json({ events: data || [] });
   });
 
   app.post('/api/jobs', async (req: Request, res: Response) => {
