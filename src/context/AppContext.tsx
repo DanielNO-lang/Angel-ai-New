@@ -125,7 +125,7 @@ interface AppContextType {
   signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
-  sendMessage: (content: string, attachments?: Message['attachments'], targetConversationId?: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: Message['attachments'], targetConversationId?: string, retryAssistantMessageId?: string) => Promise<void>;
 
   // User Profile
   userProfile: UserProfile;
@@ -1422,52 +1422,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Send Message with SSE streaming
-  const sendMessage = async (content: string, attachments?: Message['attachments'], targetConversationId?: string) => {
-    if (!content.trim() && (!attachments || attachments.length === 0)) return;
-
+  // Send Message with SSE streaming. A retry reuses the failed assistant row and its
+  // original user message so it never duplicates the user's prompt or increments counts.
+  const sendMessage = async (
+    content: string,
+    attachments?: Message['attachments'],
+    targetConversationId?: string,
+    retryAssistantMessageId?: string
+  ) => {
     let targetConvId = targetConversationId || activeConversationId;
-    if (!targetConvId || (!targetConversationId && !conversations.some((c) => c.id === targetConvId))) {
+    if (!retryAssistantMessageId && (!targetConvId || (!targetConversationId && !conversations.some((c) => c.id === targetConvId)))) {
       targetConvId = createConversation(selectedAgentId);
     }
+    if (!targetConvId) return;
+
+    const priorMessages = messagesMap[targetConvId] || [];
+    let retryHistory: Message[] | undefined;
+    let effectiveContent = content;
+    let effectiveAttachments = attachments;
+
+    if (retryAssistantMessageId) {
+      const failedIndex = priorMessages.findIndex((item) => item.id === retryAssistantMessageId && item.role === 'assistant');
+      if (failedIndex < 0) return;
+      const previousUser = priorMessages.slice(0, failedIndex).reverse().find((item) => item.role === 'user');
+      if (!previousUser) return;
+      const previousUserIndex = priorMessages.findIndex((item) => item.id === previousUser.id);
+      if (previousUserIndex < 0) return;
+      // Use the stored original prompt and history rather than potentially stale UI state.
+      effectiveContent = previousUser.content;
+      effectiveAttachments = previousUser.attachments;
+      retryHistory = priorMessages.slice(0, previousUserIndex);
+    }
+
+    if (!effectiveContent.trim() && (!effectiveAttachments || effectiveAttachments.length === 0)) return;
 
     const now = new Date().toISOString();
-    const userMessageId = `msg-user-${Date.now()}`;
-    const userMessage: Message = {
-      id: userMessageId,
-      conversationId: targetConvId,
-      role: 'user',
-      content,
-      createdAt: now,
-      attachments,
-    };
+    const assistantMessageId = retryAssistantMessageId || `msg-asst-${Date.now()}`;
 
-    const assistantMessageId = `msg-asst-${Date.now()}`;
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      conversationId: targetConvId,
-      role: 'assistant',
-      content: '',
-      createdAt: now,
-      agentId: selectedAgentId,
-      isStreaming: true,
-    };
+    if (retryAssistantMessageId) {
+      setMessagesMap((prev) => ({
+        ...prev,
+        [targetConvId]: (prev[targetConvId] || []).map((message) =>
+          message.id === assistantMessageId
+            ? { ...message, content: '', createdAt: now, isStreaming: true, toolCalls: undefined, error: undefined }
+            : message
+        ),
+      }));
+    } else {
+      const userMessage: Message = {
+        id: `msg-user-${Date.now()}`,
+        conversationId: targetConvId,
+        role: 'user',
+        content: effectiveContent,
+        createdAt: now,
+        attachments: effectiveAttachments,
+      };
+      const assistantMessage: Message = {
+        id: assistantMessageId,
+        conversationId: targetConvId,
+        role: 'assistant',
+        content: '',
+        createdAt: now,
+        agentId: selectedAgentId,
+        isStreaming: true,
+      };
 
-    // Update conversation messages optimistically
-    setMessagesMap((prev) => ({
-      ...prev,
-      [targetConvId]: [...(prev[targetConvId] || []), userMessage, assistantMessage],
-    }));
+      setMessagesMap((prev) => ({
+        ...prev,
+        [targetConvId]: [...(prev[targetConvId] || []), userMessage, assistantMessage],
+      }));
+    }
 
-    // Update conversation preview
     setConversations((prev) =>
       prev.map((c) =>
         c.id === targetConvId
           ? {
               ...c,
               updatedAt: now,
-              messageCount: (c.messageCount || 0) + 2,
-              lastMessagePreview: content.slice(0, 80),
+              messageCount: (c.messageCount || 0) + (retryAssistantMessageId ? 0 : 2),
+              lastMessagePreview: effectiveContent.slice(0, 80),
             }
           : c
       )
@@ -1477,7 +1510,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     try {
       const agent = agents.find((a) => a.id === selectedAgentId) || agents[0];
-      const convHistory = messagesMap[targetConvId] || [];
+      const convHistory = retryHistory ?? (messagesMap[targetConvId] || []);
 
       let runningToolCalls: Array<{
         id: string;
@@ -1501,7 +1534,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       await conversationService.sendMessage({
         conversationId: targetConvId,
-        prompt: content,
+        prompt: effectiveContent,
         agent: styledAgent,
         conversationHistory: convHistory,
         contextState: {
