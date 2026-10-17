@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import { ArrowUp, Sparkles, Search, Image as ImageIcon, FileText, Workflow, BookOpen, CalendarCheck } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
@@ -24,7 +25,7 @@ const suggestionSets = [
 export const HomeView: React.FC = () => {
   const { setActiveTab, createConversation, sendMessage, userProfile, settings } = useAngel();
   const [promptText, setPromptText] = useState('');
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
   const suggestions = useMemo(() => {
     const pool = suggestionSets.flat();
     for (let i = pool.length - 1; i > 0; i--) {
