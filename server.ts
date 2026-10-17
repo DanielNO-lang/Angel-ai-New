@@ -29,6 +29,7 @@ import { getAngelCapabilityCatalog } from './server/services/angelCapabilityCata
 import { handleAngelMcpMessage } from './server/services/mcpGatewayService';
 import { runWorkflowExecution, approveWorkflowExecution, triggerMatchingWorkflows } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
+import { getSystemDiagnostics, getRecentSystemEvents, recordSystemEvent, recordSystemRequest } from './server/services/systemLogService';
 
 export interface CreateAppOptions {
   isServerless?: boolean;
@@ -47,6 +48,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     res.setHeader('X-XSS-Protection', '1; mode=block');
     next();
   });
+
+  // Sanitized request telemetry: route templates and duration only, never bodies or headers.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const started = Date.now();
+    res.once('finish', () => {
+      const rawRoute = String((req as any).route?.path || req.path || '/');
+      const safeRoute = rawRoute
+        .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id')
+        .replace(/\/(?:\d{4,}|[A-Za-z0-9_-]{32,})(?=\/|$)/g, '/:id')
+        .slice(0, 120);
+      recordSystemRequest(req.method, safeRoute, res.statusCode, Date.now() - started);
+    });
+    next();
+  });
+
 
   // Distributed rate limiting uses Supabase RPC when the server-role client is available.
   // A local per-instance fallback keeps preview/dev environments usable without privileged credentials.
@@ -179,6 +195,36 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // ============================================================================
   // API ROUTES
   // ============================================================================
+
+  // Low-sensitivity runtime telemetry. This is the Node/Function process, not host-wide CPU telemetry.
+  app.get('/api/diagnostics/system', (_req: Request, res: Response) => {
+    const memory = process.memoryUsage();
+    const providers = providerRegistry.getAvailableProviders().map((provider) => ({
+      id: provider.id,
+      name: provider.name,
+      configured: provider.configured,
+      defaultModel: provider.defaultModel,
+    }));
+    return res.json({
+      ...getSystemDiagnostics(),
+      workspace: 'Angel AI',
+      platform: process.env.NETLIFY ? 'netlify' : 'node',
+      runtime: process.version,
+      memory: {
+        rssMb: Math.round(memory.rss / 1024 / 1024),
+        heapUsedMb: Math.round(memory.heapUsed / 1024 / 1024),
+      },
+      providers,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Detailed event history is available only to verified workspace administrators.
+  app.get('/api/diagnostics/logs', requireAdmin, rateLimit(20), (req: Request, res: Response) => {
+    const requested = Number(req.query.limit || 50);
+    const limit = Number.isFinite(requested) ? Math.min(200, Math.max(1, Math.floor(requested))) : 50;
+    return res.json({ events: getRecentSystemEvents(limit), diagnostics: getSystemDiagnostics() });
+  });
 
   // 1. Health & Workspace Diagnostics
   app.get('/api/health', (req: Request, res: Response) => {
@@ -938,6 +984,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (err) {
+      recordSystemEvent('ai', 'error', 'AI streaming provider failed');
       console.error('[API /api/ai/stream Error]', err);
       const msg = err instanceof Error ? err.message : String(err);
       res.write(`data: ${JSON.stringify({ error: msg, done: true })}\n\n`);
@@ -966,6 +1013,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
       res.json(result);
     } catch (err) {
+      recordSystemEvent('ai', 'error', 'Single-response provider failed');
       console.error('[API /api/ai/generate Error]', err);
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
