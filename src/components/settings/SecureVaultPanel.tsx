@@ -10,12 +10,13 @@ export const SecureVaultPanel: React.FC = () => {
   const {
     secureVaultEnabled,
     secureVaultUnlocked,
+    settings,
     enableSecureVault,
     unlockSecureVault,
     lockSecureVault,
     isLight,
-  } = useAngel() as ReturnType<typeof useAngel> & { isLight?: boolean };
-  const light = Boolean(isLight);
+  } = useAngel();
+  const light = settings.theme === 'light';
   const [passphrase, setPassphrase] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
