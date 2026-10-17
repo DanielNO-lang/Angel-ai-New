@@ -73,6 +73,8 @@ export interface Message {
   attachments?: Attachment[];
   toolCalls?: ToolCallRecord[];
   isStreaming?: boolean;
+  /** True only when the assistant request failed and the message offers recovery. */
+  isError?: boolean;
 }
 
 export interface Conversation {
