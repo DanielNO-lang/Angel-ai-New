@@ -20,6 +20,8 @@ export const PersistentArtifactsPanel: React.FC<{ isLight: boolean }> = ({ isLig
   const [editing, setEditing] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
+  // Snapshot the version when editing begins so stale drafts cannot overwrite newer saves.
+  const [editVersion, setEditVersion] = useState<number | null>(null);
 
   useEffect(() => {
     const client = getClientSupabase();
@@ -73,13 +75,17 @@ export const PersistentArtifactsPanel: React.FC<{ isLight: boolean }> = ({ isLig
     try {
       const response = await fetch(`/api/artifacts/${encodeURIComponent(id)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json', ...headers() },
-        body: JSON.stringify({ title: editTitle.trim(), content: editContent }),
+        body: JSON.stringify({ title: editTitle.trim(), content: editContent, expectedVersion: editVersion }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Artifact changes could not be saved.');
       setItems((current) => current.map((item) => item.id === id ? data : item));
-      setEditing(null); setNotice('Artifact changes saved.');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Artifact changes could not be saved.'); }
+      setEditing(null); setEditVersion(null); setNotice('Artifact changes saved.');
+    } catch (e) {
+      if (e instanceof Error && /version conflict|changed since you opened/i.test(e.message)) {
+        setError('This artifact changed after you opened it. Your draft is preserved. Refresh the list, review the latest version, and reapply your edits.');
+      } else setError(e instanceof Error ? e.message : 'Artifact changes could not be saved.');
+    }
     finally { setSaving(false); }
   };
 
@@ -122,10 +128,10 @@ export const PersistentArtifactsPanel: React.FC<{ isLight: boolean }> = ({ isLig
       <div className="flex justify-end gap-2"><button type="button" onClick={() => setShowForm(false)} className={`rounded-lg border px-3 py-2 text-xs ${card}`}><X className="mr-1 inline h-3.5 w-3.5" /> Cancel</button><button type="submit" disabled={saving || !title.trim()} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{saving ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save artifact</button></div>
     </form>}
     <div className="mt-4 space-y-2">{loading && <p className={`text-xs ${muted}`}>Loading cloud artifacts…</p>}{!loading && token && items.length === 0 && <p className={`text-xs ${muted}`}>No cloud artifacts saved yet.</p>}
-      {items.map((item) => <article key={item.id} className="rounded-xl border border-inherit p-3">{editing === item.id ? <div className="space-y-2"><input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} maxLength={200} className={`w-full rounded-lg border px-3 py-2 text-sm ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/20'}`} /><textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} maxLength={2_000_000} rows={4} className={`w-full rounded-lg border px-3 py-2 font-mono text-xs ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/20'}`} /><div className="flex justify-end gap-2"><button type="button" onClick={() => setEditing(null)} className="rounded-lg border border-inherit px-3 py-1.5 text-xs">Cancel</button><button type="button" onClick={() => void saveEdit(item.id)} disabled={saving || !editTitle.trim()} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Save edits</button></div></div> : <div className="flex items-start gap-3">
+      {items.map((item) => <article key={item.id} className="rounded-xl border border-inherit p-3">{editing === item.id ? <div className="space-y-2"><input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} maxLength={200} className={`w-full rounded-lg border px-3 py-2 text-sm ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/20'}`} /><textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} maxLength={2_000_000} rows={4} className={`w-full rounded-lg border px-3 py-2 font-mono text-xs ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/20'}`} /><div className="flex justify-end gap-2"><button type="button" onClick={() => { setEditing(null); setEditVersion(null); }} className="rounded-lg border border-inherit px-3 py-1.5 text-xs">Cancel</button><button type="button" onClick={() => void saveEdit(item.id)} disabled={saving || !editTitle.trim()} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">Save edits</button></div></div> : <div className="flex items-start gap-3">
         <span className={`rounded-lg p-2 ${isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-500/10 text-indigo-300'}`}>{item.kind === 'code' ? <FileCode2 className="h-4 w-4" /> : <FileText className="h-4 w-4" />}</span>
         <div className="min-w-0 flex-1"><p className="break-words text-sm font-semibold">{item.title}</p><p className={`mt-1 text-[10px] uppercase tracking-wide ${muted}`}>{item.kind} · v{item.version} · Updated {new Date(item.updated_at).toLocaleDateString()}</p>{item.content && <p className={`mt-2 whitespace-pre-wrap text-xs leading-5 ${muted}`}>{item.content.slice(0, 200)}{item.content.length > 200 ? '…' : ''}</p>}{item.asset_url && <a href={item.asset_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block break-all text-xs text-indigo-400 underline">Open media reference</a>}</div>
-        <div className="flex shrink-0 gap-1"><button type="button" onClick={() => { setEditing(item.id); setEditTitle(item.title); setEditContent(item.content || ''); }} aria-label={`Edit ${item.title}`} className="rounded-lg border border-inherit px-2 py-1 text-[10px]">Edit</button><button type="button" onClick={() => download(item)} aria-label={`Download ${item.title}`} className="rounded-lg p-1.5 hover:bg-indigo-500/10"><Download className="h-3.5 w-3.5" /></button><button type="button" onClick={() => void remove(item.id)} aria-label={`Delete ${item.title}`} className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-500/10"><Trash2 className="h-3.5 w-3.5" /></button></div>
+        <div className="flex shrink-0 gap-1"><button type="button" onClick={() => { setEditing(item.id); setEditTitle(item.title); setEditContent(item.content || ''); setEditVersion(item.version); setError(''); }} aria-label={`Edit ${item.title}`} className="rounded-lg border border-inherit px-2 py-1 text-[10px]">Edit</button><button type="button" onClick={() => download(item)} aria-label={`Download ${item.title}`} className="rounded-lg p-1.5 hover:bg-indigo-500/10"><Download className="h-3.5 w-3.5" /></button><button type="button" onClick={() => void remove(item.id)} aria-label={`Delete ${item.title}`} className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-500/10"><Trash2 className="h-3.5 w-3.5" /></button></div>
       </div>}</article>)}
     </div>
   </section>;
