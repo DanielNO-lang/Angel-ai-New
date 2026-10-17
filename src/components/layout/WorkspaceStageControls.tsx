@@ -123,7 +123,7 @@ export const WorkspaceMinimizedView: React.FC = () => {
     userProfile,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Tab Title and Icon Mapping
   const tabDetails: Record<
