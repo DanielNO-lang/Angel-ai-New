@@ -19,6 +19,20 @@ test('Netlify API path normalization', () => {
 process.env.NETLIFY = 'true';
 const { createApp } = await import('../server.ts');
 
+test('model catalog respects missing Gemini credentials', () => {
+  const previousGeminiKey = process.env.GEMINI_API_KEY;
+  try {
+    delete process.env.GEMINI_API_KEY;
+    const geminiModels = providerRegistry.getModelCatalog().filter((model) => model.provider === 'gemini');
+    assert.ok(geminiModels.length > 0, 'Gemini models should remain discoverable in the catalog');
+    assert.ok(geminiModels.every((model) => !model.isAvailable),
+      'Gemini models must not appear available without GEMINI_API_KEY');
+  } finally {
+    if (previousGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = previousGeminiKey;
+  }
+});
+
 test('Angel backend smoke contract', async (t) => {
   const app = await createApp({ isServerless: true });
   const server = createServer(app);
