@@ -518,13 +518,7 @@ export const AssistantsView: React.FC = () => {
                               Tools: {exec.toolsUsed.join(', ') || 'none'}
                             </div>
                           </div>
-                          <span
-                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                              exec.status === 'completed'
-                                ? 'bg-emerald-500/10 text-emerald-400'
-                                : 'bg-rose-500/10 text-rose-400'
-                            }`}
-                          >
+                          <span className={`text-[10px] font-medium ${exec.status === 'completed' ? 'text-emerald-500' : 'text-rose-500'}`}>
                             {exec.status}
                           </span>
                         </div>
