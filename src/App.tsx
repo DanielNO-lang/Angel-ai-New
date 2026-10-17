@@ -5,6 +5,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import { useIsLightTheme } from './utils/useIsLightTheme';
 import { NavigationTab } from './types';
 import { AnimatePresence, motion } from 'motion/react';
 import { AppProvider, useAngel } from './context/AppContext';
@@ -62,7 +63,7 @@ const WorkspaceContent: React.FC = () => {
     isFocusMode,
     toggleFocusMode,
   } = useAngel();
-  const isLight = settings.theme === 'light' || (settings.theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches);
+  const isLight = useIsLightTheme(settings.theme);
 
   // Lightweight, local-only performance measurements. These log observed timings without
   // transmitting usage data or adding a third-party analytics dependency.
