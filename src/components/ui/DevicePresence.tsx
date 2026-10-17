@@ -73,7 +73,7 @@ export const DevicePresence: React.FC = () => {
         if (status !== 'SUBSCRIBED' || cancelled || !channel) return;
         const track = () => channel?.track({ ...identity, lastSeen: new Date().toISOString() });
         await track();
-        heartbeat = setInterval(() => { void track(); }, 30000);
+        heartbeat = setInterval(() => { void track(); }, 60000);
       });
     };
     void start().catch(() => { /* Presence is optional; chat must keep working if Realtime is unavailable. */ });
