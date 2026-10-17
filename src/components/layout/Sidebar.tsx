@@ -247,11 +247,17 @@ export const Sidebar: React.FC = () => {
         onPointerEnter={handleMouseEnterRail}
         onPointerLeave={handleMouseLeaveRail}
         style={{
-          width: effectiveExpanded ? 240 : 60,
-          transition: 'width 0ms linear',
-          willChange: 'width',
+          // Keep a 60px layout rail when collapsed; reveal a 240px overlay on hover.
+          width: isSidebarCollapsed ? 60 : 240,
+          transition: 'none',
+          zIndex: isSidebarCollapsed && isHoverExpanded ? 50 : 30,
+          overflow: isSidebarCollapsed && isHoverExpanded ? 'visible' : 'hidden',
+          boxShadow: isSidebarCollapsed && isHoverExpanded
+            ? `180px 0 0 0 ${isLight ? '#F8FAFC' : isMidnight ? '#000000' : '#060813'}, 8px 0 24px rgba(0,0,0,0.22)`
+            : undefined,
         }}
-        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-2xl transition-colors duration-300 ${
+        data-hover-expanded={isSidebarCollapsed && isHoverExpanded ? 'true' : 'false'}
+        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-md transition-colors duration-150 ${
           isLight
             ? 'border-slate-200/60 bg-[#F8FAFC]/80 text-slate-800'
             : isMidnight
@@ -264,6 +270,7 @@ export const Sidebar: React.FC = () => {
             1. FIXED (UNSCROLLABLE) TOP REGION
             ======================================================== */}
         <div
+          style={{ width: effectiveExpanded ? 240 : 60, minWidth: effectiveExpanded ? 240 : 60 }}
           className={`shrink-0 p-2 pb-1.5 space-y-1.5 border-b backdrop-blur-md ${
             isLight ? 'border-slate-200/50 bg-white/30' : 'border-white/10 bg-white/[0.02]'
           }`}
@@ -426,7 +433,7 @@ export const Sidebar: React.FC = () => {
             With overscroll-contain preventing scroll chaining to right pane!
             Contains tools, chats, and More dropdown
             ======================================================== */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-1.5 space-y-2 custom-scrollbar overscroll-contain">
+        <div style={{ width: effectiveExpanded ? 240 : 60, minWidth: effectiveExpanded ? 240 : 60 }} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2 py-1.5 space-y-2 custom-scrollbar overscroll-contain">
           {/* Main Navigation Tools */}
           <div className="space-y-1">
             {scrollableTools.map((tool) => {
@@ -717,6 +724,7 @@ export const Sidebar: React.FC = () => {
             - User Profile: signed-in identity and online status dot
             ======================================================== */}
         <div
+          style={{ width: effectiveExpanded ? 240 : 60, minWidth: effectiveExpanded ? 240 : 60 }}
           className={`shrink-0 p-1.5 border-t space-y-1.5 select-none backdrop-blur-md ${
             isLight ? 'border-slate-100/80 bg-white/60' : 'border-indigo-500/15 bg-[#10172B]/75'
           }`}
