@@ -643,8 +643,10 @@ export const SettingsView: React.FC = () => {
                   </p>
                 </button>
               </div>
+            </div>
+          )}
 
-                    {/* ==========================================================
+          {/* ==========================================================
               SUBSECTION 5: WORKSPACE SETTINGS (Categorized under Workspace)
              ========================================================== */}
           {activeSection === 'workspace' && (
