@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Archive,
   Bot,
@@ -135,7 +136,7 @@ export const MemoriesView: React.FC = () => {
     settings,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
