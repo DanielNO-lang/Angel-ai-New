@@ -587,30 +587,47 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.post(['/api/ai/generate', '/api/chat/generate'], async (req: Request, res: Response) => {
     const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
 
-    if (!prompt) {
+    if (typeof prompt !== 'string' || !prompt.trim()) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
+    const requestedProvider = typeof providerId === 'string' ? providerId : '';
+    const startedAt = Date.now();
+    let selectedProviderId = requestedProvider;
+    let selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : '';
     try {
-      const provider = providerRegistry.getProvider(providerId);
-      if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+      let provider;
+      if (!requestedProvider || requestedProvider === 'auto') {
+        const normalizedPrompt = prompt.toLowerCase();
+        const task = /(research|sources|cite|citation|evidence|web search)/.test(normalizedPrompt)
+          ? 'research'
+          : /(write code|debug|typescript|javascript|python|implement|refactor|compile error)/.test(normalizedPrompt)
+            ? 'coding'
+            : /(reason through|proof|derive|complex analysis|compare trade-offs)/.test(normalizedPrompt)
+              ? 'reasoning'
+              : 'chat';
+        const routed = providerRegistry.routeForTask(task);
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(requestedProvider);
       }
+
       const result = await provider.generate({
         prompt,
         systemInstruction,
         conversationHistory,
-        modelId,
+        modelId: selectedModelId || undefined,
         temperature,
         maxTokens,
       });
-
-      res.json(result);
+      modelRoutingTelemetry.record(selectedModelId || result.modelId || selectedProviderId, true, Date.now() - startedAt);
+      return res.json({ ...result, provider: selectedProviderId || result.provider, modelId: selectedModelId || result.modelId });
     } catch (err) {
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'generate', false, Date.now() - startedAt);
       console.error('[API /api/ai/generate Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: err instanceof Error ? err.message : 'AI generation is temporarily unavailable.' });
     }
   });
 
@@ -618,16 +635,23 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.post('/api/ai/structured', async (req: Request, res: Response) => {
     const { prompt, systemInstruction, conversationHistory, jsonSchema, schemaName, modelId, providerId, temperature } = req.body;
 
-    if (!prompt || !jsonSchema) {
-      return res.status(400).json({ error: 'Prompt and jsonSchema are required' });
+    if (typeof prompt !== 'string' || !prompt.trim() || !jsonSchema || typeof jsonSchema !== 'object' || Array.isArray(jsonSchema)) {
+      return res.status(400).json({ error: 'Prompt and a JSON schema object are required.' });
     }
 
+    const requestedProvider = typeof providerId === 'string' ? providerId : '';
+    const startedAt = Date.now();
+    let selectedProviderId = requestedProvider;
+    let selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : '';
     try {
-      const provider = providerRegistry.getProvider(providerId);
-      if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+      let provider;
+      if (!requestedProvider || requestedProvider === 'auto') {
+        const routed = providerRegistry.routeForTask('structured_output');
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(requestedProvider);
       }
       const result = await provider.structuredOutput({
         prompt,
@@ -635,14 +659,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         conversationHistory,
         jsonSchema,
         schemaName,
-        modelId,
+        modelId: selectedModelId || undefined,
         temperature,
       });
-
-      res.json({ success: true, data: result });
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId, true, Date.now() - startedAt);
+      return res.json({ success: true, data: result, provider: selectedProviderId, modelId: selectedModelId || undefined });
     } catch (err) {
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'structured_output', false, Date.now() - startedAt);
       console.error('[API /api/ai/structured Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: err instanceof Error ? err.message : 'Structured generation is temporarily unavailable.' });
     }
   });
 
@@ -686,35 +711,43 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.post(['/api/ai/vision', '/api/visual/inspect'], async (req: Request, res: Response) => {
     const { base64Data, mimeType, prompt, modelId, providerId, systemInstruction } = req.body;
 
-    if (!base64Data) {
-      return res.status(400).json({ error: 'base64Data image frame is required' });
+    if (typeof base64Data !== 'string' || !base64Data.trim() || base64Data.length > 9_000_000) {
+      return res.status(400).json({ error: 'A valid base64 image frame up to 9 MB is required.' });
     }
 
+    const requestedProvider = typeof providerId === 'string' ? providerId : '';
+    const startedAt = Date.now();
+    let selectedProviderId = requestedProvider;
+    let selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : '';
     try {
-      const provider = providerRegistry.getProvider(providerId);
-      if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+      let provider;
+      if (!requestedProvider || requestedProvider === 'auto') {
+        const routed = providerRegistry.routeForTask('vision');
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(requestedProvider);
       }
       const result = await provider.vision({
         base64Data,
-        mimeType: mimeType || 'image/jpeg',
-        prompt: prompt || 'Analyze this frame and describe its key elements concisely.',
+        mimeType: typeof mimeType === 'string' && /^image\/(?:jpeg|png|webp|gif|avif)$/i.test(mimeType) ? mimeType : 'image/jpeg',
+        prompt: typeof prompt === 'string' && prompt.trim() ? prompt.slice(0, 2000) : 'Analyze this frame and describe its key elements concisely.',
         systemInstruction,
-        modelId,
+        modelId: selectedModelId || undefined,
       });
-
-      res.json({
+      modelRoutingTelemetry.record(selectedModelId || result.modelId || selectedProviderId, true, Date.now() - startedAt);
+      return res.json({
         analysis: result.analysis,
-        provider: result.provider,
-        modelId: result.modelId,
+        provider: result.provider || selectedProviderId,
+        modelId: result.modelId || selectedModelId || undefined,
         isPendingConfig: Boolean(result.isPendingConfig),
         timestamp: new Date().toISOString(),
       });
     } catch (err) {
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'vision', false, Date.now() - startedAt);
       console.error('[API /api/ai/vision Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: err instanceof Error ? err.message : 'Visual analysis is temporarily unavailable.' });
     }
   });
 
@@ -722,22 +755,32 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.post('/api/ai/embeddings', async (req: Request, res: Response) => {
     const { texts, modelId, providerId } = req.body;
 
-    if (!texts) {
-      return res.status(400).json({ error: 'texts string or array is required' });
+    if (!(typeof texts === 'string' && texts.trim()) &&
+        !(Array.isArray(texts) && texts.length > 0 && texts.length <= 100 && texts.every((item) => typeof item === 'string' && item.trim()))) {
+      return res.status(400).json({ error: 'texts must be a non-empty string or an array of up to 100 non-empty strings.' });
     }
 
+    const requestedProvider = typeof providerId === 'string' ? providerId : '';
+    const startedAt = Date.now();
+    let selectedProviderId = requestedProvider;
+    let selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : '';
     try {
-      const provider = providerRegistry.getProvider(providerId);
-      if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+      let provider;
+      if (!requestedProvider || requestedProvider === 'auto') {
+        const routed = providerRegistry.routeForTask('embeddings');
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(requestedProvider);
       }
-      const embeddings = await provider.embeddings(texts);
-      res.json({ embeddings, count: embeddings.length });
+      const embeddings = await provider.embeddings(texts, selectedModelId || undefined);
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId, true, Date.now() - startedAt);
+      return res.json({ embeddings, count: embeddings.length, provider: selectedProviderId, modelId: selectedModelId || undefined });
     } catch (err) {
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'embeddings', false, Date.now() - startedAt);
       console.error('[API /api/ai/embeddings Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: err instanceof Error ? err.message : 'Embedding service is temporarily unavailable.' });
     }
   });
 
