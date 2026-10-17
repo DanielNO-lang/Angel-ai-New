@@ -31,6 +31,24 @@ test('Angel backend smoke contract', async (t) => {
   assert.equal(healthBody.status, 'ok');
   assert.equal(healthBody.workspace, 'Angel AI');
 
+  const integrationStatus = await fetch(`${baseUrl}/api/integrations/status`);
+  assert.equal(integrationStatus.status, 200, 'integration status must return a safe diagnostic summary');
+  const integrationPayload = await integrationStatus.json() as {
+    gemini?: { configured?: boolean };
+    supabase?: { configured?: boolean };
+    openai?: { configured?: boolean };
+    github?: { configured?: boolean };
+    zapier?: { configured?: boolean };
+    vercel?: { configured?: boolean; isVercelRuntime?: boolean };
+  };
+  assert.ok(integrationPayload.gemini && typeof integrationPayload.gemini.configured === 'boolean');
+  assert.ok(integrationPayload.supabase && typeof integrationPayload.supabase.configured === 'boolean');
+  assert.ok(integrationPayload.openai && typeof integrationPayload.openai.configured === 'boolean');
+  assert.ok(integrationPayload.github && typeof integrationPayload.github.configured === 'boolean');
+  assert.ok(integrationPayload.zapier && typeof integrationPayload.zapier.configured === 'boolean');
+  assert.doesNotMatch(JSON.stringify(integrationPayload), /sk-[A-Za-z0-9]{12,}|service_role.{0,20}[A-Za-z0-9_-]{20,}/i,
+    'integration diagnostics must not disclose credential-like values');
+
   const providers = await fetch(`${baseUrl}/api/ai/providers`);
   assert.equal(providers.status, 200);
   assert.ok(Array.isArray(await providers.json()));
