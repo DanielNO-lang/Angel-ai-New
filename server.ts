@@ -22,6 +22,7 @@ import { voiceService } from './server/services/voiceService.js';
 import { intelligenceService } from './server/services/intelligenceService.js';
 import { searchGroundedWeb } from './server/services/groundedSearchService.js';
 import { runGroundedResearch } from './server/services/researchService.js';
+import { calculateRetryDelay, verifyWorkflowOutcome } from './server/services/verifiedWorkflowService.js';
 import { recordAdminAuditEvent } from './server/services/auditService.js';
 import { githubService } from './server/services/githubService.js';
 import { vercelService } from './server/services/vercelService.js';
@@ -1081,7 +1082,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
     const { data, error } = await supabase.from('angel_background_jobs')
-      .select('id,kind,title,status,result,error,created_at,started_at,finished_at,updated_at')
+      .select('id,kind,title,status,result,error,progress,attempt_count,max_attempts,cancel_requested_at,created_at,started_at,finished_at,updated_at')
       .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
     if (error) return res.status(500).json({ error: 'Could not load background jobs.', detail: error.message });
     return res.json({ jobs: data || [] });
@@ -1092,13 +1093,32 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (!user) return;
     const supabase = getSupabaseClient();
     if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
-    const { data, error } = await supabase.from('angel_background_jobs')
-      .update({ status: 'cancelled', finished_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq('id', req.params.id).eq('user_id', user.id).eq('status', 'queued')
-      .select('id,status').maybeSingle();
-    if (error) return res.status(500).json({ error: 'Could not cancel the background job.', detail: error.message });
-    if (!data) return res.status(409).json({ error: 'The job was not found, is already running, or has already finished.' });
-    return res.json({ job: data });
+    const now = new Date().toISOString();
+    const { data: stopped, error: stopError } = await supabase.from('angel_background_jobs')
+      .update({
+        status: 'cancelled',
+        finished_at: now,
+        updated_at: now,
+        progress: { stage: 'cancelled', percent: 100, message: 'Cancelled before execution or retry.' },
+      })
+      .eq('id', req.params.id).eq('user_id', user.id).in('status', ['queued', 'retrying'])
+      .select('id,status,progress').maybeSingle();
+    if (stopError) return res.status(500).json({ error: 'Could not cancel the background job.' });
+    if (stopped) return res.json({ job: stopped, message: 'The queued task was cancelled.' });
+
+    // A running provider call cannot always be interrupted by its SDK. Record the
+    // request now; the worker will discard its result and will not schedule retries.
+    const { data: requested, error: requestError } = await supabase.from('angel_background_jobs')
+      .update({
+        cancel_requested_at: now,
+        updated_at: now,
+        progress: { stage: 'cancellation_requested', percent: 95, message: 'Cancellation requested. The current model call may need to finish first.' },
+      })
+      .eq('id', req.params.id).eq('user_id', user.id).eq('status', 'running').is('cancel_requested_at', null)
+      .select('id,status,progress,cancel_requested_at').maybeSingle();
+    if (requestError) return res.status(500).json({ error: 'Could not request task cancellation.' });
+    if (requested) return res.json({ job: requested, message: 'Cancellation requested. Any in-flight model call may finish before the worker stops and suppresses the result.' });
+    return res.status(409).json({ error: 'The job was not found, is already cancelled, or has already finished.' });
   });
 
   app.all('/api/jobs/worker', async (req: Request, res: Response) => {
@@ -1116,7 +1136,23 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const { data: jobs, error } = await supabase.rpc('claim_angel_background_jobs', { p_limit: 3 });
     if (error) return res.status(500).json({ error: 'Could not claim queued jobs.', detail: error.message });
     const results: Array<{ id: string; status: string }> = [];
-    for (const job of (jobs || []) as Array<{ id: string; user_id: string; input: Record<string, unknown> }>) {
+    type ClaimedJob = {
+      id: string;
+      user_id: string;
+      input: Record<string, unknown>;
+      attempt_count?: number;
+      max_attempts?: number;
+      cancel_requested_at?: string | null;
+    };
+    const percentByStage: Record<string, number> = {
+      requested: 5, context_preparation: 15, memory_retrieval: 22,
+      tool_planning: 30, execution: 45, validation: 80, response: 90,
+      memory_update: 94, completed: 100, failed: 100,
+    };
+    for (const job of (jobs || []) as ClaimedJob[]) {
+      const now = () => new Date().toISOString();
+      const attempt = Math.max(1, Number(job.attempt_count) || 1);
+      const maxAttempts = Math.max(1, Math.min(8, Number(job.max_attempts) || 3));
       try {
         const input = job.input || {};
         const result = await executeAgentPipeline({
@@ -1129,23 +1165,108 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           allowedTools: [],
           permissions: [],
           memoryAccess: { canRead: false, canWrite: false, types: [] },
+          onProgress: async (step) => {
+            const { error: progressError } = await supabase.from('angel_background_jobs').update({
+              progress: {
+                stage: step.stage,
+                percent: percentByStage[step.stage] ?? 40,
+                message: step.message.slice(0, 240),
+                attempt,
+                maxAttempts,
+              },
+              updated_at: now(),
+            }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null);
+            if (progressError) console.warn('[Background job progress persistence]', progressError.message);
+          },
         });
-        const status = result.status === 'completed' ? 'completed' : 'failed';
+
+        const { data: latest, error: latestError } = await supabase.from('angel_background_jobs')
+          .select('cancel_requested_at').eq('id', job.id).maybeSingle();
+        if (latestError) throw latestError;
+        if (latest?.cancel_requested_at) {
+          await supabase.from('angel_background_jobs').update({
+            status: 'cancelled',
+            result: null,
+            error: 'Cancellation was requested while the model call was running. The result was discarded.',
+            progress: { stage: 'cancelled', percent: 100, message: 'Cancelled after the in-flight call ended; result discarded.', attempt, maxAttempts },
+            finished_at: now(),
+            updated_at: now(),
+          }).eq('id', job.id).eq('status', 'running');
+          results.push({ id: job.id, status: 'cancelled' });
+          continue;
+        }
+
+        const verification = result.status === 'completed'
+          ? verifyWorkflowOutcome(result.output)
+          : { verified: false, reason: result.error || 'The agent pipeline reported failure.' };
+        if (verification.verified) {
+          const { data: saved, error: saveError } = await supabase.from('angel_background_jobs').update({
+            status: 'completed',
+            result: { output: result.output, executionId: result.executionId, toolsExecuted: result.toolsExecuted, logs: result.logs, verified: true },
+            error: null,
+            progress: { stage: 'completed', percent: 100, message: 'The agent result was checked and saved.', attempt, maxAttempts },
+            finished_at: now(),
+            updated_at: now(),
+          }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null).select('id').maybeSingle();
+          if (saveError) throw saveError;
+          if (!saved) {
+            const { data: cancelState } = await supabase.from('angel_background_jobs')
+              .select('cancel_requested_at').eq('id', job.id).maybeSingle();
+            if (cancelState?.cancel_requested_at) {
+              await supabase.from('angel_background_jobs').update({
+                status: 'cancelled', result: null,
+                error: 'Cancellation was requested while the model call was running. The result was discarded.',
+                progress: { stage: 'cancelled', percent: 100, message: 'Cancelled; result discarded.', attempt, maxAttempts },
+                finished_at: now(), updated_at: now(),
+              }).eq('id', job.id).eq('status', 'running');
+              results.push({ id: job.id, status: 'cancelled' });
+              continue;
+            }
+            throw new Error('The verified result could not be committed because the job state changed.');
+          }
+          results.push({ id: job.id, status: 'completed' });
+          continue;
+        }
+
+        const failure = (verification.reason || result.error || 'The result failed verification.').slice(0, 2000);
+        const retry = attempt < maxAttempts;
+        const delayMs = retry ? calculateRetryDelay(attempt, { maxRetries: maxAttempts - 1, baseDelayMs: 15_000, maxDelayMs: 300_000 }) : 0;
+        const retryAt = retry ? new Date(Date.now() + delayMs).toISOString() : null;
         const { error: saveError } = await supabase.from('angel_background_jobs').update({
-          status,
-          result: { output: result.output, executionId: result.executionId, toolsExecuted: result.toolsExecuted, logs: result.logs },
-          error: result.error || null,
-          finished_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq('id', job.id).eq('status', 'running');
+          status: retry ? 'retrying' : 'failed',
+          result: { output: result.output, executionId: result.executionId, verified: false, reason: failure },
+          error: failure,
+          next_attempt_at: retryAt,
+          progress: {
+            stage: retry ? 'retrying' : 'failed',
+            percent: retry ? 10 : 100,
+            message: retry ? `Attempt ${attempt} failed verification. A bounded retry is scheduled.` : 'Attempts exhausted; the task failed verification.',
+            attempt, maxAttempts,
+          },
+          finished_at: retry ? null : now(),
+          updated_at: now(),
+        }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null);
         if (saveError) throw saveError;
-        results.push({ id: job.id, status });
+        results.push({ id: job.id, status: retry ? 'retrying' : 'failed' });
       } catch (jobError) {
         const message = jobError instanceof Error ? jobError.message : 'Background execution failed.';
+        const retry = attempt < maxAttempts;
+        const delayMs = retry ? calculateRetryDelay(attempt, { maxRetries: maxAttempts - 1, baseDelayMs: 15_000, maxDelayMs: 300_000 }) : 0;
+        const retryAt = retry ? new Date(Date.now() + delayMs).toISOString() : null;
         await supabase.from('angel_background_jobs').update({
-          status: 'failed', error: message.slice(0, 2000), finished_at: new Date().toISOString(), updated_at: new Date().toISOString(),
-        }).eq('id', job.id).eq('status', 'running');
-        results.push({ id: job.id, status: 'failed' });
+          status: retry ? 'retrying' : 'failed',
+          error: message.slice(0, 2000),
+          next_attempt_at: retryAt,
+          progress: {
+            stage: retry ? 'retrying' : 'failed',
+            percent: retry ? 10 : 100,
+            message: retry ? `Attempt ${attempt} failed. Retry scheduled with backoff.` : 'Attempts exhausted; the task failed.',
+            attempt, maxAttempts,
+          },
+          finished_at: retry ? null : now(),
+          updated_at: now(),
+        }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null);
+        results.push({ id: job.id, status: retry ? 'retrying' : 'failed' });
       }
     }
     return res.json({ processed: results.length, jobs: results });
