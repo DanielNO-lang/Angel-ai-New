@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   AlertCircle,
   ArrowRight,
@@ -60,7 +61,7 @@ export const TasksView: React.FC = () => {
     setMobileMenuOpen,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState<string>('');
