@@ -10,6 +10,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   ArrowLeft,
   User,
@@ -101,7 +102,7 @@ export const SettingsView: React.FC = () => {
     lastAutosavedAt,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Active Sub-Section from Context
   const activeSection = activeSettingsSection;
