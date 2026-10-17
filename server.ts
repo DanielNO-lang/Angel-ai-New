@@ -554,7 +554,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       }
 
       if (!provider.isConfigured()) {
-        return res.status(503).json({ error: \`The selected AI provider (\${provider.id}) is not configured on the server.\` });
+        return res.status(503).json({ error: `The selected AI provider (${provider.id}) is not configured on the server.` });
       }
 
       res.setHeader('Content-Type', 'text/event-stream');
@@ -564,11 +564,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
       await provider.stream(
         { prompt, systemInstruction, conversationHistory, modelId: selectedModelId, temperature, maxTokens },
-        (chunk) => { res.write(\`data: \${JSON.stringify({ chunk })}\\n\\n\`); }
+        (chunk) => { res.write(`data: ${JSON.stringify({ chunk })}\n\n`); }
       );
 
       modelRoutingTelemetry.record(selectedModelId || selectedProviderId || provider.id, true, Date.now() - startedAt);
-      res.write(\`data: \${JSON.stringify({ done: true, provider: selectedProviderId, modelId: selectedModelId || undefined })}\\n\\n\`);
+      res.write(`data: ${JSON.stringify({ done: true, provider: selectedProviderId, modelId: selectedModelId || undefined })}\n\n`);
       res.end();
     } catch (err) {
       if (startedAt > 0) modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'unknown', false, Date.now() - startedAt);
@@ -578,7 +578,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         res.status(503).json({ error: msg });
         return;
       }
-      res.write(\`data: \${JSON.stringify({ error: msg, done: true })}\\n\\n\`);
+      res.write(`data: ${JSON.stringify({ error: msg, done: true })}\n\n`);
       res.end();
     }
   });
@@ -667,7 +667,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         provider = providerRegistry.getProvider(selectedProviderId);
       }
       if (!provider.isConfigured()) {
-        return res.status(503).json({ error: \`The selected AI provider (\${provider.id}) is not configured on the server.\` });
+        return res.status(503).json({ error: `The selected AI provider (${provider.id}) is not configured on the server.` });
       }
       const result = await provider.toolCall({
         prompt, systemInstruction, conversationHistory, tools,
