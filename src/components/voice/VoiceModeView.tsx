@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Mic,
   MicOff,
@@ -45,7 +46,7 @@ export const VoiceModeView: React.FC = () => {
     createTask,
     createMemory,
   } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Voice state
   const [isMuted, setIsMuted] = useState(false);
