@@ -5,6 +5,7 @@ import { routeAngelVoiceUtterance } from '../src/services/voice/voiceCommandRout
 import { listAngelSkills, buildAngelSkillContext } from '../server/services/angelSkillsService';
 import { handleAngelMcpMessage } from '../server/services/mcpGatewayService';
 import { generateWithQwenImage, QwenImageError } from '../server/services/qwenImageService';
+import { runAdkAgent } from '../server/services/adkBridgeService';
 
 
 // Prevent the standalone development listener from starting when importing server.ts.
@@ -299,5 +300,52 @@ test('Qwen Image 2.1 Pro sends ordered multi-reference images and enforces provi
     if (priorBaseUrl === undefined) delete process.env.QWEN_IMAGE_API_BASE_URL; else process.env.QWEN_IMAGE_API_BASE_URL = priorBaseUrl;
     if (priorApiKey === undefined) delete process.env.QWEN_IMAGE_API_KEY; else process.env.QWEN_IMAGE_API_KEY = priorApiKey;
     if (priorModelId === undefined) delete process.env.QWEN_IMAGE_MODEL_ID; else process.env.QWEN_IMAGE_MODEL_ID = priorModelId;
+  }
+});
+
+
+test('ADK bridge forwards the authenticated user token only to the configured HTTPS MCP-capable runtime', async () => {
+  const priorRunUrl = process.env.ANGEL_ADK_RUN_URL;
+  const priorApiKey = process.env.ANGEL_ADK_API_KEY;
+  const priorAppName = process.env.ANGEL_ADK_APP_NAME;
+  const nativeFetch = globalThis.fetch;
+  let requestCapture: { url: string; authorization?: string; body?: any } | undefined;
+  process.env.ANGEL_ADK_RUN_URL = 'https://adk-test.example/run';
+  process.env.ANGEL_ADK_API_KEY = 'test-only-adk-service-secret';
+  process.env.ANGEL_ADK_APP_NAME = 'angel-adk-bridge';
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    requestCapture = {
+      url: input instanceof Request ? input.url : String(input),
+      authorization: new Headers(init?.headers).get('authorization') || undefined,
+      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+    };
+    return new Response(JSON.stringify({
+      success: true,
+      response: 'ADK test response',
+      sessionId: 'test-session',
+      appName: 'angel-adk-bridge',
+      durationMs: 7,
+      sessionPersistence: 'in-memory (single instance only)',
+      mcpToolsUsed: true,
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+
+  try {
+    const result = await runAdkAgent({
+      message: 'List my Angel capabilities',
+      sessionId: 'test-session',
+      mcpAccessToken: 'test-user-supabase-jwt',
+    }, 'test-user-id');
+    assert.equal(result.response, 'ADK test response');
+    assert.equal(requestCapture?.url, 'https://adk-test.example/run');
+    assert.equal(requestCapture?.authorization, 'Bearer test-only-adk-service-secret');
+    assert.equal(requestCapture?.body?.userId, 'test-user-id');
+    assert.equal(requestCapture?.body?.mcpAccessToken, 'test-user-supabase-jwt');
+    assert.equal(JSON.stringify(result).includes('test-user-supabase-jwt'), false, 'user JWT must not be returned to the browser');
+  } finally {
+    globalThis.fetch = nativeFetch;
+    if (priorRunUrl === undefined) delete process.env.ANGEL_ADK_RUN_URL; else process.env.ANGEL_ADK_RUN_URL = priorRunUrl;
+    if (priorApiKey === undefined) delete process.env.ANGEL_ADK_API_KEY; else process.env.ANGEL_ADK_API_KEY = priorApiKey;
+    if (priorAppName === undefined) delete process.env.ANGEL_ADK_APP_NAME; else process.env.ANGEL_ADK_APP_NAME = priorAppName;
   }
 });
