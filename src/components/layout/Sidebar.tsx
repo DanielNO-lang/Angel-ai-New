@@ -87,6 +87,7 @@ export const Sidebar: React.FC = () => {
   } = useAngel();
 
   const isLight = settings.theme === 'light';
+  const isMidnight = settings.theme === 'midnight';
 
   // Full-page hover-expand state on closed sidebar (per user specification)
   const [isHoverExpanded, setIsHoverExpanded] = useState(false);
@@ -253,38 +254,14 @@ export const Sidebar: React.FC = () => {
           transition: 'width 0ms linear',
           willChange: 'width',
         }}
-        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-2xl ${
+        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-2xl transition-colors duration-300 ${
           isLight
-            ? 'border-slate-200/60 bg-white/40 text-slate-800'
-            : 'border-white/10 bg-white/[0.03] text-neutral-200 shadow-2xl'
+            ? 'border-slate-200/60 bg-[#F8FAFC]/80 text-slate-800'
+            : isMidnight
+            ? 'border-white/5 bg-black/85 text-neutral-200'
+            : 'border-white/5 bg-[#060813]/85 text-neutral-200'
         }`}
       >
-        {/* Angel Backdrop Integration — Carries the left portion of the Angel artwork seamlessly */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 select-none">
-          <img
-            src={angelBackdropImg}
-            alt=""
-            aria-hidden="true"
-            className={`w-[100vw] h-full max-w-none object-cover object-left select-none transition-opacity duration-500 ${
-              isLight
-                ? 'opacity-20 mix-blend-multiply filter contrast-125 saturate-110'
-                : 'opacity-70 mix-blend-screen filter brightness-105 contrast-125'
-            }`}
-          />
-          <div
-            className={`absolute inset-0 backdrop-blur-2xl ${
-              isLight ? 'bg-[#F4F6FC]/60' : 'bg-[#060813]/60'
-            }`}
-          />
-          <div
-            className="absolute -top-[10%] -left-[20%] w-[120%] h-[50%] rounded-full pointer-events-none blur-[60px]"
-            style={{
-              background: isLight
-                ? 'radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, transparent 70%)'
-                : 'radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 70%)',
-            }}
-          />
-        </div>
 
         {/* ========================================================
             1. FIXED (UNSCROLLABLE) TOP REGION
@@ -848,30 +825,14 @@ export const Sidebar: React.FC = () => {
 
           {/* Drawer Panel */}
           <aside
-            className={`fixed inset-y-0 left-0 w-72 sm:w-80 flex flex-col h-full shadow-2xl z-50 animate-in slide-in-from-left duration-200 select-none overflow-hidden relative border-r ${
+            className={`fixed inset-y-0 left-0 w-72 sm:w-80 flex flex-col h-full shadow-2xl z-50 animate-in slide-in-from-left duration-200 select-none overflow-hidden relative border-r transition-colors duration-300 ${
               isLight
-                ? 'text-slate-800 border-slate-200'
-                : 'text-neutral-200 border-indigo-500/20'
+                ? 'text-slate-800 border-slate-200 bg-[#F8FAFC]'
+                : isMidnight
+                ? 'text-neutral-200 border-white/5 bg-black'
+                : 'text-neutral-200 border-white/5 bg-[#060813]'
             }`}
           >
-            {/* Angel Backdrop Integration — Unified with app backdrop colors */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 select-none">
-              <img
-                src={angelBackdropImg}
-                alt=""
-                aria-hidden="true"
-                className={`w-[100vw] h-full max-w-none object-cover object-left select-none transition-opacity duration-500 ${
-                  isLight
-                    ? 'opacity-20 mix-blend-multiply filter contrast-125 saturate-110'
-                    : 'opacity-70 mix-blend-screen filter brightness-105 contrast-125'
-                }`}
-              />
-              <div
-                className={`absolute inset-0 backdrop-blur-2xl ${
-                  isLight ? 'bg-[#F4F6FC]/85' : 'bg-[#060813]/85'
-                }`}
-              />
-            </div>
 
             {/* Drawer Top Header: Logo + Collapse Sidebar Icon */}
             <div

@@ -126,7 +126,7 @@ interface AppContextType {
   signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
-  sendMessage: (content: string, attachments?: Message['attachments']) => Promise<void>;
+  sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string) => Promise<void>;
 
   // User Profile
   userProfile: UserProfile;
@@ -436,6 +436,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const convs = getStoredItem<Conversation[]>('conversations', INITIAL_CONVERSATIONS);
     return convs[0]?.id || 'conv-welcome';
   });
+  const activeConversationIdRef = useRef<string>(activeConversationId);
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
 
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() =>
     hasStoredAuthSession()
@@ -1500,7 +1504,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const currentConv = conversations.find((c) => c.id === targetConvId);
       const convProjectId = currentConv?.projectId || activeProjectId || undefined;
 
-      await conversationService.sendMessage({
+      const result = await conversationService.sendMessage({
         conversationId: targetConvId,
         prompt: content,
         agent,
@@ -1568,7 +1572,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         },
       });
 
-      // Finalize assistant message streaming state
+      // Finalize assistant message streaming state and ensure content is never empty
       setMessagesMap((prev) => {
         const msgs = prev[targetConvId] || [];
         return {
@@ -1577,6 +1581,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             m.id === assistantMessageId
               ? {
                   ...m,
+                  content: (m.content && m.content.trim()) ? m.content : (result?.content || 'Angel has completed processing your request.'),
                   isStreaming: false,
                   toolCalls: runningToolCalls,
                 }

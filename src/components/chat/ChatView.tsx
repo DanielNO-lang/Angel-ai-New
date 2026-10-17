@@ -488,14 +488,19 @@ export const ChatView: React.FC = () => {
                     {/* Message Content */}
                     {isUser ? (
                       <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                    ) : (
+                    ) : message.content ? (
                       <div className="markdown-body leading-relaxed text-sm">
                         <Markdown>{message.content}</Markdown>
                       </div>
-                    )}
+                    ) : message.isStreaming ? (
+                      <div className="flex items-center gap-2 py-1 text-xs text-indigo-400 font-medium animate-pulse">
+                        <Sparkles className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                        <span>Angel is thinking...</span>
+                      </div>
+                    ) : null}
 
                     {/* Streaming indicator */}
-                    {message.isStreaming && (
+                    {message.isStreaming && message.content && (
                       <span className="inline-block w-1.5 h-3 ml-1 bg-indigo-500 animate-pulse" />
                     )}
 

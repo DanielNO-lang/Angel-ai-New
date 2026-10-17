@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Menu,
+  ChevronLeft,
   Search,
   Minus,
   Maximize2,
@@ -80,18 +81,32 @@ export const MobileTopBar: React.FC = () => {
           : 'bg-[#0B0E14]/95 border-white/10 text-neutral-100 shadow-black/60'
       }`}
     >
-      {/* Left: Hamburger Drawer Trigger + Logo */}
-      <div className="flex items-center gap-2 min-w-0">
-        <button
-          onClick={() => setMobileMenuOpen(true)}
-          className={`p-2 rounded-xl transition-colors cursor-pointer ${
-            isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-white/10 text-neutral-300'
-          }`}
-          aria-label="Open navigation drawer"
-          title="Open Menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+      {/* Left: Back option / Hamburger Drawer Trigger + Logo */}
+      <div className="flex items-center gap-1.5 min-w-0">
+        {activeTab !== 'home' && activeTab !== 'chat' ? (
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className={`p-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold ${
+              isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-white/10 text-neutral-200'
+            }`}
+            aria-label="Back to sidebar options"
+            title="Back to options"
+          >
+            <ChevronLeft className="w-5 h-5 text-indigo-400" />
+            <span className="hidden xs:inline">Back</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className={`p-2 rounded-xl transition-colors cursor-pointer ${
+              isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-white/10 text-neutral-300'
+            }`}
+            aria-label="Open navigation drawer"
+            title="Open Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
 
         <div
           onClick={() => setActiveTab('home')}

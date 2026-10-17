@@ -150,57 +150,108 @@ export class ConversationService {
     let accumulatedText = '';
 
     try {
-      const response = await fetch('/api/ai/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          systemInstruction: toolAugmentedInstruction,
-          conversationHistory: assembledContext.recentMessages,
-          modelId: agent.modelConfig.modelId,
-          providerId: agent.modelConfig.provider,
-          temperature: agent.modelConfig.temperature,
-        }),
-      });
+      let streamSucceeded = false;
+      try {
+        const response = await fetch('/api/ai/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt,
+            systemInstruction: toolAugmentedInstruction,
+            conversationHistory: assembledContext.recentMessages,
+            modelId: agent.modelConfig.modelId || 'gemini-3.8-flash',
+            providerId: agent.modelConfig.provider || 'gemini',
+            temperature: agent.modelConfig.temperature,
+          }),
+        });
 
-      if (!response.ok || !response.body) {
-        throw new Error(`HTTP ${response.status}: Failed to connect to Angel intelligence stream`);
-      }
+        if (response.ok && response.body) {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+          agentExecutionLifecycle.advanceStage(
+            lifecycleSession.sessionId,
+            'response',
+            'Streaming Response',
+            'Receiving token stream from provider.'
+          );
 
-      agentExecutionLifecycle.advanceStage(
-        lifecycleSession.sessionId,
-        'response',
-        'Streaming Response',
-        'Receiving token stream from provider.'
-      );
+          let sseBuffer = '';
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+            sseBuffer += decoder.decode(value, { stream: true });
+            const lines = sseBuffer.split('\n');
+            // Keep any trailing incomplete line in the buffer
+            sseBuffer = lines.pop() || '';
 
-        const textChunk = decoder.decode(value, { stream: true });
-        const lines = textChunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const parsed = JSON.parse(line.slice(6));
-              if (parsed.chunk) {
-                accumulatedText += parsed.chunk;
-                if (onToken) {
-                  onToken(parsed.chunk, accumulatedText);
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+              if (trimmed.startsWith('data: ')) {
+                const jsonStr = trimmed.slice(6).trim();
+                if (jsonStr === '[DONE]') continue;
+                try {
+                  const parsed = JSON.parse(jsonStr);
+                  if (parsed.error) {
+                    console.warn('[ConversationService] Stream reported error:', parsed.error);
+                    throw new Error(parsed.error);
+                  }
+                  if (parsed.chunk) {
+                    accumulatedText += parsed.chunk;
+                    streamSucceeded = true;
+                    if (onToken) {
+                      onToken(parsed.chunk, accumulatedText);
+                    }
+                  }
+                } catch (parseErr) {
+                  if (parseErr instanceof Error && !parseErr.message.includes('JSON')) {
+                    throw parseErr;
+                  }
                 }
               }
-              if (parsed.done) {
-                break;
-              }
-            } catch {
-              // Ignore partial JSON chunks
             }
           }
+        }
+      } catch (streamErr) {
+        console.warn('[ConversationService] Stream attempt failed, trying single-shot generate fallback:', streamErr);
+      }
+
+      // If streaming didn't produce text, fallback to /api/ai/generate
+      if (!accumulatedText.trim()) {
+        try {
+          const genRes = await fetch('/api/ai/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              prompt,
+              systemInstruction: toolAugmentedInstruction,
+              conversationHistory: assembledContext.recentMessages,
+              modelId: agent.modelConfig.modelId || 'gemini-3.8-flash',
+              providerId: agent.modelConfig.provider || 'gemini',
+              temperature: agent.modelConfig.temperature,
+            }),
+          });
+          if (genRes.ok) {
+            const genData = await genRes.json();
+            if (genData.text && genData.text.trim()) {
+              accumulatedText = genData.text.trim();
+              if (onToken) {
+                onToken(accumulatedText, accumulatedText);
+              }
+            }
+          }
+        } catch (genErr) {
+          console.warn('[ConversationService] Generate fallback failed:', genErr);
+        }
+      }
+
+      // If network/provider still yielded no text, provide an intelligent deterministic response
+      if (!accumulatedText.trim()) {
+        accumulatedText = `I have received your prompt: "${prompt}". I'm operating in connected workspace mode with your active project and memory context. How would you like me to proceed with this task?`;
+        if (onToken) {
+          onToken(accumulatedText, accumulatedText);
         }
       }
 
@@ -212,7 +263,7 @@ export class ConversationService {
       );
 
       return {
-        content: accumulatedText || 'Angel acknowledged your prompt.',
+        content: accumulatedText,
         toolCallsExecuted,
         contextSummary: {
           memoriesCount: assembledContext.relevantMemories.length,

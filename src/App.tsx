@@ -52,6 +52,7 @@ const WorkspaceContent: React.FC = () => {
     isWorkspaceMinimized,
     workspaceSizeMode,
     openCommandPalette,
+    activeTab,
     toggleSidebar,
     setMobileMenuOpen,
     isFocusMode,
@@ -191,8 +192,11 @@ const WorkspaceContent: React.FC = () => {
       isTracking = false;
 
       // Swiped right with dominant horizontal velocity (> 45px deltaX and deltaX > 1.5 * abs(deltaY))
-      if (deltaX > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
-        setMobileMenuOpen(true);
+      // User specification: slide to open sidebar should ONLY work for home section and chat section
+      if (activeTab === 'home' || activeTab === 'chat') {
+        if (deltaX > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+          setMobileMenuOpen(true);
+        }
       }
     };
 
@@ -203,7 +207,7 @@ const WorkspaceContent: React.FC = () => {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [setMobileMenuOpen]);
+  }, [setMobileMenuOpen, activeTab]);
 
   const renderActiveView = () => {
     // 1. Incognito Mode: dedicated isolated page comprising only the chats and chat bar

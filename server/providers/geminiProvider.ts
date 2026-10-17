@@ -56,16 +56,20 @@ export class GeminiProvider implements AIProvider {
     if (history && history.length > 0) {
       for (const msg of history) {
         if (msg.role === 'system') continue;
+        const text = (msg.content || '').trim();
+        // Crucial: Gemini API strictly rejects empty string parts
+        if (!text) continue;
         contents.push({
           role: msg.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: msg.content }],
+          parts: [{ text }],
         });
       }
     }
 
+    const cleanPrompt = (prompt || '').trim() || 'Hello Angel';
     contents.push({
       role: 'user',
-      parts: [{ text: prompt }],
+      parts: [{ text: cleanPrompt }],
     });
 
     return contents;

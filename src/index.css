@@ -18,9 +18,9 @@
   }
 
   .midnight {
-    --bg-primary: #030408;
-    --bg-secondary: #060914;
-    --border-color: rgba(139, 92, 246, 0.22);
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --border-color: rgba(255, 255, 255, 0.08);
     --text-primary: #ffffff;
     --text-secondary: #a1a1aa;
   }

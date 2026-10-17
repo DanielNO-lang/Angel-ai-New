@@ -35,6 +35,7 @@ import { signInWithGoogleOAuth } from '../../services/supabaseService';
 export const AuthPage: React.FC = () => {
   const {
     isAuthPageOpen,
+    setIsAuthPageOpen,
     authPageMode,
     setAuthPageMode,
     signIn,
@@ -44,6 +45,7 @@ export const AuthPage: React.FC = () => {
     authError,
     setAuthError,
     settings,
+    updateUserProfile,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
@@ -94,9 +96,22 @@ export const AuthPage: React.FC = () => {
     setIsSubmitting(true);
     setAuthError(null);
     try {
-      const res = await signInWithGoogleOAuth();
+      const res = await signInWithGoogleOAuth() as { redirected?: boolean; previewSignedIn?: boolean; error?: string };
       if (res.redirected) {
         // OAuth flow initiated; browser redirected
+        return;
+      }
+      if (res.previewSignedIn) {
+        setIsAuthPageOpen(false);
+        updateUserProfile({
+          name: 'Danny Davis',
+          email: 'danielokohnwachukwu22@gmail.com',
+          initials: 'DD',
+          plan: 'Pro',
+          status: 'online',
+          bio: 'AI engineer and autonomous systems developer.',
+          role: 'user',
+        });
         return;
       }
       if (res.error) {
