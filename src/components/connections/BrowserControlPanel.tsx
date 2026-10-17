@@ -68,18 +68,25 @@ export const BrowserControlPanel: React.FC<{ isLight: boolean; isGuest: boolean 
     if (!token || isGuest) return;
     setBusy(true); setError('');
     try {
+      const statusData = await api('/api/browser/status') as BrowserStatus;
+      setStatus(statusData);
+      if (!statusData.configured) {
+        setGrants([]);
+        setSessions([]);
+        setEvents([]);
+        setError(statusData.reason || 'Browser control is not configured yet.');
+        return;
+      }
       const results = await Promise.all([
-        api('/api/browser/status'),
         api('/api/browser/grants'),
         api('/api/browser/sessions'),
         api('/api/browser/audit?limit=20'),
       ]);
-      setStatus(results[0] as BrowserStatus);
-      setGrants(Array.isArray(results[1].grants) ? results[1].grants : []);
-      setSessions(Array.isArray(results[2].sessions) ? results[2].sessions : []);
-      setEvents(Array.isArray(results[3].events) ? results[3].events : []);
+      setGrants(Array.isArray(results[0].grants) ? results[0].grants : []);
+      setSessions(Array.isArray(results[1].sessions) ? results[1].sessions : []);
+      setEvents(Array.isArray(results[2].events) ? results[2].events : []);
       if (!selectedSessionId) {
-        const first = (results[2].sessions as BrowserSession[] | undefined)?.find((item) => item.status === 'active');
+        const first = (results[1].sessions as BrowserSession[] | undefined)?.find((item) => item.status === 'active');
         if (first) setSelectedSessionId(first.id);
       }
     } catch (e) {
