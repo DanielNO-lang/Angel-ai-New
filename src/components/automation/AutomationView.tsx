@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Zap,
   Play,
@@ -70,7 +71,7 @@ const workflowStarterTemplates: WorkflowStarterTemplate[] = [
 
 export const AutomationView: React.FC = () => {
   const { settings, createTask, createMemory, activeProjectId, projects } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // State
   const [automations, setAutomations] = useState<AutomationDefinition[]>(() => getSavedAutomations());
