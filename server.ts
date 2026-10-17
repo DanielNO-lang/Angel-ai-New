@@ -28,6 +28,7 @@ import { githubService } from './server/services/githubService.js';
 import { vercelService } from './server/services/vercelService.js';
 import { evaluateBrowserAction, validateApprovedBrowserUrl, type BrowserActionKind } from './server/services/browserActionPolicy.js';
 import { callBrowserWorker, getBrowserWorkerStatus } from './server/services/browserWorkerService.js';
+import { parseScheduledTaskInput } from './server/services/scheduledTaskPolicy.js';
 
 function isAllowedCallbackUrl(value: string): boolean {
   try {
@@ -1486,45 +1487,27 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.post('/api/schedules', async (req: Request, res: Response) => {
     const user = await authenticateJobUser(req, res);
     if (!user) return;
-    const body = req.body || {};
-    const scheduleType = body.scheduleType;
-    const title = typeof body.title === 'string' ? body.title.trim() : '';
-    const taskPrompt = typeof body.taskPrompt === 'string' ? body.taskPrompt.trim() : '';
-    const scheduledAt = typeof body.scheduledAt === 'string' ? Date.parse(body.scheduledAt) : NaN;
-    if ((scheduleType !== 'once' && scheduleType !== 'interval') ||
-        !title || title.length > 160 || !taskPrompt || taskPrompt.length > 20000 ||
-        !Number.isFinite(scheduledAt) || scheduledAt < Date.now() + 30_000 ||
-        scheduledAt > Date.now() + 365 * 24 * 60 * 60 * 1000) {
-      return res.status(400).json({ error: 'Provide a title, task prompt, a supported schedule type, and a first run between 30 seconds and one year from now.' });
-    }
-    const intervalMinutes = body.intervalMinutes;
-    const maxRuns = scheduleType === 'once' ? 1 : body.maxRuns;
-    if (scheduleType === 'interval' &&
-        (!Number.isInteger(intervalMinutes) || intervalMinutes < 15 || intervalMinutes > 43200 ||
-         !Number.isInteger(maxRuns) || maxRuns < 1 || maxRuns > 100)) {
-      return res.status(400).json({ error: 'Repeating schedules must run every 15 minutes to 30 days and stop after 1–100 runs.' });
-    }
-    if (body.notifyOnCompletion !== undefined && typeof body.notifyOnCompletion !== 'boolean') {
-      return res.status(400).json({ error: 'notifyOnCompletion must be a boolean.' });
-    }
+    const parsedInput = parseScheduledTaskInput(req.body);
+    if (!parsedInput.ok) return res.status(400).json({ error: parsedInput.error });
+    const { scheduleType, title, taskPrompt, scheduledAt, intervalMinutes, maxRuns, notifyOnCompletion } = parsedInput.value;
     const supabase = getSupabaseClient();
     if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Scheduled assistance requires server-side Supabase configuration.' });
     const { count, error: countError } = await supabase.from('angel_scheduled_tasks')
       .select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('enabled', true);
     if (countError) return res.status(503).json({ error: 'Could not verify your active schedule limit. Try again.' });
     if ((count || 0) >= 20) return res.status(409).json({ error: 'A maximum of 20 enabled schedules is allowed per account. Pause or delete one before creating another.' });
-    const firstRun = new Date(scheduledAt).toISOString();
+    const firstRun = scheduledAt;
     const { data, error } = await supabase.from('angel_scheduled_tasks').insert({
       user_id: user.id,
       title,
       task_prompt: taskPrompt,
       schedule_type: scheduleType,
       scheduled_at: firstRun,
-      interval_minutes: scheduleType === 'interval' ? intervalMinutes : null,
+      interval_minutes: intervalMinutes,
       max_runs: maxRuns,
       runs_enqueued: 0,
       enabled: true,
-      notify_on_completion: body.notifyOnCompletion !== false,
+      notify_on_completion: notifyOnCompletion,
       next_run_at: firstRun,
     }).select('id,title,task_prompt,schedule_type,scheduled_at,interval_minutes,max_runs,runs_enqueued,enabled,notify_on_completion,next_run_at,last_enqueued_at,created_at,updated_at').single();
     if (error || !data) {
