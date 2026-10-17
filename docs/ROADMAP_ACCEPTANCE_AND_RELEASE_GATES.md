@@ -28,6 +28,7 @@ This document distinguishes code present in the branch from behavior verified by
 - Ineligible or unconfigured providers are excluded.
 - Structured-output, visual and embedding routes require the corresponding capability.
 - With otherwise equal candidates, the cheaper eligible model ranks ahead of the more expensive one.
+- Automatic single-shot generation retries eligible providers only before any response is returned; explicitly selected providers are not silently overridden.
 - Provider failures are observable and telemetry stores aggregates only, not prompts.
 - Explicit user provider/model settings are respected.
 
