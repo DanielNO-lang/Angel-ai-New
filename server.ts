@@ -21,6 +21,7 @@ import { mediaService } from './server/services/mediaService.js';
 import { voiceService } from './server/services/voiceService.js';
 import { intelligenceService } from './server/services/intelligenceService.js';
 import { searchGroundedWeb } from './server/services/groundedSearchService.js';
+import { runGroundedResearch } from './server/services/researchService.js';
 import { recordAdminAuditEvent } from './server/services/auditService.js';
 import { githubService } from './server/services/githubService.js';
 import { vercelService } from './server/services/vercelService.js';
@@ -781,6 +782,198 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (error || !data.user) { res.status(401).json({ error: 'Your session could not be verified.' }); return null; }
     return { id: data.user.id, email: data.user.email };
   };
+
+  // Private, owner-scoped research workspace and editable artifact APIs.
+  app.post('/api/research', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const query = req.body?.query;
+    const followUpQueries = req.body?.followUpQueries;
+    if (typeof query !== 'string' || !query.trim() || query.length > 500) {
+      return res.status(400).json({ error: 'A research question of 1–500 characters is required.' });
+    }
+    if (followUpQueries !== undefined && (!Array.isArray(followUpQueries) || followUpQueries.length > 3 || followUpQueries.some((item: unknown) => typeof item !== 'string'))) {
+      return res.status(400).json({ error: 'followUpQueries must be an array of at most three strings.' });
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Research persistence requires Supabase configuration.' });
+    try {
+      const report = await runGroundedResearch(query, followUpQueries || []);
+      const { data, error } = await supabase.from('angel_research_reports').insert({
+        user_id: user.id,
+        title: report.title || 'Research report',
+        query: report.query,
+        status: report.status,
+        report,
+      }).select('id,title,query,status,report,created_at,updated_at').single();
+      if (error || !data) {
+        console.error('[Research] Report persistence failed:', error?.message || 'No row returned');
+        return res.status(503).json({ error: 'The research ran, but could not be saved. Confirm the research/artifact migration has been applied to this Supabase project.' });
+      }
+      return res.status(201).json(data);
+    } catch (error) {
+      console.error('[Research] Request failed:', error instanceof Error ? error.message : 'Unknown error');
+      return res.status(502).json({ error: 'Research could not be completed. Check grounded-search configuration and try again.' });
+    }
+  });
+
+  app.get('/api/research/reports', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Research persistence requires Supabase configuration.' });
+    const rawLimit = Number(req.query.limit || 25);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(100, Math.floor(rawLimit))) : 25;
+    const { data, error } = await supabase.from('angel_research_reports')
+      .select('id,title,query,status,created_at,updated_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
+    if (error) {
+      console.error('[Research] Report list failed:', error.message);
+      return res.status(503).json({ error: 'Could not load saved reports. Confirm the research/artifact migration is applied.' });
+    }
+    return res.json({ reports: data || [] });
+  });
+
+  app.get('/api/research/reports/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Research persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_research_reports')
+      .select('id,title,query,status,report,created_at,updated_at')
+      .eq('user_id', user.id).eq('id', req.params.id).maybeSingle();
+    if (error) {
+      console.error('[Research] Report retrieval failed:', error.message);
+      return res.status(503).json({ error: 'Could not open saved report.' });
+    }
+    if (!data) return res.status(404).json({ error: 'Research report not found.' });
+    return res.json(data);
+  });
+
+  app.delete('/api/research/reports/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Research persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_research_reports').delete()
+      .eq('user_id', user.id).eq('id', req.params.id).select('id');
+    if (error) {
+      console.error('[Research] Report deletion failed:', error.message);
+      return res.status(503).json({ error: 'Could not delete the report.' });
+    }
+    if (!data?.length) return res.status(404).json({ error: 'Research report not found.' });
+    return res.status(204).end();
+  });
+
+  app.get('/api/artifacts', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const rawLimit = Number(req.query.limit || 50);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(100, Math.floor(rawLimit))) : 50;
+    const { data, error } = await supabase.from('angel_work_artifacts').select('*')
+      .eq('user_id', user.id).order('updated_at', { ascending: false }).limit(limit);
+    if (error) {
+      console.error('[Artifacts] List failed:', error.message);
+      return res.status(503).json({ error: 'Could not load artifacts. Confirm the research/artifact migration is applied.' });
+    }
+    return res.json({ artifacts: data || [] });
+  });
+
+  app.post('/api/artifacts', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    const validKinds = ['document', 'code', 'plan', 'media', 'research'];
+    if (typeof body.title !== 'string' || !body.title.trim() || body.title.length > 200 ||
+        typeof body.kind !== 'string' || !validKinds.includes(body.kind) ||
+        typeof (body.content ?? '') !== 'string' || (body.content ?? '').length > 2_000_000 ||
+        (body.assetUrl !== undefined && typeof body.assetUrl !== 'string')) {
+      return res.status(400).json({ error: 'Provide title, a supported kind, content up to 2 MB, and an optional asset URL.' });
+    }
+    if (body.assetUrl) {
+      try {
+        const url = new URL(body.assetUrl);
+        if (!['https:', 'http:'].includes(url.protocol)) return res.status(400).json({ error: 'assetUrl must use HTTP or HTTPS.' });
+      } catch {
+        return res.status(400).json({ error: 'assetUrl must be a valid HTTP or HTTPS URL.' });
+      }
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_work_artifacts').insert({
+      user_id: user.id,
+      title: body.title.trim(),
+      kind: body.kind,
+      content: body.content || '',
+      project_id: typeof body.projectId === 'string' ? body.projectId.slice(0, 128) : null,
+      asset_url: body.assetUrl || null,
+      mime_type: typeof body.mimeType === 'string' ? body.mimeType.slice(0, 120) : null,
+      metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {},
+    }).select('*').single();
+    if (error || !data) {
+      console.error('[Artifacts] Create failed:', error?.message || 'No row returned');
+      return res.status(503).json({ error: 'Could not save the artifact. Confirm the research/artifact migration is applied.' });
+    }
+    return res.status(201).json(data);
+  });
+
+  app.get('/api/artifacts/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_work_artifacts').select('*')
+      .eq('user_id', user.id).eq('id', req.params.id).maybeSingle();
+    if (error) return res.status(503).json({ error: 'Could not open the artifact.' });
+    if (!data) return res.status(404).json({ error: 'Artifact not found.' });
+    return res.json(data);
+  });
+
+  app.patch('/api/artifacts/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const { data: existing, error: readError } = await supabase.from('angel_work_artifacts').select('id,version')
+      .eq('user_id', user.id).eq('id', req.params.id).maybeSingle();
+    if (readError) return res.status(503).json({ error: 'Could not verify artifact ownership.' });
+    if (!existing) return res.status(404).json({ error: 'Artifact not found.' });
+    const body = req.body || {};
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), version: existing.version + 1 };
+    if (body.title !== undefined) {
+      if (typeof body.title !== 'string' || !body.title.trim() || body.title.length > 200) return res.status(400).json({ error: 'title must be 1–200 characters.' });
+      patch.title = body.title.trim();
+    }
+    if (body.content !== undefined) {
+      if (typeof body.content !== 'string' || body.content.length > 2_000_000) return res.status(400).json({ error: 'content must be a string up to 2 MB.' });
+      patch.content = body.content;
+    }
+    if (body.metadata !== undefined) {
+      if (!body.metadata || typeof body.metadata !== 'object' || Array.isArray(body.metadata)) return res.status(400).json({ error: 'metadata must be an object.' });
+      patch.metadata = body.metadata;
+    }
+    const { data, error } = await supabase.from('angel_work_artifacts').update(patch)
+      .eq('user_id', user.id).eq('id', req.params.id).select('*').single();
+    if (error || !data) {
+      console.error('[Artifacts] Update failed:', error?.message || 'No row returned');
+      return res.status(503).json({ error: 'Could not update artifact.' });
+    }
+    return res.json(data);
+  });
+
+  app.delete('/api/artifacts/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_work_artifacts').delete()
+      .eq('user_id', user.id).eq('id', req.params.id).select('id');
+    if (error) return res.status(503).json({ error: 'Could not delete artifact.' });
+    if (!data?.length) return res.status(404).json({ error: 'Artifact not found.' });
+    return res.status(204).end();
+  });
 
   app.post('/api/jobs', async (req: Request, res: Response) => {
     const user = await authenticateJobUser(req, res);
