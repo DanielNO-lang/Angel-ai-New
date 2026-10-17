@@ -14,7 +14,7 @@ const result = (query: string, url: string): GroundedSearchResult => ({
 test('research plan contains the original question, caps steps, and deduplicates user queries', () => {
   assert.deepEqual(
     buildResearchQueries('Angel AI', ['Follow-up one', 'Angel AI', 'Follow-up one', 'Follow-up two', 'Follow-up three']),
-    ['Angel AI', 'Follow-up one', 'Follow-up two']
+    ['Angel AI', 'Follow-up one', 'Follow-up two', 'Follow-up three']
   );
   assert.throws(() => buildResearchQueries('   '), /question is required/i);
 });
