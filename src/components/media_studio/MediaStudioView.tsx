@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Sparkles,
   Search,
@@ -52,7 +53,7 @@ export const MediaStudioView: React.FC = () => {
     setMobileMenuOpen,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [activeTabMode, setActiveTabMode] = useState<'generate' | 'video' | 'edit' | 'history'>('generate');
   const [searchQuery, setSearchQuery] = useState('');
