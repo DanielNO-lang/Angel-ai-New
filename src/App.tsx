@@ -38,6 +38,7 @@ import { NetworkStatusToast } from './components/ui/NetworkStatusToast';
 import { DevicePresence } from './components/ui/DevicePresence';
 import { RemoteVisualSessions } from './components/ui/RemoteVisualSessions';
 import { BackgroundJobsPanel } from './components/ui/BackgroundJobsPanel';
+import { ResearchWorkspace } from './components/research/ResearchWorkspace';
 import { Maximize2 } from 'lucide-react';
 import {
   WorkspaceStageControls,
@@ -249,6 +250,7 @@ const WorkspaceContent: React.FC = () => {
     // 2. Guests can use basic chat, voice, and visual mode. Persistent sections offer an optional sign-in gate.
     const guestLockedSections: Record<string, { name: string; description: string }> = {
       library: { name: 'Library', description: 'Keep documents, files, and saved resources in your personal workspace.' },
+      research: { name: 'Research', description: 'Save source-grounded research reports to your private workspace.' },
       projects: { name: 'Projects', description: 'Organize long-term work and preserve project context between sessions.' },
       agent_lab: { name: 'Agent Lab', description: 'Build and manage persistent autonomous agents and workflows.' },
       tasks: { name: 'Tasks', description: 'Save tasks and track progress when you return.' },
@@ -291,6 +293,8 @@ const WorkspaceContent: React.FC = () => {
         return <TasksView />;
       case 'library':
         return <LibraryView />;
+      case 'research':
+        return <ResearchWorkspace />;
       case 'agent_lab':
         return <AgentLabView />;
       case 'memories':

@@ -18,6 +18,7 @@ export type NavigationTab =
   | 'tasks'
   | 'schedule'
   | 'library'
+  | 'research'
   | 'memories'
   | 'media_studio'
   | 'assistants'

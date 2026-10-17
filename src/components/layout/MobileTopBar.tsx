@@ -61,6 +61,7 @@ export const MobileTopBar: React.FC = () => {
     tasks: { label: 'Tasks', icon: CheckSquare },
     projects: { label: 'Projects', icon: FolderGit2 },
     memories: { label: 'Memory', icon: Brain },
+    research: { label: 'Research', icon: Search },
     media_studio: { label: 'Media Studio', icon: Palette },
     assistants: { label: 'Assistants', icon: Users },
     settings: { label: 'Settings', icon: Settings },

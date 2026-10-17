@@ -158,6 +158,7 @@ export const Sidebar: React.FC = () => {
     { id: 'agent_lab', label: 'Agent Lab', icon: Bot, tabTarget: 'agent_lab' },
     { id: 'projects', label: 'Projects', icon: FolderGit2, tabTarget: 'projects' },
     { id: 'library', label: 'Library', icon: BookOpen, tabTarget: 'library' },
+    { id: 'research', label: 'Research', icon: Search, tabTarget: 'research' },
     { id: 'tasks', label: 'Schedule', icon: Calendar, tabTarget: 'tasks' },
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
     { id: 'more', label: 'More', icon: MoreHorizontal, tabTarget: 'more' },
@@ -173,6 +174,7 @@ export const Sidebar: React.FC = () => {
   }> = [
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
     { id: 'library', label: 'Library', icon: BookOpen, onClickCustom: redirectToSignIn },
+    { id: 'research', label: 'Research', icon: Search, onClickCustom: redirectToSignIn },
     { id: 'projects', label: 'Projects', icon: FolderGit2, onClickCustom: redirectToSignIn },
     { id: 'tasks', label: 'Schedule', icon: Calendar, onClickCustom: redirectToSignIn },
   ];
@@ -250,8 +252,8 @@ export const Sidebar: React.FC = () => {
         onPointerLeave={handleMouseLeaveRail}
         style={{
           width: effectiveExpanded ? 240 : 60,
-          marginRight: isSidebarCollapsed && isHoverExpanded ? -180 : 0,
           position: isSidebarCollapsed && isHoverExpanded ? 'fixed' : 'relative',
+          zIndex: isSidebarCollapsed && isHoverExpanded ? 60 : 40,
           left: 0,
           top: 0,
           bottom: 0,
