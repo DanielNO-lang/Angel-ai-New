@@ -678,9 +678,7 @@ export const HomeView: React.FC = () => {
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                  New
-                </span>
+
                 <div>
                   <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>
                     Agent Lab
@@ -1003,7 +1001,7 @@ export const HomeView: React.FC = () => {
               }`}
             >
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/20 text-indigo-500">
+                <span className="text-[10px] font-semibold text-indigo-500">
                   Today's Spotlight
                 </span>
                 <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
