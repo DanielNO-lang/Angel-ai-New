@@ -1407,7 +1407,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       },
     });
     const workerUrl = typeof response.data.url === 'string' ? response.data.url : session.current_url;
-    if (kind === 'close' || response.data.closed === true) {
+    if (response.data.closed === true) {
       await supabase.from('angel_browser_sessions').update({ status: 'closed', last_activity_at: usedAt })
         .eq('id', session.id).eq('user_id', user.id);
     } else if (response.ok) {
