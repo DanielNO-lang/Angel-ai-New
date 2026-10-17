@@ -101,12 +101,12 @@ export const MobileTopBar: React.FC = () => {
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="font-calligraphy text-xl tracking-wide select-none truncate">Angel</span>
             <span className="text-neutral-400 text-xs">/</span>
-            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[11px] font-medium truncate">
+            <div className="flex items-center gap-1 text-indigo-400 text-[11px] font-medium truncate">
               <TabIcon className="w-3 h-3 shrink-0" />
               <span className="truncate">{current.label}</span>
             </div>
             {!isOnline && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[10px] font-medium shrink-0">
+              <div className="flex items-center gap-1 text-amber-500 text-[10px] font-medium shrink-0">
                 <WifiOff className="w-3 h-3 animate-pulse" />
                 <span>Offline</span>
               </div>

@@ -390,25 +390,24 @@ export const AuthPage: React.FC = () => {
 
           {/* Top AI Video Pill */}
           <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-[11px] font-semibold text-cyan-300">
-              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <div className="flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
               <span>ANGEL INTELLIGENCE STREAM</span>
             </div>
           </div>
 
           {/* Center Floating Intelligence Capabilities */}
           <div className="relative z-10 my-auto space-y-2.5 py-4">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium text-white shadow-lg">
+            <div className="inline-flex items-center gap-2 text-xs font-medium text-white">
               <Brain className="w-4 h-4 text-purple-400" />
               <span>Gemini 3.8 Flash Neural Engine</span>
             </div>
             <br />
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium text-white shadow-lg">
+            <div className="inline-flex items-center gap-2 text-xs font-medium text-white">
               <Cpu className="w-4 h-4 text-indigo-400" />
               <span>Multi-Agent Autonomous Pipelines</span>
             </div>
             <br />
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-medium text-white shadow-lg">
+            <div className="inline-flex items-center gap-2 text-xs font-medium text-white">
               <Layers className="w-4 h-4 text-cyan-400" />
               <span>Continuous Multimodal Perception</span>
             </div>
