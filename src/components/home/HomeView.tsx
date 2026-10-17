@@ -114,10 +114,11 @@ export const HomeView: React.FC = () => {
       prefix = '[Agent Execution]: ';
     }
 
-    createConversation(targetAgentId, undefined, promptText.slice(0, 36));
-    sendMessage(`${prefix}${promptText}`);
+    const conversationId = createConversation(targetAgentId, undefined, promptText.slice(0, 36));
+    setActiveConversationId(conversationId);
     setActiveTab('chat');
     setPromptText('');
+    void sendMessage(`${prefix}${promptText}`, undefined, conversationId, undefined, targetAgentId);
   };
 
   const handleToolCardClick = (toolId: string) => {
