@@ -213,22 +213,31 @@ async function protectWorkspaceRows<T extends VaultRecord>(rows: T[], kind: 'tas
     if (rows.every((row) => Boolean(row.__angelEncryptedPayload))) return rows;
     throw new Error('Secure Vault is locked. Unlock it before saving sensitive workspace data.');
   }
+
   const output: T[] = [];
   for (const row of rows) {
+    let plainRecord: T = row;
     if (row.__angelEncryptedPayload) {
       try {
-        output.push(await secureVaultService.decryptJson<T>(row.__angelEncryptedPayload));
-        continue;
+        plainRecord = await secureVaultService.decryptJson<T>(row.__angelEncryptedPayload);
       } catch {
-        // A stale locked placeholder should never replace a ciphertext record.
+        // Never overwrite ciphertext with an undecryptable row or placeholder.
         output.push(row);
         continue;
       }
     }
-    const encrypted = await secureVaultService.encryptJson(row);
-    output.push(lockedVaultPlaceholder({ id: row.id, updatedAt: row.updatedAt, createdAt: row.createdAt,
-      status: row.status, priority: row.priority, projectId: row.projectId, type: row.type,
-      isPinned: row.isPinned, __angelEncryptedPayload: encrypted }, kind) as T);
+    const encrypted = await secureVaultService.encryptJson(plainRecord);
+    output.push(lockedVaultPlaceholder({
+      id: plainRecord.id,
+      updatedAt: plainRecord.updatedAt,
+      createdAt: plainRecord.createdAt,
+      status: plainRecord.status,
+      priority: plainRecord.priority,
+      projectId: plainRecord.projectId,
+      type: plainRecord.type,
+      isPinned: plainRecord.isPinned,
+      __angelEncryptedPayload: encrypted,
+    }, kind) as T);
   }
   return output;
 }
