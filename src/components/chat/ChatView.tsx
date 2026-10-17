@@ -9,6 +9,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -75,7 +76,7 @@ export const ChatView: React.FC = () => {
     setMobileMenuOpen,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [input, setInput] = useState('');
   const [isVisualPanelOpen, setIsVisualPanelOpen] = useState(false);
