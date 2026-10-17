@@ -62,12 +62,17 @@ export class ProviderRegistry {
     return this.routeForTask(task).provider;
   }
 
-  routeForTask(task: RoutingTask, preferredProvider?: string): { provider: AIProvider; model: ModelMetadata } {
+  routeCandidatesForTask(task: RoutingTask, preferredProvider?: string): Array<{ provider: AIProvider; model: ModelMetadata }> {
     const ranked = rankAvailableModels(this.getModelCatalog(), task, modelRoutingTelemetry.snapshot(), preferredProvider);
-    for (const model of ranked) {
+    return ranked.flatMap((model) => {
       const provider = this.providers.get(model.provider);
-      if (provider?.isConfigured()) return { provider, model };
-    }
+      return provider?.isConfigured() ? [{ provider, model }] : [];
+    });
+  }
+
+  routeForTask(task: RoutingTask, preferredProvider?: string): { provider: AIProvider; model: ModelMetadata } {
+    const candidate = this.routeCandidatesForTask(task, preferredProvider)[0];
+    if (candidate) return candidate;
     throw new Error(`No configured model is currently eligible for task "${task}". Configure an eligible provider or choose an available model.`);
   }
 
