@@ -318,37 +318,15 @@ export const WorkflowLibrary: React.FC<WorkflowLibraryProps> = ({
                       {template.description}
                     </p>
 
-                    {/* Pipeline Stages Mini Pills */}
-                    <div className="space-y-1 pt-1">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {template.stages.slice(0, 4).map((stg, i) => (
-                          <span
-                            key={stg}
-                            className={`text-[9px] font-medium px-1.5 py-0.5 rounded-md border ${
-                              isLight
-                                ? 'bg-slate-50 border-slate-200 text-slate-600'
-                                : 'bg-white/5 border-white/5 text-neutral-400'
-                            }`}
-                          >
-                            {i + 1}. {stg}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    {/* Pipeline stages as plain text */}
+                    <p className={`text-[10px] pt-1 opacity-70 ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
+                      Stages: {template.stages.slice(0, 4).map((stg, i) => `${i + 1}. ${stg}`).join(' · ')}
+                    </p>
                   </div>
 
                   {/* Bottom Actions */}
                   <div className="pt-3 mt-3 border-t border-inherit flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {template.tags.slice(0, 2).map((tg) => (
-                        <span
-                          key={tg}
-                          className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400"
-                        >
-                          {tg}
-                        </span>
-                      ))}
-                    </div>
+                    <span className="text-[10px] opacity-60">{template.tags.slice(0, 2).join(' · ')}</span>
 
                     <button
                       onClick={() => handleQuickImport(template)}

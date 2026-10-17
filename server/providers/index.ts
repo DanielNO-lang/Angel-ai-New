@@ -91,8 +91,7 @@ export class ProviderRegistry {
     for (const [id, prov] of this.providers.entries()) {
       statusMap[id] = prov.isConfigured();
     }
-    // Gemini is our primary server-side provider in AI Studio
-    statusMap['gemini'] = true;
+    // Availability follows actual provider configuration; never advertise a missing key as ready.
     // Image-generation provider is separate from the chat-completion provider interface.
     statusMap['qwen'] = Boolean(process.env.QWEN_IMAGE_API_BASE_URL?.trim() && process.env.QWEN_IMAGE_API_KEY?.trim());
     return getAvailableModels(statusMap);

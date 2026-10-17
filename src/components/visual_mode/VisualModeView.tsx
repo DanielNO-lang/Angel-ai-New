@@ -607,12 +607,8 @@ export const VisualModeView: React.FC = () => {
               <AngelLogo size={28} glow={true} />
               <h1 className="text-xl font-bold tracking-tight">Multimedia Vision</h1>
               <span
-                className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                  isActive
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                    : isLight
-                    ? 'bg-slate-100 text-slate-500 border-slate-200'
-                    : 'bg-neutral-800 text-neutral-400 border-white/5'
+                className={`text-[10px] font-medium ${
+                  isActive ? 'text-emerald-400' : isLight ? 'text-slate-500' : 'text-neutral-400'
                 }`}
               >
                 {isActive ? 'Live Stream' : 'Standby'}
@@ -749,7 +745,7 @@ export const VisualModeView: React.FC = () => {
                     alt="Uploaded screenshot ready for visual inspection"
                     className="w-full h-full object-contain"
                   />
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-neutral-950/85 border border-neutral-700 text-[11px] font-medium text-neutral-200">
+                  <div className="absolute top-3 left-3 text-[11px] font-medium text-neutral-200 drop-shadow-md">
                     Uploaded screenshot · Not live
                   </div>
                 </>
@@ -804,15 +800,14 @@ export const VisualModeView: React.FC = () => {
               {/* Active Overlay Status Badges */}
               {isActive && (
                 <>
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-neutral-950/80 backdrop-blur-xs border border-neutral-800 text-[11px] font-medium text-neutral-300 flex items-center gap-2 pointer-events-none">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span className="capitalize">{streamSource} Stream</span>
+                  <div className="absolute top-3 left-3 text-[11px] font-medium text-neutral-200 flex items-center gap-2 pointer-events-none drop-shadow-md">
+                    <span className="capitalize">{streamSource} stream</span>
                   </div>
 
                   {/* Region Select Active Badge */}
                   {isRegionSelectMode && (
-                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-md bg-neutral-900/90 backdrop-blur-xs border border-neutral-700 text-[11px] font-medium text-neutral-200 flex items-center gap-1.5 pointer-events-none">
-                      <MousePointer className="w-3 h-3 text-neutral-400" />
+                    <div className="absolute top-3 right-3 text-[11px] font-medium text-neutral-200 flex items-center gap-1.5 pointer-events-none drop-shadow-md">
+                      <MousePointer className="w-3 h-3 text-neutral-300" />
                       <span>Drag to select Region of Interest</span>
                     </div>
                   )}
@@ -828,7 +823,7 @@ export const VisualModeView: React.FC = () => {
                       }}
                       className="absolute border-2 border-neutral-100 bg-neutral-100/10 pointer-events-none transition-none shadow-sm"
                     >
-                      <div className="absolute -top-5 left-0 px-1.5 py-0.5 bg-neutral-950 text-neutral-200 text-[9px] font-medium rounded border border-neutral-800 whitespace-nowrap">
+                      <div className="absolute -top-5 left-0 text-neutral-200 text-[9px] font-medium whitespace-nowrap drop-shadow-md">
                         ROI: {Math.round(selectedRegion.width)}×{Math.round(selectedRegion.height)}
                       </div>
                     </div>
@@ -1274,12 +1269,8 @@ export const VisualModeView: React.FC = () => {
                       </div>
 
                       <span
-                        className={`text-[10px] font-medium px-2 py-0.5 rounded border uppercase ${
-                          isActive
-                            ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800'
-                            : isPending
-                            ? 'bg-amber-950/40 text-amber-300 border-amber-800'
-                            : 'bg-neutral-800 text-neutral-400 border-neutral-700'
+                        className={`text-[10px] font-medium uppercase ${
+                          isActive ? 'text-emerald-300' : isPending ? 'text-amber-300' : 'text-neutral-400'
                         }`}
                       >
                         {channel.status.replace('_', ' ')}
@@ -1299,22 +1290,13 @@ export const VisualModeView: React.FC = () => {
                     {channel.configKeysRequired && channel.configKeysRequired.length > 0 && (
                       <div className="text-[11px] font-medium text-neutral-500">
                         Required Config:{' '}
-                        <code className="text-neutral-300 bg-neutral-900 px-1 py-0.5 rounded">
+                        <code className="text-neutral-300">
                           {channel.configKeysRequired.join(', ')}
                         </code>
                       </div>
                     )}
 
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {channel.capabilities.map((cap) => (
-                        <span
-                          key={cap}
-                          className="text-[10px] font-medium px-2 py-0.5 rounded bg-neutral-900 text-neutral-400 border border-neutral-800"
-                        >
-                          {cap}
-                        </span>
-                      ))}
-                    </div>
+                    <p className="text-[10px] text-neutral-400 pt-1">{channel.capabilities.join(' · ')}</p>
                   </div>
                 );
               })}

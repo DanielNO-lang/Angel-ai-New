@@ -85,9 +85,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-bold tracking-tight">Daily Digest & Briefing</h2>
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold border border-indigo-500/20">
-                {todayDate}
-              </span>
+              <span className="text-[10px] font-medium text-indigo-400">{todayDate}</span>
             </div>
             <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
               {isSignedIn ? 'Your workspace overview: upcoming milestones, memory reflections, and autonomous workflows.' : 'A quick look at what Angel can help you create, explore, and solve.'}
@@ -208,9 +206,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs font-semibold truncate">{m.title}</p>
-                      <span className="text-[9px] font-medium px-1 rounded bg-pink-500/10 text-pink-400 shrink-0">
-                        {m.type.replace('_', ' ')}
-                      </span>
+                      <span className="text-[9px] font-medium text-pink-400 shrink-0">{m.type.replace('_', ' ')}</span>
                     </div>
                     <p className={`text-[11px] mt-1 line-clamp-2 leading-relaxed ${
                       isLight ? 'text-slate-600' : 'text-neutral-400'
@@ -289,16 +285,7 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
                 <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
                   No workflow runs recorded yet. Your available agents can be configured in Agent Lab.
                 </p>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {agents.slice(0, 4).map((a) => (
-                    <span
-                      key={a.id}
-                      className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                    >
-                      {a.name}
-                    </span>
-                  ))}
-                </div>
+                <p className="text-[10px] opacity-65">Available agents: {agents.slice(0, 4).map((a) => a.name).join(' · ')}</p>
               </div>
             ) : (
               recentExecutions.map((ex) => (
@@ -313,12 +300,12 @@ export const DailyDigest: React.FC<DailyDigestProps> = ({ isLight, isSignedIn })
                   <div className="flex items-center justify-between text-xs font-semibold">
                     <span className="truncate">{ex.agentName}</span>
                     <span
-                      className={`text-[9px] font-medium px-1.5 py-0.5 rounded uppercase ${
+                      className={`text-[9px] font-medium uppercase ${
                         ex.status === 'completed'
-                          ? 'bg-emerald-500/10 text-emerald-400'
+                          ? 'text-emerald-400'
                           : ex.status === 'executing'
-                          ? 'bg-indigo-500/10 text-indigo-400 animate-pulse'
-                          : 'bg-amber-500/10 text-amber-500'
+                          ? 'text-indigo-400 animate-pulse'
+                          : 'text-amber-500'
                       }`}
                     >
                       {ex.status}

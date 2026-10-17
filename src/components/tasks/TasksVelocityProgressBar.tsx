@@ -165,41 +165,20 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
                   Project Velocity & Completion
                 </span>
 
-                {/* Real-time Badge */}
-                <div
-                  className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                    metrics.isSupabaseConnected
-                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 font-semibold'
-                      : isLight
-                      ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium'
-                      : 'bg-blue-950/40 border-blue-800/60 text-blue-400'
+                <span
+                  className={`text-[10px] font-medium ${
+                    metrics.isSupabaseConnected ? 'text-emerald-500' : isLight ? 'text-slate-500' : 'text-neutral-400'
                   }`}
-                  title={
-                    metrics.isSupabaseConnected
-                      ? 'Live real-time Postgres synchronization active'
-                      : 'Adaptive workspace reactive telemetry active'
-                  }
+                  title={metrics.isSupabaseConnected ? 'Live real-time Postgres synchronization active' : 'Using workspace-local task metrics'}
                 >
-                  <span className="relative flex h-2 w-2">
-                    <span
-                      className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                        metrics.isSupabaseConnected ? 'bg-emerald-400' : 'bg-blue-400'
-                      }`}
-                    />
-                    <span
-                      className={`relative inline-flex rounded-full h-2 w-2 ${
-                        metrics.isSupabaseConnected ? 'bg-emerald-500' : 'bg-blue-500'
-                      }`}
-                    />
-                  </span>
-                  <span>
-                    {metrics.isSupabaseConnected ? 'Supabase Realtime Live' : 'Supabase Live Sync'}
-                  </span>
-                </div>
+                  {metrics.isSupabaseConnected ? 'Supabase connected' : 'Workspace-local metrics'}
+                </span>
               </div>
 
               <p className={`text-[11px] mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                Continuous completion telemetry fetched from Supabase PostgreSQL engine • Synced {timeAgoText}
+                {metrics.isSupabaseConnected
+                  ? `Task metrics synced from Supabase PostgreSQL • Updated ${timeAgoText}`
+                  : `Task metrics calculated from this workspace • Updated ${timeAgoText}`}
               </p>
             </div>
           </div>
@@ -296,12 +275,12 @@ export const TasksVelocityProgressBar: React.FC<TasksVelocityProgressBarProps> =
                 {metrics.velocityScore}
               </span>
               <span
-                className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                className={`text-[10px] font-semibold uppercase ${
                   metrics.velocityRating === 'Optimal'
-                    ? 'bg-emerald-500/10 text-emerald-500'
+                    ? 'text-emerald-500'
                     : metrics.velocityRating === 'High'
-                    ? 'bg-blue-500/10 text-blue-500'
-                    : 'bg-amber-500/10 text-amber-500'
+                    ? 'text-blue-500'
+                    : 'text-amber-500'
                 }`}
               >
                 {metrics.velocityRating}

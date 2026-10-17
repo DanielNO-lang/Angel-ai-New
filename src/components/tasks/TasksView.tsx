@@ -817,7 +817,7 @@ export const TasksView: React.FC = () => {
                       </button>
 
                       <div className="space-y-1.5 flex-1 min-w-0">
-                        {/* Title & Badges */}
+                        {/* Task title and editable fields */}
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3
                             className={`text-sm font-semibold tracking-tight break-words ${
@@ -871,30 +871,17 @@ export const TasksView: React.FC = () => {
                             <option value="cancelled">Cancelled</option>
                           </select>
 
-                          {/* Recurring Schedule Badge */}
                           {task.recurring && (
-                            <span
-                              className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border shrink-0 ${
-                                isLight
-                                  ? 'bg-slate-100 border-slate-200 text-slate-700'
-                                  : 'bg-neutral-950 border-neutral-800 text-neutral-300'
-                              }`}
-                            >
-                              <Repeat className="w-3 h-3 text-indigo-400" />
+                            <span className="inline-flex items-center gap-1 text-[10px] opacity-70 shrink-0">
+                              <Repeat className="w-3 h-3" />
                               <span>Every {task.recurring}</span>
                             </span>
                           )}
 
                           {/* Deadline / Due Date */}
                           {task.dueDate && (
-                            <span
-                              className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border shrink-0 ${
-                                isLight
-                                  ? 'bg-slate-100 border-slate-200 text-slate-600'
-                                  : 'bg-neutral-950 border-neutral-800 text-neutral-400'
-                              }`}
-                            >
-                              <Calendar className="w-3 h-3 text-slate-400" />
+                            <span className="inline-flex items-center gap-1 text-[10px] opacity-70 shrink-0">
+                              <Calendar className="w-3 h-3" />
                               <span>Due: {task.dueDate}</span>
                             </span>
                           )}

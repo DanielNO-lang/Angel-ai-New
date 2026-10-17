@@ -72,7 +72,6 @@ interface NavItem {
   id: SettingsSubSection;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  badge?: string;
   description: string;
 }
 
@@ -169,7 +168,6 @@ export const SettingsView: React.FC = () => {
           id: 'account',
           label: 'Account',
           icon: CreditCard,
-          badge: userProfile.plan,
           description: 'Subscription, credentials, & billing',
         },
         {
@@ -388,11 +386,6 @@ export const SettingsView: React.FC = () => {
                           />
                           <span className="truncate">{sec.label}</span>
                         </div>
-                        {sec.badge && (
-                          <span className="text-[8.5px] font-semibold px-1.5 py-0.2 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                            {sec.badge}
-                          </span>
-                        )}
                       </button>
                     );
                   })}
@@ -553,7 +546,6 @@ export const SettingsView: React.FC = () => {
                   <div>
                     <span className="text-xs font-semibold block flex items-center gap-1.5">
                       <span>Focus Mode (Deep Work)</span>
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-semibold">New</span>
                     </span>
                     <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
                       Hides the sidebar and minimizes the workspace header to eliminate distractions during deep work sessions.
@@ -745,7 +737,7 @@ export const SettingsView: React.FC = () => {
                       Adjust the fixed atmospheric glow orbs rendered beneath the interface (z-index: 0)
                     </p>
                   </div>
-                  <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">
+                  <span className="text-[10px] font-bold uppercase text-indigo-500">
                     {backdropIntensity}
                   </span>
                 </div>
@@ -1114,7 +1106,7 @@ export const SettingsView: React.FC = () => {
               <div>
                 <h2 className="text-lg font-bold tracking-tight">Notifications & Alerts</h2>
                 <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Configure workspace alert badges, sound chimes, and browser push notifications.
+                  Configure workspace alerts, sound chimes, and browser push notifications.
                 </p>
               </div>
 

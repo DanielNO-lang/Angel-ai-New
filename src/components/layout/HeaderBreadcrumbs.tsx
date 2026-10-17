@@ -280,9 +280,7 @@ export const HeaderBreadcrumbs: React.FC<HeaderBreadcrumbsProps> = ({ isLight })
         <>
           <ChevronRight className="w-3.5 h-3.5 opacity-40 shrink-0" />
           <span
-            className={`px-1.5 py-0.5 rounded-md font-medium truncate max-w-[120px] sm:max-w-[180px] md:max-w-[240px] ${
-              isLight ? 'text-indigo-700 bg-indigo-50/60' : 'text-indigo-300 bg-indigo-500/10'
-            }`}
+            className={`font-medium truncate max-w-[120px] sm:max-w-[180px] md:max-w-[240px] ${isLight ? 'text-indigo-700' : 'text-indigo-300'}`}
             title={chatTitle}
           >
             {chatTitle}
@@ -295,9 +293,7 @@ export const HeaderBreadcrumbs: React.FC<HeaderBreadcrumbsProps> = ({ isLight })
         <>
           <ChevronRight className="w-3.5 h-3.5 opacity-40 shrink-0" />
           <span
-            className={`px-1.5 py-0.5 rounded-md font-medium truncate max-w-[120px] sm:max-w-[180px] ${
-              isLight ? 'text-indigo-700 bg-indigo-50/60' : 'text-indigo-300 bg-indigo-500/10'
-            }`}
+            className={`font-medium truncate max-w-[120px] sm:max-w-[180px] ${isLight ? 'text-indigo-700' : 'text-indigo-300'}`}
             title={currentProject.name}
           >
             {currentProject.name}

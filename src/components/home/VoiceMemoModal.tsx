@@ -621,12 +621,12 @@ Respond strictly with a JSON object matching this schema:
                   </span>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                      className={`text-[10px] font-semibold uppercase tracking-wider ${
                         taskPreview.priority === 'urgent'
-                          ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                          ? 'text-rose-400'
                           : taskPreview.priority === 'high'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                          ? 'text-amber-400'
+                          : 'text-indigo-400'
                       }`}
                     >
                       {taskPreview.priority}
@@ -670,17 +670,9 @@ Respond strictly with a JSON object matching this schema:
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                  {taskPreview.tags.map((tag, i) => (
-                    <span
-                      key={i}
-                      className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                    >
-                      <Tag className="w-2.5 h-2.5" />
-                      <span>{tag}</span>
-                    </span>
-                  ))}
-                </div>
+                {taskPreview.tags.length > 0 && (
+                  <p className="text-[10px] text-indigo-400 pt-1">Tags: {taskPreview.tags.join(', ')}</p>
+                )}
               </div>
 
               {/* Action Buttons */}
