@@ -926,6 +926,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const snapshot = latestAutosaveStateRef.current;
       if (snapshot.isGuest || saving) return;
 
+      const serializationStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const currentFingerprint = JSON.stringify({
         tasks: snapshot.tasks,
         memories: snapshot.memories,
@@ -940,10 +941,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         theme: snapshot.theme,
         syncStatus: snapshot.syncStatus,
       });
+      const serializationMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - serializationStartedAt);
       if (currentFingerprint === lastSavedFingerprintRef.current) return;
 
       saving = true;
       try {
+        const persistenceStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
         await syncWorkspaceToIndexedDB({
           conversations: snapshot.conversations,
           messagesMap: snapshot.messagesMap,
@@ -959,6 +962,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           syncStatus: snapshot.syncStatus,
         });
 
+        const persistenceMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - persistenceStartedAt);
+        if (import.meta.env.DEV) {
+          console.info('[Angel performance] workspace-autosave', { serializationMs, persistenceMs });
+        }
         // Store the fingerprint of the saved snapshot, not a possibly newer render.
         lastSavedFingerprintRef.current = currentFingerprint;
         setLastAutosavedAt(new Date().toISOString());
