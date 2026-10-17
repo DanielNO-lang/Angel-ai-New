@@ -268,7 +268,7 @@ export const MarketplaceView: React.FC = () => {
                 }`}
               >
                 <div>
-                  {/* Top Bar: Icon, Author, and Verified Badge */}
+                  {/* Marketplace item author and version */}
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <div className="flex items-center gap-2.5">
                       <span
