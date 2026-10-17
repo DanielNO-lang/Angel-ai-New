@@ -632,13 +632,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const root = document.documentElement;
     const body = document.body;
 
-    let timer: number | undefined;
     if (body) {
-      body.classList.add('theme-transitioning');
-      timer = window.setTimeout(() => {
-        body.classList.remove('theme-transitioning');
-      }, 500);
-
       root.classList.remove('dark', 'light', 'midnight');
       body.classList.remove('dark', 'light', 'midnight');
 
@@ -666,14 +660,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (typeof mq.addEventListener === 'function') {
             mq.addEventListener('change', applySystemTheme);
             return () => {
-              if (timer) window.clearTimeout(timer);
               mq.removeEventListener('change', applySystemTheme);
             };
           }
           // Compatibility for older WebKit implementations.
           mq.addListener(applySystemTheme);
           return () => {
-            if (timer) window.clearTimeout(timer);
             mq.removeListener(applySystemTheme);
           };
         }
@@ -684,9 +676,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('angel_theme', settings.theme);
     }
 
-    return () => {
-      if (timer) window.clearTimeout(timer);
-    };
   }, [settings.theme]);
 
   const [isChatStreaming, setIsChatStreaming] = useState<boolean>(false);
