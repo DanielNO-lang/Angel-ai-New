@@ -5,6 +5,7 @@
 
 import Dexie, { Table } from 'dexie';
 import { Conversation, Message, Task, Memory, Project, Agent, LibraryItem, AssistantEntity, Workflow } from '../../types';
+import { EncryptedPayload, secureVaultService } from '../security/encryptionService';
 
 export interface OfflineAppState {
   id: string;
@@ -103,8 +104,8 @@ export async function loadWorkspaceFromIndexedDB(): Promise<{
     const [
       conversations,
       allMessages,
-      tasks,
-      memories,
+      tasks: restoredTasks as unknown as Task[],
+      memories: restoredMemories as unknown as Memory[],
       projects,
       workflows,
       agents,
@@ -123,6 +124,9 @@ export async function loadWorkspaceFromIndexedDB(): Promise<{
       offlineDb.assistants.toArray(),
       offlineDb.appState.toArray(),
     ]);
+
+    const restoredTasks = await restoreWorkspaceRows(tasks as unknown as VaultRecord[], 'task');
+    const restoredMemories = await restoreWorkspaceRows(memories as unknown as VaultRecord[], 'memory');
 
     const messagesMap: Record<string, Message[]> = {};
     for (const msg of allMessages) {
@@ -185,6 +189,71 @@ export async function clearAllLocalIndexedDB(): Promise<void> {
   }
 }
 
+type VaultRecord = Record<string, any> & { __angelEncryptedPayload?: EncryptedPayload; isEncrypted?: boolean };
+
+function lockedVaultPlaceholder(record: VaultRecord, kind: 'task' | 'memory'): VaultRecord {
+  const metadata = {
+    id: record.id,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    __angelEncryptedPayload: record.__angelEncryptedPayload,
+    isEncrypted: true,
+  };
+  if (kind === 'task') {
+    return { ...metadata, status: record.status || 'todo', priority: record.priority || 'medium',
+      projectId: record.projectId, title: 'Encrypted task', description: 'Unlock Secure Vault to view this task.' };
+  }
+  return { ...metadata, type: record.type || 'important_fact', isPinned: record.isPinned,
+    title: 'Encrypted memory', content: 'Unlock Secure Vault to view this memory.' };
+}
+
+async function protectWorkspaceRows<T extends VaultRecord>(rows: T[], kind: 'task' | 'memory'): Promise<T[]> {
+  if (!secureVaultService.isEnabled()) return rows;
+  if (!secureVaultService.isUnlocked()) {
+    if (rows.every((row) => Boolean(row.__angelEncryptedPayload))) return rows;
+    throw new Error('Secure Vault is locked. Unlock it before saving sensitive workspace data.');
+  }
+  const output: T[] = [];
+  for (const row of rows) {
+    if (row.__angelEncryptedPayload) {
+      try {
+        output.push(await secureVaultService.decryptJson<T>(row.__angelEncryptedPayload));
+        continue;
+      } catch {
+        // A stale locked placeholder should never replace a ciphertext record.
+        output.push(row);
+        continue;
+      }
+    }
+    const encrypted = await secureVaultService.encryptJson(row);
+    output.push(lockedVaultPlaceholder({ id: row.id, updatedAt: row.updatedAt, createdAt: row.createdAt,
+      status: row.status, priority: row.priority, projectId: row.projectId, type: row.type,
+      isPinned: row.isPinned, __angelEncryptedPayload: encrypted }, kind) as T);
+  }
+  return output;
+}
+
+async function restoreWorkspaceRows<T extends VaultRecord>(rows: T[], kind: 'task' | 'memory'): Promise<T[]> {
+  if (!secureVaultService.isEnabled()) return rows;
+  const output: T[] = [];
+  for (const row of rows) {
+    if (!row.__angelEncryptedPayload) {
+      output.push(row);
+      continue;
+    }
+    if (!secureVaultService.isUnlocked()) {
+      output.push(lockedVaultPlaceholder(row, kind) as T);
+      continue;
+    }
+    try {
+      output.push(await secureVaultService.decryptJson<T>(row.__angelEncryptedPayload));
+    } catch {
+      output.push(lockedVaultPlaceholder(row, kind) as T);
+    }
+  }
+  return output;
+}
+
 /**
  * Synchronize full workspace memory snapshots to IndexedDB
  */
@@ -217,12 +286,20 @@ export async function syncWorkspaceToIndexedDB(payload: {
       }
     }
 
-    if (payload.tasks && payload.tasks.length > 0) {
-      promises.push(offlineDb.tasks.bulkPut(payload.tasks));
+    if (payload.tasks !== undefined) {
+      const protectedTasks = await protectWorkspaceRows(payload.tasks as unknown as VaultRecord[], 'task');
+      promises.push((async () => {
+        await offlineDb.tasks.clear();
+        if (protectedTasks.length > 0) await offlineDb.tasks.bulkPut(protectedTasks as unknown as Task[]);
+      })());
     }
 
-    if (payload.memories && payload.memories.length > 0) {
-      promises.push(offlineDb.memories.bulkPut(payload.memories));
+    if (payload.memories !== undefined) {
+      const protectedMemories = await protectWorkspaceRows(payload.memories as unknown as VaultRecord[], 'memory');
+      promises.push((async () => {
+        await offlineDb.memories.clear();
+        if (protectedMemories.length > 0) await offlineDb.memories.bulkPut(protectedMemories as unknown as Memory[]);
+      })());
     }
 
     if (payload.projects && payload.projects.length > 0) {
