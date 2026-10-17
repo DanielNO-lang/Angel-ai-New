@@ -42,6 +42,8 @@ export async function runAdkAgent(input: AdkRunInput, userId: string): Promise<{
   sessionId?: string;
   appName?: string;
   durationMs: number;
+  sessionPersistence?: string;
+  mcpToolsUsed?: boolean;
 }> {
   const c = config();
   if (!c.runUrl || !c.token) {
@@ -113,5 +115,7 @@ export async function runAdkAgent(input: AdkRunInput, userId: string): Promise<{
     sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : input.sessionId,
     appName: typeof payload.appName === 'string' ? payload.appName : c.appName,
     durationMs: Date.now() - started,
+    sessionPersistence: typeof payload.sessionPersistence === 'string' ? payload.sessionPersistence : undefined,
+    mcpToolsUsed: payload.mcpToolsUsed === true,
   };
 }
