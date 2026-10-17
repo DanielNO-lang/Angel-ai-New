@@ -100,6 +100,8 @@ export const mediaClient = {
 
   async editImage(payload: {
     baseImageBase64: string;
+    /** Additional references after the primary source image; supported for Qwen Image 2.1 Pro. */
+    referenceImageDataUrls?: string[];
     prompt: string;
     mimeType?: string;
     modelId?: string;

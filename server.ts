@@ -1772,12 +1772,30 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   app.post('/api/media/edit', attachOptionalSupabaseUser, rateLimit(8), async (req: Request, res: Response) => {
-    const { baseImageBase64, prompt } = req.body || {};
+    const { baseImageBase64, prompt, modelId } = req.body || {};
+    const additionalReferences = req.body?.referenceImageDataUrls;
     if (typeof baseImageBase64 !== 'string' || !baseImageBase64 || typeof prompt !== 'string' || !prompt.trim()) {
       return res.status(400).json({ error: 'baseImageBase64 and prompt are required.' });
     }
     if (baseImageBase64.length > 28_000_000 || prompt.length > 12000) {
       return res.status(413).json({ error: 'Image or prompt exceeds the supported size limit.' });
+    }
+    if (additionalReferences !== undefined && !Array.isArray(additionalReferences)) {
+      return res.status(400).json({ error: 'referenceImageDataUrls must be an array of image URLs or data URIs.' });
+    }
+    const referenceImages: unknown[] = Array.isArray(additionalReferences) ? additionalReferences : [];
+    if (referenceImages.length > 9) {
+      return res.status(413).json({ error: 'Use at most 10 images in total, including the source image.' });
+    }
+    if (referenceImages.some((item) => typeof item !== 'string' || !item.trim() || item.length > 14_000_000)) {
+      return res.status(413).json({ error: 'Each additional reference must be a non-empty image URL or data URI no larger than 10 MB.' });
+    }
+    const totalImageCharacters = baseImageBase64.length + referenceImages.reduce<number>((total, item) => total + String(item).length, 0);
+    if (totalImageCharacters > 28_000_000) {
+      return res.status(413).json({ error: 'The combined source and reference images exceed the 20 MB total image-data limit.' });
+    }
+    if (referenceImages.length > 0 && modelId !== 'qwen-image-2.1-pro') {
+      return res.status(400).json({ error: 'Multiple reference images require Qwen Image 2.1 Pro. Select qwen-image-2.1-pro or provide one source image.' });
     }
     const auth = (req as any).angelAuth;
     if (typeof req.body?.modelId === 'string' && req.body.modelId.startsWith('qwen-image-2.1-') && !auth) {

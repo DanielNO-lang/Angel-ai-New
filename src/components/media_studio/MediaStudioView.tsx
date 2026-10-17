@@ -74,9 +74,12 @@ export const MediaStudioView: React.FC = () => {
   const [artifacts, setArtifacts] = useState<MediaArtifactDTO[]>([]);
   const [isLoadingArtifacts, setIsLoadingArtifacts] = useState(false);
 
-  // Edit / Variation State
-  const [editSourceImage, setEditSourceImage] = useState<string | null>(null);
+  // Edit / Variation State. Selected images are converted to bounded data URIs in the browser
+  // so authenticated/private storage URLs are never handed to an external model as credentials.
+  const [editSourceImages, setEditSourceImages] = useState<Array<{ id: string; title: string; dataUrl: string }>>([]);
   const [editPrompt, setEditPrompt] = useState('');
+  const [editModel, setEditModel] = useState('gemini-3.1-flash-image');
+  const [isPreparingEditSource, setIsPreparingEditSource] = useState(false);
 
   const loadArtifacts = async () => {
     setIsLoadingArtifacts(true);
@@ -179,18 +182,92 @@ export const MediaStudioView: React.FC = () => {
     }
   };
 
+  const dataUrlByteLength = (dataUrl: string): number => {
+    const marker = dataUrl.indexOf(',');
+    if (marker < 0) return 0;
+    const base64 = dataUrl.slice(marker + 1);
+    const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+    return Math.max(0, Math.floor(base64.length * 3 / 4) - padding);
+  };
+
+  const prepareReferenceImage = async (source: string): Promise<string> => {
+    if (source.startsWith('data:')) {
+      const mimeMatch = source.match(/^data:(image\/(?:png|jpeg|jpg|webp|gif|bmp|tiff));base64,/i);
+      if (!mimeMatch) throw new Error('Only PNG, JPEG, WEBP, GIF, BMP or TIFF reference images are supported.');
+      const bytes = dataUrlByteLength(source);
+      if (bytes <= 0 || bytes > 10 * 1024 * 1024) throw new Error('Each reference image must be smaller than 10 MB.');
+      return source;
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(source);
+    } catch {
+      throw new Error('Angel could not read this saved image in the browser. Try downloading it and uploading it again.');
+    }
+    if (!response.ok) throw new Error('Angel could not load this saved reference image.');
+    const blob = await response.blob();
+    const mimeType = blob.type.toLowerCase().split(';')[0].trim();
+    if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff'].includes(mimeType)) {
+      throw new Error('Only PNG, JPEG, WEBP, GIF, BMP or TIFF reference images are supported.');
+    }
+    if (blob.size <= 0 || blob.size > 10 * 1024 * 1024) throw new Error('Each reference image must be smaller than 10 MB.');
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not prepare the selected image.'));
+      reader.onerror = () => reject(new Error('Could not read the selected image.'));
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const toggleEditReference = async (artifact: MediaArtifactDTO) => {
+    const alreadySelected = editSourceImages.some((item) => item.id === artifact.id);
+    if (alreadySelected) {
+      setEditSourceImages((previous) => previous.filter((item) => item.id !== artifact.id));
+      return;
+    }
+    if (editSourceImages.length >= 10) {
+      setErrorMessage('Qwen Image 2.1 Pro accepts up to 10 source/reference images.');
+      return;
+    }
+
+    setIsPreparingEditSource(true);
+    setErrorMessage(null);
+    try {
+      const dataUrl = await prepareReferenceImage(artifact.url);
+      const currentBytes = editSourceImages.reduce((total, image) => total + dataUrlByteLength(image.dataUrl), 0);
+      if (currentBytes + dataUrlByteLength(dataUrl) > 20 * 1024 * 1024) {
+        throw new Error('The combined source and reference images must stay under 20 MB.');
+      }
+      const next = [...editSourceImages, { id: artifact.id, title: artifact.title, dataUrl }];
+      setEditSourceImages(next);
+      if (next.length > 1) setEditModel('qwen-image-2.1-pro');
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Could not prepare the reference image.');
+    } finally {
+      setIsPreparingEditSource(false);
+    }
+  };
+
   // Handle Image Edit / Variation
   const handleEditImage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editSourceImage || !editPrompt.trim()) return;
+    if (!editSourceImages.length || !editPrompt.trim()) return;
+    if (editSourceImages.length > 1 && editModel !== 'qwen-image-2.1-pro') {
+      setErrorMessage('Multiple reference images require Qwen Image 2.1 Pro.');
+      return;
+    }
 
     setErrorMessage(null);
     setIsSubmitting(true);
 
     try {
       const job = await mediaClient.editImage({
-        baseImageBase64: editSourceImage,
+        baseImageBase64: editSourceImages[0].dataUrl,
+        referenceImageDataUrls: editSourceImages.slice(1).map((image) => image.dataUrl),
         prompt: editPrompt.trim(),
+        modelId: editModel,
+        mimeType: editSourceImages[0].dataUrl.match(/^data:([^;]+);base64,/i)?.[1] || 'image/png',
         projectId: linkedProjectId || undefined,
       });
 
@@ -558,22 +635,60 @@ export const MediaStudioView: React.FC = () => {
             >
               <h2 className="text-sm font-bold">Multi-Turn Image Editing & Inpainting</h2>
               <form onSubmit={handleEditImage} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium">Select Source Image from Recent Generations</label>
-                  <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                    {artifacts.slice(0, 6).map((art) => (
-                      <button
-                        key={art.id}
-                        type="button"
-                        onClick={() => setEditSourceImage(art.url)}
-                        className={`w-20 h-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
-                          editSourceImage === art.url ? 'border-purple-500 scale-105' : 'border-transparent opacity-60'
-                        }`}
-                      >
-                        <img src={art.url} alt={art.title} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="text-xs font-medium">Source & reference images</label>
+                    <span className="text-[10px] text-neutral-400">{editSourceImages.length}/10 selected</span>
                   </div>
+                  <p className="text-[11px] text-neutral-400">
+                    Select one image for a variation, or up to ten to combine references. Multiple references automatically use Qwen Image 2.1 Pro.
+                  </p>
+                  <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
+                    {artifacts.filter((art) => art.type === 'image' && art.url).slice(0, 12).map((art) => {
+                      const selectedIndex = editSourceImages.findIndex((image) => image.id === art.id);
+                      const isSelected = selectedIndex >= 0;
+                      return (
+                        <button
+                          key={art.id}
+                          type="button"
+                          disabled={isPreparingEditSource || isSubmitting}
+                          aria-pressed={isSelected}
+                          aria-label={`${isSelected ? 'Remove' : 'Add'} ${art.title} ${isSelected ? 'reference' : 'as reference'}`}
+                          onClick={() => void toggleEditReference(art)}
+                          className={`relative w-20 h-20 shrink-0 rounded-xl overflow-hidden border-2 transition-all cursor-pointer disabled:opacity-50 ${
+                            isSelected ? 'border-purple-500 scale-105' : 'border-transparent opacity-60 hover:opacity-100'
+                          }`}
+                        >
+                          <img src={art.url} alt={art.title} className="w-full h-full object-cover" />
+                          {isSelected && (
+                            <span className="absolute top-1 right-1 flex items-center justify-center w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-bold">
+                              {selectedIndex + 1}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {isPreparingEditSource && <p className="text-[11px] text-purple-400">Preparing reference image…</p>}
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="media-edit-model" className="text-xs font-medium">Editing model</label>
+                  <select
+                    id="media-edit-model"
+                    value={editModel}
+                    onChange={(event) => setEditModel(event.target.value)}
+                    className={`w-full p-3 text-xs rounded-xl border outline-none ${
+                      isLight ? 'bg-slate-50 border-slate-200 text-slate-900' : 'bg-white/5 border-white/10 text-white'
+                    }`}
+                  >
+                    <option value="gemini-3.1-flash-image" disabled={editSourceImages.length > 1}>Gemini Flash Image • single source</option>
+                    <option value="qwen-image-2.1-turbo" disabled={editSourceImages.length > 1}>Qwen Image 2.1 Turbo • single reference</option>
+                    <option value="qwen-image-2.1-pro">Qwen Image 2.1 Pro • up to 10 references</option>
+                  </select>
+                  {editSourceImages.length > 1 && (
+                    <p className="text-[11px] text-purple-400">Qwen Pro preserves reference order. The first selected image is the primary source.</p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -592,7 +707,7 @@ export const MediaStudioView: React.FC = () => {
 
                 <button
                   type="submit"
-                  disabled={!editSourceImage || isSubmitting}
+                  disabled={!editSourceImages.length || isSubmitting || isPreparingEditSource}
                   className="px-6 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
                 >
                   Generate Variation
@@ -609,13 +724,18 @@ export const MediaStudioView: React.FC = () => {
               <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400 font-medium mb-3">
                 Selected Source Image
               </h3>
-              {editSourceImage ? (
-                <div className="rounded-2xl overflow-hidden border border-white/10">
-                  <img src={editSourceImage} alt="Source" className="w-full max-h-56 object-cover" />
+              {editSourceImages.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {editSourceImages.map((image, index) => (
+                    <div key={image.id} className="rounded-xl overflow-hidden border border-white/10 bg-black/20">
+                      <img src={image.dataUrl} alt={image.title} className="w-full h-28 object-cover" />
+                      <div className="px-2 py-1.5 text-[10px] text-neutral-300 truncate">{index + 1}. {image.title}</div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="p-8 text-center text-xs text-neutral-400">
-                  Select an image thumbnail on the left to apply prompt-guided variations.
+                  Select one or more image thumbnails on the left to prepare a variation or multi-reference edit.
                 </div>
               )}
               <div />

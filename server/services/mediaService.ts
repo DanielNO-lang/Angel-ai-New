@@ -56,6 +56,8 @@ export interface GenerateImageRequest {
 
 export interface EditImageRequest {
   baseImageBase64: string;
+  /** Additional reference images beyond baseImageBase64, preserving caller order. */
+  referenceImageDataUrls?: string[];
   prompt: string;
   mimeType?: string;
   modelId?: string;
@@ -280,13 +282,15 @@ class MediaService {
 
     if (modelId.startsWith('qwen-image-2.1-')) {
       try {
-        const imageDataUrl = req.baseImageBase64.startsWith('data:')
-          ? req.baseImageBase64
-          : `data:${req.mimeType || 'image/png'};base64,${cleanBase64}`;
+        const referenceImages = [req.baseImageBase64, ...(req.referenceImageDataUrls || [])].map((source) => {
+          const value = source.trim();
+          if (value.startsWith('data:') || /^https:\/\//i.test(value)) return value;
+          return `data:${req.mimeType || 'image/png'};base64,${value}`;
+        });
         const result = await generateWithQwenImage({
           prompt: req.prompt,
           modelId,
-          imageDataUrl,
+          referenceImageDataUrls: referenceImages,
         });
         artifact.url = result.url;
         artifact.mimeType = result.mimeType;
@@ -298,6 +302,14 @@ class MediaService {
         artifact.progress = 0;
         artifact.error = err instanceof Error ? err.message : 'Qwen Image editing failed.';
       }
+      artifact.updatedAt = new Date().toISOString();
+      return artifact;
+    }
+
+    if (Array.isArray(req.referenceImageDataUrls) && req.referenceImageDataUrls.length > 0) {
+      artifact.status = 'failed';
+      artifact.progress = 0;
+      artifact.error = 'Multiple reference images require Qwen Image 2.1 Pro. Select that model or provide a single source image.';
       artifact.updatedAt = new Date().toISOString();
       return artifact;
     }

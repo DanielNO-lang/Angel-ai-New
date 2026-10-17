@@ -17,7 +17,11 @@ Status means configured, not that a vendor account has quota or every production
 
 ## 1. Qwen Image 2.1
 
-Angel's Media Studio now offers `qwen-image-2.1-turbo` and `qwen-image-2.1-pro`. Both generation and image-edit requests use the Alibaba Cloud Model Studio OpenAI-compatible Images API; response image URLs are fetched server-side immediately and converted to bytes so the usual authenticated-media persistence path can store the result in Supabase Storage.
+Angel's Media Studio offers `qwen-image-2.1-turbo` and `qwen-image-2.1-pro`. Both generation and image-edit requests use the Alibaba Cloud Model Studio Images API; returned image URLs are fetched server-side immediately and converted to bytes before the usual authenticated-media persistence path stores results in Supabase Storage.
+
+**Multi-reference editing is now wired end to end.** In Media Studio → Edit & Variations, select up to ten saved images. Angel converts them to bounded image data URIs in the browser, keeps the selection order, and sends the first image as the primary source plus the remaining images as `referenceImageDataUrls`. Selecting a second reference automatically chooses Qwen Image 2.1 Pro. The backend passes the ordered reference array as Model Studio's `image` field, rejects multi-reference requests to Turbo or Gemini rather than silently changing models, limits each source to 10 MB and combined image data to 20 MB, and enforces the ten-image maximum. The editing route remains rate-limited, and Qwen requests require a signed-in Supabase user.
+
+For the hosted API, use the region-specific Model Studio workspace base URL and a key from that same region. The model repository URL itself is not an inference endpoint.
 
 Set the following variables under Netlify's **Functions** scope and redeploy:
 
