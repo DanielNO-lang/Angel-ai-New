@@ -34,7 +34,7 @@ export function normalizeNetlifyApiEvent<T extends NetlifyApiEvent>(event: T): T
   return { ...event, path: `/api${suffix.startsWith("/") ? suffix : suffix ? `/${suffix}` : ""}` };
 }
 
-let appHandlerPromise: Promise<ReturnType<typeof serverless>> | undefined;
+let appHandlerPromise: Promise<any> | undefined;
 
 async function getAppHandler() {
   // Set this before evaluating server.ts so its standalone listener never starts
