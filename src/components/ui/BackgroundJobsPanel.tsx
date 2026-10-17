@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, CheckCircle2, Clock3, LoaderCircle, Play, XCircle } from 'lucide-react';
 import { getClientSupabase } from '../../services/supabaseService';
 
-type Job = { id: string; title: string; status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'; result?: { output?: string }; error?: string; created_at: string };
+type Job = { id: string; title: string; status: 'queued' | 'running' | 'retrying' | 'completed' | 'failed' | 'cancelled'; result?: { output?: string; verified?: boolean }; error?: string; progress?: { stage?: string; percent?: number; message?: string; attempt?: number; maxAttempts?: number }; attempt_count?: number; max_attempts?: number; cancel_requested_at?: string | null; created_at: string };
 export const BackgroundJobsPanel: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -88,12 +88,13 @@ export const BackgroundJobsPanel: React.FC = () => {
     finally { setBusy(false); }
   };
 
-  const cancel = async (id: string) => {
-    if (!token) return;
+  const cancel = async (job: Job) => {
+    if (!token || job.cancel_requested_at) return;
     try {
-      const response = await fetch(`/api/jobs/${encodeURIComponent(id)}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}/cancel`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'This task could not be cancelled.');
+      setMessage(data.message || 'Cancellation requested.');
       await loadJobs();
     } catch (e) { setMessage(e instanceof Error ? e.message : 'This task could not be cancelled.'); }
   };
@@ -111,14 +112,17 @@ export const BackgroundJobsPanel: React.FC = () => {
           <div className="space-y-2"><div className="flex items-center justify-between"><span className="text-xs font-semibold">Recent tasks</span><button onClick={() => void loadJobs()} className="text-xs text-white/60 hover:text-white">Refresh</button></div>
             {jobs.length === 0 && <p className="text-xs text-white/50">No background tasks yet.</p>}
             {jobs.map((job) => <article key={job.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-              <div className="flex items-start gap-2"><StatusIcon status={job.status}/><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{job.title}</p><p className="mt-1 text-[11px] capitalize text-white/50">{job.status}</p></div>{job.status === 'queued' && <button onClick={() => void cancel(job.id)} className="text-[11px] text-red-300 hover:text-red-200">Cancel</button>}</div>
+              <div className="flex items-start gap-2"><StatusIcon status={job.status}/><div className="min-w-0 flex-1"><p className="break-words text-xs font-medium">{job.title}</p><p className="mt-1 text-[11px] capitalize text-white/50">{job.status.replace('_', ' ')}</p></div>{['queued', 'retrying', 'running'].includes(job.status) && <button disabled={Boolean(job.cancel_requested_at)} onClick={() => void cancel(job)} className="shrink-0 text-[11px] text-red-300 hover:text-red-200 disabled:opacity-50">{job.cancel_requested_at ? 'Stop requested' : job.status === 'running' ? 'Request stop' : 'Cancel'}</button>}</div>
+              {job.progress && <div className="mt-2 space-y-1.5"><p role="status" className="text-[11px] leading-relaxed text-white/65">{job.progress.message || 'Task in progress'}</p><div className="h-1.5 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Task progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.max(0,Math.min(100,job.progress.percent ?? 0))}><div className="h-full rounded-full bg-indigo-400 transition-[width] duration-300" style={{ width: String(Math.max(0,Math.min(100,job.progress.percent ?? 0))) + '%' }} /></div><p className="text-[10px] text-white/40">Attempt {job.progress.attempt ?? job.attempt_count ?? 0} of {job.progress.maxAttempts ?? job.max_attempts ?? 3}</p></div>}
+              {job.cancel_requested_at && job.status === 'running' && <p className="mt-2 text-[11px] text-amber-200">Angel will stop after the current model request returns. Its result will not be saved or retried.</p>}
               {job.status === 'completed' && job.result?.output && <p className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap text-xs leading-relaxed text-white/75">{job.result.output}</p>}
+              {job.status === 'completed' && job.result?.verified === true && <p className="mt-1 text-[10px] text-emerald-300">Result checked</p>}
               {job.status === 'failed' && job.error && <p className="mt-2 text-xs text-red-200">{job.error}</p>}
             </article>)}
           </div>
         </div>
       </section>}
-      <button onClick={() => setOpen((value) => !value)} className="flex items-center gap-2 rounded-full border border-white/15 bg-[#101522]/95 px-3.5 py-2.5 text-xs font-medium text-white shadow-xl backdrop-blur-xl hover:bg-[#1a2030]" aria-expanded={open}><Activity className="h-4 w-4 text-indigo-300"/>Background work{jobs.some((job) => job.status === 'running' || job.status === 'queued') && <span className="h-2 w-2 rounded-full bg-amber-300"/>}</button>
+      <button onClick={() => setOpen((value) => !value)} className="flex items-center gap-2 rounded-full border border-white/15 bg-[#101522]/95 px-3.5 py-2.5 text-xs font-medium text-white shadow-xl backdrop-blur-xl hover:bg-[#1a2030]" aria-expanded={open}><Activity className="h-4 w-4 text-indigo-300"/>Background work{jobs.some((job) => job.status === 'running' || job.status === 'queued' || job.status === 'retrying') && <span className="h-2 w-2 rounded-full bg-amber-300"/>}</button>
     </div>
   );
 };
