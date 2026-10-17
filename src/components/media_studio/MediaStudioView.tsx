@@ -447,15 +447,13 @@ export const MediaStudioView: React.FC = () => {
                     Live Synthesis Stage
                   </h3>
                   {currentJob && (
-                    <span
-                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
-                        currentJob.status === 'completed'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : currentJob.status === 'failed'
-                          ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                          : 'bg-purple-500/10 text-purple-400 border border-purple-500/20 animate-pulse'
-                      }`}
-                    >
+                    <span className={`text-[10px] font-medium uppercase ${
+                      currentJob.status === 'completed'
+                        ? 'text-emerald-500'
+                        : currentJob.status === 'failed'
+                        ? 'text-rose-500'
+                        : 'text-purple-400 animate-pulse'
+                    }`}>
                       {currentJob.status}
                     </span>
                   )}
