@@ -269,7 +269,7 @@ test('Qwen Image 2.1 Pro sends ordered multi-reference images and enforces provi
       referenceImageDataUrls: references,
     });
     assert.equal(generated.model, 'qwen-image-2.1-pro');
-    assert.match(generated.url, /^data:image\\/png;base64,/);
+    assert.match(generated.url, /^data:image\/png;base64,/);
     assert.equal(capturedRequest?.url, 'https://qwen-test.example/compatible-mode/v1/images/generations');
     assert.equal(capturedRequest?.authorization, 'Bearer test-only-qwen-secret');
     assert.deepEqual(capturedRequest?.body?.image, references, 'reference order must be preserved');
