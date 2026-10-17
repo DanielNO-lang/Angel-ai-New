@@ -158,5 +158,5 @@ export interface AIProvider {
   /**
    * Generates dense vector embeddings for semantic similarity and memory retrieval.
    */
-  embeddings(texts: string[] | string): Promise<number[][]>;
+  embeddings(texts: string[] | string, modelId?: string): Promise<number[][]>;
 }
