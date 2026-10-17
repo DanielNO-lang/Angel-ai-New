@@ -146,7 +146,7 @@ export const RemoteVisualSessions: React.FC = () => {
     if (!session || !ready || !channelRef.current) return;
     const announce = () => channelRef.current?.send({ type: 'broadcast', event: 'visual-available', payload: { type: 'available', sessionId: session.id, source: session.source, label: session.label, from: deviceIdRef.current } });
     void announce();
-    const interval = window.setInterval(() => { void announce(); }, 10000);
+    const interval = window.setInterval(() => { void announce(); }, 20000);
     return () => window.clearInterval(interval);
   }, [session, ready]);
 
