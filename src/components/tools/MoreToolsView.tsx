@@ -47,9 +47,6 @@ export const MoreToolsView: React.FC = () => {
   const {
     settings,
     setActiveTab,
-    availableTools,
-    memories,
-    assistantsList,
   } = useAngel();
 
   const isLight = settings.theme === 'light';
