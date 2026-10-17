@@ -21,9 +21,19 @@ export function isPrivateOrReservedIpv4(address) {
 export function isPublicResolvedAddress(address) {
   const family = net.isIP(address);
   if (family === 4) return !isPrivateOrReservedIpv4(address);
-  // Until IPv6 ranges are fully normalized by a hardened egress proxy, deny
-  // IPv6 targets, including mapped/compatible representations, by default.
-  return false;
+  if (family !== 6 || address.includes('%')) return false;
+  // Permit only global-unicast IPv6; explicitly exclude documentation, Teredo,
+  // 6to4 and ORCHID ranges. Network-level egress policy remains mandatory.
+  const first = Number.parseInt(address.split(':')[0] || '0', 16);
+  const globalUnicast = (first & 0xe000) === 0x2000;
+  const normalized = address.toLowerCase();
+  return globalUnicast &&
+    !normalized.startsWith('2001:db8:') &&
+    !normalized.startsWith('2001:0:') &&
+    !normalized.startsWith('2002:') &&
+    !normalized.startsWith('2001:10:') &&
+    !normalized.startsWith('2001:20:') &&
+    !normalized.startsWith('3fff:');
 }
 
 export function validateBrowserUrl(rawUrl, approvedHosts) {
