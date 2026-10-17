@@ -3,6 +3,7 @@ import { MonitorSmartphone } from 'lucide-react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getClientSupabase } from '../../services/supabaseService';
 import { useAngel } from '../../context/AppContext';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 
 type PresenceMeta = { deviceId?: string; label?: string; platform?: string; lastSeen?: string };
 
@@ -18,7 +19,8 @@ function getDeviceLabel(): { label: string; platform: string } {
  * it does not grant remote camera, screen, microphone, or OS access.
  */
 export const DevicePresence: React.FC = () => {
-  const { isSignedIn } = useAngel();
+  const { isSignedIn, settings } = useAngel();
+  const isLight = useIsLightTheme(settings.theme);
   const [otherDevices, setOtherDevices] = useState<PresenceMeta[]>([]);
   const [notice, setNotice] = useState('');
   const identity = useMemo(() => {
@@ -85,8 +87,8 @@ export const DevicePresence: React.FC = () => {
   if (!otherDevices.length && !notice) return null;
   return (
     <div className="fixed bottom-4 right-4 z-[80] max-w-[calc(100vw-2rem)] space-y-2" aria-live="polite">
-      {otherDevices.length > 0 && <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#111522]/95 px-3 py-2 text-xs text-white shadow-xl backdrop-blur"><MonitorSmartphone className="h-4 w-4 text-indigo-300" /><span>Angel is open on {otherDevices.length + 1} devices</span></div>}
-      {notice && <div className="rounded-xl border border-indigo-400/30 bg-[#111522]/95 px-3 py-2 text-xs text-white shadow-xl backdrop-blur">{notice}</div>}
+      {otherDevices.length > 0 && <div className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs shadow-xl backdrop-blur ${isLight ? 'border-slate-200 bg-white/95 text-slate-800' : 'border-white/10 bg-[#111522]/95 text-white'}`}><MonitorSmartphone className="h-4 w-4 text-indigo-300" /><span>Angel is open on {otherDevices.length + 1} devices</span></div>}
+      {notice && <div className={`rounded-xl border px-3 py-2 text-xs shadow-xl backdrop-blur ${isLight ? 'border-indigo-200 bg-white/95 text-slate-800' : 'border-indigo-400/30 bg-[#111522]/95 text-white'}`}>{notice}</div>}
     </div>
   );
 };
