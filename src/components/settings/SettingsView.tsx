@@ -143,14 +143,11 @@ export const SettingsView: React.FC = () => {
   const [language, setLanguage] = useState('English (US)');
   const [startOnHome, setStartOnHome] = useState(true);
   const [autoSaveDrafts, setAutoSaveDrafts] = useState(true);
-  const [defaultModel, setDefaultModel] = useState('Gemini 3.8 Flash');
   const [sendOnEnter, setSendOnEnter] = useState(true);
   const [streamResponses, setStreamResponses] = useState(true);
   const [codeHighlighting, setCodeHighlighting] = useState(true);
 
   // Voice states
-  const [defaultVoice, setDefaultVoice] = useState('Nova (Balanced)');
-  const [speechRate, setSpeechRate] = useState('1.0x');
 
   // Privacy & Notifications
   const [desktopNotifications, setDesktopNotifications] = useState(true);
@@ -828,23 +825,14 @@ export const SettingsView: React.FC = () => {
                 </p>
               </div>
 
-              {/* Default Model Selector */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Default Inference Model</label>
-                <select
-                  value={defaultModel}
-                  onChange={(e) => setDefaultModel(e.target.value)}
-                  className={`w-full max-w-sm px-3.5 py-2.5 rounded-xl text-xs border outline-none font-medium transition-colors ${
-                    isLight
-                      ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                      : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                  }`}
-                >
-                  <option value="Gemini 3.8 Flash">Gemini 3.8 Flash (Recommended • Fast & Multimodal)</option>
-                  <option value="GPT-4o">GPT-4o (Omni Reasoning)</option>
-                  <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet (Code & Writing)</option>
-                  <option value="Angel Core Autonomous">Angel Core Autonomous Orchestrator</option>
-                </select>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Automatic model selection</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Angel uses the available provider and model pipeline for each request. A manual model selector is hidden until a choice can be verified against configured providers and actually affects execution.
+                </p>
+                <p className="mt-2 text-xs opacity-65">
+                  Provider availability depends on server-side credentials and current capability support. No provider is represented as connected solely because it appears in a list.
+                </p>
               </div>
 
               {/* Language Selection */}
@@ -998,6 +986,58 @@ export const SettingsView: React.FC = () => {
             </div>
           )}
 
+          {activeSection === 'behavior' && (
+            <section className="space-y-5">
+              <div>
+                <h2 className="text-lg font-bold tracking-tight">Conversational behavior</h2>
+                <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Adjust how Angel communicates. These controls change delivery, not her stable identity, honesty, safety boundaries, or judgement.
+                </p>
+              </div>
+              {([
+                ['warmth', 'Warmth', 'More personal and welcoming language.'],
+                ['humor', 'Humor', 'More situational playfulness when appropriate.'],
+                ['directness', 'Directness', 'More concise, candid, action-oriented answers.'],
+                ['empathy', 'Empathy', 'More acknowledgement of feelings alongside practical help.'],
+              ] as const).map(([key, label, description]) => (
+                <div key={key} className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor={`angel-style-${key}`} className="text-sm font-medium">{label}</label>
+                    <span className="text-xs tabular-nums opacity-70">{delivery[key]}%</span>
+                  </div>
+                  <input
+                    id={`angel-style-${key}`}
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={delivery[key]}
+                    onChange={(event) => updateDelivery({ [key]: Number(event.target.value) })}
+                    className="w-full accent-indigo-500"
+                  />
+                  <p className="text-xs opacity-65">{description}</p>
+                </div>
+              ))}
+              <div className="space-y-2">
+                <label htmlFor="angel-style-tone" className="text-sm font-medium">Emotional tone</label>
+                <select
+                  id="angel-style-tone"
+                  value={delivery.emotionalTone}
+                  onChange={(event) => updateDelivery({ emotionalTone: event.target.value as typeof delivery.emotionalTone })}
+                  className={`w-full rounded-xl border px-3 py-2 text-sm ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-neutral-900'}`}
+                >
+                  <option value="balanced">Balanced</option>
+                  <option value="calm">Calm</option>
+                  <option value="encouraging">Encouraging</option>
+                  <option value="serious">Serious</option>
+                  <option value="playful">Playful</option>
+                </select>
+                <p className="text-xs opacity-65">Serious, urgent, and sensitive topics always take priority over playful tone.</p>
+              </div>
+              <p role="status" className="text-xs text-emerald-600 dark:text-emerald-400">Preferences save automatically and apply to new chat requests.</p>
+            </section>
+          )}
+
           {/* ==========================================================
               SUBSECTION 6: VOICE & SPEECH (AI Capabilities)
              ========================================================== */}
@@ -1010,43 +1050,14 @@ export const SettingsView: React.FC = () => {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Active Voice Model</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {['Nova (Balanced)', 'Alloy (Direct)', 'Echo (Calm)', 'Shimmer (Warm)', 'Sol (Energetic)'].map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setDefaultVoice(v)}
-                      className={`p-3.5 rounded-2xl border text-left text-xs transition-all ${
-                        defaultVoice === v
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold shadow-xs'
-                          : 'border-inherit opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      <div className="font-bold">{v.split(' ')[0]}</div>
-                      <div className="text-[10px] opacity-70">{v.split(' ')[1]}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Speech Cadence Rate</label>
-                <div className="flex gap-2 max-w-xs">
-                  {['0.9x', '1.0x', '1.15x', '1.25x'].map((rate) => (
-                    <button
-                      key={rate}
-                      onClick={() => setSpeechRate(rate)}
-                      className={`flex-1 py-1.5 px-3 rounded-xl border text-xs text-center transition-all ${
-                        speechRate === rate
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                          : 'border-inherit opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      {rate}
-                    </button>
-                  ))}
-                </div>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Angel's voice identity</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Angel keeps a consistent voice identity. Start voice interaction from Chat; this Settings section does not offer provider or timbre switches that are not connected to the live voice pipeline.
+                </p>
+                <p className="mt-2 text-xs opacity-65">
+                  Browser speech support and available voices vary by device. Voice selection and cadence controls will only appear here when they are wired to an actual supported runtime.
+                </p>
               </div>
             </div>
           )}
