@@ -19,14 +19,15 @@ test('read-only navigation requires an explicit read permission', () => {
   assert.equal(evaluateBrowserAction({ ...base, grantedScopes: ['browser:read'] }).allowed, true);
 });
 test('consequential actions require recent confirmation matching exact action and host', () => {
-  const base = { actionId: 'send-42', kind: 'send_message' as const, url: 'https://mail.example.com', approvedHosts: ['mail.example.com'], grantedScopes: ['browser:submit'], now: 120_000 };
+  // Confirmations are valid for five minutes. Use controlled timestamps around both edges.
+  const base = { actionId: 'send-42', kind: 'send_message' as const, url: 'https://mail.example.com', approvedHosts: ['mail.example.com'], grantedScopes: ['browser:submit'], now: 600_000 };
   const missing = evaluateBrowserAction(base);
   assert.equal(missing.allowed, false);
   assert.equal(missing.requiresConfirmation, true);
-  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'other', host: 'mail.example.com', approvedAt: 100_000 } }).allowed, false);
-  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'other.example.com', approvedAt: 100_000 } }).allowed, false);
-  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 100_000 } }).allowed, true);
-  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 1 } }).allowed, false);
+  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'other', host: 'mail.example.com', approvedAt: 420_000 } }).allowed, false);
+  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'other.example.com', approvedAt: 420_000 } }).allowed, false);
+  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 420_000 } }).allowed, true);
+  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 100_000 } }).allowed, false);
 });
 test('high-impact operations require their own scoped grant', () => {
   const result = evaluateBrowserAction({
