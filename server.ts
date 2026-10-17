@@ -29,6 +29,7 @@ import { vercelService } from './server/services/vercelService.js';
 import { evaluateBrowserAction, validateApprovedBrowserUrl, type BrowserActionKind } from './server/services/browserActionPolicy.js';
 import { callBrowserWorker, getBrowserWorkerStatus } from './server/services/browserWorkerService.js';
 import { parseScheduledTaskInput } from './server/services/scheduledTaskPolicy.js';
+import { getWebPushConfiguration, getPushSubscriptionCount, sendTaskPushNotification } from './server/services/pushNotificationService.js';
 
 function isAllowedCallbackUrl(value: string): boolean {
   try {
@@ -1101,6 +1102,122 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     return res.status(204).end();
   });
 
+
+
+  // Private background notifications. Push endpoints/keys never return to the client after registration.
+  const allowedPushEndpoint = (raw: unknown): { allowed: boolean; endpoint?: string; reason?: string } => {
+    if (typeof raw !== 'string' || raw.length < 32 || raw.length > 2048) {
+      return { allowed: false, reason: 'Push endpoint must be a valid HTTPS URL.' };
+    }
+    try {
+      const url = new URL(raw);
+      const host = url.hostname.toLowerCase().replace(/\.$/, '');
+      const hostAllowed = host === 'fcm.googleapis.com' ||
+        host === 'updates.push.services.mozilla.com' ||
+        host === 'push.services.mozilla.com' ||
+        host === 'web.push.apple.com' ||
+        host.endsWith('.notify.windows.com');
+      const ipLiteral = net.isIP(host) !== 0;
+      if (url.protocol !== 'https:' || url.username || url.password || url.hash ||
+          (url.port && url.port !== '443') || !hostAllowed || ipLiteral) {
+        return { allowed: false, reason: 'This push service endpoint is not on the supported HTTPS push-service allowlist.' };
+      }
+      return { allowed: true, endpoint: url.href };
+    } catch {
+      return { allowed: false, reason: 'Push endpoint must be a valid HTTPS URL.' };
+    }
+  };
+
+  app.get('/api/push/status', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const configuration = getWebPushConfiguration();
+    const supabase = getSupabaseClient();
+    let subscriptionCount: number | null = null;
+    let storageWarning: string | undefined;
+    if (supabase && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const count = await getPushSubscriptionCount(supabase, user.id);
+      subscriptionCount = count.count;
+      storageWarning = count.error;
+    } else {
+      storageWarning = 'Server-side Supabase persistence is not configured.';
+    }
+    return res.json({
+      configured: configuration.configured && Boolean(subscriptionCount !== null),
+      vapidConfigured: configuration.configured,
+      publicKey: configuration.publicKey,
+      subscriptionCount,
+      reason: !configuration.configured ? configuration.reason : storageWarning,
+    });
+  });
+
+  app.post('/api/push/subscriptions', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const configuration = getWebPushConfiguration();
+    if (!configuration.configured) return res.status(503).json({ error: configuration.reason || 'Background push is not configured.' });
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(503).json({ error: 'Push subscriptions require server-side Supabase configuration.' });
+    }
+    const subscription = req.body?.subscription;
+    if (!subscription || typeof subscription !== 'object' || Array.isArray(subscription)) {
+      return res.status(400).json({ error: 'A browser PushSubscription object is required.' });
+    }
+    const endpointCheck = allowedPushEndpoint(subscription.endpoint);
+    const keys = subscription.keys;
+    if (!endpointCheck.allowed || !endpointCheck.endpoint ||
+        !keys || typeof keys !== 'object' ||
+        typeof keys.p256dh !== 'string' || !/^[A-Za-z0-9_-]{40,200}$/.test(keys.p256dh) ||
+        typeof keys.auth !== 'string' || !/^[A-Za-z0-9_-]{16,100}$/.test(keys.auth)) {
+      return res.status(400).json({ error: endpointCheck.reason || 'PushSubscription keys are invalid.' });
+    }
+    const normalized = {
+      endpoint: endpointCheck.endpoint,
+      keys: { p256dh: keys.p256dh, auth: keys.auth },
+    };
+    const { data: existing, error: lookupError } = await supabase.from('angel_push_subscriptions')
+      .select('id,user_id').eq('endpoint', endpointCheck.endpoint).maybeSingle();
+    if (lookupError) return res.status(503).json({ error: 'Could not verify this push endpoint ownership.' });
+    if (existing && existing.user_id !== user.id) {
+      return res.status(409).json({ error: 'This push endpoint is already registered to another account. Unregister it from that account or browser profile first.' });
+    }
+    if (existing) {
+      const { error } = await supabase.from('angel_push_subscriptions').update({
+        subscription: normalized, updated_at: new Date().toISOString(),
+      }).eq('id', existing.id).eq('user_id', user.id);
+      if (error) return res.status(503).json({ error: 'Could not update this device push subscription.' });
+    } else {
+      const { error } = await supabase.from('angel_push_subscriptions').insert({
+        user_id: user.id, endpoint: endpointCheck.endpoint, subscription: normalized,
+      });
+      if (error) {
+        // A concurrent insert may have claimed this globally unique endpoint. Do not overwrite its owner.
+        if (error.code === '23505') return res.status(409).json({ error: 'This push endpoint was registered concurrently. Refresh status and try again.' });
+        console.warn('[Web Push] Subscription persistence failed:', error.message);
+        return res.status(503).json({ error: 'Could not register this device. Confirm the Web Push migration was applied.' });
+      }
+    }
+    const count = await getPushSubscriptionCount(supabase, user.id);
+    return res.status(201).json({ registered: true, subscriptionCount: count.count });
+  });
+
+  app.delete('/api/push/subscriptions', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(503).json({ error: 'Push subscription storage is not configured.' });
+    }
+    const endpointCheck = allowedPushEndpoint(req.body?.endpoint);
+    if (!endpointCheck.allowed || !endpointCheck.endpoint) {
+      return res.status(400).json({ error: endpointCheck.reason || 'A valid push endpoint is required.' });
+    }
+    const { data, error } = await supabase.from('angel_push_subscriptions').delete()
+      .eq('user_id', user.id).eq('endpoint', endpointCheck.endpoint).select('id');
+    if (error) return res.status(503).json({ error: 'Could not remove this device subscription.' });
+    return res.json({ removed: (data || []).length > 0 });
+  });
 
   // Browser automation is mediated by user-owned grants and an isolated Playwright worker.
   // The worker remains unavailable unless a dedicated HTTPS service and server-only secret exist.
