@@ -4,7 +4,7 @@ import { createServer } from 'node:http';
 import { routeAngelVoiceUtterance } from '../src/services/voice/voiceCommandRouter';
 import { listAngelSkills, buildAngelSkillContext } from '../server/services/angelSkillsService';
 import { handleAngelMcpMessage } from '../server/services/mcpGatewayService';
-import { normalizeNetlifyApiEvent } from '../netlify/functions/api';
+import { handler as netlifyApiHandler, normalizeNetlifyApiEvent } from '../netlify/functions/api';
 import { providerRegistry, GeminiProvider, OpenAICompatibleProvider } from '../server/providers';
 
 
@@ -13,6 +13,15 @@ test('Netlify API path normalization', () => {
   assert.equal(normalizeNetlifyApiEvent({ path: '/health' }).path, '/api/health');
   assert.equal(normalizeNetlifyApiEvent({ path: '/api/integrations/status' }).path, '/api/integrations/status');
   assert.equal(normalizeNetlifyApiEvent({ rawUrl: 'https://example.net/.netlify/functions/api/translation/status' }).path, '/api/translation/status');
+});
+
+test('Netlify function handler serves the health endpoint through the function rewrite', async () => {
+  const response = await netlifyApiHandler({ path: '/.netlify/functions/api/health' }, {});
+  assert.equal(response.statusCode, 200, 'Netlify function should successfully initialize and dispatch to Express');
+  const body = JSON.parse(response.body || '{}') as { status?: string; workspace?: string; platform?: string };
+  assert.equal(body.status, 'ok');
+  assert.equal(body.workspace, 'Angel AI');
+  assert.equal(body.platform, 'netlify');
 });
 
 // Prevent the standalone development listener from starting when importing server.ts.
