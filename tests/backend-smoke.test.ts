@@ -4,7 +4,16 @@ import { createServer } from 'node:http';
 import { routeAngelVoiceUtterance } from '../src/services/voice/voiceCommandRouter';
 import { listAngelSkills, buildAngelSkillContext } from '../server/services/angelSkillsService';
 import { handleAngelMcpMessage } from '../server/services/mcpGatewayService';
+import { normalizeNetlifyApiEvent } from '../netlify/functions/api';
+import { providerRegistry, GeminiProvider } from '../server/providers';
 
+
+test('Netlify API path normalization', () => {
+  assert.equal(normalizeNetlifyApiEvent({ path: '/.netlify/functions/api/health' }).path, '/api/health');
+  assert.equal(normalizeNetlifyApiEvent({ path: '/health' }).path, '/api/health');
+  assert.equal(normalizeNetlifyApiEvent({ path: '/api/integrations/status' }).path, '/api/integrations/status');
+  assert.equal(normalizeNetlifyApiEvent({ rawUrl: 'https://example.net/.netlify/functions/api/translation/status' }).path, '/api/translation/status');
+});
 
 // Prevent the standalone development listener from starting when importing server.ts.
 process.env.NETLIFY = 'true';
@@ -160,6 +169,39 @@ test('Angel backend smoke contract', async (t) => {
     if (priorBaseUrl === undefined) delete process.env.HYMT2_API_BASE_URL; else process.env.HYMT2_API_BASE_URL = priorBaseUrl;
     if (priorApiKey === undefined) delete process.env.HYMT2_API_KEY; else process.env.HYMT2_API_KEY = priorApiKey;
     if (priorModelId === undefined) delete process.env.HYMT2_MODEL_ID; else process.env.HYMT2_MODEL_ID = priorModelId;
+  }
+
+  // Without a hosted Hy-MT2 endpoint, translation should use the existing Gemini
+  // provider rather than requiring a separately hosted model or a paid secondary API.
+  const previousHyMT2Url = process.env.HYMT2_API_BASE_URL;
+  const originalGeminiProvider = new GeminiProvider();
+  providerRegistry.registerProvider({
+    id: 'gemini',
+    name: 'Gemini translation test double',
+    defaultModelId: 'gemini-test',
+    isConfigured: () => true,
+    generate: async () => ({ text: 'Bonjour', provider: 'gemini', modelId: 'gemini-test' }),
+  } as any);
+  delete process.env.HYMT2_API_BASE_URL;
+  try {
+    const fallbackTranslation = await nativeFetch(`${baseUrl}/api/translation/translate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: 'Hello', sourceLanguage: 'English', targetLanguage: 'French' }),
+    });
+    assert.equal(fallbackTranslation.status, 200);
+    const fallbackBody = await fallbackTranslation.json() as {
+      success?: boolean; translation?: string; provider?: string; model?: string; fallback?: boolean;
+    };
+    assert.equal(fallbackBody.success, true);
+    assert.equal(fallbackBody.translation, 'Bonjour');
+    assert.equal(fallbackBody.provider, 'gemini');
+    assert.equal(fallbackBody.model, 'gemini-test');
+    assert.equal(fallbackBody.fallback, true);
+  } finally {
+    providerRegistry.registerProvider(originalGeminiProvider);
+    if (previousHyMT2Url === undefined) delete process.env.HYMT2_API_BASE_URL;
+    else process.env.HYMT2_API_BASE_URL = previousHyMT2Url;
   }
 
   const invalidResearch = await fetch(`${baseUrl}/api/research/search`, {
