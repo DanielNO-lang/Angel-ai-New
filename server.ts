@@ -1631,7 +1631,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
     const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
     const { data, error } = await supabase.from('angel_background_jobs')
-      .select('id,kind,title,status,result,error,progress,attempt_count,max_attempts,cancel_requested_at,created_at,started_at,finished_at,updated_at')
+      .select('id,kind,title,status,result,error,progress,attempt_count,max_attempts,cancel_requested_at,notify_on_completion,scheduled_task_id,scheduled_for,created_at,started_at,finished_at,updated_at')
       .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
     if (error) return res.status(500).json({ error: 'Could not load background jobs.', detail: error.message });
     return res.json({ jobs: data || [] });
@@ -1681,6 +1681,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const supabase = getSupabaseClient();
     if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       return res.status(503).json({ error: 'The background worker requires SUPABASE_SERVICE_ROLE_KEY.' });
+    }
+    // Schedule enqueueing is deliberately isolated from ordinary queue processing:
+    // if the newer schedule migration is missing, existing manually queued jobs still run.
+    let scheduledTasksStatus: { configured: boolean; enqueued: number; warning?: string } = { configured: true, enqueued: 0 };
+    const { data: scheduledCount, error: scheduleError } = await supabase.rpc('enqueue_due_angel_scheduled_tasks', { p_limit: 20 });
+    if (scheduleError) {
+      scheduledTasksStatus = { configured: false, enqueued: 0, warning: 'Scheduled assistance is unavailable until its database migration is applied and the enqueue function is healthy.' };
+      console.warn('[Scheduled assistance] Due schedules were not enqueued:', scheduleError.message);
+    } else {
+      scheduledTasksStatus.enqueued = Math.max(0, Number(scheduledCount) || 0);
     }
     const { data: jobs, error } = await supabase.rpc('claim_angel_background_jobs', { p_limit: 3 });
     if (error) return res.status(500).json({ error: 'Could not claim queued jobs.', detail: error.message });
@@ -1845,7 +1855,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         results.push({ id: job.id, status: retry ? 'retrying' : 'failed' });
       }
     }
-    return res.json({ processed: results.length, jobs: results });
+    return res.json({ processed: results.length, jobs: results, scheduledTasks: scheduledTasksStatus });
   });
 
   app.post('/api/automation/dispatch', async (req: Request, res: Response) => {
