@@ -164,9 +164,6 @@ export const ConnectionsWorkspace: React.FC = () => {
           <div className="flex items-center gap-2">
             <Radio className="w-5 h-5 text-indigo-400" />
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Connections & Integrations</h1>
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              Verified Pipeline
-            </span>
           </div>
           <p className="text-xs text-neutral-400 mt-1">
             Real authenticated bridges connecting Angel AI to source code repositories, deployment runtimes, cloud databases, and automation webhooks.
