@@ -48,7 +48,7 @@ export const BackgroundJobsPanel: React.FC = () => {
       previousStatuses.current = Object.fromEntries(nextJobs.map((job) => [job.id, job.status]));
       setJobs(nextJobs);
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Background task status is unavailable.'); }
-  }, [token]);
+  }, [token, notificationsEnabled]);
 
   useEffect(() => {
     const refreshPreference = () => {
