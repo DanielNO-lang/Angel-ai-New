@@ -14,7 +14,7 @@ test('browser policy blocks loopback and private network destinations', () => {
   }
 });
 test('browser policy blocks IPv6 literals and alternate loopback/private encodings', () => {
-  for (const url of ['https://[::1]', 'https://[fc00::1]', 'https://[fe80::1]', 'https://[::ffff:127.0.0.1]', 'https://2130706433']) {
+  for (const url of ['https://[::1]', 'https://[fc00::1]', 'https://[fe80::1]', 'https://[::ffff:127.0.0.1]', 'https://2130706433', 'https://8.8.8.8']) {
     assert.equal(validateApprovedBrowserUrl(url, [new URL(url).hostname]).allowed, false, url);
   }
 });
@@ -23,7 +23,7 @@ test('read-only navigation requires an explicit read permission', () => {
   assert.equal(evaluateBrowserAction({ ...base, grantedScopes: [] }).allowed, false);
   assert.equal(evaluateBrowserAction({ ...base, grantedScopes: ['browser:read'] }).allowed, true);
 });
-test('consequential actions require recent confirmation matching exact action and host', () => {
+test('consequential actions and clicks require recent confirmation matching exact action and host', () => {
   // Confirmations are valid for five minutes. Use controlled timestamps around both edges.
   const base = { actionId: 'send-42', kind: 'send_message' as const, url: 'https://mail.example.com', approvedHosts: ['mail.example.com'], grantedScopes: ['browser:submit'], now: 600_000 };
   const missing = evaluateBrowserAction(base);
@@ -31,7 +31,7 @@ test('consequential actions require recent confirmation matching exact action an
   assert.equal(missing.requiresConfirmation, true);
   assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'other', host: 'mail.example.com', approvedAt: 420_000 } }).allowed, false);
   assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'other.example.com', approvedAt: 420_000 } }).allowed, false);
-  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 420_000 } }).allowed, true);
+  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 420_000 } }).allowed, true);\n  assert.equal(evaluateBrowserAction({ ...base, kind: 'click', confirmation: undefined }).allowed, false);
   assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 100_000 } }).allowed, false);
 });
 test('high-impact operations require their own scoped grant', () => {
