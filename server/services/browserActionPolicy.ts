@@ -1,3 +1,4 @@
+import { isIP } from 'node:net';
 export type BrowserActionKind =
   | 'navigate' | 'read_page' | 'click' | 'fill_form' | 'submit_form'
   | 'send_message' | 'download_file' | 'upload_file' | 'purchase' | 'delete' | 'manage_credentials';
@@ -44,7 +45,7 @@ export function validateApprovedBrowserUrl(rawUrl: string, approvedHosts: string
   // IPv4-mapped and alternative IPv6 encodings.
   const ipLiteral = host.replace(/^\[|\]$/g, '');
   if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') ||
-      ipLiteral.includes(':') || isPrivateIpv4(host)) {
+      ipLiteral.includes(':') || isIP(ipLiteral) !== 0 || isPrivateIpv4(host)) {
     return { allowed: false, host, reason: 'Local, private-network, and IPv6-literal targets are not allowed in browser automation.' };
   }
   if (url.port && url.port !== '443') return { allowed: false, reason: 'Non-standard browser target ports are not allowed.' };
