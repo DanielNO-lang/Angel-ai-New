@@ -1143,12 +1143,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(400).json({ error: 'A browser PushSubscription object is required.' });
     }
     const endpointCheck = validatePushEndpoint(subscription.endpoint);
+    if (!endpointCheck.allowed) return res.status(400).json({ error: endpointCheck.reason });
     const keys = subscription.keys;
-    if (!endpointCheck.allowed || !endpointCheck.endpoint ||
-        !keys || typeof keys !== 'object' ||
+    if (!endpointCheck.endpoint || !keys || typeof keys !== 'object' ||
         typeof keys.p256dh !== 'string' || !/^[A-Za-z0-9_-]{40,200}$/.test(keys.p256dh) ||
         typeof keys.auth !== 'string' || !/^[A-Za-z0-9_-]{16,100}$/.test(keys.auth)) {
-      return res.status(400).json({ error: endpointCheck.reason || 'PushSubscription keys are invalid.' });
+      return res.status(400).json({ error: 'PushSubscription keys are invalid.' });
     }
     const normalized = {
       endpoint: endpointCheck.endpoint,
@@ -1188,9 +1188,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(503).json({ error: 'Push subscription storage is not configured.' });
     }
     const endpointCheck = validatePushEndpoint(req.body?.endpoint);
-    if (!endpointCheck.allowed || !endpointCheck.endpoint) {
-      return res.status(400).json({ error: endpointCheck.reason || 'A valid push endpoint is required.' });
-    }
+    if (!endpointCheck.allowed) return res.status(400).json({ error: endpointCheck.reason });
+    if (!endpointCheck.endpoint) return res.status(400).json({ error: 'A valid push endpoint is required.' });
     const { data, error } = await supabase.from('angel_push_subscriptions').delete()
       .eq('user_id', user.id).eq('endpoint', endpointCheck.endpoint).select('id');
     if (error) return res.status(503).json({ error: 'Could not remove this device subscription.' });
