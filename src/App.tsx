@@ -12,6 +12,7 @@ import { Header } from './components/layout/Header';
 import { AuthPage } from './components/auth/AuthPage';
 import { HomeView } from './components/home/HomeView';
 import { ChatView } from './components/chat/ChatView';
+import { ResearchWorkspace } from './components/research/ResearchWorkspace';
 import { AgentLabView } from './components/agent_lab/AgentLabView';
 import { TasksView } from './components/tasks/TasksView';
 import { MemoriesView } from './components/memories/MemoriesView';
@@ -72,10 +73,10 @@ const WorkspaceContent: React.FC = () => {
   useEffect(() => {
     const handleScrollToTop = () => {
       if (mainScrollRef.current) {
-        mainScrollRef.current.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+        mainScrollRef.current.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       }
       if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
       }
     };
 
@@ -239,6 +240,8 @@ const WorkspaceContent: React.FC = () => {
         return <HomeView />;
       case 'chat':
         return <ChatView />;
+      case 'research':
+        return <ResearchWorkspace />;
       case 'voice':
       case 'visual_mode':
         return <ChatView />;
@@ -334,10 +337,10 @@ const WorkspaceContent: React.FC = () => {
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
                     key={activeTab}
-                    initial={{ opacity: 0, y: 8, filter: 'blur(2px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: -6, filter: 'blur(1px)' }}
-                    transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.12 }}
                     className={activeTab === 'chat' ? 'h-full flex flex-col flex-1 min-h-0' : 'min-h-full'}
                   >
                     {renderActiveView()}
