@@ -150,9 +150,42 @@ export const SettingsView: React.FC = () => {
   // Voice states
 
   // Privacy & Notifications
-  const [desktopNotifications, setDesktopNotifications] = useState(true);
-  const [telemetryOptOut, setTelemetryOptOut] = useState(true);
-  const [zeroRetentionVoice, setZeroRetentionVoice] = useState(true);
+  const [desktopNotifications, setDesktopNotifications] = useState(() => {
+    try {
+      return localStorage.getItem('angel_desktop_notifications') === 'true'
+        && typeof Notification !== 'undefined'
+        && Notification.permission === 'granted';
+    } catch { return false; }
+  });
+  const [notificationStatus, setNotificationStatus] = useState<string | null>(null);
+
+  const handleDesktopNotifications = async (enabled: boolean) => {
+    if (!enabled) {
+      setDesktopNotifications(false);
+      try { localStorage.setItem('angel_desktop_notifications', 'false'); } catch {}
+      setNotificationStatus('Browser notifications are off.');
+      return;
+    }
+    if (typeof Notification === 'undefined') {
+      setDesktopNotifications(false);
+      setNotificationStatus('This browser does not support Notifications.');
+      return;
+    }
+    try {
+      const permission = Notification.permission === 'default'
+        ? await Notification.requestPermission()
+        : Notification.permission;
+      const granted = permission === 'granted';
+      setDesktopNotifications(granted);
+      try { localStorage.setItem('angel_desktop_notifications', String(granted)); } catch {}
+      setNotificationStatus(granted
+        ? 'Browser permission is enabled. Background-job delivery still depends on a configured worker and notification service.'
+        : 'Notification permission was not granted. You can enable it in browser site settings.');
+    } catch {
+      setDesktopNotifications(false);
+      setNotificationStatus('Could not request notification permission in this browser.');
+    }
+  };
 
   // Supabase SQL copy state
   const [copiedSql, setCopiedSql] = useState(false);
@@ -1066,102 +1099,74 @@ export const SettingsView: React.FC = () => {
               SUBSECTION 7: VISUAL MULTIMODAL (AI Capabilities)
              ========================================================== */}
           {activeSection === 'visual' && (
-            <div className="space-y-6">
+            <section className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Visual Multimodal Perception</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Configure camera stream resolution, display capture FPS, and vision perception heuristics.
+                <h2 className="text-lg font-bold tracking-tight">Visual Mode</h2>
+                <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Camera and screen understanding belong inside Chat and the workflow using them, not in a separate always-on session.
                 </p>
               </div>
-
-              <div
-                className={`p-5 rounded-3xl border space-y-2 ${
-                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/60 border-white/5'
-                }`}
-              >
-                <h4 className="text-xs font-bold flex items-center gap-2">
-                  <Monitor className="w-4 h-4 text-indigo-500" />
-                  <span>Real-time Screen & Webcam Pipeline</span>
-                </h4>
-                <p className="text-xs opacity-75 leading-relaxed">
-                  Visual Mode operates real-time screen sharing and live camera capture directly feeding into Gemini 3.8 Flash multimodal reasoning for UI audits, code debugging, and diagram deconstruction.
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Permission-first visual context</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Angel requests browser permission before accessing a camera or screen. Nothing should begin silently. The available model and screen-capture support depend on this browser and the provider currently configured.
                 </p>
+                <button type="button" onClick={() => setActiveTab('chat')} className="mt-3 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500">
+                  Open Chat to start Visual Mode
+                </button>
               </div>
-            </div>
+            </section>
           )}
 
           {/* ==========================================================
               SUBSECTION 8: MEMORY VAULT (AI Capabilities)
              ========================================================== */}
           {activeSection === 'memory' && (
-            <div className="space-y-6">
+            <section className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Memory Vault Intelligence</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Inspect stored episodic context, memory recall accuracy, and persistent memory retention.
+                <h2 className="text-lg font-bold tracking-tight">Private memory</h2>
+                <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Review the entries Angel can use for continuity. Memory should be inspectable and user-controlled, not an invisible personality switch.
                 </p>
               </div>
-
-              <div
-                className={`p-5 rounded-3xl border space-y-2 ${
-                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/60 border-white/5'
-                }`}
-              >
-                <h4 className="text-xs font-bold flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-indigo-500" />
-                  <span>Cross-Session Knowledge Continuity</span>
-                </h4>
-                <p className="text-xs opacity-75 leading-relaxed">
-                  Memories are indexed across sessions and conversations. You can view, search, export, and delete individual memory entities inside the dedicated Memories dashboard.
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <p className="text-xs leading-relaxed opacity-75">
+                  The Memories workspace is the current place to inspect, edit, export, and delete saved entries. Deletion across remote and derived stores must be verified against the active database configuration.
                 </p>
+                <button type="button" onClick={() => setActiveTab('memories')} className="mt-3 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500">
+                  Open Memory Vault
+                </button>
               </div>
-            </div>
+            </section>
           )}
 
           {/* ==========================================================
               SUBSECTION 9: PRIVACY & INCOGNITO (Security & System)
              ========================================================== */}
           {activeSection === 'privacy' && (
-            <div className="space-y-6">
+            <section className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Privacy & Incognito Policies</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Manage anonymous sessions, telemetry opt-out, and zero-retention voice/visual guarantees.
+                <h2 className="text-lg font-bold tracking-tight">Privacy and data handling</h2>
+                <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Controls are only shown as switches when they actually change runtime behavior.
                 </p>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Anonymous Diagnostic Telemetry</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Share crash stacks and latency metrics without personal identifiers
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={telemetryOptOut}
-                    onChange={(e) => setTelemetryOptOut(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Strict Incognito Zero-Retention</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Never write transcripts or generated visual snapshots to local memory during Incognito
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={zeroRetentionVoice}
-                    onChange={(e) => setZeroRetentionVoice(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Diagnostics</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Browser startup timings are development-only diagnostics. This Settings screen does not send telemetry, so the old telemetry switch has been removed rather than implying a control over data collection that was not connected.
+                </p>
               </div>
-            </div>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Temporary conversations</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Use Incognito from Chat for a temporary client-side session. External provider retention and server logging depend on their configured policies; Angel does not promise zero retention across services unless that has been independently verified.
+                </p>
+                <button type="button" onClick={() => setActiveTab('chat')} className="mt-3 rounded-lg border border-current/20 px-3 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5">
+                  Open Chat
+                </button>
+              </div>
+            </section>
           )}
 
           {/* ==========================================================
@@ -1187,11 +1192,12 @@ export const SettingsView: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={desktopNotifications}
-                    onChange={(e) => setDesktopNotifications(e.target.checked)}
+                    onChange={(e) => { void handleDesktopNotifications(e.target.checked); }}
                     className="w-4 h-4 accent-indigo-600 cursor-pointer"
                   />
                 </div>
               </div>
+              {notificationStatus && <p role="status" className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{notificationStatus}</p>}
             </div>
           )}
 
