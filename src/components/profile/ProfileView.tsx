@@ -91,9 +91,7 @@ export const ProfileView: React.FC = () => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold truncate">{userProfile.name}</h3>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                    {userProfile.plan}
-                  </span>
+                  <span className="text-[10px] font-medium text-indigo-500">{userProfile.plan}</span>
                 </div>
                 <p className={`text-xs truncate ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                   {userProfile.email}
@@ -108,7 +106,7 @@ export const ProfileView: React.FC = () => {
             >
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-500" />
-                <span>Unlimited Gemini 3.8 Flash queries active</span>
+                <span>Gemini usage follows your API plan's quota and rate limits.</span>
               </div>
             </div>
           </div>

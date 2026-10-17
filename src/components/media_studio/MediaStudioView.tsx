@@ -645,7 +645,7 @@ export const MediaStudioView: React.FC = () => {
                       alt={art.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <span className="absolute top-2 left-2 text-[10px] font-medium px-2 py-0.5 rounded-md bg-black/60 text-white">
+                    <span className="absolute top-2 left-2 text-[10px] font-medium text-white drop-shadow-md">
                       {art.aspectRatio}
                     </span>
                   </div>

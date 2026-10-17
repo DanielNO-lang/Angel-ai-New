@@ -499,7 +499,7 @@ export const AgentLabView: React.FC = () => {
                       <h2 className="text-lg font-bold tracking-tight">
                         {activeAgent.name}
                       </h2>
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded border border-inherit opacity-70">
+                      <span className="text-[10px] font-medium opacity-70">
                         {activeAgent.codename}
                       </span>
                     </div>

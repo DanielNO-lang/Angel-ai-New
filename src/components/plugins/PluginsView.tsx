@@ -255,16 +255,7 @@ export const PluginsView: React.FC = () => {
                     <Shield className="w-4 h-4 text-emerald-400" />
                     Security Permission Manifest
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPlugin.permissions.map((perm) => (
-                      <span
-                        key={perm}
-                        className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-medium text-xs"
-                      >
-                        {perm}
-                      </span>
-                    ))}
-                  </div>
+                  <p className="text-xs text-emerald-300">{selectedPlugin.permissions.join(' · ') || 'No permissions declared'}</p>
                 </div>
 
                 {/* Provided Tools & Capabilities */}
@@ -273,20 +264,11 @@ export const PluginsView: React.FC = () => {
                     <Wrench className="w-4 h-4 text-indigo-400" />
                     Injected Tools Registered in Workspace Tool Registry
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPlugin.providedTools.length === 0 ? (
-                      <span className="text-neutral-500 text-xs italic">No direct tools injected.</span>
-                    ) : (
-                      selectedPlugin.providedTools.map((tool) => (
-                        <span
-                          key={tool}
-                          className="px-2.5 py-1 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 font-medium text-xs"
-                        >
-                          {tool}
-                        </span>
-                      ))
-                    )}
-                  </div>
+                  {selectedPlugin.providedTools.length === 0 ? (
+                    <p className="text-neutral-500 text-xs italic">No direct tools injected.</p>
+                  ) : (
+                    <p className="text-xs text-indigo-300">{selectedPlugin.providedTools.join(' · ')}</p>
+                  )}
                 </div>
 
                 {/* Lifecycle Hooks */}
