@@ -309,7 +309,7 @@ export const ChatView: React.FC = () => {
           {messages.length === 0 ? (
             /* ========================================================
                IMAGE 1: "New Chat (Empty State)"
-               Emblem + "Hello again, Danny 🔮" + 4 Filter Pills + "Try searching for:"
+               Emblem + "Hello again, {userProfile.name?.trim().split(/\\s+/)[0] || 'there'} 🔮" + 4 Filter Pills + "Try searching for:"
                ======================================================== */
             <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-6 max-w-lg mx-auto animate-in fade-in duration-200">
               <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 shadow-xs">
