@@ -22,6 +22,7 @@
  */
 
 import React, { useState, useRef } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import { motion } from 'motion/react';
 import {
   Bot,
@@ -86,7 +87,7 @@ export const Sidebar: React.FC = () => {
     isIncognitoActive,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Full-page hover-expand state on closed sidebar (per user specification)
   const [isHoverExpanded, setIsHoverExpanded] = useState(false);
