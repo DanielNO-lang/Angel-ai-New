@@ -131,6 +131,7 @@ export const SettingsView: React.FC = () => {
 
   useEffect(() => {
     try { localStorage.setItem('angel_desktop_notifications_enabled', String(desktopNotifications)); } catch {}
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('angel:notification-preference-changed'));
   }, [desktopNotifications]);
 
   const handleNotificationToggle = async (enabled: boolean) => {

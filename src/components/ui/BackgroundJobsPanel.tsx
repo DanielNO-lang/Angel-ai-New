@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, CheckCircle2, Clock3, LoaderCircle, Play, XCircle } from 'lucide-react';
 import { getClientSupabase } from '../../services/supabaseService';
 
@@ -10,6 +10,8 @@ export const BackgroundJobsPanel: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [token, setToken] = useState('');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => { try { return localStorage.getItem('angel_desktop_notifications_enabled') === 'true'; } catch { return false; } });
+  const previousStatuses = useRef<Record<string, Job['status']> | null>(null);
 
   useEffect(() => {
     const client = getClientSupabase();
@@ -28,16 +30,45 @@ export const BackgroundJobsPanel: React.FC = () => {
       const response = await fetch('/api/jobs?limit=12', { headers: { Authorization: `Bearer ${token}` } });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Could not load background tasks.');
-      setJobs(Array.isArray(data.jobs) ? data.jobs : []);
+      const nextJobs: Job[] = Array.isArray(data.jobs) ? data.jobs : [];
+      const previous = previousStatuses.current;
+      if (previous && notificationsEnabled && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        for (const job of nextJobs) {
+          const previousStatus = previous[job.id];
+          const finished = job.status === 'completed' || job.status === 'failed';
+          const wasActive = previousStatus === 'queued' || previousStatus === 'running';
+          if (finished && wasActive) {
+            const body = job.status === 'completed'
+              ? (job.result?.output || 'Angel finished a background task.')
+              : (job.error || 'A background task needs attention.');
+            try { new Notification(job.status === 'completed' ? 'Angel task completed' : 'Angel task failed', { body: body.slice(0, 180), tag: `angel-job-${job.id}` }); } catch {}
+          }
+        }
+      }
+      previousStatuses.current = Object.fromEntries(nextJobs.map((job) => [job.id, job.status]));
+      setJobs(nextJobs);
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Background task status is unavailable.'); }
   }, [token]);
 
   useEffect(() => {
-    if (!token || !open) return;
+    const refreshPreference = () => {
+      try { setNotificationsEnabled(localStorage.getItem('angel_desktop_notifications_enabled') === 'true'); } catch { setNotificationsEnabled(false); }
+    };
+    window.addEventListener('storage', refreshPreference);
+    window.addEventListener('angel:notification-preference-changed', refreshPreference);
+    refreshPreference();
+    return () => {
+      window.removeEventListener('storage', refreshPreference);
+      window.removeEventListener('angel:notification-preference-changed', refreshPreference);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!token || (!open && !notificationsEnabled)) return;
     void loadJobs();
     const interval = window.setInterval(() => void loadJobs(), 12000);
     return () => window.clearInterval(interval);
-  }, [token, open, loadJobs]);
+  }, [token, open, notificationsEnabled, loadJobs]);
 
   const enqueue = async () => {
     if (!token || !prompt.trim() || busy) return;
