@@ -8,6 +8,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { conversationService } from '../services/ai';
 import { syncWorkspaceToIndexedDB, loadWorkspaceFromIndexedDB } from '../services/db/offlineDb';
 import { syncService } from '../services/syncService';
+import { secureVaultService } from '../services/security/encryptionService';
 import { offlineSyncManager, SyncState } from '../services/db/offlineSyncManager';
 import { buildWorkspaceExportPayload, downloadWorkspaceExportAsJSON } from '../services/data/workspaceExportService';
 import { getClientSupabase, signOutFromSupabase, upsertAuthenticatedProfile } from '../services/supabaseService';
@@ -214,6 +215,13 @@ interface AppContextType {
       region?: { x: number; y: number; width: number; height: number };
     }
   ) => Promise<{ analysis: string; isPendingConfig?: boolean; modelUsed?: string; timestamp?: string }>;
+
+  // Client-side secure vault for task and memory at-rest encryption
+  secureVaultEnabled: boolean;
+  secureVaultUnlocked: boolean;
+  enableSecureVault: (passphrase: string) => Promise<void>;
+  unlockSecureVault: (passphrase: string) => Promise<void>;
+  lockSecureVault: () => Promise<void>;
 
   // Settings & Integrations
   settings: AngelSettings;
@@ -557,6 +565,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
   const [isSecretsUnlocked, setIsSecretsUnlocked] = useState<boolean>(false);
 
+  const [secureVaultEnabled, setSecureVaultEnabled] = useState<boolean>(() => secureVaultService.isEnabled());
+  const [secureVaultUnlocked, setSecureVaultUnlocked] = useState<boolean>(false);
+
   const setSecretsPasscode = (code: string) => {
     setSecretsPasscodeState(code);
     setStoredItem('secrets_passcode', code);
@@ -596,6 +607,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [authPageMode, setAuthPageMode] = useState<'signin' | 'signup'>('signin');
 
   const resetToGuestWorkspace = () => {
+    secureVaultService.lock();
+    setSecureVaultUnlocked(false);
+    setSecureVaultEnabled(secureVaultService.isEnabled());
     setSessionToken(null);
     setIsSignedIn(false);
     setAuthError(null);
@@ -631,6 +645,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('angel_is_guest', 'true');
     }
     setActiveTab('home');
+  };
+
+  const enableSecureVault = async (passphrase: string) => {
+    await secureVaultService.enable(passphrase);
+    setSecureVaultEnabled(true);
+    setSecureVaultUnlocked(true);
+    // Convert the current local task/memory snapshot before reporting setup complete.
+    await syncWorkspaceToIndexedDB({ tasks, memories });
+    lastSavedFingerprintRef.current = '';
+  };
+
+  const unlockSecureVault = async (passphrase: string) => {
+    await secureVaultService.unlock(passphrase);
+    setSecureVaultEnabled(true);
+    setSecureVaultUnlocked(true);
+    const snapshot = await loadWorkspaceFromIndexedDB();
+    setTasks(snapshot.tasks);
+    setMemories(snapshot.memories);
+    lastSavedFingerprintRef.current = '';
+  };
+
+  const lockSecureVault = async () => {
+    secureVaultService.lock();
+    setSecureVaultUnlocked(false);
+    const snapshot = await loadWorkspaceFromIndexedDB();
+    setTasks(snapshot.tasks);
+    setMemories(snapshot.memories);
+    lastSavedFingerprintRef.current = '';
   };
 
   // Sync theme to HTML document and body with subtle cross-fade transition
@@ -2390,6 +2432,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         inspectVisualFrame,
         settings,
         updateSettings,
+        secureVaultEnabled,
+        secureVaultUnlocked,
+        enableSecureVault,
+        unlockSecureVault,
+        lockSecureVault,
         integrationsStatus,
         refreshIntegrations,
         triggerZapierWebhook,
