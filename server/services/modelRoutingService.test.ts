@@ -51,6 +51,24 @@ test('preference is a tie-breaker, not a way to select unavailable providers', (
   assert.equal(result.some((m) => m.id === 'not-ready'), false);
 });
 
+test('cost-aware routing prefers cheaper models when capability and measured outcomes match', () => {
+  const expensive = model({ id: 'expensive', costPer1kInput: 0.01, costPer1kOutput: 0.08 });
+  const affordable = model({ id: 'affordable', costPer1kInput: 0.001, costPer1kOutput: 0.002 });
+  assert.deepEqual(rankAvailableModels([expensive, affordable], 'chat').map((m) => m.id), ['affordable', 'expensive']);
+});
+
+test('structured-output routing excludes models without structured-output support', () => {
+  const textOnly = model({ id: 'text-only', capabilities: { ...model().capabilities, structuredOutput: false } });
+  const structured = model({ id: 'structured', capabilities: { ...model().capabilities, structuredOutput: true } });
+  assert.deepEqual(rankAvailableModels([textOnly, structured], 'structured_output').map((m) => m.id), ['structured']);
+});
+
+test('missing cost metadata uses a neutral eligible-model baseline', () => {
+  const known = model({ id: 'known', costPer1kInput: 0.001, costPer1kOutput: 0.003 });
+  const unknown = model({ id: 'unknown', costPer1kInput: undefined, costPer1kOutput: undefined });
+  assert.deepEqual(rankAvailableModels([known, unknown], 'chat').map((m) => m.id), ['known', 'unknown']);
+});
+
 test('runtime telemetry tracks only bounded aggregate model outcomes', () => {
   const telemetry = new ModelRoutingTelemetry();
   telemetry.record('x', true, 100);
