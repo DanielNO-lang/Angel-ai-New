@@ -104,7 +104,8 @@ export class ConversationService {
             systemInstruction: assembledContext.systemInstruction,
             conversationHistory: assembledContext.recentMessages,
             tools: discoverableTools,
-            modelId: agent.modelConfig.modelId,
+            modelId: agent.isBuiltIn ? 'auto' : agent.modelConfig.modelId,
+            providerId: agent.isBuiltIn ? 'auto' : agent.modelConfig.provider,
           }),
         });
 
