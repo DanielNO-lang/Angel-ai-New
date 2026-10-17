@@ -297,17 +297,6 @@ export const LibraryView: React.FC = () => {
               }`}
             >
               <span>{c.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                  selectedCategory === c.id
-                    ? 'bg-white/20 text-white'
-                    : isLight
-                    ? 'bg-slate-100 text-slate-600'
-                    : 'bg-white/10 text-neutral-400'
-                }`}
-              >
-                {c.count}
-              </span>
             </button>
           ))}
         </div>
@@ -396,19 +385,12 @@ export const LibraryView: React.FC = () => {
                       {item.description || item.content || 'Durable knowledge resource.'}
                     </p>
 
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {item.tags.slice(0, 3).map((t) => (
-                        <span
-                          key={t}
-                          className={`text-[10px] px-2 py-0.5 rounded-md ${
-                            isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-neutral-300'
-                          }`}
-                        >
-                          #{t}
-                        </span>
-                      ))}
-                    </div>
+                    {/* Tags as plain metadata text */}
+                    {item.tags.length > 0 && (
+                      <p className={`text-[10px] mb-3 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                        {item.tags.slice(0, 3).map((tag) => `#${tag}`).join(' · ')}
+                      </p>
+                    )}
                   </div>
 
                   {/* Footer Meta & Actions */}
