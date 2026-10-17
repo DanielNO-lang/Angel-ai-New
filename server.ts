@@ -341,7 +341,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  // Real grounded web search. Sources must come from Google Search grounding metadata.
+  // Real web search. Citations are taken from provider-returned source metadata; never fabricate URLs.
   app.post('/api/search/web', async (req: Request, res: Response) => {
     const query = req.body?.query;
     const numResults = req.body?.numResults;
