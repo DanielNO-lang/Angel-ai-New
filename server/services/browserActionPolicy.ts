@@ -38,10 +38,14 @@ export function validateApprovedBrowserUrl(rawUrl: string, approvedHosts: string
     return { allowed: false, reason: 'Browser automation accepts HTTPS URLs without embedded credentials.' };
   }
   const host = url.hostname.toLowerCase().replace(/\.$/, '');
+  // URL parsers may keep brackets around IPv6 literals. Block IPv6 literals
+  // altogether until the browser executor can normalize and verify their
+  // resolved address safely; this also closes ULA, loopback, link-local,
+  // IPv4-mapped and alternative IPv6 encodings.
+  const ipLiteral = host.replace(/^\[|\]$/g, '');
   if (!host || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') ||
-      host === '::1' || host === '[::1]' || host.startsWith('fc') || host.startsWith('fd') ||
-      host.startsWith('fe80:') || isPrivateIpv4(host)) {
-    return { allowed: false, reason: 'Local and private-network targets are not allowed in browser automation.' };
+      ipLiteral.includes(':') || isPrivateIpv4(host)) {
+    return { allowed: false, host, reason: 'Local, private-network, and IPv6-literal targets are not allowed in browser automation.' };
   }
   if (url.port && url.port !== '443') return { allowed: false, reason: 'Non-standard browser target ports are not allowed.' };
   const allowedHosts = new Set(approvedHosts.map((item) => item.trim().toLowerCase().replace(/\.$/, '')).filter(Boolean));
