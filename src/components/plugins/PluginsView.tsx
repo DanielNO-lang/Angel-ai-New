@@ -118,9 +118,7 @@ export const PluginsView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Plugins & Extensibility Layer</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Sandboxed Engine
-                </span>
+
               </div>
               <p className="text-xs text-neutral-400 mt-1">
                 Verified third-party connectors, manifest permission validation, and dynamic settings schema.
@@ -196,7 +194,7 @@ export const PluginsView: React.FC = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm">{plugin.name}</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-300">
+                          <span className="text-[10px] text-neutral-500">
                             v{plugin.version}
                           </span>
                         </div>
@@ -404,9 +402,7 @@ export const PluginsView: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-base text-emerald-400">{concept.concept}</span>
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300">
-                      Core Concept
-                    </span>
+
                   </div>
 
                   <p className="text-xs text-neutral-300 leading-relaxed">{concept.definition}</p>
