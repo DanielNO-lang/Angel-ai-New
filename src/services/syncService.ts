@@ -431,6 +431,27 @@ class SyncService {
       Authorization: `Bearer ${this.sessionToken}`,
     };
 
+    // Deletes must use the dedicated owner-scoped endpoint. Sending { id } through the
+    // upsert endpoint would recreate an empty row instead of deleting it remotely.
+    if (mutation.action === 'delete') {
+      const deletableEntities = new Set([
+        'task', 'memory', 'project', 'conversation', 'message',
+        'library_item', 'workflow', 'agent',
+      ]);
+      if (!deletableEntities.has(mutation.entityType)) {
+        throw new Error(`Cloud deletion is not supported for entity type: ${mutation.entityType}`);
+      }
+      const response = await fetch(
+        `/api/supabase/sync-entity/${encodeURIComponent(mutation.entityType)}/${encodeURIComponent(mutation.entityId)}`,
+        { method: 'DELETE', headers },
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || body.success !== true) {
+        throw new Error(typeof body.error === 'string' ? body.error : `Cloud deletion returned HTTP ${response.status}`);
+      }
+      return;
+    }
+
     if (mutation.entityType === 'task') {
       const res = await fetch('/api/supabase/sync', {
         method: 'POST',
