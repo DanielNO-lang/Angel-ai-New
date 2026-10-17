@@ -322,7 +322,7 @@ export const ChatView: React.FC = () => {
                     isLight ? 'text-slate-900' : 'text-white'
                   }`}
                 >
-                  Hello again, Danny 🔮
+                  Hello again, {userProfile.name?.trim().split(/\s+/)[0] || 'there'} 🔮
                 </h2>
                 <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                   What would you like Angel to help you with today?
