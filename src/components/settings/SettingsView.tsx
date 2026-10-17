@@ -482,7 +482,7 @@ export const SettingsView: React.FC = () => {
                   ].map((c) => (
                     <button
                       key={c.id}
-                      onClick={() => { setAccentColor(c.id); updateSettings({ accentColor: c.id as 'blue' | 'indigo' | 'purple' | 'emerald' | 'rose' | 'amber' }); }}
+                      onClick={() => { setAccentColor(c.id as typeof accentColor); updateSettings({ accentColor: c.id as 'blue' | 'indigo' | 'purple' | 'emerald' | 'rose' | 'amber' }); }}
                       className={`w-9 h-9 rounded-2xl ${c.bg} flex items-center justify-center transition-all ${
                         accentColor === c.id ? 'ring-4 ring-indigo-400/40 scale-105 shadow-md' : 'opacity-70 hover:opacity-100'
                       }`}
