@@ -66,7 +66,10 @@ export type SettingsSubSection =
   | 'privacy'
   | 'notifications'
   | 'connections'
-  | 'security';
+  | 'security'
+  | 'behavior'
+  | 'skills'
+  | 'plugins';
 
 interface NavItem {
   id: SettingsSubSection;
@@ -84,6 +87,7 @@ export const SettingsView: React.FC = () => {
   const {
     userProfile,
     updateUserProfile,
+    setActiveTab,
     settings,
     updateSettings,
     clearAllData,
@@ -127,9 +131,6 @@ export const SettingsView: React.FC = () => {
     try { localStorage.setItem('angel_font_scale', fontScale); } catch {}
   }, [fontScale]);
 
-  useEffect(() => {
-    if (activeSection === 'visual' || activeSection === 'privacy') setActiveSection('account');
-  }, [activeSection, setActiveSection]);
   const [animationEffects, setAnimationEffects] = useState(true);
   const [uiDensity, setUiDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [soundEffects, setSoundEffects] = useState(true);
@@ -207,46 +208,100 @@ export const SettingsView: React.FC = () => {
       ],
     },
     {
+      category: 'Conversation',
+      items: [
+        {
+          id: 'behavior',
+          label: 'Conversational behavior',
+          icon: SlidersHorizontal,
+          description: 'Warmth, humor, directness, empathy, and tone',
+        },
+      ],
+    },
+    {
       category: 'AI Capabilities',
       items: [
         {
           id: 'voice',
           label: 'Voice & Speech',
           icon: Mic,
-          description: 'TTS synthesis & voice models',
+          description: 'Use speech inside Chat',
+        },
+        {
+          id: 'visual',
+          label: 'Visual Mode',
+          icon: Eye,
+          description: 'Camera and screen permissions in Chat',
         },
         {
           id: 'memory',
-          label: 'Memory Vault',
+          label: 'Private Memory',
           icon: Brain,
-          description: 'Context retention & episodic recall',
+          description: 'Review and manage saved memories',
+        },
+        {
+          id: 'skills',
+          label: 'Skills',
+          icon: Briefcase,
+          description: 'Open reusable task capabilities',
+        },
+        {
+          id: 'plugins',
+          label: 'Plugins',
+          icon: LayoutGrid,
+          description: 'Open connected capability integrations',
         },
       ],
     },
     {
-      category: 'Security & System',
+      category: 'Privacy & System',
       items: [
+        {
+          id: 'privacy',
+          label: 'Privacy',
+          icon: Shield,
+          description: 'Memory and data-handling preferences',
+        },
         {
           id: 'notifications',
           label: 'Notifications',
           icon: Bell,
-          description: 'Push alerts & background chimes',
+          description: 'Browser notification preferences',
         },
         {
           id: 'connections',
-          label: 'Connections & SQL',
+          label: 'Connections',
           icon: Network,
-          description: 'Database schema & API webhooks',
+          description: 'Connected services and integration status',
         },
         {
           id: 'security',
           label: 'Security & Reset',
           icon: Lock,
-          description: 'Credentials & factory wipe',
+          description: 'Session and local workspace controls',
         },
       ],
     },
   ];
+
+  const handleSelectSettingsItem = (id: SettingsSubSection) => {
+    if (id === 'skills' || id === 'plugins') {
+      setActiveTab(id);
+      return;
+    }
+    if (id === 'memory') {
+      setActiveSection(id);
+      return;
+    }
+    setActiveSection(id);
+  };
+
+  const delivery = settings.conversationalStyle || {
+    warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced' as const,
+  };
+  const updateDelivery = (patch: Partial<typeof delivery>) => {
+    updateSettings({ conversationalStyle: { ...delivery, ...patch } });
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -315,7 +370,7 @@ export const SettingsView: React.FC = () => {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => handleSelectSettingsItem(item.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-colors border ${
                 isSelected
                   ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
