@@ -3,6 +3,7 @@ import { Camera, LoaderCircle, MonitorUp, MonitorSmartphone, PhoneOff, Radio, Sh
 import { getClientSupabase } from '../../services/supabaseService';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useAngel } from '../../context/AppContext';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 
 type Signal = { type: string; sessionId?: string; from?: string; to?: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit; source?: 'camera' | 'screen'; label?: string };
 const ICE: RTCConfiguration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
@@ -14,7 +15,8 @@ const ICE: RTCConfiguration = { iceServers: [{ urls: 'stun:stun.l.google.com:193
  * This streams media peer-to-peer; no frame data is sent through Supabase.
  */
 export const RemoteVisualSessions: React.FC = () => {
-  const { inspectVisualFrame, isSignedIn } = useAngel();
+  const { inspectVisualFrame, isSignedIn, settings } = useAngel();
+  const isLight = useIsLightTheme(settings.theme);
   const [ready, setReady] = useState(false);
   const [userId, setUserId] = useState('');
   const [session, setSession] = useState<{ id: string; source: 'camera' | 'screen'; label: string } | null>(null);
@@ -222,18 +224,18 @@ export const RemoteVisualSessions: React.FC = () => {
   if (!userId) return null;
   return (
     <div className="fixed bottom-20 left-4 z-[75] max-w-[calc(100vw-2rem)]">
-      <details className="group w-72 max-w-full overflow-hidden rounded-2xl border border-white/10 bg-[#101522]/95 text-white shadow-2xl backdrop-blur-xl">
+      <details className={`group w-72 max-w-full overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl ${isLight ? 'border-slate-200 bg-white/95 text-slate-900 shadow-slate-300/30' : 'border-white/10 bg-[#101522]/95 text-white'}`}>
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-3 text-sm"><MonitorSmartphone className="h-4 w-4 text-indigo-300"/><span className="flex-1 font-medium">Connect another device</span><span className="text-xs opacity-60">{available.length}</span></summary>
-        <div className="space-y-3 border-t border-white/10 p-3">
-          <p className="text-xs leading-relaxed text-white/65"><ShieldCheck className="mr-1 inline h-3.5 w-3.5"/>Private to your signed-in account. Sharing always requires permission on the device providing the camera or screen.</p>
+        <div className={`space-y-3 border-t p-3 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
+          <p className={`text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-white/65'}`}><ShieldCheck className="mr-1 inline h-3.5 w-3.5"/>Private to your signed-in account. Sharing always requires permission on the device providing the camera or screen.</p>
           <div className="grid grid-cols-2 gap-2">
-            <button disabled={!!session} onClick={() => void startSharing('camera')} className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 px-2 py-2 text-xs hover:bg-white/10 disabled:opacity-40"><Camera className="h-3.5 w-3.5"/>Share camera</button>
+            <button disabled={!!session} onClick={() => void startSharing('camera')} className={`flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs disabled:opacity-40 ${isLight ? 'border-slate-200 hover:bg-slate-100' : 'border-white/10 hover:bg-white/10'}`}><Camera className="h-3.5 w-3.5"/>Share camera</button>
             <button disabled={!!session} onClick={() => void startSharing('screen')} className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 px-2 py-2 text-xs hover:bg-white/10 disabled:opacity-40"><MonitorUp className="h-3.5 w-3.5"/>Share screen</button>
           </div>
           {session && <button onClick={() => void stopSharing()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold"><PhoneOff className="h-3.5 w-3.5"/>Stop remote sharing</button>}
-          {available.length > 0 && <div className="space-y-2"><p className="text-xs font-semibold">Available from your other devices</p>{available.map((item) => <div key={item.id} className="flex items-center gap-2 rounded-xl bg-white/5 p-2"><Radio className="h-4 w-4 text-emerald-300"/><div className="min-w-0 flex-1"><p className="truncate text-xs">{item.label}</p><p className="text-[11px] opacity-60">{item.source === 'camera' ? 'Camera' : 'Screen'}</p></div><button onClick={() => void connect(item)} className="rounded-lg bg-indigo-500 px-2 py-1.5 text-xs">Connect</button></div>)}</div>}
-          {remoteStream && <div className="space-y-2"><video ref={remoteVideoRef} autoPlay playsInline controls className="aspect-video w-full rounded-xl bg-black object-contain" aria-label="Remote device camera or screen"/><textarea value={visualQuestion} onChange={(e) => setVisualQuestion(e.target.value)} rows={2} placeholder="Ask Angel about the remote screen or camera…" className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs outline-none focus:border-indigo-400"/><button disabled={analyzingFrame} onClick={() => void analyzeRemoteFrame()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold disabled:opacity-50">{analyzingFrame ? <LoaderCircle className="h-3.5 w-3.5 animate-spin"/> : <Camera className="h-3.5 w-3.5"/>}Ask Angel about this frame</button>{visualAnswer && <div className="max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-white/5 p-2.5 text-xs leading-relaxed">{visualAnswer}</div>}</div>}
-          {status && <p role="status" className="text-[11px] leading-relaxed text-white/65">{status}</p>}
+          {available.length > 0 && <div className="space-y-2"><p className="text-xs font-semibold">Available from your other devices</p>{available.map((item) => <div key={item.id} className={`flex items-center gap-2 rounded-xl p-2 ${isLight ? 'bg-slate-100' : 'bg-white/5'}`}><Radio className="h-4 w-4 text-emerald-300"/><div className="min-w-0 flex-1"><p className="truncate text-xs">{item.label}</p><p className="text-[11px] opacity-60">{item.source === 'camera' ? 'Camera' : 'Screen'}</p></div><button onClick={() => void connect(item)} className="rounded-lg bg-indigo-500 px-2 py-1.5 text-xs">Connect</button></div>)}</div>}
+          {remoteStream && <div className="space-y-2"><video ref={remoteVideoRef} autoPlay playsInline controls className="aspect-video w-full rounded-xl bg-black object-contain" aria-label="Remote device camera or screen"/><textarea value={visualQuestion} onChange={(e) => setVisualQuestion(e.target.value)} rows={2} placeholder="Ask Angel about the remote screen or camera…" className={`w-full resize-y rounded-xl border px-3 py-2 text-xs outline-none focus:border-indigo-400 ${isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-white/5 text-white'}`}/><button disabled={analyzingFrame} onClick={() => void analyzeRemoteFrame()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-500 px-3 py-2 text-xs font-semibold disabled:opacity-50">{analyzingFrame ? <LoaderCircle className="h-3.5 w-3.5 animate-spin"/> : <Camera className="h-3.5 w-3.5"/>}Ask Angel about this frame</button>{visualAnswer && <div className={`max-h-40 overflow-auto whitespace-pre-wrap rounded-xl p-2.5 text-xs leading-relaxed ${isLight ? 'bg-slate-100 text-slate-800' : 'bg-white/5 text-white'}`}>{visualAnswer}</div>}</div>}
+          {status && <p role="status" className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-white/65'}`}>{status}</p>}
         </div>
       </details>
     </div>
