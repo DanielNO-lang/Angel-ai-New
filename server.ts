@@ -348,8 +348,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (typeof query !== 'string' || !query.trim()) {
       return res.status(400).json({ success: false, error: 'A search query is required.' });
     }
-    if (!process.env.GEMINI_API_KEY?.trim()) {
-      return res.status(503).json({ success: false, error: 'Grounded web search is not configured on the server.' });
+    if (!process.env.GEMINI_API_KEY?.trim() && !process.env.BRAVE_SEARCH_API_KEY?.trim()) {
+      return res.status(503).json({ success: false, error: 'Grounded search is not configured. Set GEMINI_API_KEY or BRAVE_SEARCH_API_KEY on the server.' });
     }
     try {
       const result = await searchGroundedWeb(query, typeof numResults === 'number' ? numResults : 5);
