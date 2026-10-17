@@ -1232,7 +1232,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         const retry = attempt < maxAttempts;
         const delayMs = retry ? calculateRetryDelay(attempt, { maxRetries: maxAttempts - 1, baseDelayMs: 15_000, maxDelayMs: 300_000 }) : 0;
         const retryAt = retry ? new Date(Date.now() + delayMs).toISOString() : null;
-        const { error: saveError } = await supabase.from('angel_background_jobs').update({
+        const { data: failureSaved, error: saveError } = await supabase.from('angel_background_jobs').update({
           status: retry ? 'retrying' : 'failed',
           result: { output: result.output, executionId: result.executionId, verified: false, reason: failure },
           error: failure,
@@ -1245,11 +1245,38 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           },
           finished_at: retry ? null : now(),
           updated_at: now(),
-        }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null);
+        }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null).select('id').maybeSingle();
         if (saveError) throw saveError;
+        if (!failureSaved) {
+          const { data: cancelState } = await supabase.from('angel_background_jobs')
+            .select('cancel_requested_at').eq('id', job.id).maybeSingle();
+          if (cancelState?.cancel_requested_at) {
+            await supabase.from('angel_background_jobs').update({
+              status: 'cancelled', result: null,
+              error: 'Cancellation was requested while the model call was running. The result was discarded.',
+              progress: { stage: 'cancelled', percent: 100, message: 'Cancelled; result discarded.', attempt, maxAttempts },
+              finished_at: now(), updated_at: now(),
+            }).eq('id', job.id).eq('status', 'running');
+            results.push({ id: job.id, status: 'cancelled' });
+            continue;
+          }
+          throw new Error('The failed attempt could not be committed because the job state changed.');
+        }
         results.push({ id: job.id, status: retry ? 'retrying' : 'failed' });
       } catch (jobError) {
         const message = jobError instanceof Error ? jobError.message : 'Background execution failed.';
+        const { data: cancelState } = await supabase.from('angel_background_jobs')
+          .select('cancel_requested_at').eq('id', job.id).maybeSingle();
+        if (cancelState?.cancel_requested_at) {
+          await supabase.from('angel_background_jobs').update({
+            status: 'cancelled', result: null,
+            error: 'Cancellation was requested while the task was running. Its result was discarded.',
+            progress: { stage: 'cancelled', percent: 100, message: 'Cancelled; result discarded.', attempt, maxAttempts },
+            finished_at: now(), updated_at: now(),
+          }).eq('id', job.id).eq('status', 'running');
+          results.push({ id: job.id, status: 'cancelled' });
+          continue;
+        }
         const retry = attempt < maxAttempts;
         const delayMs = retry ? calculateRetryDelay(attempt, { maxRetries: maxAttempts - 1, baseDelayMs: 15_000, maxDelayMs: 300_000 }) : 0;
         const retryAt = retry ? new Date(Date.now() + delayMs).toISOString() : null;
