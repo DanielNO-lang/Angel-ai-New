@@ -58,7 +58,7 @@ This implementation provides remote visual transport and a durable background-ag
 
 - Review `docs/ROADMAP_ACCEPTANCE_AND_RELEASE_GATES.md` for the status and acceptance tests of all roadmap features.
 - Template-generated workflows are saved disabled and use a notification step by default; they must not write persistent memory without an explicit workflow step.
-- Browser-action policy helpers are not a deployed browser executor. Do not enable live interaction until an isolated executor, server-owned grants/host allowlist, audit log, cancellation path, and security tests are delivered.
+- The current branch includes an isolated browser-worker implementation and server APIs, but it is not operational until the separately deployed worker, server-only secret, browser migration, ingress/egress restrictions, and adversarial security tests are completed.
 - The added retry/progress migration has not been applied to the connected project by this change. Apply to a dedicated test project first, then verify the claim function, RLS, retry timing, and cancellation behavior.
 
 ## 6. Controlled browser sessions
@@ -82,3 +82,34 @@ Supported in this initial slice: approved HTTPS navigation, visible page text, s
 - Test redirect chains, DNS changes/rebinding, private IP and cloud metadata requests, and subresource requests with network-level egress controls enabled.
 - Confirm sensitive input fields are refused, page changes invalidate prepared actions, every action has a visible audit record, and stop/close releases the browser context.
 - The browser feature remains disabled unless the migration, server secret, worker URL, container service, and network policy are all ready.
+
+
+## 7. Scheduled assistance and worker setup
+
+Scheduled tasks use the same durable background queue as manually queued tasks. They currently perform analysis, planning, and drafting only: browser tools and private-memory access are intentionally disabled in the worker pipeline.
+
+Before creating schedules in a test environment:
+
+1. Review the migrations in `supabase/migrations/` and apply all required migrations to a **non-production** Supabase project in timestamp order. For the newest features, the order includes `20261017130000_verified_workflow_jobs.sql`, `20261017150000_browser_control_permissions.sql`, `20261017170000_proactive_scheduled_tasks.sql`, then `20261017180000_web_push_notifications.sql`. Review dependencies in the preceding migration files as well.
+2. Configure server-only `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `CRON_SECRET`. Never expose service-role or cron secrets to browser JavaScript or any `VITE_` variable.
+3. Run a trusted external scheduler at least once per minute and invoke `GET /api/jobs/worker` using `Authorization: Bearer $CRON_SECRET`. Keep the endpoint secret server-side. A Vercel Hobby deployment cannot use a once-per-minute native cron schedule, so use an eligible scheduling plan or an external scheduler.
+4. Confirm the worker response reports `scheduledTasks.configured: true` and reports any number of due schedules enqueued. Confirm ordinary background tasks continue to process if the new scheduled-task migration is absent. Check server logs for scheduler/worker errors.
+5. Test one-time execution, an interval with a small maximum-run count, idempotency across repeated scheduler requests, pause/resume, delete/cancel, run-limit exhaustion, and task failure/retry.
+
+The interval cadence is bounded to 15 minutes through 30 days, with 1–100 runs and at most 20 enabled schedules per account. Missed intervals are coalesced rather than replayed in a burst. A scheduled occurrence is de-duplicated by its schedule ID and due time.
+
+**Important:** the code does not create a hosted scheduler by itself. Until a scheduler is configured and database migrations are applied, scheduled tasks may be saved but will not run. Production must remain gated until preview verification succeeds.
+
+## 8. Background push notifications
+
+Background push is separate from the existing in-tab browser notification monitor. Push requires a service worker, user consent, a valid server-side VAPID key pair, the push subscription migration, and a running background worker.
+
+1. Generate keys in a trusted terminal using `npx web-push generate-vapid-keys`. Do not paste private keys into chat or commit them.
+2. Configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` in the server environment. Use a monitored `mailto:` contact or an HTTPS contact page for the subject. The private key must remain server-only; the public key is returned to signed-in clients only for subscription setup.
+3. Apply `20261017180000_web_push_notifications.sql` after its dependent migrations. The `angel_push_subscriptions` table is managed by the server so clients cannot register other users' subscription endpoints or read endpoint credentials.
+4. Open Settings → Notifications while signed in and enable “Background push notifications” on each browser profile. Approve browser notification permission. The server sends a generic notification title/body and an internal Angel URL, never task output or prompt text.
+5. Run a test job to completion and another to final failure. Verify delivery when the app tab is closed, endpoint removal after HTTP 404/410, disable/unsubscribe behavior, and that no other account receives the event.
+
+Allowed endpoints are restricted in the server to known browser push-service hostnames. Keep endpoint payloads and subscription keys out of logs. Push is considered configured only when server VAPID settings and subscription storage are available. Expired service-worker subscriptions should be removed after the browser push service reports them expired.
+
+Current limitation: browser push delivery does not make the task scheduler run, and push permission does not grant Angel background computer control. The worker and external scheduler remain separately required.
