@@ -52,7 +52,6 @@ const WorkspaceContent: React.FC = () => {
     isWorkspaceMinimized,
     workspaceSizeMode,
     openCommandPalette,
-    activeTab,
     toggleSidebar,
     setMobileMenuOpen,
     isFocusMode,
