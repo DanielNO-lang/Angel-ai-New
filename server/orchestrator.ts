@@ -5,7 +5,8 @@
  * EXECUTION -> VALIDATION -> RESPONSE -> MEMORY UPDATE -> COMPLETED
  */
 
-import { modelRouter } from './providers/index.js';
+import { modelRouter, modelRoutingTelemetry } from './providers/index.js';
+import type { AIProvider, GenerateResult } from './providers/types.js';
 import { dispatchZapierEvent } from './zapier_service.js';
 
 export interface ExecutionStepLog {
@@ -170,7 +171,7 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
     const autoRoute = !requestedProvider || requestedProvider === 'auto';
     let providerId = requestedProvider && requestedProvider !== 'auto' ? requestedProvider : 'gemini';
     let modelId = request.modelConfig?.modelId || 'gemini-3.8-flash';
-    let provider;
+    let provider: AIProvider;
     if (autoRoute) {
       const routed = modelRouter.routeForTask(
         request.taskPrompt.toLowerCase().includes('research') || request.taskPrompt.toLowerCase().includes('sources')
@@ -207,7 +208,7 @@ ${formattedMemories || 'No specific memory overrides.'}
 Execute with discipline and high craft. Do not invent external keys, URLs, or repository states. If you recommend new action items or detect durable user preferences, formulate them clearly.`;
 
     const providerStartedAt = Date.now();
-    let providerResponse;
+    let providerResponse: GenerateResult;
     try {
       providerResponse = await provider.generate({
       prompt: request.taskPrompt,
@@ -220,11 +221,9 @@ Execute with discipline and high craft. Do not invent external keys, URLs, or re
       temperature: request.modelConfig?.temperature ?? 0.4,
       maxTokens: request.modelConfig?.maxTokens,
       });
-      const { modelRoutingTelemetry } = await import('./services/modelRoutingService.js');
-      modelRoutingTelemetry.record(modelId, Boolean(providerResponse.text.trim()), Date.now() - providerStartedAt);
       if (!providerResponse.text.trim()) throw new Error('Selected model returned an empty response.');
+      modelRoutingTelemetry.record(modelId, true, Date.now() - providerStartedAt);
     } catch (modelError) {
-      const { modelRoutingTelemetry } = await import('./services/modelRoutingService.js');
       modelRoutingTelemetry.record(modelId, false, Date.now() - providerStartedAt);
       throw modelError;
     }

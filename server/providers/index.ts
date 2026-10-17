@@ -33,42 +33,33 @@ export class ProviderRegistry {
   }
 
   getProvider(providerId?: string): AIProvider {
-    if (providerId && this.providers.has(providerId)) {
-      const p = this.providers.get(providerId)!;
-      if (p.isConfigured()) return p;
+    if (providerId) {
+      const provider = this.providers.get(providerId);
+      if (!provider) throw new Error(`Provider "${providerId}" is not registered.`);
+      if (!provider.isConfigured()) throw new Error(`Provider "${providerId}" is not configured on the server.`);
+      return provider;
     }
 
-    // Default to Gemini as primary
     const primary = this.providers.get(this.primaryProviderId);
-    if (!primary) {
-      throw new Error(`Primary provider '${this.primaryProviderId}' is not registered.`);
-    }
-    return primary;
+    if (primary?.isConfigured()) return primary;
+    const fallback = Array.from(this.providers.values()).find((candidate) => candidate.isConfigured());
+    if (fallback) return fallback;
+    throw new Error('No AI provider is configured on the server.');
   }
 
   /**
    * Capability-aware model routing: finds the best available provider for a given model or capability
    */
   routeForCapability(capability: 'vision' | 'toolCalling' | 'embeddings', preferredModelId?: string): AIProvider {
-    // 1. If preferredModelId matches a known model, check its provider
+    const task: RoutingTask = capability === 'toolCalling' ? 'tool_calling' : capability;
     if (preferredModelId) {
-      const meta = UNIVERSAL_MODEL_CATALOG.find((m) => m.id === preferredModelId);
-      if (meta && this.providers.has(meta.provider)) {
-        const prov = this.providers.get(meta.provider)!;
-        if (prov.isConfigured()) return prov;
+      const metadata = this.getModelCatalog().find((model) => model.id === preferredModelId);
+      const preferredProvider = metadata && this.providers.get(metadata.provider);
+      if (metadata?.isAvailable && metadata.capabilities[capability] && preferredProvider?.isConfigured()) {
+        return preferredProvider;
       }
     }
-
-    // 2. Fall back to primary (Gemini supports vision, toolCalling, and embeddings)
-    const primary = this.getProvider('gemini');
-    if (primary.isConfigured()) return primary;
-
-    // 3. Fall back to any configured provider
-    for (const prov of this.providers.values()) {
-      if (prov.isConfigured()) return prov;
-    }
-
-    return primary;
+    return this.routeForTask(task).provider;
   }
 
   routeForTask(task: RoutingTask, preferredProvider?: string): { provider: AIProvider; model: ModelMetadata } {
