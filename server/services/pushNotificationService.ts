@@ -1,5 +1,34 @@
 import webpush from 'web-push';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { isIP } from 'node:net';
+
+
+export type PushEndpointValidation =
+  | { allowed: true; endpoint: string }
+  | { allowed: false; reason: string };
+
+/** Restrict server-initiated push requests to known vendor push-service hosts. */
+export function validatePushEndpoint(raw: unknown): PushEndpointValidation {
+  if (typeof raw !== 'string' || raw.length < 32 || raw.length > 2048) {
+    return { allowed: false, reason: 'Push endpoint must be a valid HTTPS URL.' };
+  }
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase().replace(/\\.$/, '');
+    const hostAllowed = host === 'fcm.googleapis.com' ||
+      host === 'updates.push.services.mozilla.com' ||
+      host === 'push.services.mozilla.com' ||
+      host === 'web.push.apple.com' ||
+      host.endsWith('.notify.windows.com');
+    if (url.protocol !== 'https:' || url.username || url.password || url.hash ||
+        (url.port && url.port !== '443') || !hostAllowed || isIP(host) !== 0) {
+      return { allowed: false, reason: 'This push service endpoint is not on the supported HTTPS push-service allowlist.' };
+    }
+    return { allowed: true, endpoint: url.href };
+  } catch {
+    return { allowed: false, reason: 'Push endpoint must be a valid HTTPS URL.' };
+  }
+}
 
 export interface WebPushConfiguration {
   configured: boolean;
