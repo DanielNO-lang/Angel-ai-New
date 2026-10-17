@@ -81,16 +81,16 @@ export const CanvasView: React.FC = () => {
       if (typeof handoff.prompt !== 'string' || !handoff.prompt.trim() ||
           typeof handoff.createdAt !== 'number' || Date.now() - handoff.createdAt >= 10 * 60 * 1000) return;
       const now = new Date().toISOString();
-      const id = \`canvas-draft-\${Date.now()}\`;
+      const id = `canvas-draft-${Date.now()}`;
       const draft: CanvasArtifact = {
         id,
         title: 'New document draft',
         type: 'document',
         blocks: [{
-          id: \`block-\${Date.now()}\`,
+          id: `block-${Date.now()}`,
           type: 'markdown',
           title: 'Starting brief',
-          content: \`# New document draft\\n\\n**Starting request**\\n\\n\${handoff.prompt}\\n\\n## Draft\\n\\nBegin writing here. Review the brief and replace this section with the document you need.\`,
+          content: `# New document draft\n\n**Starting request**\n\n${handoff.prompt}\n\n## Draft\n\nBegin writing here. Review the brief and replace this section with the document you need.`,
         }],
         version: 1,
         history: [],
