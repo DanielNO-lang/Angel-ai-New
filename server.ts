@@ -302,6 +302,45 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
+  // User-scoped hard deletion for queued offline mutations. Entity/table names are
+  // allowlisted so clients cannot turn this endpoint into arbitrary table access.
+  app.delete('/api/supabase/sync-entity/:entity/:id', requireSupabaseUser, rateLimit(30), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const entityTables: Record<string, string> = {
+      task: 'tasks',
+      memory: 'memories',
+      project: 'projects',
+      conversation: 'conversations',
+      message: 'messages',
+      library_item: 'library_items',
+      workflow: 'workflows',
+      agent: 'agents',
+    };
+    const table = entityTables[String(req.params.entity || '')];
+    const id = String(req.params.id || '');
+    if (!table || !/^[A-Za-z0-9_-]{1,180}$/.test(id)) {
+      return res.status(400).json({ success: false, error: 'Unsupported entity or invalid record ID.' });
+    }
+
+    try {
+      const { data, error } = await auth.client
+        .from(table)
+        .delete()
+        .eq('id', id)
+        .eq('user_id', auth.userId)
+        .select('id');
+      if (error) {
+        console.error('[API /api/supabase/sync-entity delete]', { entity: req.params.entity, message: error.message });
+        return res.status(400).json({ success: false, error: 'The record could not be deleted from the connected workspace.' });
+      }
+      // Idempotent delete: deleting an already-absent or inaccessible user's record is safe.
+      return res.json({ success: true, deleted: Array.isArray(data) ? data.length : 0 });
+    } catch (err) {
+      console.error('[API /api/supabase/sync-entity delete]', err);
+      return res.status(500).json({ success: false, error: 'Workspace deletion failed. Please retry.' });
+    }
+  });
+
   app.get('/api/supabase/ddl', (_req: Request, res: Response) => {
     res.type('text/plain').send(getSupabaseDDL());
   });

@@ -255,9 +255,18 @@ class SyncService {
     const existing = await offlineDb.syncQueue
       .where('entityId')
       .equals(entityId)
+      .filter((mutation) => mutation.entityType === entityType)
       .first();
 
     const timestamp = new Date().toISOString();
+
+    // Creating and then deleting an item before it has synced is a local-only change.
+    // Remove the pending create/update rather than sending a needless remote delete.
+    if (existing && existing.status === 'pending' && existing.action === 'create' && action === 'delete') {
+      await offlineDb.syncQueue.delete(existing.id);
+      this.notifyListeners();
+      return;
+    }
 
     if (existing && existing.status === 'pending') {
       // If we previously created and now update, keep action as 'create' but update payload
@@ -430,6 +439,27 @@ class SyncService {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${this.sessionToken}`,
     };
+
+    // Deletes must use the dedicated owner-scoped endpoint. Sending { id } through the
+    // upsert endpoint would recreate an empty row instead of deleting it remotely.
+    if (mutation.action === 'delete') {
+      const deletableEntities = new Set([
+        'task', 'memory', 'project', 'conversation', 'message',
+        'library_item', 'workflow', 'agent',
+      ]);
+      if (!deletableEntities.has(mutation.entityType)) {
+        throw new Error(`Cloud deletion is not supported for entity type: ${mutation.entityType}`);
+      }
+      const response = await fetch(
+        `/api/supabase/sync-entity/${encodeURIComponent(mutation.entityType)}/${encodeURIComponent(mutation.entityId)}`,
+        { method: 'DELETE', headers },
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || body.success !== true) {
+        throw new Error(typeof body.error === 'string' ? body.error : `Cloud deletion returned HTTP ${response.status}`);
+      }
+      return;
+    }
 
     if (mutation.entityType === 'task') {
       const res = await fetch('/api/supabase/sync', {

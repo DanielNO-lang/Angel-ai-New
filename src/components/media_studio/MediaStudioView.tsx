@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { mediaClient, MediaArtifactDTO } from '../../services/media/mediaService';
+import { consumeCapabilityHandoff } from '../../services/capabilityHandoff';
 
 export const MediaStudioView: React.FC = () => {
   const {
@@ -92,6 +93,14 @@ export const MediaStudioView: React.FC = () => {
       setIsLoadingArtifacts(false);
     }
   };
+
+  useEffect(() => {
+    const prompt = consumeCapabilityHandoff('media_studio');
+    if (prompt) {
+      setActiveTabMode('generate');
+      setPromptInput(prompt);
+    }
+  }, []);
 
   useEffect(() => {
     loadArtifacts();

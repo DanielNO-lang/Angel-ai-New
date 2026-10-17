@@ -66,7 +66,10 @@ export type SettingsSubSection =
   | 'privacy'
   | 'notifications'
   | 'connections'
-  | 'security';
+  | 'security'
+  | 'behavior'
+  | 'skills'
+  | 'plugins';
 
 interface NavItem {
   id: SettingsSubSection;
@@ -84,6 +87,7 @@ export const SettingsView: React.FC = () => {
   const {
     userProfile,
     updateUserProfile,
+    setActiveTab,
     settings,
     updateSettings,
     clearAllData,
@@ -101,16 +105,11 @@ export const SettingsView: React.FC = () => {
   // Active Sub-Section from Context
   const activeSection = activeSettingsSection;
   const setActiveSection = setActiveSettingsSection;
-  const [isSaved, setIsSaved] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   // Profile form states
   const [profileName, setProfileName] = useState(userProfile.name || 'Daniel Nwachukwu');
   const [profileEmail, setProfileEmail] = useState(userProfile.email || 'danielokohnwachukwu22@gmail.com');
-  const [profileHandle, setProfileHandle] = useState('daniel');
-  const [profileBio, setProfileBio] = useState('AI engineer and autonomous systems developer.');
-  const [profileRole, setProfileRole] = useState('Lead Architect');
-  const [profileTimezone, setProfileTimezone] = useState('UTC-07:00 (Pacific Time)');
   const [isProfileSaved, setIsProfileSaved] = useState(false);
 
   // Appearance states
@@ -127,34 +126,50 @@ export const SettingsView: React.FC = () => {
     try { localStorage.setItem('angel_font_scale', fontScale); } catch {}
   }, [fontScale]);
 
-  useEffect(() => {
-    if (activeSection === 'visual' || activeSection === 'privacy') setActiveSection('account');
-  }, [activeSection, setActiveSection]);
-  const [animationEffects, setAnimationEffects] = useState(true);
-  const [uiDensity, setUiDensity] = useState<'comfortable' | 'compact'>('comfortable');
-  const [soundEffects, setSoundEffects] = useState(true);
 
   // Theme states
-  const [backdropIntensity, setBackdropIntensity] = useState<'subtle' | 'standard' | 'vivid'>('standard');
-  const [highContrast, setHighContrast] = useState(false);
 
   // Workspace settings states
-  const [language, setLanguage] = useState('English (US)');
-  const [startOnHome, setStartOnHome] = useState(true);
-  const [autoSaveDrafts, setAutoSaveDrafts] = useState(true);
-  const [defaultModel, setDefaultModel] = useState('Gemini 3.8 Flash');
-  const [sendOnEnter, setSendOnEnter] = useState(true);
-  const [streamResponses, setStreamResponses] = useState(true);
-  const [codeHighlighting, setCodeHighlighting] = useState(true);
 
   // Voice states
-  const [defaultVoice, setDefaultVoice] = useState('Nova (Balanced)');
-  const [speechRate, setSpeechRate] = useState('1.0x');
 
   // Privacy & Notifications
-  const [desktopNotifications, setDesktopNotifications] = useState(true);
-  const [telemetryOptOut, setTelemetryOptOut] = useState(true);
-  const [zeroRetentionVoice, setZeroRetentionVoice] = useState(true);
+  const [desktopNotifications, setDesktopNotifications] = useState(() => {
+    try {
+      return localStorage.getItem('angel_desktop_notifications') === 'true'
+        && typeof Notification !== 'undefined'
+        && Notification.permission === 'granted';
+    } catch { return false; }
+  });
+  const [notificationStatus, setNotificationStatus] = useState<string | null>(null);
+
+  const handleDesktopNotifications = async (enabled: boolean) => {
+    if (!enabled) {
+      setDesktopNotifications(false);
+      try { localStorage.setItem('angel_desktop_notifications', 'false'); } catch {}
+      setNotificationStatus('Browser notifications are off.');
+      return;
+    }
+    if (typeof Notification === 'undefined') {
+      setDesktopNotifications(false);
+      setNotificationStatus('This browser does not support Notifications.');
+      return;
+    }
+    try {
+      const permission = Notification.permission === 'default'
+        ? await Notification.requestPermission()
+        : Notification.permission;
+      const granted = permission === 'granted';
+      setDesktopNotifications(granted);
+      try { localStorage.setItem('angel_desktop_notifications', String(granted)); } catch {}
+      setNotificationStatus(granted
+        ? 'Browser permission is enabled. Background-job delivery still depends on a configured worker and notification service.'
+        : 'Notification permission was not granted. You can enable it in browser site settings.');
+    } catch {
+      setDesktopNotifications(false);
+      setNotificationStatus('Could not request notification permission in this browser.');
+    }
+  };
 
   // Supabase SQL copy state
   const [copiedSql, setCopiedSql] = useState(false);
@@ -207,57 +222,106 @@ export const SettingsView: React.FC = () => {
       ],
     },
     {
+      category: 'Conversation',
+      items: [
+        {
+          id: 'behavior',
+          label: 'Conversational behavior',
+          icon: SlidersHorizontal,
+          description: 'Warmth, humor, directness, empathy, and tone',
+        },
+      ],
+    },
+    {
       category: 'AI Capabilities',
       items: [
         {
           id: 'voice',
           label: 'Voice & Speech',
           icon: Mic,
-          description: 'TTS synthesis & voice models',
+          description: 'Use speech inside Chat',
+        },
+        {
+          id: 'visual',
+          label: 'Visual Mode',
+          icon: Eye,
+          description: 'Camera and screen permissions in Chat',
         },
         {
           id: 'memory',
-          label: 'Memory Vault',
+          label: 'Private Memory',
           icon: Brain,
-          description: 'Context retention & episodic recall',
+          description: 'Review and manage saved memories',
+        },
+        {
+          id: 'skills',
+          label: 'Skills',
+          icon: Briefcase,
+          description: 'Open reusable task capabilities',
+        },
+        {
+          id: 'plugins',
+          label: 'Plugins',
+          icon: LayoutGrid,
+          description: 'Open connected capability integrations',
         },
       ],
     },
     {
-      category: 'Security & System',
+      category: 'Privacy & System',
       items: [
+        {
+          id: 'privacy',
+          label: 'Privacy',
+          icon: Shield,
+          description: 'Memory and data-handling preferences',
+        },
         {
           id: 'notifications',
           label: 'Notifications',
           icon: Bell,
-          description: 'Push alerts & background chimes',
+          description: 'Browser notification preferences',
         },
         {
           id: 'connections',
-          label: 'Connections & SQL',
+          label: 'Connections',
           icon: Network,
-          description: 'Database schema & API webhooks',
+          description: 'Connected services and integration status',
         },
         {
           id: 'security',
           label: 'Security & Reset',
           icon: Lock,
-          description: 'Credentials & factory wipe',
+          description: 'Session and local workspace controls',
         },
       ],
     },
   ];
+
+  const handleSelectSettingsItem = (id: SettingsSubSection) => {
+    if (id === 'skills' || id === 'plugins') {
+      setActiveTab(id);
+      return;
+    }
+    if (id === 'memory') {
+      setActiveSection(id);
+      return;
+    }
+    setActiveSection(id);
+  };
+
+  const delivery = settings.conversationalStyle || {
+    warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced' as const,
+  };
+  const updateDelivery = (patch: Partial<typeof delivery>) => {
+    updateSettings({ conversationalStyle: { ...delivery, ...patch } });
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     updateUserProfile({ name: profileName, email: profileEmail });
     setIsProfileSaved(true);
     setTimeout(() => setIsProfileSaved(false), 2000);
-  };
-
-  const handleSaveWorkspaceChanges = () => {
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
   };
 
   const [isExporting, setIsExporting] = useState(false);
@@ -315,7 +379,7 @@ export const SettingsView: React.FC = () => {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => handleSelectSettingsItem(item.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-colors border ${
                 isSelected
                   ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
@@ -511,35 +575,6 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Layout Density */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Layout Density</label>
-                <div className="grid grid-cols-2 gap-2.5 max-w-sm">
-                  <button
-                    type="button"
-                    onClick={() => setUiDensity('comfortable')}
-                    className={`py-2 px-3 rounded-xl border text-xs text-center transition-all ${
-                      uiDensity === 'comfortable'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                        : 'border-inherit opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    Comfortable (Standard)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUiDensity('compact')}
-                    className={`py-2 px-3 rounded-xl border text-xs text-center transition-all ${
-                      uiDensity === 'compact'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                        : 'border-inherit opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    Compact (High Data)
-                  </button>
-                </div>
-              </div>
-
               {/* Toggles */}
               <div className="space-y-3 pt-3 border-t border-inherit">
                 <div className="flex items-center justify-between py-2 border-b border-inherit">
@@ -559,57 +594,6 @@ export const SettingsView: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Interactive Workspace Tour</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Revisit the guided walkthrough highlighting the sidebar, chat, and AI tools.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined' && (window as unknown as { startAngelTour?: () => void }).startAngelTour) {
-                        (window as unknown as { startAngelTour: () => void }).startAngelTour();
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
-                      isLight ? 'hover:bg-slate-100 border-slate-200 text-slate-700' : 'hover:bg-neutral-800 border-white/10 text-neutral-300'
-                    }`}
-                  >
-                    Start Tour
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Cosmic Ambient Glow Effects</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Enable smooth radial blur orbs and luminous gradient auras
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={animationEffects}
-                    onChange={(e) => setAnimationEffects(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Interface Chimes & Audio Feedback</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Subtle tactile audio cues for button clicks and task completions
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={soundEffects}
-                    onChange={(e) => setSoundEffects(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
               </div>
             </div>
           )}
@@ -728,36 +712,6 @@ export const SettingsView: React.FC = () => {
                 </button>
               </div>
 
-              {/* Atmospheric Backdrop Lighting Treatment */}
-              <div className="space-y-3 pt-3 border-t border-inherit">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold">Independent Backdrop Layer Intensity</h4>
-                    <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Adjust the fixed atmospheric glow orbs rendered beneath the interface (z-index: 0)
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase text-indigo-500">
-                    {backdropIntensity}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2.5 max-w-sm">
-                  {(['subtle', 'standard', 'vivid'] as const).map((intensity) => (
-                    <button
-                      key={intensity}
-                      onClick={() => setBackdropIntensity(intensity)}
-                      className={`py-2 px-3 rounded-xl border text-xs capitalize text-center transition-all ${
-                        backdropIntensity === intensity
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                          : 'border-inherit opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      {intensity}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
@@ -773,122 +727,21 @@ export const SettingsView: React.FC = () => {
                 </p>
               </div>
 
-              {/* Default Model Selector */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Default Inference Model</label>
-                <select
-                  value={defaultModel}
-                  onChange={(e) => setDefaultModel(e.target.value)}
-                  className={`w-full max-w-sm px-3.5 py-2.5 rounded-xl text-xs border outline-none font-medium transition-colors ${
-                    isLight
-                      ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                      : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                  }`}
-                >
-                  <option value="Gemini 3.8 Flash">Gemini 3.8 Flash (Recommended • Fast & Multimodal)</option>
-                  <option value="GPT-4o">GPT-4o (Omni Reasoning)</option>
-                  <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet (Code & Writing)</option>
-                  <option value="Angel Core Autonomous">Angel Core Autonomous Orchestrator</option>
-                </select>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Automatic model selection</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Angel uses the available provider and model pipeline for each request. A manual model selector is hidden until a choice can be verified against configured providers and actually affects execution.
+                </p>
+                <p className="mt-2 text-xs opacity-65">
+                  Provider availability depends on server-side credentials and current capability support. No provider is represented as connected solely because it appears in a list.
+                </p>
               </div>
 
-              {/* Language Selection */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Language & Region</label>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className={`w-full max-w-sm px-3.5 py-2.5 rounded-xl text-xs border outline-none font-medium transition-colors ${
-                    isLight
-                      ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                      : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                  }`}
-                >
-                  <option value="English (US)">English (US)</option>
-                  <option value="English (UK)">English (UK)</option>
-                  <option value="Spanish (ES)">Español (ES)</option>
-                  <option value="French (FR)">Français (FR)</option>
-                  <option value="German (DE)">Deutsch (DE)</option>
-                  <option value="Japanese (JA)">日本語 (JA)</option>
-                </select>
-              </div>
-
-              {/* Startup & Editor Toggles */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Start on Home Workspace</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Launch Angel directly on the Home dashboard instead of the previous conversation
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={startOnHome}
-                    onChange={(e) => setStartOnHome(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Auto-save Message Drafts</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Persist in-progress chat input drafts automatically across page changes
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={autoSaveDrafts}
-                    onChange={(e) => setAutoSaveDrafts(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Send Message on Enter</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Press Enter to dispatch immediately; Shift+Enter creates a new paragraph
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={sendOnEnter}
-                    onChange={(e) => setSendOnEnter(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Real-time Token Streaming</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Stream generated tokens progressively with live fluid typing animation
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={streamResponses}
-                    onChange={(e) => setStreamResponses(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Code Syntax Highlighting</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Highlight TypeScript, Python, and SQL snippets with copy triggers
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={codeHighlighting}
-                    onChange={(e) => setCodeHighlighting(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Workspace preferences</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Startup destination, composer behavior, localization, and streaming options are hidden until each setting is wired to the corresponding runtime. This prevents a switch from appearing active when it has no effect.
+                </p>
               </div>
 
               {/* Workspace Data Export & Persistence */}
@@ -929,18 +782,59 @@ export const SettingsView: React.FC = () => {
                 )}
               </div>
 
-              {/* Save workspace changes button */}
-              <div className="flex justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={handleSaveWorkspaceChanges}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-md transition-all flex items-center gap-2"
-                >
-                  {isSaved ? <Check className="w-4 h-4 text-emerald-300" /> : <Save className="w-4 h-4" />}
-                  <span>{isSaved ? 'Changes saved!' : 'Save changes'}</span>
-                </button>
-              </div>
             </div>
+          )}
+
+          {activeSection === 'behavior' && (
+            <section className="space-y-5">
+              <div>
+                <h2 className="text-lg font-bold tracking-tight">Conversational behavior</h2>
+                <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Adjust how Angel communicates. These controls change delivery, not her stable identity, honesty, safety boundaries, or judgement.
+                </p>
+              </div>
+              {([
+                ['warmth', 'Warmth', 'More personal and welcoming language.'],
+                ['humor', 'Humor', 'More situational playfulness when appropriate.'],
+                ['directness', 'Directness', 'More concise, candid, action-oriented answers.'],
+                ['empathy', 'Empathy', 'More acknowledgement of feelings alongside practical help.'],
+              ] as const).map(([key, label, description]) => (
+                <div key={key} className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label htmlFor={`angel-style-${key}`} className="text-sm font-medium">{label}</label>
+                    <span className="text-xs tabular-nums opacity-70">{delivery[key]}%</span>
+                  </div>
+                  <input
+                    id={`angel-style-${key}`}
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={delivery[key]}
+                    onChange={(event) => updateDelivery({ [key]: Number(event.target.value) })}
+                    className="w-full accent-indigo-500"
+                  />
+                  <p className="text-xs opacity-65">{description}</p>
+                </div>
+              ))}
+              <div className="space-y-2">
+                <label htmlFor="angel-style-tone" className="text-sm font-medium">Emotional tone</label>
+                <select
+                  id="angel-style-tone"
+                  value={delivery.emotionalTone}
+                  onChange={(event) => updateDelivery({ emotionalTone: event.target.value as typeof delivery.emotionalTone })}
+                  className={`w-full rounded-xl border px-3 py-2 text-sm ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-neutral-900'}`}
+                >
+                  <option value="balanced">Balanced</option>
+                  <option value="calm">Calm</option>
+                  <option value="encouraging">Encouraging</option>
+                  <option value="serious">Serious</option>
+                  <option value="playful">Playful</option>
+                </select>
+                <p className="text-xs opacity-65">Serious, urgent, and sensitive topics always take priority over playful tone.</p>
+              </div>
+              <p role="status" className="text-xs text-emerald-600 dark:text-emerald-400">Preferences save automatically and apply to new chat requests.</p>
+            </section>
           )}
 
           {/* ==========================================================
@@ -955,43 +849,14 @@ export const SettingsView: React.FC = () => {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Active Voice Model</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {['Nova (Balanced)', 'Alloy (Direct)', 'Echo (Calm)', 'Shimmer (Warm)', 'Sol (Energetic)'].map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setDefaultVoice(v)}
-                      className={`p-3.5 rounded-2xl border text-left text-xs transition-all ${
-                        defaultVoice === v
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold shadow-xs'
-                          : 'border-inherit opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      <div className="font-bold">{v.split(' ')[0]}</div>
-                      <div className="text-[10px] opacity-70">{v.split(' ')[1]}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Speech Cadence Rate</label>
-                <div className="flex gap-2 max-w-xs">
-                  {['0.9x', '1.0x', '1.15x', '1.25x'].map((rate) => (
-                    <button
-                      key={rate}
-                      onClick={() => setSpeechRate(rate)}
-                      className={`flex-1 py-1.5 px-3 rounded-xl border text-xs text-center transition-all ${
-                        speechRate === rate
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                          : 'border-inherit opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      {rate}
-                    </button>
-                  ))}
-                </div>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Angel's voice identity</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Angel keeps a consistent voice identity. Start voice interaction from Chat; this Settings section does not offer provider or timbre switches that are not connected to the live voice pipeline.
+                </p>
+                <p className="mt-2 text-xs opacity-65">
+                  Browser speech support and available voices vary by device. Voice selection and cadence controls will only appear here when they are wired to an actual supported runtime.
+                </p>
               </div>
             </div>
           )}
@@ -1000,102 +865,74 @@ export const SettingsView: React.FC = () => {
               SUBSECTION 7: VISUAL MULTIMODAL (AI Capabilities)
              ========================================================== */}
           {activeSection === 'visual' && (
-            <div className="space-y-6">
+            <section className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Visual Multimodal Perception</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Configure camera stream resolution, display capture FPS, and vision perception heuristics.
+                <h2 className="text-lg font-bold tracking-tight">Visual Mode</h2>
+                <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Camera and screen understanding belong inside Chat and the workflow using them, not in a separate always-on session.
                 </p>
               </div>
-
-              <div
-                className={`p-5 rounded-3xl border space-y-2 ${
-                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/60 border-white/5'
-                }`}
-              >
-                <h4 className="text-xs font-bold flex items-center gap-2">
-                  <Monitor className="w-4 h-4 text-indigo-500" />
-                  <span>Real-time Screen & Webcam Pipeline</span>
-                </h4>
-                <p className="text-xs opacity-75 leading-relaxed">
-                  Visual Mode operates real-time screen sharing and live camera capture directly feeding into Gemini 3.8 Flash multimodal reasoning for UI audits, code debugging, and diagram deconstruction.
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Permission-first visual context</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Angel requests browser permission before accessing a camera or screen. Nothing should begin silently. The available model and screen-capture support depend on this browser and the provider currently configured.
                 </p>
+                <button type="button" onClick={() => setActiveTab('chat')} className="mt-3 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500">
+                  Open Chat to start Visual Mode
+                </button>
               </div>
-            </div>
+            </section>
           )}
 
           {/* ==========================================================
               SUBSECTION 8: MEMORY VAULT (AI Capabilities)
              ========================================================== */}
           {activeSection === 'memory' && (
-            <div className="space-y-6">
+            <section className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Memory Vault Intelligence</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Inspect stored episodic context, memory recall accuracy, and persistent memory retention.
+                <h2 className="text-lg font-bold tracking-tight">Private memory</h2>
+                <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Review the entries Angel can use for continuity. Memory should be inspectable and user-controlled, not an invisible personality switch.
                 </p>
               </div>
-
-              <div
-                className={`p-5 rounded-3xl border space-y-2 ${
-                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/60 border-white/5'
-                }`}
-              >
-                <h4 className="text-xs font-bold flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-indigo-500" />
-                  <span>Cross-Session Knowledge Continuity</span>
-                </h4>
-                <p className="text-xs opacity-75 leading-relaxed">
-                  Memories are indexed across sessions and conversations. You can view, search, export, and delete individual memory entities inside the dedicated Memories dashboard.
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <p className="text-xs leading-relaxed opacity-75">
+                  The Memories workspace is the current place to inspect, edit, export, and delete saved entries. Deletion across remote and derived stores must be verified against the active database configuration.
                 </p>
+                <button type="button" onClick={() => setActiveTab('memories')} className="mt-3 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500">
+                  Open Memory Vault
+                </button>
               </div>
-            </div>
+            </section>
           )}
 
           {/* ==========================================================
               SUBSECTION 9: PRIVACY & INCOGNITO (Security & System)
              ========================================================== */}
           {activeSection === 'privacy' && (
-            <div className="space-y-6">
+            <section className="space-y-4">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Privacy & Incognito Policies</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Manage anonymous sessions, telemetry opt-out, and zero-retention voice/visual guarantees.
+                <h2 className="text-lg font-bold tracking-tight">Privacy and data handling</h2>
+                <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                  Controls are only shown as switches when they actually change runtime behavior.
                 </p>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Anonymous Diagnostic Telemetry</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Share crash stacks and latency metrics without personal identifiers
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={telemetryOptOut}
-                    onChange={(e) => setTelemetryOptOut(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Strict Incognito Zero-Retention</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Never write transcripts or generated visual snapshots to local memory during Incognito
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={zeroRetentionVoice}
-                    onChange={(e) => setZeroRetentionVoice(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Diagnostics</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Browser startup timings are development-only diagnostics. This Settings screen does not send telemetry, so the old telemetry switch has been removed rather than implying a control over data collection that was not connected.
+                </p>
               </div>
-            </div>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Temporary conversations</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Use Incognito from Chat for a temporary client-side session. External provider retention and server logging depend on their configured policies; Angel does not promise zero retention across services unless that has been independently verified.
+                </p>
+                <button type="button" onClick={() => setActiveTab('chat')} className="mt-3 rounded-lg border border-current/20 px-3 py-2 text-xs font-semibold hover:bg-black/5 dark:hover:bg-white/5">
+                  Open Chat
+                </button>
+              </div>
+            </section>
           )}
 
           {/* ==========================================================
@@ -1121,11 +958,12 @@ export const SettingsView: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={desktopNotifications}
-                    onChange={(e) => setDesktopNotifications(e.target.checked)}
+                    onChange={(e) => { void handleDesktopNotifications(e.target.checked); }}
                     className="w-4 h-4 accent-indigo-600 cursor-pointer"
                   />
                 </div>
               </div>
+              {notificationStatus && <p role="status" className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{notificationStatus}</p>}
             </div>
           )}
 

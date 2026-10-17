@@ -126,7 +126,7 @@ interface AppContextType {
   signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
-  sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string, explicitAgentId?: string) => Promise<void>;
 
   // User Profile
   userProfile: UserProfile;
@@ -520,9 +520,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       zapier: {
         webhookEnabled: false,
       },
+      conversationalStyle: {
+        warmth: 70,
+        humor: 35,
+        directness: 65,
+        empathy: 75,
+        emotionalTone: 'balanced',
+      },
     };
 
-    const saved = getStoredItem<AngelSettings>('settings', defaultSettings);
+    const stored = getStoredItem<AngelSettings>('settings', defaultSettings);
+    // Migrate older saved settings without losing the user's existing preferences.
+    const saved: AngelSettings = {
+      ...defaultSettings,
+      ...stored,
+      personality: { ...defaultSettings.personality, ...stored.personality },
+      models: { ...defaultSettings.models, ...stored.models },
+      supabase: { ...defaultSettings.supabase, ...stored.supabase },
+      zapier: { ...defaultSettings.zapier, ...stored.zapier },
+      conversationalStyle: { ...defaultSettings.conversationalStyle!, ...stored.conversationalStyle },
+    };
     // Explicitly restore last theme preference from local storage
     if (typeof localStorage !== 'undefined') {
       const persistedTheme = localStorage.getItem('angel_theme') as ThemeMode;
@@ -1350,16 +1367,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: now,
     };
     setLibraryItems((prev) => [newItem, ...prev]);
+    syncService.enqueueMutation('library_item', 'create', newId, newItem, isGuest);
     return newItem;
   };
 
   const updateLibraryItem = (id: string, updates: Partial<LibraryItem>) => {
     setLibraryItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item))
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, ...updates, updatedAt: new Date().toISOString() };
+        syncService.enqueueMutation('library_item', 'update', id, updated, isGuest);
+        return updated;
+      })
     );
   };
 
   const deleteLibraryItem = (id: string) => {
+    syncService.enqueueMutation('library_item', 'delete', id, { id }, isGuest);
     setLibraryItems((prev) => prev.filter((item) => item.id !== id));
   };
 
@@ -1436,41 +1460,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Send Message with SSE streaming
-  const sendMessage = async (content: string, attachments?: Message['attachments']) => {
+  const sendMessage = async (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string, explicitAgentId?: string) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
-    let targetConvId = activeConversationId;
-    if (!targetConvId || !conversations.some((c) => c.id === targetConvId)) {
-      targetConvId = createConversation(selectedAgentId);
+    let targetConvId = explicitConversationId || activeConversationId;
+    if (!targetConvId || (!explicitConversationId && !conversations.some((c) => c.id === targetConvId))) {
+      targetConvId = createConversation(explicitAgentId || selectedAgentId);
     }
 
     const now = new Date().toISOString();
+    const existingMessages = messagesMap[targetConvId] || [];
+    const retryAssistantIndex = retryAssistantMessageId
+      ? existingMessages.findIndex((m) => m.id === retryAssistantMessageId && m.role === 'assistant' && m.isError)
+      : -1;
+    const retryUser = retryAssistantIndex >= 0
+      ? existingMessages.slice(0, retryAssistantIndex).reverse().find((m) => m.role === 'user')
+      : undefined;
+    const isRetry = retryAssistantIndex >= 0 && Boolean(retryUser);
+    const resolvedContent = isRetry && retryUser ? retryUser.content : content;
+    const resolvedAttachments = isRetry && retryUser ? retryUser.attachments : attachments;
     const userMessageId = `msg-user-${Date.now()}`;
     const userMessage: Message = {
       id: userMessageId,
       conversationId: targetConvId,
       role: 'user',
-      content,
+      content: resolvedContent,
       createdAt: now,
-      attachments,
+      attachments: resolvedAttachments,
     };
 
-    const assistantMessageId = `msg-asst-${Date.now()}`;
+    const assistantMessageId = isRetry ? retryAssistantMessageId! : `msg-asst-${Date.now()}`;
     const assistantMessage: Message = {
       id: assistantMessageId,
       conversationId: targetConvId,
       role: 'assistant',
       content: '',
       createdAt: now,
-      agentId: selectedAgentId,
+      agentId: isRetry
+        ? existingMessages.find((m) => m.id === assistantMessageId)?.agentId || explicitAgentId || conversations.find((conv) => conv.id === targetConvId)?.agentId || selectedAgentId
+        : explicitAgentId || conversations.find((conv) => conv.id === targetConvId)?.agentId || selectedAgentId,
       isStreaming: true,
+      isError: false,
     };
 
-    // Update conversation messages optimistically
-    setMessagesMap((prev) => ({
-      ...prev,
-      [targetConvId]: [...(prev[targetConvId] || []), userMessage, assistantMessage],
-    }));
+    // Retry reuses the original failed assistant slot; normal sends append a user/assistant pair.
+    if (isRetry) {
+      setMessagesMap((prev) => ({
+        ...prev,
+        [targetConvId]: (prev[targetConvId] || []).map((m) => m.id === assistantMessageId
+          ? { ...m, content: '', createdAt: now, isStreaming: true, isError: false, toolCalls: undefined }
+          : m),
+      }));
+    } else {
+      setMessagesMap((prev) => ({
+        ...prev,
+        [targetConvId]: [...(prev[targetConvId] || []), userMessage, assistantMessage],
+      }));
+    }
 
     // Update conversation preview
     setConversations((prev) =>
@@ -1480,7 +1526,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...c,
               updatedAt: now,
               messageCount: (c.messageCount || 0) + 2,
-              lastMessagePreview: content.slice(0, 80),
+              lastMessagePreview: resolvedContent.slice(0, 80),
             }
           : c
       )
@@ -1489,8 +1535,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsChatStreaming(true);
 
     try {
-      const agent = agents.find((a) => a.id === selectedAgentId) || agents[0];
-      const convHistory = messagesMap[targetConvId] || [];
+      const assistantAgentId = isRetry ? assistantMessage.agentId || selectedAgentId : assistantMessage.agentId || selectedAgentId;
+      const agent = agents.find((a) => a.id === assistantAgentId) || agents[0];
+      const convHistory = (messagesMap[targetConvId] || []).filter((m) => m.id !== assistantMessageId);
 
       let runningToolCalls: Array<{
         id: string;
@@ -1506,8 +1553,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const result = await conversationService.sendMessage({
         conversationId: targetConvId,
-        prompt: content,
+        prompt: resolvedContent,
         agent,
+        conversationalStyle: settings.conversationalStyle || {
+          warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced',
+        },
         conversationHistory: convHistory,
         contextState: {
           memories,
@@ -1572,7 +1622,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         },
       });
 
-      // Finalize assistant message streaming state and ensure content is never empty
+      if (typeof result?.content !== 'string' || !result.content.trim()) {
+        throw new Error('The AI provider returned an empty response. Please retry.');
+      }
+
+      // Finalize only a usable response; do not fabricate a successful-looking placeholder.
       setMessagesMap((prev) => {
         const msgs = prev[targetConvId] || [];
         return {
@@ -1581,8 +1635,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             m.id === assistantMessageId
               ? {
                   ...m,
-                  content: (m.content && m.content.trim()) ? m.content : (result?.content || 'Angel has completed processing your request.'),
+                  content: (m.content && m.content.trim()) ? m.content : result.content.trim(),
                   isStreaming: false,
+                  isError: false,
                   toolCalls: runningToolCalls,
                 }
               : m
@@ -1591,16 +1646,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
     } catch (err) {
       console.error('[Angel Conversation Error]', err);
-      const fallbackText = `[Angel Intelligence Notice]: Stream connection paused (${
-        err instanceof Error ? err.message : String(err)
-      }). Ensure API key and server connectivity.`;
+      const rawError = err instanceof Error ? err.message : 'Unknown request failure.';
+      const safeError = rawError
+        .replace(/(api[_ -]?key|authorization|bearer|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 400);
+      const fallbackText = `[Angel couldn't complete this request]: ${safeError || 'The provider or connection failed.'} Retry this message when ready.`;
 
       setMessagesMap((prev) => {
         const msgs = prev[targetConvId] || [];
         return {
           ...prev,
           [targetConvId]: msgs.map((m) =>
-            m.id === assistantMessageId ? { ...m, isStreaming: false, content: fallbackText } : m
+            m.id === assistantMessageId ? { ...m, isStreaming: false, isError: true, content: fallbackText } : m
           ),
         };
       });

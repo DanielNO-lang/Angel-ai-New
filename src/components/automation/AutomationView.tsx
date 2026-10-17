@@ -5,7 +5,7 @@
  * What Triggered -> What Angel Decided -> What Ran -> What Failed -> What Completed.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Zap,
   Play,
@@ -45,6 +45,7 @@ import {
   saveExecutionHistory,
   dispatchEventToAutomations,
 } from '../../services/automation/automationEngine';
+import { consumeCapabilityHandoff } from '../../services/capabilityHandoff';
 
 export const AutomationView: React.FC = () => {
   const { settings, createTask, createMemory, activeProjectId, projects } = useAngel();
@@ -66,6 +67,16 @@ export const AutomationView: React.FC = () => {
   const [newField, setNewField] = useState('priority');
   const [newOp, setNewOp] = useState<ConditionOperator>('equals');
   const [newVal, setNewVal] = useState('urgent');
+
+  useEffect(() => {
+    const prompt = consumeCapabilityHandoff('automation');
+    if (prompt) {
+      setNewTitle('New workflow draft');
+      setNewDesc(prompt);
+      setActiveTabMode('builder');
+      setStatusNotice('Suggestion loaded as a draft. Review its trigger and actions before saving or enabling it.');
+    }
+  }, []);
 
   const selectedAutomation = automations.find((a) => a.id === selectedAutoId) || automations[0];
   const selectedRun = history.find((h) => h.id === selectedRunId) || history[0];

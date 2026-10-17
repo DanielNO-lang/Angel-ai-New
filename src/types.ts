@@ -6,6 +6,7 @@
 export type NavigationTab =
   | 'home'
   | 'chat'
+  | 'research'
   | 'voice'
   | 'visual_mode'
   | 'canvas'
@@ -39,7 +40,10 @@ export type SettingsSubSection =
   | 'privacy'
   | 'notifications'
   | 'connections'
-  | 'security';
+  | 'security'
+  | 'behavior'
+  | 'skills'
+  | 'plugins';
 
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
@@ -73,6 +77,8 @@ export interface Message {
   attachments?: Attachment[];
   toolCalls?: ToolCallRecord[];
   isStreaming?: boolean;
+  /** True only when the assistant request failed and the message offers recovery. */
+  isError?: boolean;
 }
 
 export interface Conversation {
@@ -523,6 +529,14 @@ export interface AngelSettings {
   zapier: {
     webhookEnabled: boolean;
     outboundWebhookUrl?: string;
+  };
+  /** Delivery preferences only. Angel's core identity and values remain stable. */
+  conversationalStyle?: {
+    warmth: number;
+    humor: number;
+    directness: number;
+    empathy: number;
+    emotionalTone: 'balanced' | 'calm' | 'encouraging' | 'serious' | 'playful';
   };
 }
 

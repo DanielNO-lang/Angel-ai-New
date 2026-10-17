@@ -499,6 +499,27 @@ export const ChatView: React.FC = () => {
                       </div>
                     ) : null}
 
+                    {!isUser && message.isError && !message.isStreaming && (
+                      <div role="alert" className={`mt-2 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-xs ${isLight ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-amber-500/30 bg-amber-500/5 text-amber-200'}`}>
+                        <span>Angel could not complete this response. Your message is still here.</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const failedIndex = messages.findIndex((item) => item.id === message.id);
+                            const previousUser = failedIndex >= 0
+                              ? messages.slice(0, failedIndex).reverse().find((item) => item.role === 'user')
+                              : undefined;
+                            if (previousUser) {
+                              void sendMessage(previousUser.content, previousUser.attachments, message.conversationId, message.id);
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-current/30 px-2 py-1 font-semibold hover:bg-amber-500/10"
+                        >
+                          <RotateCcw className="h-3 w-3" /> Retry
+                        </button>
+                      </div>
+                    )}
+
                     {/* Streaming indicator */}
                     {message.isStreaming && message.content && (
                       <span className="inline-block w-1.5 h-3 ml-1 bg-indigo-500 animate-pulse" />

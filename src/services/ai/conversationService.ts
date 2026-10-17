@@ -13,6 +13,50 @@ import {
   ToolExecutionContext,
 } from './types';
 
+
+/** Normalize transport/provider failures before displaying them to a user. */
+export function describeRequestFailure(body: string, status: number, fallback: string): string {
+  let detail = body.trim();
+  if (detail) {
+    try {
+      const parsed = JSON.parse(detail);
+      detail = typeof parsed?.error === 'string' ? parsed.error : typeof parsed?.message === 'string' ? parsed.message : detail;
+    } catch {}
+  }
+  detail = detail
+    .replace(/(api[_ -]?key|authorization|bearer|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240);
+  return detail ? `${fallback} (HTTP ${status}): ${detail}` : `${fallback} (HTTP ${status}).`;
+}
+
+export function describeUnknownFailure(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) return fallback;
+  const message = error.message.replace(/\s+/g, ' ').trim().slice(0, 240);
+  return message || fallback;
+}
+
+export function buildDeliveryPreferenceInstruction(style?: {
+  warmth: number; humor: number; directness: number; empathy: number;
+  emotionalTone: 'balanced' | 'calm' | 'encouraging' | 'serious' | 'playful';
+}): string {
+  if (!style) return '';
+  const level = (value: number, low: string, middle: string, high: string) => {
+    const bounded = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 50;
+    return bounded < 34 ? low : bounded < 67 ? middle : high;
+  };
+  return [
+    '### User-Controlled Conversational Delivery',
+    '- Keep Angel\'s stable identity, honesty, safety boundaries, and independent judgement unchanged. These controls affect delivery, not identity.',
+    `- Warmth: ${level(style.warmth, 'reserved and professional', 'warm and natural', 'warm and personable')}.`,
+    `- Humor: ${level(style.humor, 'minimal humor', 'occasional situational humor', 'playful when appropriate, never at the expense of clarity or the user')}.`,
+    `- Directness: ${level(style.directness, 'gentle and exploratory', 'clear and balanced', 'concise, candid, and action-oriented')}.`,
+    `- Empathy: ${level(style.empathy, 'practical and solution-focused', 'acknowledge relevant feelings briefly', 'attentive and validating while remaining truthful and practical')}.`,
+    `- Emotional tone: ${style.emotionalTone || 'balanced'}. Adapt naturally to the subject; serious or urgent topics override playful delivery.`,
+  ].join('\n');
+}
+
 export class ConversationService {
   /**
    * Dispatches a user message through the context builder, tool discovery, and streaming model pipeline.
@@ -70,7 +114,10 @@ export class ConversationService {
       createMemory: contextState.createMemory,
     };
 
-    let toolAugmentedInstruction = assembledContext.systemInstruction;
+    let toolAugmentedInstruction = [
+      assembledContext.systemInstruction,
+      buildDeliveryPreferenceInstruction(options.conversationalStyle),
+    ].filter(Boolean).join('\n\n');
 
     // Attempt model tool evaluation if prompt suggests tool usage
     const toolKeywords = [
@@ -148,9 +195,10 @@ export class ConversationService {
     );
 
     let accumulatedText = '';
+    let streamFailure = '';
+    let streamCompleted = false;
 
     try {
-      let streamSucceeded = false;
       try {
         const response = await fetch('/api/ai/stream', {
           method: 'POST',
@@ -165,7 +213,14 @@ export class ConversationService {
           }),
         });
 
-        if (response.ok && response.body) {
+        if (!response.ok) {
+          const details = await response.text().catch(() => '');
+          throw new Error(describeRequestFailure(details, response.status, 'Streaming request failed'));
+        }
+        if (!response.body) {
+          throw new Error('The streaming endpoint returned no response body.');
+        }
+        {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
 
@@ -191,16 +246,19 @@ export class ConversationService {
               if (!trimmed) continue;
               if (trimmed.startsWith('data: ')) {
                 const jsonStr = trimmed.slice(6).trim();
-                if (jsonStr === '[DONE]') continue;
+                if (jsonStr === '[DONE]') {
+                  streamCompleted = true;
+                  continue;
+                }
                 try {
                   const parsed = JSON.parse(jsonStr);
                   if (parsed.error) {
                     console.warn('[ConversationService] Stream reported error:', parsed.error);
                     throw new Error(parsed.error);
                   }
+                  if (parsed.done === true) streamCompleted = true;
                   if (parsed.chunk) {
                     accumulatedText += parsed.chunk;
-                    streamSucceeded = true;
                     if (onToken) {
                       onToken(parsed.chunk, accumulatedText);
                     }
@@ -213,9 +271,18 @@ export class ConversationService {
               }
             }
           }
+          if (!streamCompleted) {
+            throw new Error('The streaming connection ended before Angel received the completion signal.');
+          }
         }
       } catch (streamErr) {
-        console.warn('[ConversationService] Stream attempt failed, trying single-shot generate fallback:', streamErr);
+        streamFailure = describeUnknownFailure(streamErr, 'Streaming request failed');
+        console.warn('[ConversationService] Stream attempt failed, trying single-shot generate fallback:', streamFailure);
+        // Discard a partial stream so the single-shot fallback can return one complete answer.
+        if (!streamCompleted) {
+          accumulatedText = '';
+          if (onToken) onToken('', '');
+        }
       }
 
       // If streaming didn't produce text, fallback to /api/ai/generate
@@ -233,26 +300,29 @@ export class ConversationService {
               temperature: agent.modelConfig.temperature,
             }),
           });
-          if (genRes.ok) {
-            const genData = await genRes.json();
-            if (genData.text && genData.text.trim()) {
-              accumulatedText = genData.text.trim();
-              if (onToken) {
-                onToken(accumulatedText, accumulatedText);
-              }
-            }
+          if (!genRes.ok) {
+            const details = await genRes.text().catch(() => '');
+            throw new Error(describeRequestFailure(details, genRes.status, 'Single-shot generation failed'));
+          }
+          const genData = await genRes.json();
+          if (typeof genData.text !== 'string' || !genData.text.trim()) {
+            throw new Error('The AI provider returned an empty response.');
+          }
+          accumulatedText = genData.text.trim();
+          if (onToken) {
+            onToken(accumulatedText, accumulatedText);
           }
         } catch (genErr) {
-          console.warn('[ConversationService] Generate fallback failed:', genErr);
+          streamFailure = describeUnknownFailure(genErr, 'Single-shot generation failed');
+          console.warn('[ConversationService] Generate fallback failed:', streamFailure);
         }
       }
 
-      // If network/provider still yielded no text, provide an intelligent deterministic response
+      // Never present a local placeholder as a successful AI answer. Preserve the request
+      // failure so AppContext can show a retry action without duplicating the user message.
       if (!accumulatedText.trim()) {
-        accumulatedText = `I have received your prompt: "${prompt}". I'm operating in connected workspace mode with your active project and memory context. How would you like me to proceed with this task?`;
-        if (onToken) {
-          onToken(accumulatedText, accumulatedText);
-        }
+        const detail = streamFailure || 'The AI provider returned no usable response.';
+        throw new Error(`Angel could not complete this response. ${detail} Please retry when the provider or connection is available.`);
       }
 
       agentExecutionLifecycle.advanceStage(
