@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useAngel } from '../../context/AppContext';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import { BookOpen, ExternalLink, FileSearch, LoaderCircle, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { getClientSupabase } from '../../services/supabaseService';
 
@@ -16,7 +18,8 @@ export const ResearchWorkspace: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [isLight, setIsLight] = useState(false);
+  const { settings } = useAngel();
+  const isLight = useIsLightTheme(settings.theme);
   useEffect(() => {
     try {
       const raw = localStorage.getItem('angel_pending_capability_prompt');
@@ -35,7 +38,6 @@ export const ResearchWorkspace: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setIsLight(document.documentElement.classList.contains('light'));
     const client = getClientSupabase();
     if (!client) { setError('Research saving needs a configured Supabase sign-in session.'); return; }
     let alive = true;
