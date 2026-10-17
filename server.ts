@@ -30,7 +30,7 @@ import { vercelService } from './server/services/vercelService.js';
 import { evaluateBrowserAction, validateApprovedBrowserUrl, type BrowserActionKind } from './server/services/browserActionPolicy.js';
 import { callBrowserWorker, getBrowserWorkerStatus } from './server/services/browserWorkerService.js';
 import { parseScheduledTaskInput } from './server/services/scheduledTaskPolicy.js';
-import { getWebPushConfiguration, getPushSubscriptionCount, sendTaskPushNotification } from './server/services/pushNotificationService.js';
+import { getWebPushConfiguration, getPushSubscriptionCount, sendTaskPushNotification, validatePushEndpoint } from './server/services/pushNotificationService.js';
 
 function isAllowedCallbackUrl(value: string): boolean {
   try {
@@ -1106,29 +1106,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
 
   // Private background notifications. Push endpoints/keys never return to the client after registration.
-  const allowedPushEndpoint = (raw: unknown): { allowed: boolean; endpoint?: string; reason?: string } => {
-    if (typeof raw !== 'string' || raw.length < 32 || raw.length > 2048) {
-      return { allowed: false, reason: 'Push endpoint must be a valid HTTPS URL.' };
-    }
-    try {
-      const url = new URL(raw);
-      const host = url.hostname.toLowerCase().replace(/\.$/, '');
-      const hostAllowed = host === 'fcm.googleapis.com' ||
-        host === 'updates.push.services.mozilla.com' ||
-        host === 'push.services.mozilla.com' ||
-        host === 'web.push.apple.com' ||
-        host.endsWith('.notify.windows.com');
-      const ipLiteral = isIP(host) !== 0;
-      if (url.protocol !== 'https:' || url.username || url.password || url.hash ||
-          (url.port && url.port !== '443') || !hostAllowed || ipLiteral) {
-        return { allowed: false, reason: 'This push service endpoint is not on the supported HTTPS push-service allowlist.' };
-      }
-      return { allowed: true, endpoint: url.href };
-    } catch {
-      return { allowed: false, reason: 'Push endpoint must be a valid HTTPS URL.' };
-    }
-  };
-
   app.get('/api/push/status', async (req: Request, res: Response) => {
     const user = await authenticateJobUser(req, res);
     if (!user) return;
@@ -1165,7 +1142,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (!subscription || typeof subscription !== 'object' || Array.isArray(subscription)) {
       return res.status(400).json({ error: 'A browser PushSubscription object is required.' });
     }
-    const endpointCheck = allowedPushEndpoint(subscription.endpoint);
+    const endpointCheck = validatePushEndpoint(subscription.endpoint);
     const keys = subscription.keys;
     if (!endpointCheck.allowed || !endpointCheck.endpoint ||
         !keys || typeof keys !== 'object' ||
@@ -1210,7 +1187,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       return res.status(503).json({ error: 'Push subscription storage is not configured.' });
     }
-    const endpointCheck = allowedPushEndpoint(req.body?.endpoint);
+    const endpointCheck = validatePushEndpoint(req.body?.endpoint);
     if (!endpointCheck.allowed || !endpointCheck.endpoint) {
       return res.status(400).json({ error: endpointCheck.reason || 'A valid push endpoint is required.' });
     }
