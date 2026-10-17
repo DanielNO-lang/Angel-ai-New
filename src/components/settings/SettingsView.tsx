@@ -168,8 +168,7 @@ export const SettingsView: React.FC = () => {
           id: 'account',
           label: 'Account',
           icon: CreditCard,
-          badge: userProfile.plan,
-          description: 'Subscription, credentials, & billing',
+          description: 'Sign-in session and workspace tier',
         },
         {
           id: 'profile',
@@ -203,7 +202,7 @@ export const SettingsView: React.FC = () => {
           id: 'workspace',
           label: 'Workspace Settings',
           icon: Sliders,
-          description: 'Models, composer, & shortcuts',
+          description: 'Routing, composer, shortcuts, and data export',
         },
       ],
     },
@@ -214,7 +213,7 @@ export const SettingsView: React.FC = () => {
           id: 'voice',
           label: 'Voice & Speech',
           icon: Mic,
-          description: 'TTS synthesis & voice models',
+          description: 'Voice input, live speech, and interruption controls',
         },
         {
           id: 'visual',
@@ -231,7 +230,7 @@ export const SettingsView: React.FC = () => {
       ],
     },
     {
-      category: 'Connections & Extensions',
+      category: 'Connections & Privacy',
       items: [
         { id: 'skills', label: 'Skills', icon: Flame, description: 'Manage available capabilities' },
         { id: 'plugins', label: 'Plugins', icon: LayoutGrid, description: 'Review installed extensions and permissions' },
@@ -239,13 +238,19 @@ export const SettingsView: React.FC = () => {
           id: 'notifications',
           label: 'Notifications',
           icon: Bell,
-          description: 'Push alerts & background chimes',
+          description: 'Browser alerts for monitored tasks',
         },
         {
           id: 'connections',
           label: 'Connections & SQL',
           icon: Network,
           description: 'Database schema & API webhooks',
+        },
+        {
+          id: 'privacy',
+          label: 'Privacy & Incognito',
+          icon: Shield,
+          description: 'Memory usage and privacy boundaries',
         },
         {
           id: 'security',
@@ -420,17 +425,17 @@ export const SettingsView: React.FC = () => {
           {activeSection === 'account' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Account & Subscription</h2>
+                <h2 className="text-lg font-bold tracking-tight">Account</h2>
                 <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Subscription tier, credential authentication, billing status, and third-party identity.
+                  Sign-in and workspace account details. Billing is not connected in this build.
                 </p>
               </div>
 
               <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/50 border-white/10'}`}>
-                <div className="text-xs font-semibold uppercase tracking-wider text-indigo-500">Current plan</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-indigo-500">Workspace tier</div>
                 <div className="mt-1 text-lg font-bold">{userProfile.plan}</div>
                 <p className={`mt-1 text-sm ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
-                  Your current account tier. Billing management will appear here when a billing provider is connected.
+                  This is the workspace tier shown by the app. It is not proof of an active paid subscription; payment and billing controls are unavailable in this build.
                 </p>
               </div>
 
@@ -467,9 +472,9 @@ export const SettingsView: React.FC = () => {
           {activeSection === 'appearance' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Appearance & Interface</h2>
+                <h2 className="text-lg font-bold tracking-tight">Appearance</h2>
                 <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Accent color highlights, typography sizing scale, interface density, and glowing visual aura.
+                  Typography size, accent color preference, and focus mode.
                 </p>
               </div>
 
@@ -835,10 +840,10 @@ export const SettingsView: React.FC = () => {
               <div className="p-5 rounded-3xl border border-red-500/20 bg-red-500/5 space-y-3">
                 <div className="flex items-center gap-2 text-red-500 font-bold text-xs">
                   <AlertTriangle className="w-4 h-4" />
-                  <span>Reset Local Storage & Cache</span>
+                  <span>Clear Local Workspace Data</span>
                 </div>
                 <p className="text-xs opacity-80 leading-relaxed">
-                  Clear all cached conversations, custom agent personas, tasks, and memory entries to restore factory defaults.
+                  Remove workspace data stored in this browser. This does not claim to delete cloud records, revoke provider permissions, or sign out other devices.
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   <button
@@ -846,7 +851,7 @@ export const SettingsView: React.FC = () => {
                     className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Clear & Reset Local Storage</span>
+                    <span>Clear Local Workspace</span>
                   </button>
                   <button
                     type="button"
@@ -876,8 +881,8 @@ export const SettingsView: React.FC = () => {
           clearAllData();
           setIsResetDialogOpen(false);
         }}
-        title="Reset All Local Workspace Data?"
-        message="This will restore all conversations, agents, and workspace settings back to factory defaults. This action cannot be undone."
+        title="Clear Local Workspace Data?"
+        message="This clears local workspace conversations, tasks, memories, projects, and settings stored in this browser. Export a backup first if you need to keep them. Cloud records and other devices are not remotely wiped by this control."
         confirmLabel="Reset Everything"
         isDestructive={true}
       />
