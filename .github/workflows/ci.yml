@@ -26,6 +26,10 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Run automated tests
         run: npm test
+      - name: Browser worker policy tests
+        run: |
+          npm install --prefix browser-worker --no-audit --no-fund
+          npm test --prefix browser-worker
       - name: Type-check
         run: npm run lint
       - name: Build application
