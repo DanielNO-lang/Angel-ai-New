@@ -461,3 +461,30 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
 }
+
+/* Shared light-theme overrides for the global background work launcher. */
+.light .angel-background-panel {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+.light .angel-background-panel [class*="border-white/"] {
+  border-color: #e2e8f0 !important;
+}
+.light .angel-background-panel [class*="bg-white/"] {
+  background-color: #f8fafc !important;
+}
+.light .angel-background-panel [class*="bg-[#101522]"] {
+  background-color: #ffffff !important;
+}
+.light .angel-background-panel [class*="text-white/"] {
+  color: #475569 !important;
+}
+.light .angel-background-toggle {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border-color: #e2e8f0 !important;
+}
+.light .angel-background-toggle:hover {
+  background-color: #f1f5f9 !important;
+}
