@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, CheckCircle2, Clock3, LoaderCircle, Play, XCircle } from 'lucide-react';
 import { getClientSupabase } from '../../services/supabaseService';
+import { useAngel } from '../../context/AppContext';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 
 type Job = { id: string; title: string; status: 'queued' | 'running' | 'retrying' | 'completed' | 'failed' | 'cancelled'; result?: { output?: string; verified?: boolean }; error?: string; progress?: { stage?: string; percent?: number; message?: string; attempt?: number; maxAttempts?: number }; attempt_count?: number; max_attempts?: number; cancel_requested_at?: string | null; notify_on_completion?: boolean; scheduled_task_id?: string | null; scheduled_for?: string | null; created_at: string };
 type Schedule = { id: string; title: string; task_prompt: string; schedule_type: 'once' | 'interval'; scheduled_at: string; interval_minutes: number | null; max_runs: number; runs_enqueued: number; enabled: boolean; notify_on_completion: boolean; next_run_at: string | null; last_enqueued_at: string | null; created_at: string; updated_at: string };
@@ -15,6 +17,8 @@ function describeSchedule(schedule: Schedule): string {
     : `Every ${schedule.interval_minutes} minutes · ${schedule.runs_enqueued}/${schedule.max_runs} queued`;
 }
 export const BackgroundJobsPanel: React.FC = () => {
+  const { settings } = useAngel();
+  const isLight = useIsLightTheme(settings.theme);
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [activeTab, setActiveTab] = useState<'tasks' | 'schedules'>('tasks');
@@ -208,7 +212,7 @@ export const BackgroundJobsPanel: React.FC = () => {
   if (!token) return null;
   return (
     <div className="fixed bottom-4 left-4 z-[74] max-w-[calc(100vw-2rem)]">
-      {open && <section className="mb-2 max-h-[calc(100vh-6rem)] w-[min(31rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-white/10 bg-[#101522]/97 text-white shadow-2xl backdrop-blur-xl">
+      {open && <section className={`angel-background-panel mb-2 max-h-[calc(100vh-6rem)] w-[min(31rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${isLight ? 'border-slate-200 bg-white text-slate-900' : 'border-white/10 bg-[#101522]/97 text-white'}`}>
         <header className="flex items-center gap-2 border-b border-white/10 px-4 py-3"><Activity className="h-4 w-4 text-indigo-300"/><h2 className="flex-1 text-sm font-semibold">Background work</h2><button onClick={() => setOpen(false)} aria-label="Close background tasks" className="rounded-lg p-1.5 hover:bg-white/10"><XCircle className="h-4 w-4"/></button></header>
         <div className="space-y-3 p-3">
           <div className="grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
@@ -261,7 +265,7 @@ export const BackgroundJobsPanel: React.FC = () => {
           </>}
         </div>
       </section>}
-      <button onClick={() => setOpen((value) => !value)} className="flex items-center gap-2 rounded-full border border-white/15 bg-[#101522]/95 px-3.5 py-2.5 text-xs font-medium text-white shadow-xl backdrop-blur-xl hover:bg-[#1a2030]" aria-expanded={open}><Activity className="h-4 w-4 text-indigo-300"/>Background work{jobs.some((job) => job.status === 'running' || job.status === 'queued' || job.status === 'retrying') && <span className="h-2 w-2 rounded-full bg-amber-300"/>}</button>
+      <button onClick={() => setOpen((value) => !value)} className={`angel-background-toggle flex items-center gap-2 rounded-full border px-3.5 py-2.5 text-xs font-medium shadow-xl backdrop-blur-xl ${isLight ? 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100' : 'border-white/15 bg-[#101522]/95 text-white hover:bg-[#1a2030]'}`} aria-expanded={open}><Activity className="h-4 w-4 text-indigo-300"/>Background work{jobs.some((job) => job.status === 'running' || job.status === 'queued' || job.status === 'retrying') && <span className="h-2 w-2 rounded-full bg-amber-300"/>}</button>
     </div>
   );
 };
