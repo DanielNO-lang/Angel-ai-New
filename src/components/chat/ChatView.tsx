@@ -553,7 +553,7 @@ export const ChatView: React.FC = () => {
               {attachments.map((att) => (
                 <div
                   key={att.id}
-                  className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white dark:bg-[#1B2542] text-xs shadow-2xs"
+                  className="flex items-center gap-2 text-xs"
                 >
                   <span className="truncate max-w-[140px]">{att.name}</span>
                   <button

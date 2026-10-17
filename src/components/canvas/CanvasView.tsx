@@ -411,7 +411,7 @@ Please review this implementation, suggest architectural improvements, and point
                   {/* Block Header */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-medium uppercase bg-cyan-500/10 text-cyan-300">
+                      <span className="text-[10px] font-medium uppercase text-cyan-300">
                         {block.type}
                       </span>
                       <input
