@@ -179,7 +179,7 @@ export const SkillsView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Skills & Cognitive Capabilities</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                <span className="text-[10px] text-neutral-400">
                   {skills.length} Registered Skills
                 </span>
               </div>
@@ -285,7 +285,7 @@ export const SkillsView: React.FC = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm">{skill.name}</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-300">
+                          <span className="text-[10px] text-neutral-500">
                             v{skill.version}
                           </span>
                         </div>
