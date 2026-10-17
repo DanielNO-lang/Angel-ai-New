@@ -20,7 +20,7 @@ create table if not exists public.angel_scheduled_tasks (
   updated_at timestamptz not null default now(),
   check (
     (schedule_type = 'once' and interval_minutes is null and max_runs = 1) or
-    (schedule_type = 'interval' and interval_minutes between 15 and 43200)
+    (schedule_type = 'interval' and interval_minutes is not null and interval_minutes between 15 and 43200)
   )
 );
 
@@ -29,6 +29,38 @@ create index if not exists angel_scheduled_tasks_due_idx
   where enabled = true;
 create index if not exists angel_scheduled_tasks_owner_idx
   on public.angel_scheduled_tasks(user_id, created_at desc);
+
+
+-- Enforce the per-user enabled-schedule cap even for concurrent requests.
+create or replace function public.enforce_angel_schedule_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $
+declare
+  enabled_count integer;
+begin
+  if new.enabled = false then
+    return new;
+  end if;
+  perform pg_advisory_xact_lock(hashtext(new.user_id::text));
+  select count(*) into enabled_count
+    from public.angel_scheduled_tasks
+    where user_id = new.user_id and enabled = true
+      and id is distinct from new.id;
+  if enabled_count >= 20 then
+    raise exception 'An account can have at most 20 enabled schedules.'
+      using errcode = '23514';
+  end if;
+  return new;
+end;
+$;
+drop trigger if exists angel_scheduled_tasks_enforce_limit on public.angel_scheduled_tasks;
+create trigger angel_scheduled_tasks_enforce_limit
+  before insert or update of enabled, user_id on public.angel_scheduled_tasks
+  for each row execute function public.enforce_angel_schedule_limit();
+revoke all on function public.enforce_angel_schedule_limit() from public, anon, authenticated;
 
 alter table public.angel_scheduled_tasks enable row level security;
 drop policy if exists "Users can read own scheduled tasks" on public.angel_scheduled_tasks;
