@@ -11,6 +11,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
 import crypto from 'crypto';
+import { isIP } from 'node:net';
 import { executeAgentPipeline } from './server/orchestrator.js';
 import { providerRegistry, rankAvailableModels, modelRoutingTelemetry } from './server/providers/index.js';
 import { getSupabaseServerStatus, getSupabaseClient, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
@@ -1117,7 +1118,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         host === 'push.services.mozilla.com' ||
         host === 'web.push.apple.com' ||
         host.endsWith('.notify.windows.com');
-      const ipLiteral = net.isIP(host) !== 0;
+      const ipLiteral = isIP(host) !== 0;
       if (url.protocol !== 'https:' || url.username || url.password || url.hash ||
           (url.port && url.port !== '443') || !hostAllowed || ipLiteral) {
         return { allowed: false, reason: 'This push service endpoint is not on the supported HTTPS push-service allowlist.' };
@@ -1802,6 +1803,28 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       attempt_count?: number;
       max_attempts?: number;
       cancel_requested_at?: string | null;
+      title?: string;
+      notify_on_completion?: boolean;
+    };
+    const notifyTaskOutcome = async (job: ClaimedJob, outcome: 'completed' | 'failed') => {
+      if (job.notify_on_completion === false) return;
+      try {
+        const notification = await sendTaskPushNotification(
+          supabase,
+          job.user_id,
+          job.id,
+          typeof job.title === 'string' ? job.title : 'Background task',
+          outcome,
+        );
+        if (notification.configured && notification.sent === 0) {
+          console.info('[Web Push] No active subscription received the task notification.');
+        } else if (!notification.configured) {
+          console.info('[Web Push] Task finished, but background push is not configured.');
+        }
+      } catch {
+        // Push delivery must not change a verified task result or worker state.
+        console.warn('[Web Push] Notification delivery failed; job status is unchanged.');
+      }
     };
     const percentByStage: Record<string, number> = {
       requested: 5, context_preparation: 15, memory_retrieval: 22,
@@ -1883,6 +1906,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
             }
             throw new Error('The verified result could not be committed because the job state changed.');
           }
+          await notifyTaskOutcome(job, 'completed');
           results.push({ id: job.id, status: 'completed' });
           continue;
         }
@@ -1921,6 +1945,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           }
           throw new Error('The failed attempt could not be committed because the job state changed.');
         }
+        if (!retry) await notifyTaskOutcome(job, 'failed');
         results.push({ id: job.id, status: retry ? 'retrying' : 'failed' });
       } catch (jobError) {
         const message = jobError instanceof Error ? jobError.message : 'Background execution failed.';
@@ -1939,7 +1964,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         const retry = attempt < maxAttempts;
         const delayMs = retry ? calculateRetryDelay(attempt, { maxRetries: maxAttempts - 1, baseDelayMs: 15_000, maxDelayMs: 300_000 }) : 0;
         const retryAt = retry ? new Date(Date.now() + delayMs).toISOString() : null;
-        await supabase.from('angel_background_jobs').update({
+        const { data: catchFailureSaved, error: catchFailureError } = await supabase.from('angel_background_jobs').update({
           status: retry ? 'retrying' : 'failed',
           error: message.slice(0, 2000),
           next_attempt_at: retryAt,
@@ -1951,7 +1976,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           },
           finished_at: retry ? null : now(),
           updated_at: now(),
-        }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null);
+        }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null).select('id').maybeSingle();
+        if (catchFailureError) console.warn('[Background job] Could not persist failure state:', catchFailureError.message);
+        if (!retry && catchFailureSaved) await notifyTaskOutcome(job, 'failed');
         results.push({ id: job.id, status: retry ? 'retrying' : 'failed' });
       }
     }
