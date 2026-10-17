@@ -32,6 +32,8 @@ export function getAdkBridgeStatus() {
 export interface AdkRunInput {
   message: string;
   sessionId?: string;
+  /** Current user's verified Supabase JWT. Forwarded only for request-scoped MCP auth. */
+  mcpAccessToken?: string;
 }
 
 export async function runAdkAgent(input: AdkRunInput, userId: string): Promise<{
@@ -73,6 +75,9 @@ export async function runAdkAgent(input: AdkRunInput, userId: string): Promise<{
         userId,
         sessionId: input.sessionId?.trim().slice(0, 160) || undefined,
         message: input.message,
+        // The external ADK service uses this only as an Authorization header for
+        // Angel's MCP gateway. Never persist or log this per-user credential.
+        ...(input.mcpAccessToken ? { mcpAccessToken: input.mcpAccessToken } : {}),
       }),
       signal: AbortSignal.timeout(50_000),
     });
