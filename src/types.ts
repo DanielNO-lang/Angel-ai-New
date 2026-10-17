@@ -6,6 +6,7 @@
 export type NavigationTab =
   | 'home'
   | 'chat'
+  | 'research'
   | 'voice'
   | 'visual_mode'
   | 'canvas'
