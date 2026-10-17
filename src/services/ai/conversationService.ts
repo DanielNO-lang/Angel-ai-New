@@ -156,6 +156,21 @@ export class ConversationService {
     );
 
     let accumulatedText = '';
+    const controller = new AbortController();
+    let timeoutReason: 'idle' | 'total' | null = null;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    const requestTimer = setTimeout(() => {
+      timeoutReason = 'total';
+      controller.abort();
+    }, 180_000);
+    const resetIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        timeoutReason = 'idle';
+        controller.abort();
+      }, 45_000);
+    };
+    resetIdleTimer();
 
     try {
       const response = await fetch('/api/ai/stream', {
@@ -169,6 +184,7 @@ export class ConversationService {
           providerId: agent.isBuiltIn ? 'auto' : agent.modelConfig.provider,
           temperature: agent.modelConfig.temperature,
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
@@ -214,6 +230,7 @@ export class ConversationService {
 
       while (true) {
         const { value, done } = await reader.read();
+        resetIdleTimer();
         buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
         let newline = buffer.indexOf('\n');
         while (newline >= 0) {
@@ -251,7 +268,12 @@ export class ConversationService {
         },
       };
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const failure = timeoutReason === 'idle'
+        ? new Error('Angel response stalled for 45 seconds. The request was stopped so you can retry.')
+        : timeoutReason === 'total'
+          ? new Error('Angel response exceeded the 3-minute request limit. The request was stopped so you can retry.')
+          : err instanceof Error ? err : new Error(String(err));
+      const errorMsg = failure.message;
       agentExecutionLifecycle.advanceStage(
         lifecycleSession.sessionId,
         'failed',
@@ -263,7 +285,10 @@ export class ConversationService {
         onError(errorMsg);
       }
 
-      throw err;
+      throw failure;
+    } finally {
+      if (idleTimer) clearTimeout(idleTimer);
+      clearTimeout(requestTimer);
     }
   }
 }
