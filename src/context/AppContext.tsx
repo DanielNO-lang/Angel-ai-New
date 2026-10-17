@@ -907,69 +907,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
   }, [sessionToken]);
 
-  // Centralized autosave engine: frequent, change-detected local persistence with cloud queue processing.
+  // Centralized autosave uses one stable timer. Previously every message token/state
+  // update tore down and recreated the interval, then repeatedly serialized the entire
+  // workspace. A ref keeps the timer stable and saves the latest snapshot every 30s.
+  const latestAutosaveStateRef = useRef({
+    tasks, memories, projects, workflows, conversations, messagesMap,
+    agents, libraryItems, assistants: assistantsList, activeTab,
+    theme: settings.theme, syncStatus, isGuest,
+  });
+  latestAutosaveStateRef.current = {
+    tasks, memories, projects, workflows, conversations, messagesMap,
+    agents, libraryItems, assistants: assistantsList, activeTab,
+    theme: settings.theme, syncStatus, isGuest,
+  };
+
   useEffect(() => {
-    const AUTOSAVE_INTERVAL_MS = 10000;
+    const AUTOSAVE_INTERVAL_MS = 30000;
+    let saving = false;
 
     const performAutosave = async () => {
+      const snapshot = latestAutosaveStateRef.current;
+      if (snapshot.isGuest || saving) return;
+
+      const currentFingerprint = JSON.stringify({
+        tasks: snapshot.tasks,
+        memories: snapshot.memories,
+        projects: snapshot.projects,
+        workflows: snapshot.workflows,
+        conversations: snapshot.conversations,
+        messagesMap: snapshot.messagesMap,
+        agents: snapshot.agents,
+        libraryItems: snapshot.libraryItems,
+        assistants: snapshot.assistants,
+        activeTab: snapshot.activeTab,
+        theme: snapshot.theme,
+        syncStatus: snapshot.syncStatus,
+      });
+      if (currentFingerprint === lastSavedFingerprintRef.current) return;
+
+      saving = true;
       try {
-        if (isGuest) return;
-        // Fingerprint full persisted state so edits to existing messages and settings are not missed.
-        const currentFingerprint = JSON.stringify({
-          tasks, memories, projects, workflows, conversations, messagesMap,
-          agents, libraryItems, assistants: assistantsList, activeTab,
-          theme: settings.theme, syncStatus,
-        });
-
-        // Only persist if data actually changed since last autosave (avoids unnecessary writes)
-        if (currentFingerprint === lastSavedFingerprintRef.current) {
-          return;
-        }
-
         await syncWorkspaceToIndexedDB({
-          conversations,
-          messagesMap,
-          tasks,
-          memories,
-          projects,
-          workflows,
-          agents,
-          libraryItems,
-          assistants: assistantsList,
-          activeTab,
-          theme: settings.theme,
-          syncStatus,
+          conversations: snapshot.conversations,
+          messagesMap: snapshot.messagesMap,
+          tasks: snapshot.tasks,
+          memories: snapshot.memories,
+          projects: snapshot.projects,
+          workflows: snapshot.workflows,
+          agents: snapshot.agents,
+          libraryItems: snapshot.libraryItems,
+          assistants: snapshot.assistants,
+          activeTab: snapshot.activeTab,
+          theme: snapshot.theme,
+          syncStatus: snapshot.syncStatus,
         });
 
+        // Store the fingerprint of the saved snapshot, not a possibly newer render.
         lastSavedFingerprintRef.current = currentFingerprint;
         setLastAutosavedAt(new Date().toISOString());
 
-        // Cooperate with syncService if online and user is authenticated
-        if (!isGuest && typeof navigator !== 'undefined' && navigator.onLine) {
-          syncService.processQueue();
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+          void syncService.processQueue();
         }
       } catch (err) {
         console.warn('[AppContext] Centralized autosave caught error:', err);
+      } finally {
+        saving = false;
       }
     };
 
-    const timer = setInterval(performAutosave, AUTOSAVE_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [
-    tasks,
-    memories,
-    projects,
-    workflows,
-    conversations,
-    messagesMap,
-    agents,
-    libraryItems,
-    assistantsList,
-    activeTab,
-    settings.theme,
-    syncStatus,
-    isGuest,
-  ]);
+    const timer = window.setInterval(() => { void performAutosave(); }, AUTOSAVE_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Fetch backend integration health
   const refreshIntegrations = async () => {
