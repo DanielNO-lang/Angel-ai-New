@@ -78,6 +78,23 @@ export const MediaStudioView: React.FC = () => {
   const [editSourceImage, setEditSourceImage] = useState<string | null>(null);
   const [editPrompt, setEditPrompt] = useState('');
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('angel_pending_capability_prompt');
+      if (!raw) return;
+      const handoff = JSON.parse(raw) as { target?: string; prompt?: string; createdAt?: number };
+      if (handoff.target !== 'media_studio') return;
+      localStorage.removeItem('angel_pending_capability_prompt');
+      if (typeof handoff.prompt === 'string' && handoff.prompt.trim() &&
+          typeof handoff.createdAt === 'number' && Date.now() - handoff.createdAt < 10 * 60 * 1000) {
+        setPromptInput(handoff.prompt);
+        setActiveTabMode('generate');
+      }
+    } catch {
+      try { localStorage.removeItem('angel_pending_capability_prompt'); } catch {}
+    }
+  }, []);
+
   const loadArtifacts = async () => {
     setIsLoadingArtifacts(true);
     try {
