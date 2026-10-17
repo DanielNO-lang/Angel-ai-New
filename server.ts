@@ -1462,6 +1462,141 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     return res.json({ events: data || [] });
   });
 
+
+  // Bounded scheduled assistance. The worker adds due schedules to the same
+  // durable queue, so existing retry, cancellation, privacy, and verification
+  // rules continue to apply to scheduled runs.
+  app.get('/api/schedules', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Scheduled assistance requires server-side Supabase configuration.' });
+    const rawLimit = Number(req.query.limit || 50);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(100, Math.floor(rawLimit))) : 50;
+    const { data, error } = await supabase.from('angel_scheduled_tasks')
+      .select('id,title,task_prompt,schedule_type,scheduled_at,interval_minutes,max_runs,runs_enqueued,enabled,notify_on_completion,next_run_at,last_enqueued_at,created_at,updated_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
+    if (error) {
+      console.error('[Schedules] List failed:', error.message);
+      return res.status(503).json({ error: 'Could not load schedules. Confirm the proactive-scheduled-tasks migration has been applied.' });
+    }
+    return res.json({ schedules: data || [] });
+  });
+
+  app.post('/api/schedules', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    const scheduleType = body.scheduleType;
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const taskPrompt = typeof body.taskPrompt === 'string' ? body.taskPrompt.trim() : '';
+    const scheduledAt = typeof body.scheduledAt === 'string' ? Date.parse(body.scheduledAt) : NaN;
+    if ((scheduleType !== 'once' && scheduleType !== 'interval') ||
+        !title || title.length > 160 || !taskPrompt || taskPrompt.length > 20000 ||
+        !Number.isFinite(scheduledAt) || scheduledAt < Date.now() + 30_000 ||
+        scheduledAt > Date.now() + 365 * 24 * 60 * 60 * 1000) {
+      return res.status(400).json({ error: 'Provide a title, task prompt, a supported schedule type, and a first run between 30 seconds and one year from now.' });
+    }
+    const intervalMinutes = body.intervalMinutes;
+    const maxRuns = scheduleType === 'once' ? 1 : body.maxRuns;
+    if (scheduleType === 'interval' &&
+        (!Number.isInteger(intervalMinutes) || intervalMinutes < 15 || intervalMinutes > 43200 ||
+         !Number.isInteger(maxRuns) || maxRuns < 1 || maxRuns > 100)) {
+      return res.status(400).json({ error: 'Repeating schedules must run every 15 minutes to 30 days and stop after 1–100 runs.' });
+    }
+    if (body.notifyOnCompletion !== undefined && typeof body.notifyOnCompletion !== 'boolean') {
+      return res.status(400).json({ error: 'notifyOnCompletion must be a boolean.' });
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Scheduled assistance requires server-side Supabase configuration.' });
+    const { count, error: countError } = await supabase.from('angel_scheduled_tasks')
+      .select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('enabled', true);
+    if (countError) return res.status(503).json({ error: 'Could not verify your active schedule limit. Try again.' });
+    if ((count || 0) >= 20) return res.status(409).json({ error: 'A maximum of 20 enabled schedules is allowed per account. Pause or delete one before creating another.' });
+    const firstRun = new Date(scheduledAt).toISOString();
+    const { data, error } = await supabase.from('angel_scheduled_tasks').insert({
+      user_id: user.id,
+      title,
+      task_prompt: taskPrompt,
+      schedule_type: scheduleType,
+      scheduled_at: firstRun,
+      interval_minutes: scheduleType === 'interval' ? intervalMinutes : null,
+      max_runs: maxRuns,
+      runs_enqueued: 0,
+      enabled: true,
+      notify_on_completion: body.notifyOnCompletion !== false,
+      next_run_at: firstRun,
+    }).select('id,title,task_prompt,schedule_type,scheduled_at,interval_minutes,max_runs,runs_enqueued,enabled,notify_on_completion,next_run_at,last_enqueued_at,created_at,updated_at').single();
+    if (error || !data) {
+      console.error('[Schedules] Create failed:', error?.message || 'No schedule row returned');
+      return res.status(503).json({ error: 'Could not save this schedule. Confirm the proactive-scheduled-tasks migration has been applied.' });
+    }
+    return res.status(201).json({ schedule: data, message: 'Schedule saved. It will enqueue work when the authenticated background worker is running.' });
+  });
+
+  app.patch('/api/schedules/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'Provide enabled=true or enabled=false.' });
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Scheduled assistance requires server-side Supabase configuration.' });
+    const { data: existing, error: readError } = await supabase.from('angel_scheduled_tasks')
+      .select('id,user_id,schedule_type,scheduled_at,interval_minutes,max_runs,runs_enqueued,enabled,next_run_at')
+      .eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (readError) return res.status(503).json({ error: 'Could not read this schedule.' });
+    if (!existing) return res.status(404).json({ error: 'Schedule not found.' });
+    let nextRunAt: string | null = existing.next_run_at;
+    if (req.body.enabled) {
+      if (existing.runs_enqueued >= existing.max_runs) return res.status(409).json({ error: 'This schedule has reached its run limit. Create a new schedule with a new limit.' });
+      if (existing.schedule_type === 'once' && Date.parse(existing.scheduled_at) <= Date.now()) {
+        return res.status(409).json({ error: 'This one-time schedule has passed. Create a new one-time schedule with a future time.' });
+      }
+      if (existing.schedule_type === 'interval') {
+        const currentNext = typeof existing.next_run_at === 'string' ? Date.parse(existing.next_run_at) : NaN;
+        nextRunAt = new Date(Math.max(Number.isFinite(currentNext) ? currentNext : 0, Date.now() + 30_000)).toISOString();
+      } else {
+        nextRunAt = existing.scheduled_at;
+      }
+    }
+    const { data, error } = await supabase.from('angel_scheduled_tasks').update({
+      enabled: req.body.enabled,
+      next_run_at: nextRunAt,
+      updated_at: new Date().toISOString(),
+    }).eq('id', req.params.id).eq('user_id', user.id)
+      .select('id,title,task_prompt,schedule_type,scheduled_at,interval_minutes,max_runs,runs_enqueued,enabled,notify_on_completion,next_run_at,last_enqueued_at,created_at,updated_at').maybeSingle();
+    if (error) return res.status(503).json({ error: 'Could not update schedule status.' });
+    if (!data) return res.status(404).json({ error: 'Schedule not found.' });
+    return res.json({ schedule: data });
+  });
+
+  app.delete('/api/schedules/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Scheduled assistance requires server-side Supabase configuration.' });
+    const { data: existing, error: readError } = await supabase.from('angel_scheduled_tasks')
+      .select('id').eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (readError) return res.status(503).json({ error: 'Could not verify schedule ownership.' });
+    if (!existing) return res.status(404).json({ error: 'Schedule not found.' });
+    const now = new Date().toISOString();
+    const { error: queuedError } = await supabase.from('angel_background_jobs').update({
+      status: 'cancelled', finished_at: now, updated_at: now,
+      error: 'The scheduled task was removed before execution.',
+      progress: { stage: 'cancelled', percent: 100, message: 'Schedule removed; queued occurrence cancelled.' },
+    }).eq('user_id', user.id).eq('scheduled_task_id', req.params.id).in('status', ['queued','retrying']);
+    if (queuedError) return res.status(503).json({ error: 'Could not cancel queued occurrences, so the schedule was not removed.' });
+    const { error: runningError } = await supabase.from('angel_background_jobs').update({
+      cancel_requested_at: now, updated_at: now,
+      progress: { stage: 'cancellation_requested', percent: 95, message: 'Schedule removed; cancellation requested for the in-flight occurrence.' },
+    }).eq('user_id', user.id).eq('scheduled_task_id', req.params.id).eq('status', 'running').is('cancel_requested_at', null);
+    if (runningError) return res.status(503).json({ error: 'Could not request cancellation of the active occurrence, so the schedule was not removed.' });
+    const { data: deleted, error: deleteError } = await supabase.from('angel_scheduled_tasks')
+      .delete().eq('id', req.params.id).eq('user_id', user.id).select('id').maybeSingle();
+    if (deleteError) return res.status(503).json({ error: 'Could not remove the schedule.' });
+    if (!deleted) return res.status(404).json({ error: 'Schedule not found.' });
+    return res.status(204).end();
+  });
+
   app.post('/api/jobs', async (req: Request, res: Response) => {
     const user = await authenticateJobUser(req, res);
     if (!user) return;
