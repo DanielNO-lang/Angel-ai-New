@@ -29,7 +29,6 @@ import { getAngelCapabilityCatalog } from './server/services/angelCapabilityCata
 import { handleAngelMcpMessage } from './server/services/mcpGatewayService';
 import { runWorkflowExecution, approveWorkflowExecution, triggerMatchingWorkflows } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
-import { vercelService } from './server/services/vercelService';
 
 export interface CreateAppOptions {
   isServerless?: boolean;
@@ -193,16 +192,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       supabase,
       providers,
       environment: process.env.NODE_ENV || 'development',
-      isServerless: Boolean(options.isServerless || process.env.VERCEL),
-      platform: process.env.NETLIFY ? 'netlify' : process.env.VERCEL ? 'vercel' : 'node',
+      isServerless: Boolean(options.isServerless || process.env.NETLIFY),
+      platform: process.env.NETLIFY ? 'netlify' : 'node',
     });
   });
 
   // 2. Integrations Status Summary
   app.get('/api/integrations/status', (req: Request, res: Response) => {
     const supabase = getSupabaseServerStatus();
-    const isVercelRuntime = Boolean(process.env.VERCEL);
-    const isVercelApiConfigured = vercelService.isConfigured();
     const hasGithubToken = Boolean(process.env.GITHUB_TOKEN);
     const hasGithubRepo = Boolean(process.env.GITHUB_REPO_NAME);
     const outboundUrl = process.env.OUTBOUND_WEBHOOK_URL || process.env.ZAPIER_OUTBOUND_WEBHOOK_URL;
@@ -238,17 +235,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         statusText: hasGithubToken
           ? `GitHub PAT configured${hasGithubRepo ? ` for ${process.env.GITHUB_REPO_OWNER}/${process.env.GITHUB_REPO_NAME}` : ''}.`
           : 'Pending Configuration: Set GITHUB_TOKEN in environment secrets.',
-      },
-      vercel: {
-        configured: isVercelApiConfigured,
-        apiConfigured: isVercelApiConfigured,
-        isVercelRuntime,
-        projectId: process.env.VERCEL_PROJECT_ID ? `${process.env.VERCEL_PROJECT_ID.slice(0, 6)}...` : null,
-        statusText: isVercelApiConfigured
-          ? 'Vercel API token configured; project and deployment operations are available.'
-          : isVercelRuntime
-            ? 'Running on Vercel, but VERCEL_TOKEN is missing; project and deployment API actions are disabled.'
-            : 'Vercel API token is not configured.',
       },
       automation: {
         configured: Boolean(outboundUrl),
@@ -842,44 +828,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     try {
       const prs = await githubService.listPullRequests(owner, repo);
       res.json(prs);
-    } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
-  });
-
-  // ============================================================================
-  // VERCEL REAL INTEGRATION ENDPOINTS
-  // ============================================================================
-
-  app.get('/api/integrations/vercel/test', requireAdmin, async (_req: Request, res: Response) => {
-    const result = await vercelService.testConnection();
-    res.json(result);
-  });
-
-  app.get('/api/integrations/vercel/projects', requireAdmin, async (_req: Request, res: Response) => {
-    try {
-      const projects = await vercelService.listProjects();
-      res.json(projects);
-    } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
-  });
-
-  app.get('/api/integrations/vercel/deployments', requireAdmin, async (req: Request, res: Response) => {
-    try {
-      const projectId = req.query.projectId as string | undefined;
-      const deployments = await vercelService.listDeployments(projectId);
-      res.json(deployments);
-    } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
-  });
-
-  app.post('/api/integrations/vercel/trigger_deploy', requireAdmin, async (req: Request, res: Response) => {
-    try {
-      const { projectId } = req.body || {};
-      const result = await vercelService.triggerRedeployment(projectId);
-      res.json(result);
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
     }
@@ -1908,7 +1856,7 @@ async function startServer() {
 }
 
 // Avoid starting a listening server inside Netlify Functions or another serverless host.
-if (!process.env.NETLIFY && !process.env.VERCEL) {
+if (!process.env.NETLIFY) {
   startServer().catch((err) => {
     console.error('[Angel AI Server Fatal Startup Error]', err);
   });
