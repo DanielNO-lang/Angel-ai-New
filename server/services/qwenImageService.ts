@@ -9,6 +9,9 @@ export interface QwenImageInput {
   modelId?: string;
   aspectRatio?: '1:1' | '16:9' | '4:3' | '9:16' | '3:2' | '2:3';
   style?: string;
+  /** One to ten source/reference image URLs or data URIs. Multiple images require Qwen Image 2.1 Pro. */
+  referenceImageDataUrls?: string[];
+  /** Backward-compatible single-reference input. Do not send with referenceImageDataUrls. */
   imageDataUrl?: string;
 }
 
@@ -132,37 +135,58 @@ export async function generateWithQwenImage(input: QwenImageInput): Promise<Qwen
     // Preserve this UI input as a natural-language constraint in the positive prompt.
     input.negativePrompt?.trim() ? 'Avoid including these elements: ' + input.negativePrompt.trim() : '',
   ].filter(Boolean).join('\n\n');
-  if (input.imageDataUrl) {
-    const marker = ';base64,';
-    const markerIndex = input.imageDataUrl.indexOf(marker);
-    if (input.imageDataUrl.startsWith('data:') && markerIndex > 5) {
-      const base64 = input.imageDataUrl.slice(markerIndex + marker.length);
-      const validBase64 = [...base64].every((character, index) => {
-        const alphanumeric = (character >= 'A' && character <= 'Z') ||
-          (character >= 'a' && character <= 'z') ||
-          (character >= '0' && character <= '9');
-        return alphanumeric || character === '+' || character === '/' ||
-          (character === '=' && index >= base64.length - 2);
-      });
-      if (!base64 || !validBase64 || base64.length % 4 !== 0) {
-        throw new QwenImageError('Reference image data URI is malformed.', 400, 'invalid_reference_image');
+  if (input.referenceImageDataUrls && input.imageDataUrl) {
+    throw new QwenImageError('Provide referenceImageDataUrls or imageDataUrl, not both.', 400, 'ambiguous_reference_images');
+  }
+  const referenceImages = input.referenceImageDataUrls?.length
+    ? input.referenceImageDataUrls
+    : input.imageDataUrl ? [input.imageDataUrl] : [];
+  if (referenceImages.length > 10) {
+    throw new QwenImageError('Qwen Image accepts at most 10 reference images per edit.', 413, 'too_many_reference_images');
+  }
+  if (referenceImages.length > 1 && model !== 'qwen-image-2.1-pro') {
+    throw new QwenImageError('Multiple reference images require qwen-image-2.1-pro. Select Pro or provide a single image.', 400, 'multi_reference_requires_pro');
+  }
+
+  const MAX_REFERENCE_BYTES = 10 * 1024 * 1024;
+  const MAX_TOTAL_REFERENCE_BYTES = 20 * 1024 * 1024;
+  let totalReferenceBytes = 0;
+  const validatedReferenceImages = referenceImages.map((referenceImage, index) => {
+    if (typeof referenceImage !== 'string' || !referenceImage.trim()) {
+      throw new QwenImageError('Reference image ' + (index + 1) + ' must be a non-empty HTTPS URL or image data URI.', 400, 'invalid_reference_image');
+    }
+    const value = referenceImage.trim();
+    if (value.startsWith('data:')) {
+      const match = value.match(/^data:(image\\/(?:png|jpeg|jpg|webp|gif|bmp|tiff));base64,([A-Za-z0-9+/]+={0,2})$/i);
+      if (!match || match[2].length % 4 !== 0) {
+        throw new QwenImageError('Reference image ' + (index + 1) + ' must be a valid base64 PNG, JPEG, WEBP, GIF, BMP or TIFF data URI.', 400, 'invalid_reference_image');
       }
-      const inputBytes = Buffer.from(base64, 'base64').byteLength;
-      if (inputBytes === 0 || inputBytes > 10 * 1024 * 1024) {
-        throw new QwenImageError('Reference image must be no larger than 10 MB.', 413, 'reference_image_too_large');
+      const bytes = Buffer.from(match[2], 'base64');
+      // Reject malformed encodings that Buffer would otherwise partially decode.
+      if (bytes.byteLength === 0 || bytes.toString('base64') !== match[2]) {
+        throw new QwenImageError('Reference image ' + (index + 1) + ' contains invalid base64 data.', 400, 'invalid_reference_image');
       }
+      if (bytes.byteLength > MAX_REFERENCE_BYTES) {
+        throw new QwenImageError('Each reference image must be no larger than 10 MB.', 413, 'reference_image_too_large');
+      }
+      totalReferenceBytes += bytes.byteLength;
     } else {
       let referenceUrl: URL;
       try {
-        referenceUrl = new URL(input.imageDataUrl);
+        referenceUrl = new URL(value);
       } catch {
-        throw new QwenImageError('Reference image must be an HTTPS URL or a valid base64 data URI.', 400, 'invalid_reference_image');
+        throw new QwenImageError('Reference image ' + (index + 1) + ' must be an HTTPS URL or valid image data URI.', 400, 'invalid_reference_image');
       }
-      if (referenceUrl.protocol !== 'https:') {
-        throw new QwenImageError('Remote reference images must use HTTPS.', 400, 'invalid_reference_image');
+      if (referenceUrl.protocol !== 'https:' || referenceUrl.username || referenceUrl.password) {
+        throw new QwenImageError('Remote reference images must use HTTPS without embedded credentials.', 400, 'invalid_reference_image');
       }
     }
+    return value;
+  });
+  if (totalReferenceBytes > MAX_TOTAL_REFERENCE_BYTES) {
+    throw new QwenImageError('The combined reference-image data must be no larger than 20 MB.', 413, 'reference_images_too_large');
   }
+
   const body: Record<string, unknown> = {
     model,
     prompt,
@@ -171,10 +195,11 @@ export async function generateWithQwenImage(input: QwenImageInput): Promise<Qwen
     prompt_extend: true,
     watermark: false,
   };
+  // Model Studio documents a single image or an ordered reference-image array.
+  // Multi-reference edits are enabled only for Qwen Image 2.1 Pro.
   // Model Studio currently documents negative_prompt for Qwen Image 3.0, not 2.1.
-  // Do not send an unsupported extension field for the Qwen Image 2.1 adapter.
-
-  if (input.imageDataUrl) body.image = input.imageDataUrl;
+  if (validatedReferenceImages.length === 1) body.image = validatedReferenceImages[0];
+  if (validatedReferenceImages.length > 1) body.image = validatedReferenceImages;
 
   let response: Response;
   try {
