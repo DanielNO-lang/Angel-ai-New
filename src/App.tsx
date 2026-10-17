@@ -416,7 +416,7 @@ const WorkspaceContent: React.FC = () => {
       {/* Network Connectivity & PWA Service Worker Status Listener Toast */}
       <NetworkStatusToast />
       <DevicePresence />
-      <RemoteVisualSessions />
+      {activeTab === 'chat' && <RemoteVisualSessions />}
       <BackgroundJobsPanel />
 
       {/* Global Workspace Search & Command Palette */}
