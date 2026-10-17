@@ -39,7 +39,6 @@ test('Angel backend smoke contract', async (t) => {
     openai?: { configured?: boolean };
     github?: { configured?: boolean };
     zapier?: { configured?: boolean };
-    vercel?: { configured?: boolean; isVercelRuntime?: boolean };
   };
   assert.ok(integrationPayload.gemini && typeof integrationPayload.gemini.configured === 'boolean');
   assert.ok(integrationPayload.supabase && typeof integrationPayload.supabase.configured === 'boolean');
