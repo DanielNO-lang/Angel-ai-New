@@ -58,10 +58,12 @@ export const BackgroundJobsPanel: React.FC = () => {
           const finished = job.status === 'completed' || job.status === 'failed';
           const wasActive = previousStatus === 'queued' || previousStatus === 'running';
           if (finished && wasActive && job.notify_on_completion !== false) {
+            // Do not expose report content or failure details in OS notifications,
+            // where they may appear on a locked or shared screen.
             const body = job.status === 'completed'
-              ? (job.result?.output || 'Angel finished a background task.')
-              : (job.error || 'A background task needs attention.');
-            try { new Notification(job.status === 'completed' ? 'Angel task completed' : 'Angel task failed', { body: body.slice(0, 180), tag: `angel-job-${job.id}` }); } catch {}
+              ? 'A background task is complete. Open Angel to review the result.'
+              : 'A background task needs attention. Open Angel to review its status.';
+            try { new Notification(job.status === 'completed' ? 'Angel task completed' : 'Angel task needs attention', { body, tag: `angel-job-${job.id}` }); } catch {}
           }
         }
       }
