@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   GitBranch,
   Github,
@@ -49,7 +50,7 @@ export const ConnectionsWorkspace: React.FC = () => {
     const token = result.data.session?.access_token;
     return token ? { Authorization: 'Bearer ' + token } : {};
   };
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [activeTab, setActiveTab] = useState<IntegrationTab>('github');
   const [isLoading, setIsLoading] = useState(false);
