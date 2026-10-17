@@ -53,30 +53,7 @@
     transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
   }
 
-  /* Subtle cross-fade overlay on body when toggling between themes */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 99999;
-    opacity: 0;
-    transition: opacity 160ms ease;
-  }
-
-  body.theme-transitioning::before {
-    opacity: 0.15;
-    background: radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.08) 50%, transparent 80%);
-  }
-
-  /* Seamless child element transitions during theme cross-fade */
-  body.theme-transitioning,
-  body.theme-transitioning * {
-    transition: background-color 450ms cubic-bezier(0.4, 0, 0.2, 1),
-                border-color 450ms cubic-bezier(0.4, 0, 0.2, 1),
-                color 450ms cubic-bezier(0.4, 0, 0.2, 1),
-                box-shadow 450ms cubic-bezier(0.4, 0, 0.2, 1) !important;
-  }
+  /* Theme changes use the small component transitions below; no full-screen overlay. */
 
   button, input, select, textarea, pre, code, kbd, samp {
     background-color: var(--bg-primary);
