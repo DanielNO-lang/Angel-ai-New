@@ -1173,7 +1173,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const parsed = new URL('https://' + body.host.trim());
     const host = parsed.hostname.toLowerCase().replace(/\.$/, '');
     const checked = validateApprovedBrowserUrl('https://' + host, [host]);
-    if (!checked.allowed || parsed.pathname !== '/' || parsed.search || parsed.hash) {
+    if (!checked.allowed || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
       return res.status(400).json({ error: checked.reason || 'Enter a valid public hostname.' });
     }
     const allowedScopes = new Set(['browser:read','browser:interact','browser:submit','browser:download','browser:upload','browser:purchase','browser:delete','browser:credentials']);
@@ -1181,6 +1181,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         body.scopes.some((scope: unknown) => typeof scope !== 'string' || !allowedScopes.has(scope)) ||
         !body.scopes.includes('browser:read')) {
       return res.status(400).json({ error: 'Choose supported browser permissions and include Read pages. Permissions can be narrowed or revoked later.' });
+    }
+    const currentGrants = await loadBrowserGrants(user.id);
+    if (!currentGrants) return res.status(503).json({ error: 'Browser grant storage is unavailable.' });
+    if (!currentGrants.some((grant) => grant.host === host) && currentGrants.length >= 20) {
+      return res.status(409).json({ error: 'A maximum of 20 exact host grants is supported. Revoke one before adding another.' });
     }
     const supabase = getSupabaseClient();
     if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser grants require server-side Supabase configuration.' });
