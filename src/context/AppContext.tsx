@@ -1509,7 +1509,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsChatStreaming(true);
 
     try {
-      const agent = agents.find((a) => a.id === selectedAgentId) || agents[0];
+      const retryAgentId = retryAssistantMessageId
+        ? priorMessages.find((item) => item.id === retryAssistantMessageId)?.agentId
+        : undefined;
+      const agent = agents.find((a) => a.id === (retryAgentId || selectedAgentId)) || agents[0];
       const convHistory = retryHistory ?? (messagesMap[targetConvId] || []);
 
       let runningToolCalls: Array<{
