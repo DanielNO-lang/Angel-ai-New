@@ -37,6 +37,26 @@ export function describeUnknownFailure(error: unknown, fallback: string): string
   return message || fallback;
 }
 
+export function buildDeliveryPreferenceInstruction(style?: {
+  warmth: number; humor: number; directness: number; empathy: number;
+  emotionalTone: 'balanced' | 'calm' | 'encouraging' | 'serious' | 'playful';
+}): string {
+  if (!style) return '';
+  const level = (value: number, low: string, middle: string, high: string) => {
+    const bounded = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 50;
+    return bounded < 34 ? low : bounded < 67 ? middle : high;
+  };
+  return [
+    '### User-Controlled Conversational Delivery',
+    '- Keep Angel\'s stable identity, honesty, safety boundaries, and independent judgement unchanged. These controls affect delivery, not identity.',
+    `- Warmth: ${level(style.warmth, 'reserved and professional', 'warm and natural', 'warm and personable')}.`,
+    `- Humor: ${level(style.humor, 'minimal humor', 'occasional situational humor', 'playful when appropriate, never at the expense of clarity or the user')}.`,
+    `- Directness: ${level(style.directness, 'gentle and exploratory', 'clear and balanced', 'concise, candid, and action-oriented')}.`,
+    `- Empathy: ${level(style.empathy, 'practical and solution-focused', 'acknowledge relevant feelings briefly', 'attentive and validating while remaining truthful and practical')}.`,
+    `- Emotional tone: ${style.emotionalTone || 'balanced'}. Adapt naturally to the subject; serious or urgent topics override playful delivery.`,
+  ].join('\n');
+}
+
 export class ConversationService {
   /**
    * Dispatches a user message through the context builder, tool discovery, and streaming model pipeline.
@@ -94,7 +114,10 @@ export class ConversationService {
       createMemory: contextState.createMemory,
     };
 
-    let toolAugmentedInstruction = assembledContext.systemInstruction;
+    let toolAugmentedInstruction = [
+      assembledContext.systemInstruction,
+      buildDeliveryPreferenceInstruction(options.conversationalStyle),
+    ].filter(Boolean).join('\n\n');
 
     // Attempt model tool evaluation if prompt suggests tool usage
     const toolKeywords = [
