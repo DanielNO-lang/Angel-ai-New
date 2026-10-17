@@ -54,6 +54,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConnectionsWorkspace } from '../connections/ConnectionsWorkspace';
 import { UserProfileSettings } from './UserProfileSettings';
 import { playThemeSound } from '../../utils/themeAudio';
+import { PushNotificationSettings } from './PushNotificationSettings';
 
 export type SettingsSubSection =
   | 'account'
@@ -813,6 +814,7 @@ export const SettingsView: React.FC = () => {
               </div>
               {notificationStatus && <p role="status" className={`text-xs ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>{notificationStatus}</p>}
               <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>Notifications do not make queued jobs execute by themselves; the authenticated server worker and scheduler must be configured and online.</p>
+              <PushNotificationSettings isLight={isLight} />
             </div>
           )}
 
