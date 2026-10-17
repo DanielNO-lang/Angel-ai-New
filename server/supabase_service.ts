@@ -431,20 +431,22 @@ export async function syncAllEntitiesToSupabase(
     })), 'projects');
 
     await upsert('library_items', (payload.libraryItems || []).map((l: any) => ({
-      id: l.id,
+      id: String(l.id || ''),
       user_id: userId,
-      title: l.title || 'Untitled item',
-      description: l.description || '',
-      category: l.category || 'documents',
-      type: l.type || 'document',
-      url: l.url || null,
+      title: String(l.title || 'Untitled item').slice(0, 240),
+      description: String(l.description || '').slice(0, 5000),
+      category: String(l.category || 'documents').slice(0, 80),
+      type: String(l.type || 'document').slice(0, 80),
+      url: typeof l.url === 'string' ? l.url.slice(0, 4000) : null,
+      content: typeof l.content === 'string' ? l.content.slice(0, 100000) : null,
+      metadata: l.metadata && typeof l.metadata === 'object' && !Array.isArray(l.metadata) ? l.metadata : {},
       mime_type: l.mimeType || l.mime_type || null,
-      tags: l.tags || [],
+      tags: Array.isArray(l.tags) ? l.tags.filter((tag: unknown) => typeof tag === 'string').slice(0, 40) : [],
       project_id: l.projectId || l.project_id || null,
       is_favorite: l.isFavorite ?? l.is_favorite ?? false,
       created_at: l.createdAt || l.created_at || now,
       updated_at: now,
-    })), 'libraryItems');
+    }).filter((row: any) => /^[A-Za-z0-9_-]{1,180}$/.test(row.id)), 'libraryItems');
 
     await upsert('workflows', (payload.workflows || []).map((w: any) => ({
       id: w.id,
