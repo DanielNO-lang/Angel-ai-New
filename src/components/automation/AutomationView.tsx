@@ -5,7 +5,7 @@
  * What Triggered -> What Angel Decided -> What Ran -> What Failed -> What Completed.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Zap,
   Play,
@@ -66,6 +66,25 @@ export const AutomationView: React.FC = () => {
   const [newField, setNewField] = useState('priority');
   const [newOp, setNewOp] = useState<ConditionOperator>('equals');
   const [newVal, setNewVal] = useState('urgent');
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('angel_pending_capability_prompt');
+      if (!raw) return;
+      const handoff = JSON.parse(raw) as { target?: string; prompt?: string; createdAt?: number };
+      if (handoff.target !== 'automation') return;
+      localStorage.removeItem('angel_pending_capability_prompt');
+      if (typeof handoff.prompt === 'string' && handoff.prompt.trim() &&
+          typeof handoff.createdAt === 'number' && Date.now() - handoff.createdAt < 10 * 60 * 1000) {
+        setNewTitle('New workflow draft');
+        setNewDesc(handoff.prompt);
+        setActiveTabMode('builder');
+        setStatusNotice('Home suggestion loaded into the workflow builder. Review the trigger and steps before saving.');
+      }
+    } catch {
+      try { localStorage.removeItem('angel_pending_capability_prompt'); } catch {}
+    }
+  }, []);
+
 
   const selectedAutomation = automations.find((a) => a.id === selectedAutoId) || automations[0];
   const selectedRun = history.find((h) => h.id === selectedRunId) || history[0];
