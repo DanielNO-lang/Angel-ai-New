@@ -246,28 +246,36 @@ class SyncService {
     payload: any,
     isGuest: boolean = false
   ): Promise<void> {
-    // 1. Never queue cloud mutations for guest sessions
-    if (isGuest) {
-      return;
+    if (isGuest) return;
+
+    const isVaultEntity = entityType === 'task' || entityType === 'memory';
+    let queuedPayload = payload;
+    if (isVaultEntity && secureVaultService.isEnabled()) {
+      if (action === 'delete') {
+        // The identifier and deletion intent are not the payload content; no plaintext content is queued.
+        queuedPayload = { id: entityId, __angelVaultEncrypted: true, __angelVaultAction: 'delete' };
+      } else {
+        if (!secureVaultService.isUnlocked()) {
+          throw new Error('Unlock Secure Vault before editing tasks or memories.');
+        }
+        const encryptedPayload = payload?.__angelEncryptedPayload
+          ? payload.__angelEncryptedPayload
+          : await secureVaultService.encryptJson(payload);
+        queuedPayload = { id: entityId, __angelVaultEncrypted: true, __angelEncryptedPayload: encryptedPayload };
+      }
     }
 
-    // 2. Deduplication check: check if an existing pending mutation for this entity is already in queue
-    const existing = await offlineDb.syncQueue
-      .where('entityId')
-      .equals(entityId)
-      .first();
-
+    const existing = await offlineDb.syncQueue.where('entityId').equals(entityId).first();
     const timestamp = new Date().toISOString();
 
     if (existing && existing.status === 'pending') {
-      // If we previously created and now update, keep action as 'create' but update payload
       const effectiveAction = existing.action === 'create' && action === 'update' ? 'create' : action;
+      const mergedPayload = isVaultEntity && secureVaultService.isEnabled()
+        ? queuedPayload
+        : { ...existing.payload, ...queuedPayload };
       await offlineDb.syncQueue.update(existing.id, {
         action: effectiveAction,
-        payload: {
-          ...existing.payload,
-          ...payload,
-        },
+        payload: mergedPayload,
         clientTimestamp: timestamp,
         version: (existing.version || 1) + 1,
       });
@@ -277,7 +285,7 @@ class SyncService {
         entityType,
         action,
         entityId,
-        payload,
+        payload: queuedPayload,
         clientTimestamp: timestamp,
         version: 1,
         retryCount: 0,
@@ -286,24 +294,33 @@ class SyncService {
       await offlineDb.syncQueue.put(mutation);
     }
 
-    // Immediately notify UI listeners so unsynced changes counter updates in real time
     this.notifyListeners();
-
-    // Register Background Sync with Service Worker
     this.requestServiceWorkerSync().catch(() => {});
-
     if (!this.isOnline) {
       this.setStatus('offline');
       return;
     }
+    if (this.syncDebounceTimer) clearTimeout(this.syncDebounceTimer);
+    this.syncDebounceTimer = setTimeout(() => { void this.processQueue(); }, 600);
+  }
 
-    // Debounce processing to batch quick succession edits (e.g. typing)
-    if (this.syncDebounceTimer) {
-      clearTimeout(this.syncDebounceTimer);
+  /** Encrypt legacy pending task/memory mutations before turning on cloud vault routing. */
+  public async protectQueuedSensitiveMutations(): Promise<void> {
+    if (!secureVaultService.isEnabled() || !secureVaultService.isUnlocked()) return;
+    const queued = await offlineDb.syncQueue.where('entityType').anyOf('task', 'memory').toArray();
+    for (const mutation of queued) {
+      if (mutation.action === 'delete') {
+        await offlineDb.syncQueue.update(mutation.id, {
+          payload: { id: mutation.entityId, __angelVaultEncrypted: true, __angelVaultAction: 'delete' },
+        });
+      } else if (!mutation.payload?.__angelEncryptedPayload) {
+        const encryptedPayload = await secureVaultService.encryptJson(mutation.payload);
+        await offlineDb.syncQueue.update(mutation.id, {
+          payload: { id: mutation.entityId, __angelVaultEncrypted: true, __angelEncryptedPayload: encryptedPayload },
+        });
+      }
     }
-    this.syncDebounceTimer = setTimeout(() => {
-      this.processQueue();
-    }, 600);
+    this.notifyListeners();
   }
 
   /**
@@ -430,6 +447,37 @@ class SyncService {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${this.sessionToken}`,
     };
+
+    if ((mutation.entityType === 'task' || mutation.entityType === 'memory') && secureVaultService.isEnabled()) {
+      const entryType = mutation.entityType;
+      if (mutation.action === 'delete') {
+        const res = await fetch(`/api/vault/entries/${encodeURIComponent(mutation.entityId)}`, {
+          method: 'DELETE',
+          headers,
+          body: JSON.stringify({ entryType }),
+        });
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok || result.success !== true) {
+          throw new Error(result.error || `Vault delete endpoint returned ${res.status}`);
+        }
+        return;
+      }
+
+      const encryptedPayload = mutation.payload?.__angelEncryptedPayload;
+      if (!mutation.payload?.__angelVaultEncrypted || !encryptedPayload) {
+        throw new Error('Refusing to sync plaintext task or memory while Secure Vault is enabled.');
+      }
+      const res = await fetch(`/api/vault/entries/${encodeURIComponent(mutation.entityId)}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ entryType, encryptedPayload, version: mutation.version || 1 }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || result.success !== true) {
+        throw new Error(result.error || `Vault sync endpoint returned ${res.status}`);
+      }
+      return;
+    }
 
     if (mutation.entityType === 'task') {
       const res = await fetch('/api/supabase/sync', {
