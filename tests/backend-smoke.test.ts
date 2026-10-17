@@ -5,7 +5,7 @@ import { routeAngelVoiceUtterance } from '../src/services/voice/voiceCommandRout
 import { listAngelSkills, buildAngelSkillContext } from '../server/services/angelSkillsService';
 import { handleAngelMcpMessage } from '../server/services/mcpGatewayService';
 import { normalizeNetlifyApiEvent } from '../netlify/functions/api';
-import { providerRegistry, GeminiProvider } from '../server/providers';
+import { providerRegistry, GeminiProvider, OpenAICompatibleProvider } from '../server/providers';
 
 
 test('Netlify API path normalization', () => {
@@ -18,6 +18,35 @@ test('Netlify API path normalization', () => {
 // Prevent the standalone development listener from starting when importing server.ts.
 process.env.NETLIFY = 'true';
 const { createApp } = await import('../server.ts');
+
+test('official OpenAI endpoint is disabled until paid usage is explicitly enabled', () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousBaseUrl = process.env.OPENAI_BASE_URL;
+  const previousPaidOptIn = process.env.ANGEL_ENABLE_PAID_OPENAI_API;
+  try {
+    process.env.OPENAI_API_KEY = 'test-only-openai-key';
+    delete process.env.OPENAI_BASE_URL;
+    delete process.env.ANGEL_ENABLE_PAID_OPENAI_API;
+    const officialProvider = new OpenAICompatibleProvider();
+    assert.equal(officialProvider.isConfigured(), false,
+      'an API key alone must not enable the paid official OpenAI endpoint');
+
+    process.env.ANGEL_ENABLE_PAID_OPENAI_API = 'true';
+    assert.equal(officialProvider.isConfigured(), true,
+      'official OpenAI can be enabled with an explicit opt-in');
+    
+    delete process.env.ANGEL_ENABLE_PAID_OPENAI_API;
+    process.env.OPENAI_BASE_URL = 'https://compatible.example/v1';
+    const compatibleProvider = new OpenAICompatibleProvider();
+    assert.equal(compatibleProvider.isConfigured(), true,
+      'custom OpenAI-compatible endpoints remain available when explicitly configured');
+  } finally {
+    if (previousKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = previousKey;
+    if (previousBaseUrl === undefined) delete process.env.OPENAI_BASE_URL; else process.env.OPENAI_BASE_URL = previousBaseUrl;
+    if (previousPaidOptIn === undefined) delete process.env.ANGEL_ENABLE_PAID_OPENAI_API;
+    else process.env.ANGEL_ENABLE_PAID_OPENAI_API = previousPaidOptIn;
+  }
+});
 
 test('model catalog respects missing Gemini credentials', () => {
   const previousGeminiKey = process.env.GEMINI_API_KEY;

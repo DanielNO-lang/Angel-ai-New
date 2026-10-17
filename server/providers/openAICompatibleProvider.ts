@@ -29,7 +29,14 @@ export class OpenAICompatibleProvider implements AIProvider {
   }
 
   isConfigured(): boolean {
-    return Boolean(this.apiKey && this.apiKey.length > 5);
+    const hasApiKey = Boolean(this.apiKey && this.apiKey.length > 5);
+    const usesOfficialOpenAI = this.baseUrl.replace(/\/+$/, '') === 'https://api.openai.com/v1';
+    const paidOpenAIAllowed = process.env.ANGEL_ENABLE_PAID_OPENAI_API?.trim().toLowerCase() === 'true';
+
+    // Avoid unexpected charges from a leftover API key: official OpenAI requests
+    // require an explicit opt-in. Custom OpenAI-compatible endpoints remain opt-in
+    // through their own OPENAI_BASE_URL configuration.
+    return hasApiKey && (!usesOfficialOpenAI || paidOpenAIAllowed);
   }
 
   async generate(options: GenerateOptions): Promise<GenerateResult> {
