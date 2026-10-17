@@ -46,6 +46,28 @@ import {
   dispatchEventToAutomations,
 } from '../../services/automation/automationEngine';
 
+type WorkflowStarterTemplate = {
+  id: string;
+  label: string;
+  description: string;
+  workflowName: string;
+  purpose: string;
+  trigger: AutomationTriggerEventType;
+  field: string;
+  operator: ConditionOperator;
+  value: string;
+  prompt: string;
+};
+
+const workflowStarterTemplates: WorkflowStarterTemplate[] = [
+  { id: 'research', label: 'Research & fact-checking', workflowName: 'Research brief review', purpose: 'When a research task is created, prepare a source-led brief and highlight gaps before a person relies on it.', trigger: 'task.created', field: 'title', operator: 'contains', value: 'research', prompt: 'Research the event titled "{{title}}" using current, credible sources. Separate evidence from inference, record citations, list unresolved questions, and do not invent source details.' },
+  { id: 'education', label: 'Education & lesson planning', workflowName: 'Lesson preparation assistant', purpose: 'Help prepare teaching materials when a lesson task is created. The workflow stays disabled until reviewed.', trigger: 'task.created', field: 'title', operator: 'contains', value: 'lesson', prompt: 'Prepare a lesson outline for "{{title}}". Include learning objectives, age-appropriate explanations, short practice activities, and a quick assessment. Ask for missing class level or subject rather than guessing.' },
+  { id: 'coding', label: 'Coding & debugging', workflowName: 'Code task triage', purpose: 'Turn a coding task into a reproducible diagnostic plan and explicit verification checks.', trigger: 'task.created', field: 'title', operator: 'contains', value: 'bug', prompt: 'Analyze the coding issue "{{title}}". Propose the smallest safe fix, identify likely regression risks, and specify tests that demonstrate the fix. Do not claim code was changed or tests passed unless a tool verifies it.' },
+  { id: 'content', label: 'Content creation', workflowName: 'Content review checklist', purpose: 'Review a content task for audience fit, structure, factual grounding, and clear next steps.', trigger: 'task.created', field: 'title', operator: 'contains', value: 'content', prompt: 'Prepare a content brief for "{{title}}". Define audience and objective, propose a clear outline, flag factual claims needing citations, and provide an editorial checklist.' },
+  { id: 'planning', label: 'Planning & project management', workflowName: 'Project milestone planner', purpose: 'Create milestones, dependencies, risks, and measurable completion checks from a planning task.', trigger: 'task.created', field: 'title', operator: 'contains', value: 'plan', prompt: 'Break "{{title}}" into achievable milestones. For each, define a concrete deliverable, dependency, likely risk, and completion test. Identify the single next action and what needs owner approval.' },
+  { id: 'everyday', label: 'Everyday work', workflowName: 'Daily work organizer', purpose: 'Turn an everyday work request into a short prioritized plan without taking external actions automatically.', trigger: 'task.created', field: 'title', operator: 'contains', value: 'daily', prompt: 'Organize "{{title}}" into a realistic prioritized checklist. Separate quick wins from work requiring focused time, flag deadlines that need confirmation, and suggest a short end-of-day review.' },
+];
+
 export const AutomationView: React.FC = () => {
   const { settings, createTask, createMemory, activeProjectId, projects } = useAngel();
   const isLight = settings.theme === 'light';
@@ -66,6 +88,9 @@ export const AutomationView: React.FC = () => {
   const [newField, setNewField] = useState('priority');
   const [newOp, setNewOp] = useState<ConditionOperator>('equals');
   const [newVal, setNewVal] = useState('urgent');
+  const defaultActionPrompt = 'Analyze the incoming event "{{title}}" and formulate an immediate action plan.';
+  const [newActionPrompt, setNewActionPrompt] = useState(defaultActionPrompt);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   useEffect(() => {
     try {
       const raw = localStorage.getItem('angel_pending_capability_prompt');
@@ -152,7 +177,7 @@ export const AutomationView: React.FC = () => {
       id: `auto-${Date.now()}`,
       name: newTitle.trim(),
       description: newDesc.trim() || 'Custom user-defined Angel automation workflow.',
-      enabled: true,
+      enabled: selectedTemplateId ? false : true,
       trigger: {
         type: newTriggerType,
       },
@@ -170,22 +195,22 @@ export const AutomationView: React.FC = () => {
           name: 'Angel Strategic Assessment',
           type: 'agent_execution',
           agentId: 'core',
-          promptTemplate: 'Analyze the incoming event "{{title}}" and formulate an immediate action plan.',
+          promptTemplate: newActionPrompt.trim() || defaultActionPrompt,
         },
         {
           id: `step-${Date.now()}-2`,
-          name: 'Record Context into Memory Vault',
+          name: 'Show completion notification',
           type: 'action',
-          actionType: 'write_memory',
+          actionType: 'send_notification',
           actionPayload: {
-            title: `Automated Log: ${newTitle}`,
-            content: 'Logged automated decision and trigger payload into long-term context.',
+            title: `Workflow finished: ${newTitle}`,
+            message: 'Angel completed the approved workflow for "{{title}}". Review its execution record before relying on the result.',
           },
         },
       ],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      tags: ['custom', 'workflow'],
+      tags: ['custom', 'workflow', ...(selectedTemplateId ? [selectedTemplateId] : [])],
     };
 
     const updated = [newAuto, ...automations];
@@ -195,7 +220,9 @@ export const AutomationView: React.FC = () => {
     setActiveTabMode('workflows');
     setNewTitle('');
     setNewDesc('');
-    setStatusNotice(`Workflow "${newAuto.name}" created!`);
+    setNewActionPrompt(defaultActionPrompt);
+    setSelectedTemplateId(null);
+    setStatusNotice(selectedTemplateId ? `Template workflow "${newAuto.name}" was saved disabled. Review its condition and enable it when ready.` : `Workflow "${newAuto.name}" created!`);
     setTimeout(() => setStatusNotice(null), 3000);
   };
 
@@ -702,8 +729,27 @@ export const AutomationView: React.FC = () => {
             <div>
               <h2 className="text-lg font-bold">Construct New Event-Driven Automation</h2>
               <p className="text-xs text-neutral-400">
-                Define the trigger event, conditions, and chain of autonomous agent actions.
+                Start from a reusable profession template or configure the trigger, condition, and action prompt yourself. Template workflows are saved disabled for review.
               </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {workflowStarterTemplates.map((template) => (
+                <button key={template.id} type="button" onClick={() => {
+                  setSelectedTemplateId(template.id);
+                  setNewTitle(template.workflowName);
+                  setNewDesc(template.purpose);
+                  setNewTriggerType(template.trigger);
+                  setNewField(template.field);
+                  setNewOp(template.operator);
+                  setNewVal(template.value);
+                  setNewActionPrompt(template.prompt);
+                  setStatusNotice(`Loaded ${template.label}. Review the trigger and condition before saving.`);
+                }} className={`rounded-xl border p-3 text-left transition-colors ${selectedTemplateId === template.id ? 'border-indigo-400 bg-indigo-500/10' : isLight ? 'border-slate-200 hover:border-indigo-300' : 'border-white/10 hover:border-indigo-400/40'}`}>
+                  <span className="block text-xs font-semibold">{template.label}</span>
+                  <span className="mt-1 block text-[10px] leading-relaxed text-neutral-400">{template.purpose}</span>
+                </button>
+              ))}
             </div>
 
             <div className="space-y-4">
@@ -739,6 +785,12 @@ export const AutomationView: React.FC = () => {
                       : 'bg-white/5 border-white/10 focus:border-amber-400'
                   }`}
                 />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-neutral-400 uppercase font-medium block mb-1">Agent instruction template</label>
+                <textarea rows={4} maxLength={12000} value={newActionPrompt} onChange={(e) => setNewActionPrompt(e.target.value)} placeholder="Describe the work Angel should perform when the trigger fires..." className={`w-full px-3.5 py-2.5 rounded-xl border text-xs outline-none ${isLight ? 'bg-slate-50 border-slate-200 focus:border-indigo-400' : 'bg-white/5 border-white/10 focus:border-indigo-400'}`} />
+                <p className="mt-1 text-[10px] text-neutral-400">Use {"{{title}}"} to insert the triggering task title. This template will not grant additional permissions.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
