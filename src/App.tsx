@@ -105,10 +105,20 @@ const WorkspaceContent: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    const handleNavigateBack = () => setActiveTab(previousTabRef.current || 'home');
+    const handleNavigateBack = () => {
+      // On mobile, section-level back controls reveal the navigation drawer instead
+      // of unexpectedly hopping to a different section. Desktop keeps history behavior.
+      if (typeof window !== 'undefined' &&
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(max-width: 767px)').matches) {
+        setMobileMenuOpen(true);
+        return;
+      }
+      setActiveTab(previousTabRef.current || 'home');
+    };
     window.addEventListener('angel-navigate-back', handleNavigateBack);
     return () => window.removeEventListener('angel-navigate-back', handleNavigateBack);
-  }, [setActiveTab]);
+  }, [setActiveTab, setMobileMenuOpen]);
   useEffect(() => {
     const handleScrollToTop = () => {
       if (mainScrollRef.current) {
