@@ -234,7 +234,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Github className="w-4 h-4 text-indigo-400" />
                   Authentication Status
                 </span>
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${ghStatus?.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                <span className={`text-[10px] font-medium ${ghStatus?.success ? 'text-emerald-400' : 'text-amber-400'}`}>
                   {ghStatus?.success ? 'Connected' : 'Token Required'}
                 </span>
               </div>
@@ -340,13 +340,9 @@ export const ConnectionsWorkspace: React.FC = () => {
                         <span className="font-semibold text-neutral-200 truncate">#{issue.number} {issue.title}</span>
                         <span className="text-[10px] font-medium text-emerald-400">@{issue.author}</span>
                       </div>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {issue.labels.map((l: string) => (
-                          <span key={l} className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-white/5">
-                            {l}
-                          </span>
-                        ))}
-                      </div>
+                      {issue.labels.length > 0 && (
+                        <p className="text-[10px] text-neutral-500">Labels: {issue.labels.join(', ')}</p>
+                      )}
                     </div>
                   ))
                 )}
@@ -379,7 +375,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Database className="w-4 h-4 text-emerald-400" />
                   PostgreSQL Sync Engine
                 </span>
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${supabaseStats?.isSupabaseConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                <span className={`text-[10px] font-medium ${supabaseStats?.isSupabaseConnected ? 'text-emerald-400' : 'text-amber-400'}`}>
                   {supabaseStats?.isSupabaseConnected ? 'Live Database' : 'Local Fallback'}
                 </span>
               </div>
@@ -512,7 +508,7 @@ export const ConnectionsWorkspace: React.FC = () => {
             {['Google Drive (Files & References)', 'Google Calendar (Schedule Sync)', 'Google Docs (Document Export)', 'Google Sheets (Data Analysis)'].map((scope) => (
               <div key={scope} className="p-3 rounded-xl bg-neutral-950/60 border border-white/5 flex items-center justify-between">
                 <span className="text-neutral-300">{scope}</span>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-neutral-800 text-neutral-400">OAuth Ready</span>
+                <span className="text-[10px] text-neutral-400">Status: OAuth Ready</span>
               </div>
             ))}
           </div>

@@ -888,7 +888,7 @@ export const MemoriesView: React.FC = () => {
 
             <div className="flex items-center gap-2 w-full sm:w-auto text-xs">
               {searchQuery && (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
+                <span className="text-[10px] font-medium text-indigo-400 whitespace-nowrap">
                   Fuzzy: {filteredMemories.length} match{filteredMemories.length === 1 ? '' : 'es'}
                 </span>
               )}
