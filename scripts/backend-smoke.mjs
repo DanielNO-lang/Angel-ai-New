@@ -1,7 +1,7 @@
 import { appendFileSync } from 'node:fs';
 
 async function main() {
-const baseUrl = (process.env.ANGEL_BASE_URL || 'https://angel-ai-new-git-main-angel-0908.vercel.app').replace(/\/$/, '');
+const baseUrl = (process.env.ANGEL_BASE_URL || 'https://angel-ai-new.netlify.app').replace(/\/$/, '');
 const expectedSha = process.env.GITHUB_SHA || '';
 const deadline = Date.now() + 8 * 60 * 1000;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -25,7 +25,7 @@ while (Date.now() < deadline) {
     health = result.data;
     if (result.response.ok && health.status === 'ok' && (!expectedSha || health.commitSha === expectedSha)) break;
   } catch {
-    // The Vercel production alias may still be switching to this commit.
+    // The Netlify production alias may still be switching to this commit.
   }
   await pause(10_000);
 }
