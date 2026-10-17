@@ -292,124 +292,62 @@ export async function upsertAuthenticatedProfile(profile: AuthenticatedProfileIn
 
 export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirected?: boolean; isPreviewIframe?: boolean }> {
   const client = getClientSupabase();
-  if (!client) {
-    return { error: 'Supabase authentication service is not configured.' };
+  if (!client) return { error: 'Supabase authentication service is not configured.' };
+
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  if (typeof window === 'undefined') {
+    return { error: 'Google authentication must be started from the Angel browser app.' };
   }
+  const origin = window.location.origin;
+  const redirectUrl = `${origin}/`;
 
   try {
-    const isIframe = typeof window !== 'undefined' && window.self !== window.top;
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const isPreview = origin.includes('run.app') || origin.includes('localhost');
-    
-    // In Vercel deployment: use top-level origin. In preview/iframe: specify return URL
-    const redirectUrl = isPreview
-      ? `${origin}/`
-      : (typeof window !== 'undefined' ? `${window.location.origin}/` : 'https://angel-ai-new.vercel.app/');
-
     const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: redirectUrl,
-        skipBrowserRedirect: isIframe, // Prevent iframe from attempting to embed Google login
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'consent',
-        },
+        // In preview iframes, open OAuth in a separate window to avoid embedding Google's login.
+        skipBrowserRedirect: isIframe,
+        queryParams: { access_type: 'offline', prompt: 'consent' },
       },
     });
 
     if (error) {
       const message = error.message || 'Google authentication could not be started.';
       const normalized = message.toLowerCase();
-
-      // If running in development / AI Studio preview where dynamic Cloud Run URL cannot be on static Supabase redirect allowlist
-      if (isPreview || isIframe) {
-        const devToken = `angel-google-sess-${Date.now()}`;
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('angel_auth_token', devToken);
-          localStorage.removeItem('angel_is_guest');
-          localStorage.setItem(
-            'angel_user_profile',
-            JSON.stringify({
-              id: 'user_google_danny',
-              name: 'Danny Davis',
-              email: 'danielokohnwachukwu22@gmail.com',
-              initials: 'DD',
-              plan: 'Pro',
-              status: 'online',
-              avatarUrl: 'https://lh3.googleusercontent.com/a/ACg8ocL0k424=s96-c',
-              role: 'user',
-            })
-          );
-        }
-        window.dispatchEvent(new Event('storage'));
-        return { redirected: false, previewSignedIn: true };
-      }
-
       if (normalized.includes('unsupported provider') || normalized.includes('provider is not enabled')) {
         return {
-          error: 'Google sign-in is not enabled in Supabase Auth yet. Enable Authentication → Sign In / Providers → Google in Supabase dashboard.',
+          error: 'Google sign-in is not enabled in Supabase Auth. Enable Authentication → Sign In / Providers → Google in the Supabase dashboard.',
           isPreviewIframe: isIframe,
         };
       }
-
       if (normalized.includes('redirect') && (normalized.includes('not allowed') || normalized.includes('allow list'))) {
         return {
-          error: `Supabase redirect URL allowlist requires ${origin}/ in Authentication → URL Configuration → Redirect URLs for this environment.`,
+          error: `Supabase redirect URL allowlist must include ${redirectUrl} in Authentication → URL Configuration → Redirect URLs.`,
           isPreviewIframe: isIframe,
         };
       }
-
       return { error: message, isPreviewIframe: isIframe };
     }
 
     if (isIframe && data?.url) {
-      if (isPreview) {
-        // In AI Studio iframe preview, container URLs cannot be accessed externally; provide instant verified Google session
-        const devToken = `angel-google-sess-${Date.now()}`;
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('angel_auth_token', devToken);
-          localStorage.removeItem('angel_is_guest');
-          localStorage.setItem(
-            'angel_user_profile',
-            JSON.stringify({
-              id: 'user_google_danny',
-              name: 'Danny Davis',
-              email: 'danielokohnwachukwu22@gmail.com',
-              initials: 'DD',
-              plan: 'Pro',
-              status: 'online',
-              avatarUrl: 'https://lh3.googleusercontent.com/a/ACg8ocL0k424=s96-c',
-              role: 'user',
-            })
-          );
-        }
-        window.dispatchEvent(new Event('storage'));
-        return { redirected: false, previewSignedIn: true };
-      }
-
-      // In production iframe/popup mode:
       const popup = window.open(data.url, 'google_login_popup', 'width=520,height=650');
       if (!popup) {
         return {
-          error: 'Popup was blocked by the browser. Please allow popups or use your email and password.',
-          isPreviewIframe: isIframe,
+          error: 'The browser blocked the Google sign-in popup. Allow popups or open Angel in a standalone browser tab.',
+          isPreviewIframe: true,
         };
       }
-      return { redirected: true };
     }
-
-    return { redirected: true };
-  } catch (err: any) {
-    const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+    return { redirected: true, isPreviewIframe: isIframe };
+  } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    if (message.includes('Failed to fetch') || message.includes('network')) {
-      return { error: 'Network error connecting to Google authentication. Please verify internet access.', isPreviewIframe: isIframe };
+    if (message.toLowerCase().includes('failed to fetch') || message.toLowerCase().includes('network')) {
+      return { error: 'Network error connecting to Google authentication. Check internet access and try again.', isPreviewIframe: isIframe };
     }
     return { error: message || 'Google authentication encountered an unexpected error.', isPreviewIframe: isIframe };
   }
 }
-
 /**
  * Signs out from Supabase Authentication
  */
