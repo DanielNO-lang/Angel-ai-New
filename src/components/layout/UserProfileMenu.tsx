@@ -85,13 +85,10 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
               />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-start">
                 <h4 className={`text-sm font-semibold truncate ${isLight ? 'text-slate-900' : 'text-white'}`}>
                   {userProfile.name}
                 </h4>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-                  {userProfile.plan}
-                </span>
               </div>
               <p className={`text-xs truncate ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                 {userProfile.email}
