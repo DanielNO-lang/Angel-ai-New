@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - migration/netlify-preview
+      - research/angel-capability-audit-2026-10-17
   pull_request:
     branches:
       - main
