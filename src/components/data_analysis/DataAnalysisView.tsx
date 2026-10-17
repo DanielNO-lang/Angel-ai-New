@@ -322,13 +322,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Dedicated Data Analysis Engine</h1>
                 {currentDataset && (
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium font-semibold border ${
-                      currentDataset.isSample
-                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                    }`}
-                  >
+                  <span className={`text-[10px] font-medium ${currentDataset.isSample ? 'text-amber-500' : 'text-emerald-500'}`}>
                     {currentDataset.isSample ? 'Verified Sample Benchmark' : 'Production User Data'}
                   </span>
                 )}
@@ -581,7 +575,7 @@ Please provide a deep strategic breakdown and recommend the next operational ste
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-sm font-medium text-blue-400">{col.name}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/10 text-blue-300 uppercase">
+                    <span className="text-[10px] uppercase text-neutral-400">
                       {col.type}
                     </span>
                   </div>
