@@ -522,8 +522,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const prompt = body.prompt ?? body.message;
     const systemInstruction = body.systemInstruction;
     const conversationHistory = body.conversationHistory ?? body.history;
-    const modelId = body.modelId;
-    const providerId = body.providerId;
+    const requestedModelId = body.modelId;
+    const requestedProviderId = body.providerId;
     const temperature = body.temperature;
     const maxTokens = body.maxTokens;
 
@@ -531,38 +531,54 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
+    let selectedModelId = typeof requestedModelId === 'string' ? requestedModelId : '';
+    let selectedProviderId = typeof requestedProviderId === 'string' ? requestedProviderId : '';
+    let startedAt = 0;
     try {
-      const provider = providerRegistry.getProvider(providerId);
+      let provider;
+      if (!selectedProviderId || selectedProviderId === 'auto') {
+        const normalizedPrompt = prompt.toLowerCase();
+        const task = /(research|sources|cite|citation|evidence|web search)/.test(normalizedPrompt)
+          ? 'research'
+          : /(write code|debug|typescript|javascript|python|implement|refactor|compile error)/.test(normalizedPrompt)
+            ? 'coding'
+            : /(reason through|proof|derive|complex analysis|compare trade-offs)/.test(normalizedPrompt)
+              ? 'reasoning'
+              : 'chat';
+        const routed = providerRegistry.routeForTask(task);
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(selectedProviderId);
+      }
+
       if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+        return res.status(503).json({ error: \`The selected AI provider (\${provider.id}) is not configured on the server.\` });
       }
 
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      startedAt = Date.now();
 
       await provider.stream(
-        {
-          prompt,
-          systemInstruction,
-          conversationHistory,
-          modelId,
-          temperature,
-          maxTokens,
-        },
-        (chunk) => {
-          res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
-        }
+        { prompt, systemInstruction, conversationHistory, modelId: selectedModelId, temperature, maxTokens },
+        (chunk) => { res.write(\`data: \${JSON.stringify({ chunk })}\\n\\n\`); }
       );
 
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || provider.id, true, Date.now() - startedAt);
+      res.write(\`data: \${JSON.stringify({ done: true, provider: selectedProviderId, modelId: selectedModelId || undefined })}\\n\\n\`);
       res.end();
     } catch (err) {
+      if (startedAt > 0) modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'unknown', false, Date.now() - startedAt);
       console.error('[API /api/ai/stream Error]', err);
       const msg = err instanceof Error ? err.message : String(err);
-      res.write(`data: ${JSON.stringify({ error: msg, done: true })}\n\n`);
+      if (!res.headersSent) {
+        res.status(503).json({ error: msg });
+        return;
+      }
+      res.write(\`data: \${JSON.stringify({ error: msg, done: true })}\\n\\n\`);
       res.end();
     }
   });
