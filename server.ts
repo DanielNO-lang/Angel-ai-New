@@ -532,11 +532,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    let selectedModelId = typeof requestedModelId === 'string' ? requestedModelId : '';
+    let selectedModelId = typeof requestedModelId === 'string' && requestedModelId !== 'auto' ? requestedModelId : '';
     let selectedProviderId = typeof requestedProviderId === 'string' ? requestedProviderId : '';
     let startedAt = 0;
     try {
       let provider;
+      let fallbackCandidates: ReturnType<typeof providerRegistry.routeCandidatesForTask> = [];
       if (!selectedProviderId || selectedProviderId === 'auto') {
         const normalizedPrompt = prompt.toLowerCase();
         const task = /(research|sources|cite|citation|evidence|web search)/.test(normalizedPrompt)
@@ -546,7 +547,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
             : /(reason through|proof|derive|complex analysis|compare trade-offs)/.test(normalizedPrompt)
               ? 'reasoning'
               : 'chat';
-        const routed = providerRegistry.routeForTask(task);
+        fallbackCandidates = providerRegistry.routeCandidatesForTask(task);
+        const routed = fallbackCandidates[0];
+        if (!routed) throw new Error(`No configured model is eligible for task "${task}".`);
         provider = routed.provider;
         selectedProviderId = provider.id;
         selectedModelId = routed.model.id;
@@ -563,12 +566,59 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       res.setHeader('Connection', 'keep-alive');
       startedAt = Date.now();
 
-      await provider.stream(
-        { prompt, systemInstruction, conversationHistory, modelId: selectedModelId, temperature, maxTokens },
-        (chunk) => { res.write(`data: ${JSON.stringify({ chunk })}\n\n`); }
-      );
+      if (fallbackCandidates.length > 0) {
+        let streamedSuccessfully = false;
+        let lastProviderError: unknown;
+        for (const candidate of fallbackCandidates) {
+          const candidateStartedAt = Date.now();
+          let emittedAnyChunk = false;
+          let candidateText = '';
+          try {
+            await candidate.provider.stream(
+              { prompt, systemInstruction, conversationHistory, modelId: candidate.model.id, temperature, maxTokens },
+              (chunk) => {
+                if (typeof chunk === 'string' && chunk.length > 0) {
+                  emittedAnyChunk = true;
+                  candidateText += chunk;
+                  res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+                }
+              }
+            );
+            if (!candidateText.trim()) throw new Error('Provider returned an empty response stream.');
+            modelRoutingTelemetry.record(candidate.model.id, true, Date.now() - candidateStartedAt);
+            selectedProviderId = candidate.provider.id;
+            selectedModelId = candidate.model.id;
+            provider = candidate.provider;
+            streamedSuccessfully = true;
+            break;
+          } catch (providerError) {
+            modelRoutingTelemetry.record(candidate.model.id, false, Date.now() - candidateStartedAt);
+            lastProviderError = providerError;
+            // Never restart a response after even one chunk has reached the user:
+            // doing so could duplicate or contradict text already displayed.
+            if (emittedAnyChunk) throw providerError;
+          }
+        }
+        if (!streamedSuccessfully) {
+          throw lastProviderError instanceof Error
+            ? lastProviderError
+            : new Error('All eligible providers failed before producing a response.');
+        }
+      } else {
+        let emittedAnyChunk = false;
+        await provider.stream(
+          { prompt, systemInstruction, conversationHistory, modelId: selectedModelId, temperature, maxTokens },
+          (chunk) => {
+            if (typeof chunk === 'string' && chunk.length > 0) {
+              emittedAnyChunk = true;
+              res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+            }
+          }
+        );
+        if (!emittedAnyChunk) throw new Error('Provider returned an empty response stream.');
+        modelRoutingTelemetry.record(selectedModelId || selectedProviderId || provider.id, true, Date.now() - startedAt);
+      }
 
-      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || provider.id, true, Date.now() - startedAt);
       res.write(`data: ${JSON.stringify({ done: true, provider: selectedProviderId, modelId: selectedModelId || undefined })}\n\n`);
       res.end();
     } catch (err) {
