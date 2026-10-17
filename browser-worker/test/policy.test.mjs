@@ -18,10 +18,10 @@ test('browser policy rejects local hosts, IP literals and embedded credentials',
     assert.equal(validateBrowserUrl(url, [host]).allowed, false, url);
   }
 });
-test('resolved IPv4 must be globally routable; IPv6 is denied until hardened egress support exists', () => {
+test('resolved addresses must be globally routable and reserved ranges are blocked', () => {
   for (const ip of ['0.0.0.0','10.0.0.1','100.64.0.1','127.0.0.1','169.254.1.2','172.16.0.2','192.168.1.1','198.18.0.2','203.0.113.10','224.0.0.1']) {
     assert.equal(isPublicResolvedAddress(ip), false, ip);
   }
   assert.equal(isPublicResolvedAddress('8.8.8.8'), true);
-  assert.equal(isPublicResolvedAddress('2606:4700:4700::1111'), false);
+  assert.equal(isPublicResolvedAddress('2606:4700:4700::1111'), true);\n  assert.equal(isPublicResolvedAddress('2001:db8::1'), false);
 });
