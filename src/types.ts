@@ -526,6 +526,14 @@ export interface AngelSettings {
     webhookEnabled: boolean;
     outboundWebhookUrl?: string;
   };
+  /** Delivery preferences only. Angel's core identity and values remain stable. */
+  conversationalStyle?: {
+    warmth: number;
+    humor: number;
+    directness: number;
+    empathy: number;
+    emotionalTone: 'balanced' | 'calm' | 'encouraging' | 'serious' | 'playful';
+  };
 }
 
 export type CommandPaletteScope = 'all' | 'tasks' | 'memories' | 'projects' | 'agents' | 'actions';
