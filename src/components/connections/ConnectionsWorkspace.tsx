@@ -35,8 +35,9 @@ import {
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { getClientSupabase } from '../../services/supabaseService';
+import { BrowserControlPanel } from './BrowserControlPanel';
 
-export type IntegrationTab = 'github' | 'vercel' | 'supabase' | 'webhooks' | 'google';
+export type IntegrationTab = 'github' | 'vercel' | 'supabase' | 'webhooks' | 'google' | 'browser';
 
 export const ConnectionsWorkspace: React.FC = () => {
   const { settings, tasks, memories, projects, isGuest, triggerManualSync } = useAngel();
@@ -256,6 +257,7 @@ export const ConnectionsWorkspace: React.FC = () => {
           { id: 'supabase', label: 'Supabase Cloud', icon: Database, active: supabaseStats?.isSupabaseConnected },
           { id: 'webhooks', label: 'Zapier & Webhooks', icon: Zap, active: true },
           { id: 'google', label: 'Google Services', icon: Cloud, active: false },
+          { id: 'browser', label: 'Browser Control', icon: Shield, active: undefined },
         ].map((tab) => {
           const Icon = tab.icon;
           const isSelected = activeTab === tab.id;
@@ -278,6 +280,8 @@ export const ConnectionsWorkspace: React.FC = () => {
           );
         })}
       </div>
+
+      {activeTab === 'browser' && <BrowserControlPanel isLight={isLight} isGuest={isGuest} />}
 
       {/* Tab 1: GitHub */}
       {activeTab === 'github' && (
