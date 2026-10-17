@@ -18,6 +18,23 @@ export const ResearchWorkspace: React.FC = () => {
   const [notice, setNotice] = useState('');
   const [isLight, setIsLight] = useState(false);
   useEffect(() => {
+    try {
+      const raw = localStorage.getItem('angel_pending_capability_prompt');
+      if (!raw) return;
+      const handoff = JSON.parse(raw) as { target?: string; prompt?: string; createdAt?: number };
+      if (handoff.target !== 'research') return;
+      localStorage.removeItem('angel_pending_capability_prompt');
+      if (typeof handoff.prompt === 'string' && handoff.prompt.trim() &&
+          typeof handoff.createdAt === 'number' && Date.now() - handoff.createdAt < 10 * 60 * 1000) {
+        setQuestion(handoff.prompt);
+        setNotice('Home suggestion loaded. Review the question and start research when ready.');
+      }
+    } catch {
+      try { localStorage.removeItem('angel_pending_capability_prompt'); } catch {}
+    }
+  }, []);
+
+  useEffect(() => {
     setIsLight(document.documentElement.classList.contains('light'));
     const client = getClientSupabase();
     if (!client) { setError('Research saving needs a configured Supabase sign-in session.'); return; }
