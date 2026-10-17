@@ -171,10 +171,10 @@ export const ConnectionsWorkspace: React.FC = () => {
         </div>
 
         {isGuest && (
-          <div className="px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs flex items-center gap-2">
+          <p className="text-xs text-amber-500 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>Guest Mode: Read-only diagnostics active</span>
-          </div>
+          </p>
         )}
       </div>
 
