@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   BookOpen,
   Search,
@@ -56,7 +57,7 @@ export const LibraryView: React.FC = () => {
     setMobileMenuOpen,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
