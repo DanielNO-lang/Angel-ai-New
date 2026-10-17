@@ -1790,7 +1790,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (referenceImages.some((item) => typeof item !== 'string' || !item.trim() || item.length > 14_000_000)) {
       return res.status(413).json({ error: 'Each additional reference must be a non-empty image URL or data URI no larger than 10 MB.' });
     }
-    const totalImageCharacters = baseImageBase64.length + referenceImages.reduce((total, item) => total + String(item).length, 0);
+    const totalImageCharacters = baseImageBase64.length + referenceImages.reduce<number>((total, item) => total + String(item).length, 0);
     if (totalImageCharacters > 28_000_000) {
       return res.status(413).json({ error: 'The combined source and reference images exceed the 20 MB total image-data limit.' });
     }
