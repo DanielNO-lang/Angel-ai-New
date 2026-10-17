@@ -9,7 +9,7 @@
  * Integrates directly into Settings / Account UI.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   User,
   Mail,
@@ -25,6 +25,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
+import { UserProfileAvatar } from './UserProfileAvatar';
 
 export const UserProfileSettings: React.FC = () => {
   const { userProfile, updateUserProfile, settings, updateSettings, isSignedIn, sessionToken } = useAngel();
@@ -48,6 +49,10 @@ export const UserProfileSettings: React.FC = () => {
   const [isSaved, setIsSaved] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const handleAvatarResolved = useCallback((url: string) => {
+    setAvatarUrl((current) => current || url);
+  }, []);
 
   // Sync when userProfile updates
   useEffect(() => {
@@ -135,18 +140,13 @@ export const UserProfileSettings: React.FC = () => {
         }`}
       >
         <div className="relative group">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={name}
-              className="w-20 h-20 rounded-full object-cover ring-4 ring-indigo-500/20 shadow-lg"
-              onError={() => setAvatarUrl('')}
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-bold text-white text-2xl shadow-lg ring-4 ring-indigo-500/20">
-              {userProfile.initials || 'DD'}
-            </div>
-          )}
+          <UserProfileAvatar
+            name={name}
+            initials={userProfile.initials}
+            fallbackUrl={avatarUrl}
+            onAvatarResolved={handleAvatarResolved}
+            className="ring-4 ring-indigo-500/20 shadow-lg"
+          />
           <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-inherit bg-emerald-500" />
         </div>
 
