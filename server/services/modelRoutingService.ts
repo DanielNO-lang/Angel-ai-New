@@ -7,7 +7,7 @@
  */
 import type { ModelMetadata } from '../providers/modelRegistry.js';
 
-export type RoutingTask = 'chat' | 'research' | 'vision' | 'tool_calling' | 'embeddings' | 'coding' | 'reasoning';
+export type RoutingTask = 'chat' | 'research' | 'vision' | 'tool_calling' | 'embeddings' | 'coding' | 'reasoning' | 'structured_output';
 
 export interface ModelRuntimeSignals {
   successes: number;
@@ -22,6 +22,7 @@ const requiredCapability: Partial<Record<RoutingTask, keyof ModelMetadata['capab
   tool_calling: 'toolCalling',
   embeddings: 'embeddings',
   research: 'toolCalling',
+  structured_output: 'structuredOutput',
 };
 
 function capabilityScore(model: ModelMetadata, task: RoutingTask): number {
@@ -39,16 +40,36 @@ export function rankAvailableModels(
   runtimeSignals: ModelRuntimeSignalMap = {},
   preferredProvider?: string,
 ): ModelMetadata[] {
-  return candidates
-    .filter((model) => model.isAvailable && capabilityScore(model, task) > -1000)
+  const eligible = candidates.filter((model) => model.isAvailable && capabilityScore(model, task) > -1000);
+  const median = (values: number[]): number | undefined => {
+    if (!values.length) return undefined;
+    const sorted = [...values].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  };
+  // Use the median among eligible providers when one price component is unknown;
+  // missing price data must not make an expensive/unknown model appear free.
+  const inputCostBaseline = median(eligible.map((model) => model.costPer1kInput)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0));
+  const outputCostBaseline = median(eligible.map((model) => model.costPer1kOutput)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0));
+
+  return eligible
     .map((model, originalIndex) => {
       const signals = runtimeSignals[model.id];
       const total = signals ? signals.successes + signals.failures : 0;
       const reliability = total > 0 ? signals!.successes / total : undefined;
+      const inputCost = typeof model.costPer1kInput === 'number' && Number.isFinite(model.costPer1kInput) && model.costPer1kInput >= 0
+        ? model.costPer1kInput : (inputCostBaseline ?? 0);
+      const outputCost = typeof model.costPer1kOutput === 'number' && Number.isFinite(model.costPer1kOutput) && model.costPer1kOutput >= 0
+        ? model.costPer1kOutput : (outputCostBaseline ?? 0);
+      // Cost metadata is USD per 1k tokens; scaling makes ordinary model price
+      // differences visible next to latency and reliability without dominating them.
+      const costPenalty = Math.min(100, (inputCost + outputCost) * 1000);
       const score =
         (reliability === undefined ? 0 : (1 - reliability) * 100) +
-        (signals?.averageLatencyMs === undefined ? 0 : Math.min(60_000, Math.max(0, signals.averageLatencyMs)) / 1000) -
-        (model.costPer1kInput === undefined ? 0 : Math.min(1, model.costPer1kInput) * 10) -
+        (signals?.averageLatencyMs === undefined ? 0 : Math.min(60_000, Math.max(0, signals.averageLatencyMs)) / 1000) +
+        costPenalty -
         capabilityScore(model, task) * 5 -
         (preferredProvider && model.provider === preferredProvider ? 1 : 0);
       return { model, score, originalIndex };
