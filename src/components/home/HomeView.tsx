@@ -36,6 +36,7 @@ import { AngelLogo } from '../ui/AngelLogo';
 import { DailyDigest } from './DailyDigest';
 import { RecentActivityWidget } from './RecentActivityWidget';
 import { RandomQuoteCard } from '../ui/RandomQuoteCard';
+import { HomeSystemStatusWidget } from './SystemHUD';
 
 export const HomeView: React.FC = () => {
   const {
@@ -158,6 +159,7 @@ export const HomeView: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-7 animate-in fade-in duration-150">
+      <HomeSystemStatusWidget />
       {/* ========================================================
           1. GREETING CARD (Image 1, Image 2 & Desktop Light)
           ======================================================== */}
