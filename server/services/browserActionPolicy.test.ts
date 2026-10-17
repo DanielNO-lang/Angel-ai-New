@@ -31,7 +31,8 @@ test('consequential actions and clicks require recent confirmation matching exac
   assert.equal(missing.requiresConfirmation, true);
   assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'other', host: 'mail.example.com', approvedAt: 420_000 } }).allowed, false);
   assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'other.example.com', approvedAt: 420_000 } }).allowed, false);
-  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 420_000 } }).allowed, true);\n  assert.equal(evaluateBrowserAction({ ...base, kind: 'click', confirmation: undefined }).allowed, false);
+  assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 420_000 } }).allowed, true);
+  assert.equal(evaluateBrowserAction({ ...base, kind: 'click', confirmation: undefined }).allowed, false);
   assert.equal(evaluateBrowserAction({ ...base, confirmation: { actionId: 'send-42', host: 'mail.example.com', approvedAt: 100_000 } }).allowed, false);
 });
 test('high-impact operations require their own scoped grant', () => {
