@@ -648,32 +648,37 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   // Discoverable Tool Call
   app.post('/api/ai/tool-call', async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, tools, modelId, providerId, temperature } = req.body;
-
-    if (!prompt || !tools || !Array.isArray(tools)) {
+    const { prompt, systemInstruction, conversationHistory, tools, modelId, providerId, temperature } = req.body || {};
+    if (typeof prompt !== 'string' || !prompt.trim() || !Array.isArray(tools)) {
       return res.status(400).json({ error: 'Prompt and tools array are required' });
     }
 
+    let selectedProviderId = typeof providerId === 'string' ? providerId : '';
+    let selectedModelId = typeof modelId === 'string' ? modelId : '';
+    const startedAt = Date.now();
     try {
-      const provider = providerRegistry.getProvider(providerId);
+      let provider;
+      if (!selectedProviderId || selectedProviderId === 'auto') {
+        const routed = providerRegistry.routeForTask('tool_calling');
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(selectedProviderId);
+      }
       if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+        return res.status(503).json({ error: \`The selected AI provider (\${provider.id}) is not configured on the server.\` });
       }
       const result = await provider.toolCall({
-        prompt,
-        systemInstruction,
-        conversationHistory,
-        tools,
-        modelId,
-        temperature,
+        prompt, systemInstruction, conversationHistory, tools,
+        modelId: selectedModelId, temperature,
       });
-
-      res.json(result);
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId, true, Date.now() - startedAt);
+      return res.json({ ...result, provider: selectedProviderId, modelId: selectedModelId || undefined });
     } catch (err) {
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'tool_calling', false, Date.now() - startedAt);
       console.error('[API /api/ai/tool-call Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: err instanceof Error ? err.message : 'Tool-call provider request failed.' });
     }
   });
 
