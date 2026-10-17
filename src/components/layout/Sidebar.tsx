@@ -4,7 +4,7 @@
  * 1. Fixed Top Region:
  *    - Angel Logo + "Angel" (clean, no subtitles)
  *    - New Conversation button
- *    - Search bar with Windows key shortcut badge (Win + K)
+ *    - Search bar with keyboard shortcut hints in accessible text
  *    - Home navigation tool
  * 2. Scrollable Middle Region:
  *    - Scroll containment (overscroll-contain) preventing scroll propagation to main view
@@ -14,7 +14,7 @@
  * 3. Fixed Bottom Region:
  *    - Quote card ("Small steps every day lead to big results." / "Progress happens one small step at a time.")
  *      permanently fixed above the user profile
- *    - Danny Davis user profile (DD avatar, live status dot, Pro/Free badge, opens UserProfileMenu)
+ *    - User profile with avatar, live status dot, and UserProfileMenu
  * 4. Collapsed Hover Preview (Image 5 Panel 3):
  *    - Floating preview panel revealing New Chat, "Hover preview (does not permanently open)",
  *      recent chats list, and tool shortcuts on hover, closing smoothly on mouse leave
@@ -56,7 +56,6 @@ import {
 import { useAngel } from '../../context/AppContext';
 import { NavigationTab } from '../../types';
 import { AngelLogo } from '../ui/AngelLogo';
-import { WindowsShortcutBadge } from '../ui/WindowsShortcutBadge';
 import { UserProfileMenu } from './UserProfileMenu';
 import { ChatOptionsMenu } from '../chat/ChatOptionsMenu';
 import { SecretsModal } from '../modals/SecretsModal';
@@ -141,7 +140,6 @@ export const Sidebar: React.FC = () => {
     icon: React.FC<{ className?: string }>;
     tabTarget?: NavigationTab;
     onClickCustom?: () => void;
-    badge?: string;
   }> = [
     { id: 'chat', label: 'Chat', icon: MessageSquare, tabTarget: 'chat' },
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
@@ -153,7 +151,6 @@ export const Sidebar: React.FC = () => {
     icon: React.FC<{ className?: string }>;
     tabTarget?: NavigationTab;
     onClickCustom?: () => void;
-    badge?: string;
   }> = [
     { id: 'agent_lab', label: 'Agent Lab', icon: Bot, tabTarget: 'agent_lab' },
     { id: 'projects', label: 'Projects', icon: FolderGit2, tabTarget: 'projects' },
@@ -169,7 +166,6 @@ export const Sidebar: React.FC = () => {
     icon: React.FC<{ className?: string }>;
     tabTarget?: NavigationTab;
     onClickCustom?: () => void;
-    badge?: string;
   }> = [
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
     { id: 'library', label: 'Library', icon: BookOpen, onClickCustom: redirectToSignIn },
@@ -505,17 +501,6 @@ export const Sidebar: React.FC = () => {
                     </div>
                     {effectiveExpanded && <span className="truncate">{tool.label}</span>}
                   </div>
-                  {effectiveExpanded && tool.id === 'agent_lab' && isAgentProcessing && (
-                    <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8.5px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
-                      <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                      Active
-                    </span>
-                  )}
-                  {effectiveExpanded && (!isAgentProcessing || tool.id !== 'agent_lab') && tool.badge && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[9px] font-medium bg-indigo-500/10 text-indigo-400">
-                      {tool.badge}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -751,7 +736,7 @@ export const Sidebar: React.FC = () => {
         {/* ========================================================
             3. FIXED BOTTOM REGION
             - Quote Card: Permanently fixed right above Danny Davis
-            - User Profile: Danny Davis (DD), Pro/Free badge, online status dot
+            - User Profile: signed-in identity and online status dot
             ======================================================== */}
         <div
           className={`shrink-0 p-1.5 border-t space-y-1.5 select-none backdrop-blur-md ${
@@ -806,9 +791,6 @@ export const Sidebar: React.FC = () => {
                       }`}
                     >
                       {isSignedIn ? userProfile.name : 'Guest User'}
-                    </span>
-                    <span className="text-[8.5px] font-semibold px-1 py-0.2 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/30">
-                      {isSignedIn ? userProfile.plan : 'Free'}
                     </span>
                   </div>
                   <p
@@ -991,11 +973,6 @@ export const Sidebar: React.FC = () => {
                         <Icon className="w-3.5 h-3.5 shrink-0 text-indigo-400" />
                         <span>{tool.label}</span>
                       </div>
-                      {tool.badge && (
-                        <span className="px-1.5 py-0.2 rounded-full text-[9px] font-medium bg-indigo-500/10 text-indigo-400">
-                          {tool.badge}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
