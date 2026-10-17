@@ -110,10 +110,6 @@ export const SettingsView: React.FC = () => {
   // Profile form states
   const [profileName, setProfileName] = useState(userProfile.name || 'Daniel Nwachukwu');
   const [profileEmail, setProfileEmail] = useState(userProfile.email || 'danielokohnwachukwu22@gmail.com');
-  const [profileHandle, setProfileHandle] = useState('daniel');
-  const [profileBio, setProfileBio] = useState('AI engineer and autonomous systems developer.');
-  const [profileRole, setProfileRole] = useState('Lead Architect');
-  const [profileTimezone, setProfileTimezone] = useState('UTC-07:00 (Pacific Time)');
   const [isProfileSaved, setIsProfileSaved] = useState(false);
 
   // Appearance states
@@ -579,35 +575,6 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Layout Density */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Layout Density</label>
-                <div className="grid grid-cols-2 gap-2.5 max-w-sm">
-                  <button
-                    type="button"
-                    onClick={() => setUiDensity('comfortable')}
-                    className={`py-2 px-3 rounded-xl border text-xs text-center transition-all ${
-                      uiDensity === 'comfortable'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                        : 'border-inherit opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    Comfortable (Standard)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUiDensity('compact')}
-                    className={`py-2 px-3 rounded-xl border text-xs text-center transition-all ${
-                      uiDensity === 'compact'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                        : 'border-inherit opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    Compact (High Data)
-                  </button>
-                </div>
-              </div>
-
               {/* Toggles */}
               <div className="space-y-3 pt-3 border-t border-inherit">
                 <div className="flex items-center justify-between py-2 border-b border-inherit">
@@ -627,57 +594,6 @@ export const SettingsView: React.FC = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Interactive Workspace Tour</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Revisit the guided walkthrough highlighting the sidebar, chat, and AI tools.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined' && (window as unknown as { startAngelTour?: () => void }).startAngelTour) {
-                        (window as unknown as { startAngelTour: () => void }).startAngelTour();
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
-                      isLight ? 'hover:bg-slate-100 border-slate-200 text-slate-700' : 'hover:bg-neutral-800 border-white/10 text-neutral-300'
-                    }`}
-                  >
-                    Start Tour
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Cosmic Ambient Glow Effects</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Enable smooth radial blur orbs and luminous gradient auras
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={animationEffects}
-                    onChange={(e) => setAnimationEffects(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Interface Chimes & Audio Feedback</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Subtle tactile audio cues for button clicks and task completions
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={soundEffects}
-                    onChange={(e) => setSoundEffects(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
               </div>
             </div>
           )}
@@ -796,36 +712,6 @@ export const SettingsView: React.FC = () => {
                 </button>
               </div>
 
-              {/* Atmospheric Backdrop Lighting Treatment */}
-              <div className="space-y-3 pt-3 border-t border-inherit">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold">Independent Backdrop Layer Intensity</h4>
-                    <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Adjust the fixed atmospheric glow orbs rendered beneath the interface (z-index: 0)
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase text-indigo-500">
-                    {backdropIntensity}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2.5 max-w-sm">
-                  {(['subtle', 'standard', 'vivid'] as const).map((intensity) => (
-                    <button
-                      key={intensity}
-                      onClick={() => setBackdropIntensity(intensity)}
-                      className={`py-2 px-3 rounded-xl border text-xs capitalize text-center transition-all ${
-                        backdropIntensity === intensity
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                          : 'border-inherit opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      {intensity}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
