@@ -23,5 +23,6 @@ test('resolved addresses must be globally routable and reserved ranges are block
     assert.equal(isPublicResolvedAddress(ip), false, ip);
   }
   assert.equal(isPublicResolvedAddress('8.8.8.8'), true);
-  assert.equal(isPublicResolvedAddress('2606:4700:4700::1111'), true);\n  assert.equal(isPublicResolvedAddress('2001:db8::1'), false);
+  assert.equal(isPublicResolvedAddress('2606:4700:4700::1111'), true);
+  assert.equal(isPublicResolvedAddress('2001:db8::1'), false);
 });
