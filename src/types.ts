@@ -39,7 +39,10 @@ export type SettingsSubSection =
   | 'privacy'
   | 'notifications'
   | 'connections'
-  | 'security';
+  | 'security'
+  | 'behavior'
+  | 'skills'
+  | 'plugins';
 
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
 
