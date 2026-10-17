@@ -6,6 +6,7 @@ import { listAngelSkills, buildAngelSkillContext } from '../server/services/ange
 import { handleAngelMcpMessage } from '../server/services/mcpGatewayService';
 import { handler as netlifyApiHandler, normalizeNetlifyApiEvent } from '../netlify/functions/api';
 import { providerRegistry, GeminiProvider, OpenAICompatibleProvider } from '../server/providers';
+import { generateWithQwenImage, QwenImageError } from '../server/services/qwenImageService';
 
 
 test('Netlify API path normalization', () => {
@@ -329,4 +330,72 @@ test('Angel voice routing, skills, and MCP schema validation', async () => {
   }, handlers);
   assert.equal((validCall.body as any).result?.content?.[0]?.type, 'text');
   assert.match((validCall.body as any).result?.content?.[0]?.text || '', /translated:Hello/);
+});
+
+test('Qwen Image 2.1 Pro sends ordered multi-reference images and enforces provider limits', async () => {
+  const priorBaseUrl = process.env.QWEN_IMAGE_API_BASE_URL;
+  const priorApiKey = process.env.QWEN_IMAGE_API_KEY;
+  const priorModelId = process.env.QWEN_IMAGE_MODEL_ID;
+  const nativeFetch = globalThis.fetch;
+  const references = [
+    'data:image/png;base64,' + Buffer.from('reference-one').toString('base64'),
+    'data:image/jpeg;base64,' + Buffer.from('reference-two').toString('base64'),
+  ];
+  let capturedRequest: { url: string; authorization?: string; body?: any } | undefined;
+  let upstreamCalls = 0;
+  process.env.QWEN_IMAGE_API_BASE_URL = 'https://qwen-test.example/compatible-mode/v1';
+  process.env.QWEN_IMAGE_API_KEY = 'test-only-qwen-secret';
+  process.env.QWEN_IMAGE_MODEL_ID = 'qwen-image-2.1-pro';
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    upstreamCalls += 1;
+    const requestUrl = input instanceof Request ? input.url : String(input);
+    capturedRequest = {
+      url: requestUrl,
+      authorization: new Headers(init?.headers).get('authorization') || undefined,
+      body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
+    };
+    return new Response(JSON.stringify({
+      model: 'qwen-image-2.1-pro',
+      data: [{ b64_json: Buffer.from('generated-image-bytes').toString('base64') }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+
+  try {
+    const generated = await generateWithQwenImage({
+      prompt: 'Keep the character identity consistent across both references.',
+      modelId: 'qwen-image-2.1-pro',
+      referenceImageDataUrls: references,
+    });
+    assert.equal(generated.model, 'qwen-image-2.1-pro');
+    assert.match(generated.url, /^data:image\/png;base64,/);
+    assert.equal(capturedRequest?.url, 'https://qwen-test.example/compatible-mode/v1/images/generations');
+    assert.equal(capturedRequest?.authorization, 'Bearer test-only-qwen-secret');
+    assert.deepEqual(capturedRequest?.body?.image, references, 'reference order must be preserved');
+    assert.equal(capturedRequest?.body?.model, 'qwen-image-2.1-pro');
+
+    await assert.rejects(
+      generateWithQwenImage({
+        prompt: 'Should reject multi-reference use on Turbo',
+        modelId: 'qwen-image-2.1-turbo',
+        referenceImageDataUrls: references,
+      }),
+      (error: unknown) => error instanceof QwenImageError && error.code === 'multi_reference_requires_pro',
+    );
+    assert.equal(upstreamCalls, 1, 'unsupported multi-reference requests must be rejected before upstream inference');
+
+    await assert.rejects(
+      generateWithQwenImage({
+        prompt: 'Too many references',
+        modelId: 'qwen-image-2.1-pro',
+        referenceImageDataUrls: Array.from({ length: 11 }, () => references[0]),
+      }),
+      (error: unknown) => error instanceof QwenImageError && error.code === 'too_many_reference_images',
+    );
+    assert.equal(upstreamCalls, 1, 'over-limit requests must be rejected before upstream inference');
+  } finally {
+    globalThis.fetch = nativeFetch;
+    if (priorBaseUrl === undefined) delete process.env.QWEN_IMAGE_API_BASE_URL; else process.env.QWEN_IMAGE_API_BASE_URL = priorBaseUrl;
+    if (priorApiKey === undefined) delete process.env.QWEN_IMAGE_API_KEY; else process.env.QWEN_IMAGE_API_KEY = priorApiKey;
+    if (priorModelId === undefined) delete process.env.QWEN_IMAGE_MODEL_ID; else process.env.QWEN_IMAGE_MODEL_ID = priorModelId;
+  }
 });
