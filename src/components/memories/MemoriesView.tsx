@@ -663,7 +663,7 @@ export const MemoriesView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <button type="button" onClick={handleExportMemories} title="Export all saved memories as JSON" aria-label="Export memories" className={\`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors shrink-0 \${isLight ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200' : 'bg-white/[0.03] hover:bg-white/[0.07] text-neutral-200 border-white/10'}\`}>
+            <button type="button" onClick={handleExportMemories} title="Export all saved memories as JSON" aria-label="Export memories" className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors shrink-0 ${isLight ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200' : 'bg-white/[0.03] hover:bg-white/[0.07] text-neutral-200 border-white/10'}`}>
               <Download className="w-3.5 h-3.5" /><span>Export</span>
             </button>
             {/* Record Audio Note Button via MediaRecorder */}
