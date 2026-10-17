@@ -663,10 +663,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             body.classList.add(isDark ? 'dark' : 'light');
           };
           applySystemTheme();
-          mq.addEventListener('change', applySystemTheme);
+          if (typeof mq.addEventListener === 'function') {
+            mq.addEventListener('change', applySystemTheme);
+            return () => {
+              if (timer) window.clearTimeout(timer);
+              mq.removeEventListener('change', applySystemTheme);
+            };
+          }
+          // Compatibility for older WebKit implementations.
+          mq.addListener(applySystemTheme);
           return () => {
             if (timer) window.clearTimeout(timer);
-            mq.removeEventListener('change', applySystemTheme);
+            mq.removeListener(applySystemTheme);
           };
         }
       }
