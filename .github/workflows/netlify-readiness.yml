@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - migration/netlify-preview
+      - research/angel-capability-audit-2026-10-17
   pull_request:
     branches:
       - main
@@ -24,5 +25,7 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Type-check application and backend
         run: npm run lint
-      - name: Run tests and production build
+      - name: Run backend smoke tests
+        run: npm test
+      - name: Build client and server bundles
         run: npm run build

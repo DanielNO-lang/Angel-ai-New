@@ -37,7 +37,6 @@ import {
   BarChart3,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
-import { WindowsShortcutBadge } from '../ui/WindowsShortcutBadge';
 import { useVoiceDictation } from '../../services/voice/useVoiceDictation';
 
 export const CommandPalette: React.FC = () => {
@@ -762,7 +761,7 @@ export const CommandPalette: React.FC = () => {
             </span>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0 font-medium text-[10px]">
-            <WindowsShortcutBadge shortcut="K" />
+            <span className="text-[10px] text-neutral-500">Win + K</span>
             <span>Esc exit</span>
           </div>
         </div>

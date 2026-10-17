@@ -206,10 +206,7 @@ export const WorkspaceMinimizedView: React.FC = () => {
         </div>
 
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Workspace Minimized</span>
-          </div>
+          <p className="text-[11px] font-medium uppercase tracking-wider text-indigo-400">Workspace minimized</p>
           <h2
             className={`text-xl font-bold tracking-tight ${
               isLight ? 'text-slate-800' : 'text-neutral-100'
@@ -233,9 +230,7 @@ export const WorkspaceMinimizedView: React.FC = () => {
         >
           <Maximize2 className="w-4 h-4" />
           <span>Restore Workspace</span>
-          <span className="text-[10px] font-medium opacity-60 ml-1 px-1.5 py-0.5 rounded bg-black/20">
-            Esc
-          </span>
+          <span className="text-[10px] font-medium opacity-60 ml-1">Esc</span>
         </button>
       </div>
 

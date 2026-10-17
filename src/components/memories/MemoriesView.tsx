@@ -888,7 +888,7 @@ export const MemoriesView: React.FC = () => {
 
             <div className="flex items-center gap-2 w-full sm:w-auto text-xs">
               {searchQuery && (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
+                <span className="text-[10px] font-medium text-indigo-400 whitespace-nowrap">
                   Fuzzy: {filteredMemories.length} match{filteredMemories.length === 1 ? '' : 'es'}
                 </span>
               )}
@@ -950,46 +950,29 @@ export const MemoriesView: React.FC = () => {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-2 flex-1">
-                    {/* Header Badges & Title */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* Classification Badge */}
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-medium border ${meta.badgeClass}`}
-                      >
+                    {/* Plain metadata labels */}
+                    <div className={`flex items-center gap-3 flex-wrap text-[11px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                      <span className="inline-flex items-center gap-1.5 font-medium">
                         {meta.icon}
                         <span>{meta.label}</span>
                         {meta.sublabel && meta.sublabel !== meta.label && (
-                          <span className={`${isLight ? 'text-slate-500' : 'text-neutral-400'} font-sans`}>• {meta.sublabel}</span>
+                          <span className="font-sans">• {meta.sublabel}</span>
                         )}
                       </span>
-
-                      {/* Associated Agent Pill if not already in badge */}
                       {boundAgent && mem.type !== 'agent_memory' && (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium ${
-                          isLight
-                            ? 'bg-slate-100 border-slate-200 text-slate-600'
-                            : 'bg-neutral-950 border-neutral-800 text-neutral-400'
-                        }`}>
-                          <Bot className={`w-2.5 h-2.5 ${isLight ? 'text-slate-500' : 'text-neutral-500'}`} />
+                        <span className="inline-flex items-center gap-1">
+                          <Bot className="w-3 h-3" />
                           <span>{boundAgent.name}</span>
                         </span>
                       )}
-
-                      {/* Associated Project Pill if not already in badge */}
                       {boundProject && mem.type !== 'project_context' && (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-medium ${
-                          isLight
-                            ? 'bg-slate-100 border-slate-200 text-slate-600'
-                            : 'bg-neutral-950 border-neutral-800 text-neutral-400'
-                        }`}>
-                          <FolderGit2 className={`w-2.5 h-2.5 ${isLight ? 'text-slate-500' : 'text-neutral-500'}`} />
+                        <span className="inline-flex items-center gap-1">
+                          <FolderGit2 className="w-3 h-3" />
                           <span>{boundProject.name}</span>
                         </span>
                       )}
-
-                      {/* Confidence Rating */}
                       {mem.confidence !== undefined && (
-                        <span className={`text-[10px] font-medium ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
+                        <span className="text-[10px]">
                           Confidence: {Math.round(mem.confidence * 100)}%
                         </span>
                       )}

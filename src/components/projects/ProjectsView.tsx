@@ -213,13 +213,7 @@ export const ProjectsView: React.FC = () => {
                   >
                     <div className="flex items-center justify-between">
                       <h3 className={`text-sm font-semibold ${isLight ? 'text-slate-900' : 'text-white'}`}>{proj.name}</h3>
-                      <span
-                        className={`text-[10px] font-medium uppercase px-2 py-0.5 rounded border ${
-                          isLight
-                            ? 'bg-slate-100 border-slate-200 text-slate-600'
-                            : 'bg-[#0E121B] border-white/5 text-neutral-400'
-                        }`}
-                      >
+                      <span className={`text-[10px] font-medium uppercase ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
                         {proj.status}
                       </span>
                     </div>
@@ -386,11 +380,7 @@ export const ProjectsView: React.FC = () => {
                       }`}
                     >
                       <span className="truncate">{t.title}</span>
-                      <span className={`text-[10px] font-medium uppercase px-2 py-0.5 rounded border ${
-                        isLight
-                          ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                          : 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20'
-                      }`}>
+                      <span className={`text-[10px] font-medium uppercase ${isLight ? 'text-indigo-700' : 'text-indigo-400'}`}>
                         {t.status}
                       </span>
                     </div>

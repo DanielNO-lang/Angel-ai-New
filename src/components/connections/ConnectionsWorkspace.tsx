@@ -2,7 +2,6 @@
  * ANGEL AI — Master Connections & Ecosystem Integrations Workspace
  * Production management for:
  * - GitHub (Real repository inspection, branch listing, file viewing, issues, PRs)
- * - Vercel (Project discovery, live deployment monitoring, redeployment trigger)
  * - Supabase (PostgreSQL schema validation, RLS auditing, multi-entity cloud sync)
  * - Zapier & Outbound Webhooks (HMAC secret verification, delivery logs, event dispatch)
  * - Google Workspace (OAuth scopes, Drive/Calendar/Sheets/Docs permissions)
@@ -15,27 +14,21 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  ExternalLink,
   Shield,
-  Layers,
   Database,
   Radio,
-  Play,
   Terminal,
   FileCode,
   Folder,
   Send,
   Lock,
-  Globe,
   Zap,
-  ArrowRight,
-  Server,
   Cloud,
   Cpu,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 
-export type IntegrationTab = 'github' | 'vercel' | 'supabase' | 'webhooks' | 'google';
+export type IntegrationTab = 'github' | 'supabase' | 'webhooks' | 'google';
 
 export const ConnectionsWorkspace: React.FC = () => {
   const { settings, tasks, memories, projects, isGuest } = useAngel();
@@ -53,12 +46,6 @@ export const ConnectionsWorkspace: React.FC = () => {
   const [ghIssues, setGhIssues] = useState<any[]>([]);
   const [selectedFileContent, setSelectedFileContent] = useState<string | null>(null);
 
-  // Vercel state
-  const [vercelStatus, setVercelStatus] = useState<{ success: boolean; user?: string; message: string } | null>(null);
-  const [vercelProjects, setVercelProjects] = useState<any[]>([]);
-  const [vercelDeployments, setVercelDeployments] = useState<any[]>([]);
-  const [isDeploying, setIsDeploying] = useState(false);
-
   // Supabase state
   const [supabaseStats, setSupabaseStats] = useState<any | null>(null);
   const [ddlCode, setDdlCode] = useState<string | null>(null);
@@ -71,7 +58,6 @@ export const ConnectionsWorkspace: React.FC = () => {
   // Load initial status on mount
   useEffect(() => {
     loadGitHubDetails();
-    loadVercelDetails();
     loadSupabaseDetails();
   }, []);
 
@@ -100,22 +86,6 @@ export const ConnectionsWorkspace: React.FC = () => {
     }
   };
 
-  const loadVercelDetails = async () => {
-    try {
-      const testRes = await fetch('/api/integrations/vercel/test');
-      const testData = await testRes.json();
-      setVercelStatus(testData);
-
-      const projRes = await fetch('/api/integrations/vercel/projects');
-      if (projRes.ok) setVercelProjects(await projRes.json());
-
-      const depRes = await fetch('/api/integrations/vercel/deployments');
-      if (depRes.ok) setVercelDeployments(await depRes.json());
-    } catch (err) {
-      console.warn('[Vercel load error]', err);
-    }
-  };
-
   const loadSupabaseDetails = async () => {
     try {
       const velRes = await fetch('/api/supabase/velocity');
@@ -125,25 +95,6 @@ export const ConnectionsWorkspace: React.FC = () => {
       if (ddlRes.ok) setDdlCode(await ddlRes.text());
     } catch (err) {
       console.warn('[Supabase load error]', err);
-    }
-  };
-
-  const handleTriggerVercelDeploy = async () => {
-    setIsDeploying(true);
-    setStatusMessage({ type: 'info', text: 'Dispatching Vercel production build...' });
-    try {
-      const res = await fetch('/api/integrations/vercel/trigger_deploy', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setStatusMessage({ type: 'success', text: data.message });
-        loadVercelDetails();
-      } else {
-        setStatusMessage({ type: 'error', text: data.message });
-      }
-    } catch (err) {
-      setStatusMessage({ type: 'error', text: String(err) });
-    } finally {
-      setIsDeploying(false);
     }
   };
 
@@ -213,9 +164,6 @@ export const ConnectionsWorkspace: React.FC = () => {
           <div className="flex items-center gap-2">
             <Radio className="w-5 h-5 text-indigo-400" />
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Connections & Integrations</h1>
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              Verified Pipeline
-            </span>
           </div>
           <p className="text-xs text-neutral-400 mt-1">
             Real authenticated bridges connecting Angel AI to source code repositories, deployment runtimes, cloud databases, and automation webhooks.
@@ -223,10 +171,10 @@ export const ConnectionsWorkspace: React.FC = () => {
         </div>
 
         {isGuest && (
-          <div className="px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs flex items-center gap-2">
+          <p className="text-xs text-amber-500 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>Guest Mode: Read-only diagnostics active</span>
-          </div>
+          </p>
         )}
       </div>
 
@@ -250,7 +198,6 @@ export const ConnectionsWorkspace: React.FC = () => {
       <div className="flex items-center gap-1.5 border-b border-white/10 pb-2 overflow-x-auto custom-scrollbar">
         {[
           { id: 'github', label: 'GitHub', icon: Github, active: ghStatus?.success },
-          { id: 'vercel', label: 'Vercel', icon: Globe, active: vercelStatus?.success },
           { id: 'supabase', label: 'Supabase Cloud', icon: Database, active: supabaseStats?.isSupabaseConnected },
           { id: 'webhooks', label: 'Zapier & Webhooks', icon: Zap, active: true },
           { id: 'google', label: 'Google Services', icon: Cloud, active: false },
@@ -287,7 +234,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Github className="w-4 h-4 text-indigo-400" />
                   Authentication Status
                 </span>
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${ghStatus?.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                <span className={`text-[10px] font-medium ${ghStatus?.success ? 'text-emerald-400' : 'text-amber-400'}`}>
                   {ghStatus?.success ? 'Connected' : 'Token Required'}
                 </span>
               </div>
@@ -393,13 +340,9 @@ export const ConnectionsWorkspace: React.FC = () => {
                         <span className="font-semibold text-neutral-200 truncate">#{issue.number} {issue.title}</span>
                         <span className="text-[10px] font-medium text-emerald-400">@{issue.author}</span>
                       </div>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {issue.labels.map((l: string) => (
-                          <span key={l} className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-white/5">
-                            {l}
-                          </span>
-                        ))}
-                      </div>
+                      {issue.labels.length > 0 && (
+                        <p className="text-[10px] text-neutral-500">Labels: {issue.labels.join(', ')}</p>
+                      )}
                     </div>
                   ))
                 )}
@@ -422,99 +365,7 @@ export const ConnectionsWorkspace: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 2: Vercel */}
-      {activeTab === 'vercel' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className={`p-4 rounded-2xl border ${isLight ? 'bg-white border-slate-200' : 'bg-neutral-900/60 border-white/10'} space-y-3`}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold flex items-center gap-1.5">
-                  <Globe className="w-4 h-4 text-blue-400" />
-                  Vercel Connection
-                </span>
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${vercelStatus?.success ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-                  {vercelStatus?.success ? 'Connected' : 'Token Configured'}
-                </span>
-              </div>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                {vercelStatus?.message || 'Monitoring Vercel production edge deployment...'}
-              </p>
-              <button
-                onClick={handleTriggerVercelDeploy}
-                disabled={isDeploying || isGuest}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-xs transition-all cursor-pointer"
-              >
-                <Play className={`w-3.5 h-3.5 ${isDeploying ? 'animate-spin' : ''}`} />
-                <span>{isDeploying ? 'Deploying...' : 'Trigger Production Redeploy'}</span>
-              </button>
-            </div>
-
-            <div className={`p-4 rounded-2xl border ${isLight ? 'bg-white border-slate-200' : 'bg-neutral-900/60 border-white/10'} space-y-2`}>
-              <span className="text-xs font-semibold flex items-center gap-1.5">
-                <Server className="w-4 h-4 text-indigo-400" />
-                Target Project Details
-              </span>
-              <div className="text-sm font-bold text-neutral-100">
-                {vercelProjects[0]?.name || 'angel-ai-workspace'}
-              </div>
-              <div className="text-xs text-neutral-400">
-                Framework: <code className="bg-neutral-950 px-1 py-0.5 rounded text-neutral-300">vite</code>
-              </div>
-              <div className="text-[11px] font-medium text-neutral-500 pt-2">
-                Project ID: {vercelProjects[0]?.id || 'prj_angel_default'}
-              </div>
-            </div>
-
-            <div className={`p-4 rounded-2xl border ${isLight ? 'bg-white border-slate-200' : 'bg-neutral-900/60 border-white/10'} space-y-2`}>
-              <span className="text-xs font-semibold flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-emerald-400" />
-                Vercel Security Boundary
-              </span>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                Tokens are stored on server-side runtime secrets. Client browser never has access to VERCEL_TOKEN credentials.
-              </p>
-              <span className="text-[10px] font-medium text-emerald-400 block pt-1">
-                ✓ Serverless Proxy Routing Active
-              </span>
-            </div>
-          </div>
-
-          {/* Deployments List */}
-          <div className={`p-4 rounded-2xl border ${isLight ? 'bg-white border-slate-200' : 'bg-neutral-900/60 border-white/10'} space-y-3`}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold flex items-center gap-1.5">
-                <Layers className="w-4 h-4 text-blue-400" />
-                Recent Vercel Production Deployments
-              </span>
-              <span className="text-[10px] font-medium text-neutral-500">{vercelDeployments.length} logged</span>
-            </div>
-            <div className="space-y-2">
-              {vercelDeployments.map((d) => (
-                <div key={d.uid} className="p-3 rounded-xl bg-neutral-950/60 border border-white/5 flex items-center justify-between text-xs">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${d.state === 'READY' ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-                      <span className="font-semibold text-neutral-200">{d.commitMessage || d.name}</span>
-                      <span className="text-[10px] font-medium text-neutral-500">({d.state})</span>
-                    </div>
-                    {d.url && (
-                      <a href={d.url} target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline flex items-center gap-1 text-[11px] font-medium">
-                        <span>{d.url}</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-                  <span className="text-[10px] font-medium text-neutral-500">
-                    {new Date(d.created).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 3: Supabase */}
+      {/* Tab 2: Supabase */}
       {activeTab === 'supabase' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -524,7 +375,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                   <Database className="w-4 h-4 text-emerald-400" />
                   PostgreSQL Sync Engine
                 </span>
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${supabaseStats?.isSupabaseConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                <span className={`text-[10px] font-medium ${supabaseStats?.isSupabaseConnected ? 'text-emerald-400' : 'text-amber-400'}`}>
                   {supabaseStats?.isSupabaseConnected ? 'Live Database' : 'Local Fallback'}
                 </span>
               </div>
@@ -657,7 +508,7 @@ export const ConnectionsWorkspace: React.FC = () => {
             {['Google Drive (Files & References)', 'Google Calendar (Schedule Sync)', 'Google Docs (Document Export)', 'Google Sheets (Data Analysis)'].map((scope) => (
               <div key={scope} className="p-3 rounded-xl bg-neutral-950/60 border border-white/5 flex items-center justify-between">
                 <span className="text-neutral-300">{scope}</span>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-neutral-800 text-neutral-400">OAuth Ready</span>
+                <span className="text-[10px] text-neutral-400">Status: OAuth Ready</span>
               </div>
             ))}
           </div>

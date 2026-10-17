@@ -161,9 +161,7 @@ export const IncognitoView: React.FC = () => {
               <span className="font-semibold text-xs text-purple-200 tracking-tight">
                 INCOGNITO MODE
               </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                Stealth Active
-              </span>
+              <span className="text-[10px] text-purple-400">Stealth Active</span>
             </div>
             <p className="text-[10px] text-neutral-400 hidden sm:block">
               Zero telemetry • No history stored • Exits cleanly

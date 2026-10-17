@@ -474,24 +474,9 @@ export const VoiceModeView: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-bold tracking-tight">Voice Mode</h2>
-              <span
-                className={`text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center gap-1.5 ${
-                  isSpeaking
-                    ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
-                    : isListening
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-neutral-500/10 text-neutral-400 border border-neutral-500/20'
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    isSpeaking
-                      ? 'bg-purple-400 animate-ping'
-                      : isListening
-                      ? 'bg-emerald-400 animate-pulse'
-                      : 'bg-neutral-500'
-                  }`}
-                />
+              <span className={`text-[10px] font-medium ${
+                isSpeaking ? 'text-purple-400' : isListening ? 'text-emerald-400' : 'text-neutral-400'
+              }`}>
                 {isSpeaking ? 'Angel Speaking' : isListening ? 'Live Listening' : 'Paused'}
               </span>
             </div>
@@ -535,7 +520,7 @@ export const VoiceModeView: React.FC = () => {
 
       {/* Incognito Banner Notification */}
       {isIncognitoActive && (
-        <div className="mx-auto my-1 px-4 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[11px] flex items-center gap-2 z-20 animate-in fade-in">
+        <div className="mx-auto my-1 text-indigo-400 text-[11px] flex items-center gap-2 z-20 animate-in fade-in">
           <Shield className="w-3 h-3" />
           <span>Zero-retention voice session: audio and transcripts are never stored in memory.</span>
         </div>

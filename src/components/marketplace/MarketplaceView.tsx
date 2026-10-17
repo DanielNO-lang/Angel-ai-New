@@ -27,7 +27,6 @@ import {
   Upload,
   Plus,
   ExternalLink,
-  CheckCircle2,
   X,
   Share2,
 } from 'lucide-react';
@@ -269,7 +268,7 @@ export const MarketplaceView: React.FC = () => {
                 }`}
               >
                 <div>
-                  {/* Top Bar: Icon, Author, and Verified Badge */}
+                  {/* Marketplace item author and version */}
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <div className="flex items-center gap-2.5">
                       <span
@@ -285,16 +284,13 @@ export const MarketplaceView: React.FC = () => {
                         <div className="text-[10px] font-medium text-neutral-400 flex items-center gap-1">
                           <span>{item.author}</span>
                           {(item.isOfficial || item.authorVerified) && (
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400 inline" />
+                            <span className="text-[9px] text-emerald-500">Verified</span>
                           )}
                         </div>
                         <span className="text-[10px] font-medium opacity-50">v{item.version}</span>
                       </div>
                     </div>
 
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
-                      Angel v1.0+
-                    </span>
                   </div>
 
                   {/* Title & Description */}
@@ -306,18 +302,11 @@ export const MarketplaceView: React.FC = () => {
                   </p>
 
                   {/* Tags */}
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {item.tags.map((t) => (
-                      <span
-                        key={t}
-                        className={`text-[10px] px-2 py-0.5 rounded-md ${
-                          isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-neutral-300'
-                        }`}
-                      >
-                        #{t}
-                      </span>
-                    ))}
-                  </div>
+                  {item.tags.length > 0 && (
+                    <p className={`text-[10px] mb-4 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
+                      {item.tags.map((tag) => `#${tag}`).join(' · ')}
+                    </p>
+                  )}
                 </div>
 
                 {/* Footer: Rating, Reviews, and Install Button */}

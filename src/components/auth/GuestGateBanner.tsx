@@ -38,7 +38,7 @@ export const GuestGateBanner: React.FC<GuestGateBannerProps> = ({
           <span className="text-xs font-bold uppercase tracking-wider text-indigo-500">
             Account Required
           </span>
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+          <span className="text-[10px] font-medium text-indigo-400">
             Guest Mode: Temporary Session
           </span>
         </div>

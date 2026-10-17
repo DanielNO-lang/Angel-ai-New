@@ -4,12 +4,73 @@ import { createServer } from 'node:http';
 import { routeAngelVoiceUtterance } from '../src/services/voice/voiceCommandRouter';
 import { listAngelSkills, buildAngelSkillContext } from '../server/services/angelSkillsService';
 import { handleAngelMcpMessage } from '../server/services/mcpGatewayService';
+import { handler as netlifyApiHandler, normalizeNetlifyApiEvent } from '../netlify/functions/api';
+import { providerRegistry, GeminiProvider, OpenAICompatibleProvider } from '../server/providers';
 import { generateWithQwenImage, QwenImageError } from '../server/services/qwenImageService';
 
+
+test('Netlify API path normalization', () => {
+  assert.equal(normalizeNetlifyApiEvent({ path: '/.netlify/functions/api/health' }).path, '/api/health');
+  assert.equal(normalizeNetlifyApiEvent({ path: '/health' }).path, '/api/health');
+  assert.equal(normalizeNetlifyApiEvent({ path: '/api/integrations/status' }).path, '/api/integrations/status');
+  assert.equal(normalizeNetlifyApiEvent({ rawUrl: 'https://example.net/.netlify/functions/api/translation/status' }).path, '/api/translation/status');
+});
+
+test('Netlify function handler serves the health endpoint through the function rewrite', async () => {
+  const response = await netlifyApiHandler({ path: '/.netlify/functions/api/health' }, {});
+  assert.equal(response.statusCode, 200, 'Netlify function should successfully initialize and dispatch to Express');
+  const body = JSON.parse(response.body || '{}') as { status?: string; workspace?: string; platform?: string };
+  assert.equal(body.status, 'ok');
+  assert.equal(body.workspace, 'Angel AI');
+  assert.equal(body.platform, 'netlify');
+});
 
 // Prevent the standalone development listener from starting when importing server.ts.
 process.env.NETLIFY = 'true';
 const { createApp } = await import('../server.ts');
+
+test('official OpenAI endpoint is disabled until paid usage is explicitly enabled', () => {
+  const previousKey = process.env.OPENAI_API_KEY;
+  const previousBaseUrl = process.env.OPENAI_BASE_URL;
+  const previousPaidOptIn = process.env.ANGEL_ENABLE_PAID_OPENAI_API;
+  try {
+    process.env.OPENAI_API_KEY = 'test-only-openai-key';
+    delete process.env.OPENAI_BASE_URL;
+    delete process.env.ANGEL_ENABLE_PAID_OPENAI_API;
+    const officialProvider = new OpenAICompatibleProvider();
+    assert.equal(officialProvider.isConfigured(), false,
+      'an API key alone must not enable the paid official OpenAI endpoint');
+
+    process.env.ANGEL_ENABLE_PAID_OPENAI_API = 'true';
+    assert.equal(officialProvider.isConfigured(), true,
+      'official OpenAI can be enabled with an explicit opt-in');
+    
+    delete process.env.ANGEL_ENABLE_PAID_OPENAI_API;
+    process.env.OPENAI_BASE_URL = 'https://compatible.example/v1';
+    const compatibleProvider = new OpenAICompatibleProvider();
+    assert.equal(compatibleProvider.isConfigured(), true,
+      'custom OpenAI-compatible endpoints remain available when explicitly configured');
+  } finally {
+    if (previousKey === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = previousKey;
+    if (previousBaseUrl === undefined) delete process.env.OPENAI_BASE_URL; else process.env.OPENAI_BASE_URL = previousBaseUrl;
+    if (previousPaidOptIn === undefined) delete process.env.ANGEL_ENABLE_PAID_OPENAI_API;
+    else process.env.ANGEL_ENABLE_PAID_OPENAI_API = previousPaidOptIn;
+  }
+});
+
+test('model catalog respects missing Gemini credentials', () => {
+  const previousGeminiKey = process.env.GEMINI_API_KEY;
+  try {
+    delete process.env.GEMINI_API_KEY;
+    const geminiModels = providerRegistry.getModelCatalog().filter((model) => model.provider === 'gemini');
+    assert.ok(geminiModels.length > 0, 'Gemini models should remain discoverable in the catalog');
+    assert.ok(geminiModels.every((model) => !model.isAvailable),
+      'Gemini models must not appear available without GEMINI_API_KEY');
+  } finally {
+    if (previousGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = previousGeminiKey;
+  }
+});
 
 test('Angel backend smoke contract', async (t) => {
   const app = await createApp({ isServerless: true });
@@ -31,6 +92,23 @@ test('Angel backend smoke contract', async (t) => {
   const healthBody = await health.json() as { status?: string; workspace?: string };
   assert.equal(healthBody.status, 'ok');
   assert.equal(healthBody.workspace, 'Angel AI');
+
+  const integrationStatus = await fetch(`${baseUrl}/api/integrations/status`);
+  assert.equal(integrationStatus.status, 200, 'integration status must return a safe diagnostic summary');
+  const integrationPayload = await integrationStatus.json() as {
+    gemini?: { configured?: boolean };
+    supabase?: { configured?: boolean };
+    openai?: { configured?: boolean };
+    github?: { configured?: boolean };
+    zapier?: { configured?: boolean };
+  };
+  assert.ok(integrationPayload.gemini && typeof integrationPayload.gemini.configured === 'boolean');
+  assert.ok(integrationPayload.supabase && typeof integrationPayload.supabase.configured === 'boolean');
+  assert.ok(integrationPayload.openai && typeof integrationPayload.openai.configured === 'boolean');
+  assert.ok(integrationPayload.github && typeof integrationPayload.github.configured === 'boolean');
+  assert.ok(integrationPayload.zapier && typeof integrationPayload.zapier.configured === 'boolean');
+  assert.doesNotMatch(JSON.stringify(integrationPayload), /sk-[A-Za-z0-9]{12,}|service_role.{0,20}[A-Za-z0-9_-]{20,}/i,
+    'integration diagnostics must not disclose credential-like values');
 
   const providers = await fetch(`${baseUrl}/api/ai/providers`);
   assert.equal(providers.status, 200);
@@ -104,18 +182,6 @@ test('Angel backend smoke contract', async (t) => {
   });
   assert.equal(invalidTranslation.status, 400, 'translation endpoint must validate target language');
 
-  const invalidMultiReference = await fetch(`${baseUrl}/api/media/edit`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      baseImageBase64: 'data:image/png;base64,YWJj',
-      referenceImageDataUrls: ['data:image/png;base64,ZGVm'],
-      prompt: 'Combine these references',
-      modelId: 'qwen-image-2.1-turbo',
-    }),
-  });
-  assert.equal(invalidMultiReference.status, 400, 'multiple image references must require Qwen Image 2.1 Pro');
-
   // Exercise the Hy-MT2 adapter using a mocked upstream OpenAI-compatible endpoint.
   const priorBaseUrl = process.env.HYMT2_API_BASE_URL;
   const priorApiKey = process.env.HYMT2_API_KEY;
@@ -156,6 +222,39 @@ test('Angel backend smoke contract', async (t) => {
     if (priorBaseUrl === undefined) delete process.env.HYMT2_API_BASE_URL; else process.env.HYMT2_API_BASE_URL = priorBaseUrl;
     if (priorApiKey === undefined) delete process.env.HYMT2_API_KEY; else process.env.HYMT2_API_KEY = priorApiKey;
     if (priorModelId === undefined) delete process.env.HYMT2_MODEL_ID; else process.env.HYMT2_MODEL_ID = priorModelId;
+  }
+
+  // Without a hosted Hy-MT2 endpoint, translation should use the existing Gemini
+  // provider rather than requiring a separately hosted model or a paid secondary API.
+  const previousHyMT2Url = process.env.HYMT2_API_BASE_URL;
+  const originalGeminiProvider = new GeminiProvider();
+  providerRegistry.registerProvider({
+    id: 'gemini',
+    name: 'Gemini translation test double',
+    defaultModelId: 'gemini-test',
+    isConfigured: () => true,
+    generate: async () => ({ text: 'Bonjour', provider: 'gemini', modelId: 'gemini-test' }),
+  } as any);
+  delete process.env.HYMT2_API_BASE_URL;
+  try {
+    const fallbackTranslation = await nativeFetch(`${baseUrl}/api/translation/translate`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: 'Hello', sourceLanguage: 'English', targetLanguage: 'French' }),
+    });
+    assert.equal(fallbackTranslation.status, 200);
+    const fallbackBody = await fallbackTranslation.json() as {
+      success?: boolean; translation?: string; provider?: string; model?: string; fallback?: boolean;
+    };
+    assert.equal(fallbackBody.success, true);
+    assert.equal(fallbackBody.translation, 'Bonjour');
+    assert.equal(fallbackBody.provider, 'gemini');
+    assert.equal(fallbackBody.model, 'gemini-test');
+    assert.equal(fallbackBody.fallback, true);
+  } finally {
+    providerRegistry.registerProvider(originalGeminiProvider);
+    if (previousHyMT2Url === undefined) delete process.env.HYMT2_API_BASE_URL;
+    else process.env.HYMT2_API_BASE_URL = previousHyMT2Url;
   }
 
   const invalidResearch = await fetch(`${baseUrl}/api/research/search`, {
@@ -232,7 +331,6 @@ test('Angel voice routing, skills, and MCP schema validation', async () => {
   assert.equal((validCall.body as any).result?.content?.[0]?.type, 'text');
   assert.match((validCall.body as any).result?.content?.[0]?.text || '', /translated:Hello/);
 });
-
 
 test('Qwen Image 2.1 Pro sends ordered multi-reference images and enforces provider limits', async () => {
   const priorBaseUrl = process.env.QWEN_IMAGE_API_BASE_URL;

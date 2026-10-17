@@ -466,10 +466,10 @@ export const ChatView: React.FC = () => {
                                 <span className="font-semibold">{tc.toolName}</span>
                               </div>
                               <span
-                                className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                className={`text-[10px] font-medium ${
                                   tc.status === 'completed'
-                                    ? 'bg-emerald-500/10 text-emerald-500'
-                                    : 'bg-amber-500/10 text-amber-500'
+                                    ? 'text-emerald-500'
+                                    : 'text-amber-500'
                                 }`}
                               >
                                 {tc.status}
@@ -558,7 +558,7 @@ export const ChatView: React.FC = () => {
               {attachments.map((att) => (
                 <div
                   key={att.id}
-                  className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-white dark:bg-[#1B2542] text-xs shadow-2xs"
+                  className="flex items-center gap-2 text-xs"
                 >
                   <span className="truncate max-w-[140px]">{att.name}</span>
                   <button

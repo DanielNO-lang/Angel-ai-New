@@ -118,9 +118,7 @@ export const PluginsView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Plugins & Extensibility Layer</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Sandboxed Engine
-                </span>
+
               </div>
               <p className="text-xs text-neutral-400 mt-1">
                 Verified third-party connectors, manifest permission validation, and dynamic settings schema.
@@ -196,7 +194,7 @@ export const PluginsView: React.FC = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm">{plugin.name}</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-300">
+                          <span className="text-[10px] text-neutral-500">
                             v{plugin.version}
                           </span>
                         </div>
@@ -257,16 +255,7 @@ export const PluginsView: React.FC = () => {
                     <Shield className="w-4 h-4 text-emerald-400" />
                     Security Permission Manifest
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPlugin.permissions.map((perm) => (
-                      <span
-                        key={perm}
-                        className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-medium text-xs"
-                      >
-                        {perm}
-                      </span>
-                    ))}
-                  </div>
+                  <p className="text-xs text-emerald-300">{selectedPlugin.permissions.join(' · ') || 'No permissions declared'}</p>
                 </div>
 
                 {/* Provided Tools & Capabilities */}
@@ -275,20 +264,11 @@ export const PluginsView: React.FC = () => {
                     <Wrench className="w-4 h-4 text-indigo-400" />
                     Injected Tools Registered in Workspace Tool Registry
                   </span>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedPlugin.providedTools.length === 0 ? (
-                      <span className="text-neutral-500 text-xs italic">No direct tools injected.</span>
-                    ) : (
-                      selectedPlugin.providedTools.map((tool) => (
-                        <span
-                          key={tool}
-                          className="px-2.5 py-1 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 font-medium text-xs"
-                        >
-                          {tool}
-                        </span>
-                      ))
-                    )}
-                  </div>
+                  {selectedPlugin.providedTools.length === 0 ? (
+                    <p className="text-neutral-500 text-xs italic">No direct tools injected.</p>
+                  ) : (
+                    <p className="text-xs text-indigo-300">{selectedPlugin.providedTools.join(' · ')}</p>
+                  )}
                 </div>
 
                 {/* Lifecycle Hooks */}
@@ -404,9 +384,7 @@ export const PluginsView: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-base text-emerald-400">{concept.concept}</span>
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300">
-                      Core Concept
-                    </span>
+
                   </div>
 
                   <p className="text-xs text-neutral-300 leading-relaxed">{concept.definition}</p>
