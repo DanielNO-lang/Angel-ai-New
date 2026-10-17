@@ -913,69 +913,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
   }, [sessionToken]);
 
-  // Centralized autosave engine: frequent, change-detected local persistence with cloud queue processing.
-  useEffect(() => {
-    const AUTOSAVE_INTERVAL_MS = 10000;
+  // Stable 30-second autosave clock. Latest state is read through a ref so frequent UI changes
+  // do not reset the timer and postpone persistence indefinitely.
+  const autosaveSnapshotRef = useRef({
+    tasks, memories, projects, workflows, conversations, messagesMap, agents, libraryItems,
+    assistants: assistantsList, activeTab, theme: settings.theme, syncStatus, isGuest,
+  });
+  autosaveSnapshotRef.current = {
+    tasks, memories, projects, workflows, conversations, messagesMap, agents, libraryItems,
+    assistants: assistantsList, activeTab, theme: settings.theme, syncStatus, isGuest,
+  };
+  const autosaveRunnerRef = useRef<() => Promise<void>>(async () => {});
+  autosaveRunnerRef.current = async () => {
+    const snapshot = autosaveSnapshotRef.current;
+    try {
+      if (snapshot.isGuest) return;
+      const currentFingerprint = JSON.stringify({
+        tasks: snapshot.tasks, memories: snapshot.memories, projects: snapshot.projects,
+        workflows: snapshot.workflows, conversations: snapshot.conversations,
+        messagesMap: snapshot.messagesMap, agents: snapshot.agents, libraryItems: snapshot.libraryItems,
+        assistants: snapshot.assistants, activeTab: snapshot.activeTab,
+        theme: snapshot.theme, syncStatus: snapshot.syncStatus,
+      });
+      if (currentFingerprint === lastSavedFingerprintRef.current) return;
 
-    const performAutosave = async () => {
-      try {
-        if (isGuest) return;
-        // Fingerprint full persisted state so edits to existing messages and settings are not missed.
-        const currentFingerprint = JSON.stringify({
-          tasks, memories, projects, workflows, conversations, messagesMap,
-          agents, libraryItems, assistants: assistantsList, activeTab,
-          theme: settings.theme, syncStatus,
+      await syncWorkspaceToIndexedDB({
+        conversations: snapshot.conversations,
+        messagesMap: snapshot.messagesMap,
+        tasks: snapshot.tasks,
+        memories: snapshot.memories,
+        projects: snapshot.projects,
+        workflows: snapshot.workflows,
+        agents: snapshot.agents,
+        libraryItems: snapshot.libraryItems,
+        assistants: snapshot.assistants,
+        activeTab: snapshot.activeTab,
+        theme: snapshot.theme,
+        syncStatus: snapshot.syncStatus,
+      });
+
+      lastSavedFingerprintRef.current = currentFingerprint;
+      setLastAutosavedAt(new Date().toISOString());
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        void syncService.processQueue().catch((error) => {
+          console.warn('[AppContext] Autosave queue processing deferred:', error);
         });
-
-        // Only persist if data actually changed since last autosave (avoids unnecessary writes)
-        if (currentFingerprint === lastSavedFingerprintRef.current) {
-          return;
-        }
-
-        await syncWorkspaceToIndexedDB({
-          conversations,
-          messagesMap,
-          tasks,
-          memories,
-          projects,
-          workflows,
-          agents,
-          libraryItems,
-          assistants: assistantsList,
-          activeTab,
-          theme: settings.theme,
-          syncStatus,
-        });
-
-        lastSavedFingerprintRef.current = currentFingerprint;
-        setLastAutosavedAt(new Date().toISOString());
-
-        // Cooperate with syncService if online and user is authenticated
-        if (!isGuest && typeof navigator !== 'undefined' && navigator.onLine) {
-          syncService.processQueue();
-        }
-      } catch (err) {
-        console.warn('[AppContext] Centralized autosave caught error:', err);
       }
-    };
+    } catch (err) {
+      console.warn('[AppContext] Centralized autosave caught error:', err);
+    }
+  };
 
-    const timer = setInterval(performAutosave, AUTOSAVE_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [
-    tasks,
-    memories,
-    projects,
-    workflows,
-    conversations,
-    messagesMap,
-    agents,
-    libraryItems,
-    assistantsList,
-    activeTab,
-    settings.theme,
-    syncStatus,
-    isGuest,
-  ]);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void autosaveRunnerRef.current();
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Fetch backend integration health
   const refreshIntegrations = async () => {
