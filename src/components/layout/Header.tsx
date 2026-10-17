@@ -1,44 +1,29 @@
 /**
  * ANGEL AI — Top Workspace Navigation & Status Bar
  * Matches user requirements:
- * - Search bar with Windows shortcut badge
+ * - Workspace navigation and search hints
  * - "Share" button
  * - "Try Plus Free" pill button
  * - Appearance trigger
  * - Theme toggle (Sun / Moon)
- * - Notification Bell with active dot
+ * - Notification Center
  * - User Profile Avatar trigger ("DD" Danny Davis)
  * - Sign in / Sign up CTA buttons when in Guest mode
  * - Incognito icon at the very top right (represented by an icon, nothing more)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  Bell,
-  Menu,
   Moon,
   Flame,
   Sun,
   EyeOff,
   Check,
-  Battery,
-  BatteryCharging,
-  BatteryLow,
   Maximize2,
-  Zap,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
 import { NotificationCenter } from './NotificationCenter';
-
-interface BatteryManager extends EventTarget {
-  charging: boolean;
-  chargingTime: number;
-  dischargingTime: number;
-  level: number;
-  addEventListener(type: string, listener: EventListener): void;
-  removeEventListener(type: string, listener: EventListener): void;
-}
 
 export const Header: React.FC = () => {
   const {
@@ -55,58 +40,12 @@ export const Header: React.FC = () => {
   } = useAngel();
 
   const isLight = settings.theme === 'light';
-  const [hasUnreadNotification, setHasUnreadNotification] = useState(true);
   const [showToast, setShowToast] = useState<string | null>(null);
-
-  // Web Battery API state
-  const [batteryState, setBatteryState] = useState<{
-    level: number;
-    charging: boolean;
-    supported: boolean;
-  }>({
-    level: 100,
-    charging: true,
-    supported: false,
-  });
-
-  useEffect(() => {
-    let batteryInstance: BatteryManager | null = null;
-    const updateBattery = (battery: BatteryManager) => {
-      setBatteryState({
-        level: Math.round(battery.level * 100),
-        charging: battery.charging,
-        supported: true,
-      });
-    };
-
-    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
-      (navigator as unknown as { getBattery: () => Promise<BatteryManager> })
-        .getBattery()
-        .then((battery) => {
-          batteryInstance = battery;
-          updateBattery(battery);
-          battery.addEventListener('levelchange', () => updateBattery(battery));
-          battery.addEventListener('chargingchange', () => updateBattery(battery));
-        })
-        .catch(() => {
-          setBatteryState({ level: 100, charging: true, supported: false });
-        });
-    }
-
-    return () => {
-      if (batteryInstance) {
-        batteryInstance.removeEventListener('levelchange', () => updateBattery(batteryInstance!));
-        batteryInstance.removeEventListener('chargingchange', () => updateBattery(batteryInstance!));
-      }
-    };
-  }, []);
 
   const triggerToast = (msg: string) => {
     setShowToast(msg);
     setTimeout(() => setShowToast(null), 2500);
   };
-
-  const isPowerSaving = batteryState.level <= 20 && !batteryState.charging;
 
   // Minimized Workspace Header during Focus Mode (Deep Work)
   if (isFocusMode) {
@@ -126,25 +65,6 @@ export const Header: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Battery Status in Focus Mode */}
-          <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${
-              isPowerSaving
-                ? 'bg-amber-500/20 text-amber-500'
-                : 'bg-inherit text-inherit opacity-75'
-            }`}
-            title={`Battery: ${batteryState.level}% ${batteryState.charging ? '(Charging)' : ''}`}
-          >
-            {batteryState.charging ? (
-              <BatteryCharging className="w-3 h-3 text-emerald-500" />
-            ) : isPowerSaving ? (
-              <BatteryLow className="w-3 h-3 text-amber-500" />
-            ) : (
-              <Battery className="w-3 h-3 text-indigo-400" />
-            )}
-            <span>{batteryState.level}%</span>
-          </div>
-
           <button
             onClick={toggleFocusMode}
             className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
@@ -228,27 +148,6 @@ export const Header: React.FC = () => {
               <Flame className="w-3 h-3 text-amber-300" />
             </button>
           )}
-
-          {/* Battery Status Indicator & Power-Saving Monitor */}
-          <div
-            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium transition-colors backdrop-blur-md cursor-help ${
-              isPowerSaving
-                ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
-                : isLight
-                ? 'bg-slate-100/80 text-slate-600 border border-slate-200/60'
-                : 'bg-white/5 text-neutral-400 border border-white/5'
-            }`}
-            title={`Battery: ${batteryState.level}% ${batteryState.charging ? '(AC Connected • Fast Refresh)' : isPowerSaving ? '(Power Saver Mode • Optimized Refresh Rate)' : '(Discharging)'}`}
-          >
-            {batteryState.charging ? (
-              <BatteryCharging className="w-3.5 h-3.5 text-emerald-500" />
-            ) : isPowerSaving ? (
-              <BatteryLow className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-            ) : (
-              <Battery className="w-3.5 h-3.5 text-indigo-400" />
-            )}
-            <span className="text-[11px] font-medium">{batteryState.level}%</span>
-          </div>
 
           {/* Theme Toggle (Sun / Moon) */}
           <button
