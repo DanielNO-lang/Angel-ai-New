@@ -121,12 +121,6 @@ export const NotificationCenter: React.FC = () => {
         aria-label="Open notifications"
       >
         <Bell className="w-4 h-4" />
-        {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500 ring-2 ring-indigo-500/20"></span>
-          </span>
-        )}
       </button>
 
       {/* Notification Dropdown Panel */}
@@ -146,11 +140,6 @@ export const NotificationCenter: React.FC = () => {
           >
             <div className="flex items-center gap-2">
               <span className="font-semibold text-xs tracking-tight">Notifications</span>
-              {unreadCount > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-500 text-white">
-                  {unreadCount} new
-                </span>
-              )}
             </div>
 
             <div className="flex items-center gap-1.5">
