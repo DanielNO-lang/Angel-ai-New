@@ -15,7 +15,7 @@ import {
 
 
 /** Normalize transport/provider failures before displaying them to a user. */
-function describeRequestFailure(body: string, status: number, fallback: string): string {
+export function describeRequestFailure(body: string, status: number, fallback: string): string {
   let detail = body.trim();
   if (detail) {
     try {
@@ -31,7 +31,7 @@ function describeRequestFailure(body: string, status: number, fallback: string):
   return detail ? `${fallback} (HTTP ${status}): ${detail}` : `${fallback} (HTTP ${status}).`;
 }
 
-function describeUnknownFailure(error: unknown, fallback: string): string {
+export function describeUnknownFailure(error: unknown, fallback: string): string {
   if (!(error instanceof Error)) return fallback;
   const message = error.message.replace(/\s+/g, ' ').trim().slice(0, 240);
   return message || fallback;
