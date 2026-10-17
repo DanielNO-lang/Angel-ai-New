@@ -226,6 +226,91 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     return res.json({ events: getRecentSystemEvents(limit), diagnostics: getSystemDiagnostics() });
   });
 
+  // Client-side encrypted vault endpoints. Plaintext task/memory data is never accepted here.
+  const isVaultEntryType = (value: unknown): value is 'task' | 'memory' =>
+    value === 'task' || value === 'memory';
+  const isValidEncryptedPayload = (value: any): boolean =>
+    Boolean(value && value.version === 1 &&
+      value.algorithm === 'AES-256-GCM' &&
+      value.kdf === 'PBKDF2-SHA-256' &&
+      typeof value.salt === 'string' && value.salt.length <= 128 &&
+      typeof value.iv === 'string' && value.iv.length <= 128 &&
+      typeof value.ciphertext === 'string' && value.ciphertext.length > 0 &&
+      value.ciphertext.length <= 8_000_000 &&
+      typeof value.createdAt === 'string');
+
+  app.get('/api/vault/entries', requireSupabaseUser, rateLimit(30), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const entryType = req.query.entry_type;
+    if (entryType !== undefined && !isVaultEntryType(entryType)) {
+      return res.status(400).json({ error: 'entry_type must be task or memory.' });
+    }
+    try {
+      let query = auth.client.from('vault_entries')
+        .select('id, entry_type, encrypted_payload, version, updated_at')
+        .eq('user_id', auth.userId);
+      if (entryType) query = query.eq('entry_type', entryType);
+      const { data, error } = await query.order('updated_at', { ascending: false }).limit(500);
+      if (error) {
+        console.error('[Secure Vault] Read failed:', error.message);
+        return res.status(503).json({ error: 'Secure Vault cloud storage is not available. Apply the vault_entries migration first.' });
+      }
+      return res.json({ entries: data || [] });
+    } catch {
+      return res.status(500).json({ error: 'Secure Vault cloud read failed.' });
+    }
+  });
+
+  app.put('/api/vault/entries/:id', requireSupabaseUser, rateLimit(60), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const id = String(req.params.id || '');
+    const { entryType, encryptedPayload, version } = req.body || {};
+    if (!/^[A-Za-z0-9_-]{1,160}$/.test(id)) {
+      return res.status(400).json({ error: 'Vault entry id is invalid.' });
+    }
+    if (!isVaultEntryType(entryType) || !isValidEncryptedPayload(encryptedPayload)) {
+      return res.status(400).json({ error: 'A valid encrypted task or memory payload is required.' });
+    }
+    try {
+      const { data, error } = await auth.client.from('vault_entries').upsert({
+        user_id: auth.userId,
+        entry_type: entryType,
+        id,
+        encrypted_payload: encryptedPayload,
+        version: Number.isSafeInteger(version) && version > 0 ? version : 1,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,entry_type,id' })
+        .select('id, entry_type, updated_at').single();
+      if (error) {
+        console.error('[Secure Vault] Write failed:', error.message);
+        return res.status(503).json({ error: 'Secure Vault cloud storage is not available. Apply the vault_entries migration first.' });
+      }
+      return res.json({ success: true, entry: data });
+    } catch {
+      return res.status(500).json({ error: 'Secure Vault cloud write failed.' });
+    }
+  });
+
+  app.delete('/api/vault/entries/:id', requireSupabaseUser, rateLimit(30), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const id = String(req.params.id || '');
+    const { entryType } = req.body || {};
+    if (!/^[A-Za-z0-9_-]{1,160}$/.test(id) || !isVaultEntryType(entryType)) {
+      return res.status(400).json({ error: 'A valid vault entry id and type are required.' });
+    }
+    try {
+      const { error } = await auth.client.from('vault_entries').delete()
+        .eq('user_id', auth.userId).eq('entry_type', entryType).eq('id', id);
+      if (error) {
+        console.error('[Secure Vault] Delete failed:', error.message);
+        return res.status(503).json({ error: 'Secure Vault cloud storage is not available. Apply the vault_entries migration first.' });
+      }
+      return res.json({ success: true, deleted: true });
+    } catch {
+      return res.status(500).json({ error: 'Secure Vault cloud delete failed.' });
+    }
+  });
+
   // 1. Health & Workspace Diagnostics
   app.get('/api/health', (req: Request, res: Response) => {
     const supabase = getSupabaseServerStatus();
