@@ -5,7 +5,7 @@
  * AI block transformations, and bidirectional context bridges to Chat, Library, and Agent Lab.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   PenTool,
   Code,
@@ -69,6 +69,46 @@ export const CanvasView: React.FC = () => {
   const [isVersionDrawerOpen, setIsVersionDrawerOpen] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [copiedBlockId, setCopiedBlockId] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('angel_pending_capability_prompt');
+      if (!raw) return;
+      const handoff = JSON.parse(raw) as { target?: string; prompt?: string; createdAt?: number };
+      if (handoff.target !== 'canvas') return;
+      localStorage.removeItem('angel_pending_capability_prompt');
+      if (typeof handoff.prompt !== 'string' || !handoff.prompt.trim() ||
+          typeof handoff.createdAt !== 'number' || Date.now() - handoff.createdAt >= 10 * 60 * 1000) return;
+      const now = new Date().toISOString();
+      const id = \`canvas-draft-\${Date.now()}\`;
+      const draft: CanvasArtifact = {
+        id,
+        title: 'New document draft',
+        type: 'document',
+        blocks: [{
+          id: \`block-\${Date.now()}\`,
+          type: 'markdown',
+          title: 'Starting brief',
+          content: \`# New document draft\\n\\n**Starting request**\\n\\n\${handoff.prompt}\\n\\n## Draft\\n\\nBegin writing here. Review the brief and replace this section with the document you need.\`,
+        }],
+        version: 1,
+        history: [],
+        projectId: activeProjectId || undefined,
+        tags: ['home-suggestion', 'document-draft'],
+        createdAt: now,
+        updatedAt: now,
+      };
+      const updated = [draft, ...canvases];
+      setCanvases(updated);
+      saveCanvases(updated);
+      setSelectedCanvasId(id);
+      setActiveCanvasId(id);
+      setStatusMessage('Created an editable draft from your Home suggestion.');
+    } catch {
+      try { localStorage.removeItem('angel_pending_capability_prompt'); } catch {}
+    }
+  }, []);
 
   const activeCanvas = canvases.find((c) => c.id === selectedCanvasId) || canvases[0];
 
