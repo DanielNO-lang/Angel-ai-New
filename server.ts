@@ -321,7 +321,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // Explain a routing decision without exposing prompts or credentials.
   app.post('/api/models/route', (req: Request, res: Response) => {
     const task = req.body?.task;
-    const allowed: string[] = ['chat', 'research', 'vision', 'tool_calling', 'embeddings', 'coding', 'reasoning'];
+    const allowed: string[] = ['chat', 'research', 'vision', 'tool_calling', 'embeddings', 'coding', 'reasoning', 'structured_output'];
     if (typeof task !== 'string' || !allowed.includes(task)) {
       return res.status(400).json({ error: 'Provide a supported task type.', supportedTasks: allowed });
     }
