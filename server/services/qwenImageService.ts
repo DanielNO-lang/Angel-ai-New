@@ -157,7 +157,7 @@ export async function generateWithQwenImage(input: QwenImageInput): Promise<Qwen
     }
     const value = referenceImage.trim();
     if (value.startsWith('data:')) {
-      const match = value.match(/^data:(image\\/(?:png|jpeg|jpg|webp|gif|bmp|tiff));base64,([A-Za-z0-9+/]+={0,2})$/i);
+      const match = value.match(/^data:(image\/(?:png|jpeg|jpg|webp|gif|bmp|tiff));base64,([A-Za-z0-9+/]+={0,2})$/i);
       if (!match || match[2].length % 4 !== 0) {
         throw new QwenImageError('Reference image ' + (index + 1) + ' must be a valid base64 PNG, JPEG, WEBP, GIF, BMP or TIFF data URI.', 400, 'invalid_reference_image');
       }
