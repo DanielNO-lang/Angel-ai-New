@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import { Camera, MonitorUp, Square, X, Eye, LoaderCircle, Grip } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 
@@ -10,7 +11,7 @@ interface VisualModePopupProps {
 
 export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => {
   const { inspectVisualFrame, settings } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [source, setSource] = useState<Source | null>(null);
