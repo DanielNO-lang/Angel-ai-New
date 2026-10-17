@@ -916,13 +916,9 @@ export const Sidebar: React.FC = () => {
                   <Search className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                   <span>Search</span>
                 </div>
-                <kbd
-                  className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-medium ${
-                    isLight ? 'bg-slate-200/80 text-slate-500' : 'bg-white/5 text-neutral-400 border border-white/10'
-                  }`}
-                >
+                <span className={`text-[9px] font-mono font-medium ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                   Ctrl K
-                </kbd>
+                </span>
               </button>
 
               {/* 3. Home Tool */}

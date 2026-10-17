@@ -375,7 +375,7 @@ export const AutomationView: React.FC = () => {
                       <Zap className="w-4 h-4" />
                       1. Trigger Event Contract
                     </span>
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300">
+                    <span className="text-[11px] font-medium text-amber-300">
                       {selectedAutomation.trigger.type}
                     </span>
                   </div>
@@ -425,9 +425,7 @@ export const AutomationView: React.FC = () => {
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-medium font-bold flex items-center justify-center">
-                                {idx + 1}
-                              </span>
+                              <span className="text-[10px] font-semibold text-amber-400">{idx + 1}.</span>
                               <span className="text-xs font-bold">{step.name}</span>
                             </div>
                             <span className="text-[10px] font-medium uppercase opacity-60">
