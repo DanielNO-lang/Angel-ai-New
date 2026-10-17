@@ -78,12 +78,13 @@ export const ConnectionsWorkspace: React.FC = () => {
   const [testEventName, setTestEventName] = useState('task.created');
   const [webhookReceipt, setWebhookReceipt] = useState<any | null>(null);
 
-  // Load initial status on mount
+  // Load only the active integration. The previous implementation fetched every
+  // provider's details on entry, multiplying startup requests for a single section.
   useEffect(() => {
-    loadGitHubDetails();
-    loadVercelDetails();
-    loadSupabaseDetails();
-  }, []);
+    if (activeTab === 'github') void loadGitHubDetails();
+    else if (activeTab === 'vercel') void loadVercelDetails();
+    else if (activeTab === 'supabase') void loadSupabaseDetails();
+  }, [activeTab]);
 
   const loadGitHubDetails = async () => {
     setIsLoading(true);
