@@ -43,7 +43,7 @@ This document distinguishes code present in the branch from behavior verified by
 - Reports persist across reload and authorized devices once the migration is applied.
 - User A cannot list, open, or delete user B's reports.
 
-**External gate:** review and apply `20261017100000_research_artifacts.sql` in an approved test Supabase environment and configure the server-side grounding provider before a live integration test.
+**External gate:** review and apply `20261017100000_research_artifacts.sql` in an approved test Supabase environment. Server-side search can use Gemini Google Search grounding (`GEMINI_API_KEY`) with an optional Brave Search fallback (`BRAVE_SEARCH_API_KEY`). When only Brave is available or Gemini grounding fails, Angel returns real, attributed search snippets and labels them as unsynthesized; this is a degraded research path, not a substitute for a model-generated synthesis.
 
 ### 3. Persistent work artifacts
 
