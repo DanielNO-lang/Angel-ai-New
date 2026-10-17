@@ -23,6 +23,10 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Browser worker policy tests
+        run: |
+          npm install --prefix browser-worker --no-audit --no-fund
+          npm test --prefix browser-worker
       - name: Type-check
         run: npm run lint
       - name: Unit tests
