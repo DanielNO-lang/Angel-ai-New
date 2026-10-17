@@ -13,6 +13,30 @@ import {
   ToolExecutionContext,
 } from './types';
 
+
+/** Normalize transport/provider failures before displaying them to a user. */
+function describeRequestFailure(body: string, status: number, fallback: string): string {
+  let detail = body.trim();
+  if (detail) {
+    try {
+      const parsed = JSON.parse(detail);
+      detail = typeof parsed?.error === 'string' ? parsed.error : typeof parsed?.message === 'string' ? parsed.message : detail;
+    } catch {}
+  }
+  detail = detail
+    .replace(/(api[_ -]?key|authorization|bearer|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240);
+  return detail ? `${fallback} (HTTP ${status}): ${detail}` : `${fallback} (HTTP ${status}).`;
+}
+
+function describeUnknownFailure(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) return fallback;
+  const message = error.message.replace(/\s+/g, ' ').trim().slice(0, 240);
+  return message || fallback;
+}
+
 export class ConversationService {
   /**
    * Dispatches a user message through the context builder, tool discovery, and streaming model pipeline.
@@ -148,6 +172,7 @@ export class ConversationService {
     );
 
     let accumulatedText = '';
+    let streamFailure = '';
 
     try {
       let streamSucceeded = false;
@@ -165,7 +190,14 @@ export class ConversationService {
           }),
         });
 
-        if (response.ok && response.body) {
+        if (!response.ok) {
+          const details = await response.text().catch(() => '');
+          throw new Error(describeRequestFailure(details, response.status, 'Streaming request failed'));
+        }
+        if (!response.body) {
+          throw new Error('The streaming endpoint returned no response body.');
+        }
+        {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
 
@@ -215,7 +247,8 @@ export class ConversationService {
           }
         }
       } catch (streamErr) {
-        console.warn('[ConversationService] Stream attempt failed, trying single-shot generate fallback:', streamErr);
+        streamFailure = describeUnknownFailure(streamErr, 'Streaming request failed');
+        console.warn('[ConversationService] Stream attempt failed, trying single-shot generate fallback:', streamFailure);
       }
 
       // If streaming didn't produce text, fallback to /api/ai/generate
@@ -233,26 +266,30 @@ export class ConversationService {
               temperature: agent.modelConfig.temperature,
             }),
           });
-          if (genRes.ok) {
-            const genData = await genRes.json();
-            if (genData.text && genData.text.trim()) {
-              accumulatedText = genData.text.trim();
-              if (onToken) {
-                onToken(accumulatedText, accumulatedText);
-              }
-            }
+          if (!genRes.ok) {
+            const details = await genRes.text().catch(() => '');
+            throw new Error(describeRequestFailure(details, genRes.status, 'Single-shot generation failed'));
+          }
+          const genData = await genRes.json();
+          if (typeof genData.text !== 'string' || !genData.text.trim()) {
+            throw new Error('The AI provider returned an empty response.');
+          }
+          accumulatedText = genData.text.trim();
+          streamSucceeded = true;
+          if (onToken) {
+            onToken(accumulatedText, accumulatedText);
           }
         } catch (genErr) {
-          console.warn('[ConversationService] Generate fallback failed:', genErr);
+          streamFailure = describeUnknownFailure(genErr, 'Single-shot generation failed');
+          console.warn('[ConversationService] Generate fallback failed:', streamFailure);
         }
       }
 
-      // If network/provider still yielded no text, provide an intelligent deterministic response
+      // Never present a local placeholder as a successful AI answer. Preserve the request
+      // failure so AppContext can show a retry action without duplicating the user message.
       if (!accumulatedText.trim()) {
-        accumulatedText = `I have received your prompt: "${prompt}". I'm operating in connected workspace mode with your active project and memory context. How would you like me to proceed with this task?`;
-        if (onToken) {
-          onToken(accumulatedText, accumulatedText);
-        }
+        const detail = streamFailure || 'The AI provider returned no usable response.';
+        throw new Error(`Angel could not complete this response. ${detail} Please retry when the provider or connection is available.`);
       }
 
       agentExecutionLifecycle.advanceStage(
