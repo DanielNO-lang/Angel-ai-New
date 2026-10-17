@@ -12,6 +12,7 @@
  */
 
 import React, { useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Layers,
   Brain,
@@ -52,7 +53,7 @@ export const MoreToolsView: React.FC = () => {
     assistantsList,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
   const [activeSubView, setActiveSubView] = useState<MoreSubView>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSecretsModalOpen, setIsSecretsModalOpen] = useState(false);
