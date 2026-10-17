@@ -192,7 +192,7 @@ export const MediaStudioView: React.FC = () => {
 
   const prepareReferenceImage = async (source: string): Promise<string> => {
     if (source.startsWith('data:')) {
-      const mimeMatch = source.match(/^data:(image\\/(?:png|jpeg|jpg|webp|gif|bmp|tiff));base64,/i);
+      const mimeMatch = source.match(/^data:(image\/(?:png|jpeg|jpg|webp|gif|bmp|tiff));base64,/i);
       if (!mimeMatch) throw new Error('Only PNG, JPEG, WEBP, GIF, BMP or TIFF reference images are supported.');
       const bytes = dataUrlByteLength(source);
       if (bytes <= 0 || bytes > 10 * 1024 * 1024) throw new Error('Each reference image must be smaller than 10 MB.');
@@ -207,7 +207,10 @@ export const MediaStudioView: React.FC = () => {
     }
     if (!response.ok) throw new Error('Angel could not load this saved reference image.');
     const blob = await response.blob();
-    if (!blob.type.toLowerCase().startsWith('image/')) throw new Error('The selected artifact is not an image.');
+    const mimeType = blob.type.toLowerCase().split(';')[0].trim();
+    if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/bmp', 'image/tiff'].includes(mimeType)) {
+      throw new Error('Only PNG, JPEG, WEBP, GIF, BMP or TIFF reference images are supported.');
+    }
     if (blob.size <= 0 || blob.size > 10 * 1024 * 1024) throw new Error('Each reference image must be smaller than 10 MB.');
     return await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
