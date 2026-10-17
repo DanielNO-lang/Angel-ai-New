@@ -52,6 +52,7 @@ import { SUPABASE_SCHEMA_SQL } from '../../data/supabaseSchema';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConnectionsWorkspace } from '../connections/ConnectionsWorkspace';
 import { UserProfileSettings } from './UserProfileSettings';
+import { SecureVaultPanel } from './SecureVaultPanel';
 import { playThemeSound } from '../../utils/themeAudio';
 
 export type SettingsSubSection =
@@ -1149,6 +1150,8 @@ export const SettingsView: React.FC = () => {
                   Passcode credentials, session authorizations, and local data factory wipe.
                 </p>
               </div>
+
+              <SecureVaultPanel />
 
               <div className="p-5 rounded-3xl border border-red-500/20 bg-red-500/5 space-y-3">
                 <div className="flex items-center gap-2 text-red-500 font-bold text-xs">
