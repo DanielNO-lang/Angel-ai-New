@@ -537,7 +537,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // ============================================================================
 
   app.get('/api/translation/status', (_req: Request, res: Response) => {
-    res.json(getHyMT2Status());
+    const gemini = providerRegistry.getAvailableProviders().find((provider) => provider.id === 'gemini');
+    res.json({
+      ...getHyMT2Status(),
+      fallbackProvider: 'gemini',
+      fallbackConfigured: Boolean(gemini?.configured),
+    });
   });
 
   // Dedicated translation specialist; provider tokens remain server-side.
@@ -555,6 +560,65 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (!sourceLanguage || sourceLanguage.length > 80) return res.status(400).json({ error: 'sourceLanguage must be 80 characters or fewer.' });
     if (style && style.length > 500) return res.status(400).json({ error: 'style must be 500 characters or fewer.' });
     if (context && context.length > 2000) return res.status(400).json({ error: 'context must be 2,000 characters or fewer.' });
+
+    // Free-first path: use the existing Gemini provider when no dedicated Hy-MT2
+    // inference endpoint is configured. Do not send translation requests to OpenAI.
+    if (!process.env.HYMT2_API_BASE_URL?.trim()) {
+      const geminiStatus = providerRegistry.getAvailableProviders().find((provider) => provider.id === 'gemini');
+      if (!geminiStatus?.configured) {
+        return res.status(503).json({
+          error: 'Translation is unavailable. Configure Gemini or connect a Hy-MT2 inference endpoint.',
+          code: 'translation_unavailable',
+        });
+      }
+
+      const gemini = providerRegistry.getProvider('gemini');
+      const promptParts = [
+        sourceLanguage.toLowerCase() === 'auto-detect'
+          ? 'Detect the source language and translate the following text into ' + targetLanguage + '.'
+          : 'Translate the following text from ' + sourceLanguage + ' into ' + targetLanguage + '.',
+        'Output only the translated result, without explanations or introductory text.',
+        'Preserve meaning, tone, paragraph breaks, list structure, punctuation, numbers, URLs, code, markup, and placeholders wherever they are not meant to be translated.',
+      ];
+      if (style?.trim()) promptParts.push('Translation style: ' + style.trim());
+      if (context?.trim()) promptParts.push('Context: ' + context.trim());
+      promptParts.push('Text to translate:\n' + text);
+
+      const startedAt = Date.now();
+      try {
+        const result = await gemini.generate({
+          prompt: promptParts.join('\n\n'),
+          systemInstruction: 'You are Angel, a precise translation engine. Return only the translation and preserve the source formatting.',
+          modelId: gemini.defaultModelId,
+          maxTokens: 4096,
+        });
+        const translation = result.text.trim();
+        if (!translation) {
+          return res.status(502).json({
+            error: 'Gemini returned an empty translation. Please try again.',
+            code: 'empty_translation',
+            provider: 'gemini',
+          });
+        }
+        return res.json({
+          success: true,
+          translation,
+          provider: 'gemini',
+          model: result.modelId,
+          sourceLanguage,
+          targetLanguage,
+          durationMs: Date.now() - startedAt,
+          fallback: true,
+        });
+      } catch (error) {
+        console.error('[Gemini Translation]', error);
+        return res.status(502).json({
+          error: 'Gemini translation failed. Check the API quota and retry.',
+          code: 'translation_failed',
+          provider: 'gemini',
+        });
+      }
+    }
 
     try {
       const result = await translateWithHyMT2({ text, sourceLanguage, targetLanguage, style, context });
