@@ -8,11 +8,13 @@ import { GeminiProvider } from './geminiProvider.js';
 import { OpenAICompatibleProvider } from './openAICompatibleProvider.js';
 import { AIProvider } from './types.js';
 import { UNIVERSAL_MODEL_CATALOG, ModelMetadata, getAvailableModels } from './modelRegistry.js';
+import { rankAvailableModels, modelRoutingTelemetry, RoutingTask } from '../services/modelRoutingService.js';
 
 export * from './types.js';
 export { GeminiProvider } from './geminiProvider.js';
 export { OpenAICompatibleProvider } from './openAICompatibleProvider.js';
 export { UNIVERSAL_MODEL_CATALOG, getAvailableModels } from './modelRegistry.js';
+export { rankAvailableModels, modelRoutingTelemetry } from '../services/modelRoutingService.js';
 export type { ModelMetadata, ModelCapability } from './modelRegistry.js';
 
 export class ProviderRegistry {
@@ -67,6 +69,15 @@ export class ProviderRegistry {
     }
 
     return primary;
+  }
+
+  routeForTask(task: RoutingTask, preferredProvider?: string): { provider: AIProvider; model: ModelMetadata } {
+    const ranked = rankAvailableModels(this.getModelCatalog(), task, modelRoutingTelemetry.snapshot(), preferredProvider);
+    for (const model of ranked) {
+      const provider = this.providers.get(model.provider);
+      if (provider?.isConfigured()) return { provider, model };
+    }
+    throw new Error(`No configured model is currently eligible for task "${task}". Configure an eligible provider or choose an available model.`);
   }
 
   getAvailableProviders(): Array<{ id: string; name: string; configured: boolean; defaultModel: string }> {

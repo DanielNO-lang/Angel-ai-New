@@ -166,8 +166,23 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
     );
 
     // 5. EXECUTION
-    const providerId = request.modelConfig?.provider || 'gemini';
-    const modelId = request.modelConfig?.modelId || 'gemini-3.8-flash';
+    const requestedProvider = request.modelConfig?.provider;
+    const autoRoute = !requestedProvider || requestedProvider === 'auto';
+    let providerId = requestedProvider && requestedProvider !== 'auto' ? requestedProvider : 'gemini';
+    let modelId = request.modelConfig?.modelId || 'gemini-3.8-flash';
+    let provider;
+    if (autoRoute) {
+      const routed = modelRouter.routeForTask(
+        request.taskPrompt.toLowerCase().includes('research') || request.taskPrompt.toLowerCase().includes('sources')
+          ? 'research'
+          : 'chat'
+      );
+      provider = routed.provider;
+      providerId = routed.provider.id;
+      modelId = routed.model.id;
+    } else {
+      provider = modelRouter.getProvider(providerId);
+    }
     addLog('execution', `Dispatched prompt and instructions to ${providerId} (${modelId}). Awaiting generation...`, {
       provider: providerId,
       model: modelId,
@@ -191,9 +206,10 @@ ${formattedMemories || 'No specific memory overrides.'}
 ### OPERATIONAL DIRECTIVE:
 Execute with discipline and high craft. Do not invent external keys, URLs, or repository states. If you recommend new action items or detect durable user preferences, formulate them clearly.`;
 
-    const provider = modelRouter.getProvider(providerId);
-
-    const providerResponse = await provider.generate({
+    const providerStartedAt = Date.now();
+    let providerResponse;
+    try {
+      providerResponse = await provider.generate({
       prompt: request.taskPrompt,
       systemInstruction: fullSystemInstruction,
       conversationHistory: request.context?.conversationHistory?.map((m) => ({
@@ -203,7 +219,15 @@ Execute with discipline and high craft. Do not invent external keys, URLs, or re
       modelId,
       temperature: request.modelConfig?.temperature ?? 0.4,
       maxTokens: request.modelConfig?.maxTokens,
-    });
+      });
+      const { modelRoutingTelemetry } = await import('./services/modelRoutingService.js');
+      modelRoutingTelemetry.record(modelId, Boolean(providerResponse.text.trim()), Date.now() - providerStartedAt);
+      if (!providerResponse.text.trim()) throw new Error('Selected model returned an empty response.');
+    } catch (modelError) {
+      const { modelRoutingTelemetry } = await import('./services/modelRoutingService.js');
+      modelRoutingTelemetry.record(modelId, false, Date.now() - providerStartedAt);
+      throw modelError;
+    }
 
     // Execute planned tools based on generation analysis
     if (plannedTools.includes('task_manager') || (tools.includes('task_create') && lowerPrompt.includes('task'))) {

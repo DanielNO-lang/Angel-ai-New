@@ -12,7 +12,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
 import crypto from 'crypto';
 import { executeAgentPipeline } from './server/orchestrator.js';
-import { providerRegistry } from './server/providers/index.js';
+import { providerRegistry, rankAvailableModels, modelRoutingTelemetry } from './server/providers/index.js';
 import { getSupabaseServerStatus, getSupabaseClient, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
 import { automationService, AutomationEventType } from './server/services/automationService.js';
 import { dispatchZapierEvent } from './server/zapier_service.js';
@@ -309,6 +309,29 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   app.get('/api/models', (_req: Request, res: Response) => {
     res.json(providerRegistry.getModelCatalog());
+  });
+
+  // Explain a routing decision without exposing prompts or credentials.
+  app.post('/api/models/route', (req: Request, res: Response) => {
+    const task = req.body?.task;
+    const allowed: string[] = ['chat', 'research', 'vision', 'tool_calling', 'embeddings', 'coding', 'reasoning'];
+    if (typeof task !== 'string' || !allowed.includes(task)) {
+      return res.status(400).json({ error: 'Provide a supported task type.', supportedTasks: allowed });
+    }
+    try {
+      const preferredProvider = typeof req.body?.preferredProvider === 'string' ? req.body.preferredProvider : undefined;
+      const ranked = rankAvailableModels(providerRegistry.getModelCatalog(), task as any, modelRoutingTelemetry.snapshot(), preferredProvider);
+      if (!ranked.length) return res.status(503).json({ error: 'No configured model supports this task.', task });
+      const selected = ranked[0];
+      return res.json({
+        task,
+        selected: { provider: selected.provider, modelId: selected.id, name: selected.name },
+        alternatives: ranked.slice(1, 4).map((model) => ({ provider: model.provider, modelId: model.id, name: model.name })),
+        metricsScope: 'in-memory aggregate observations for this server process; not a guarantee of future performance',
+      });
+    } catch {
+      return res.status(500).json({ error: 'Model routing is temporarily unavailable.' });
+    }
   });
 
   // Real grounded web search. Sources must come from Google Search grounding metadata.
