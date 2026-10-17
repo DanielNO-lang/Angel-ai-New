@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   ArrowRight,
   Bot,
@@ -47,7 +48,7 @@ export const ProjectsView: React.FC = () => {
     setMobileMenuOpen,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>(activeProjectId || projects[0]?.id || '');
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);

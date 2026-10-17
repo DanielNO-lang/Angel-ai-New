@@ -108,7 +108,7 @@ export function getSupabaseServerStatus(): SupabaseServerStatus {
     message: isConfigured
       ? hasServiceRoleKey
         ? 'Supabase server credentials detected, including the service-role key.'
-        : 'Supabase URL and anon/publishable key detected. Privileged server-side sync may be limited by Row Level Security until SUPABASE_SERVICE_ROLE_KEY is configured.'
+        : 'Supabase URL and anon/publishable key detected. Owner-scoped browser sync uses RLS; legacy privileged server-side bulk sync is disabled.'
       : 'Supabase credentials are incomplete. Angel is running with local workspace synchronization where available.',
   };
 }
@@ -189,17 +189,9 @@ export function calculateVelocityMetrics(
 }
 
 export async function getTasksVelocity(fallbackTasks: any[] = []): Promise<TaskVelocityMetrics> {
-  const supabase = getSupabaseClient();
-  if (supabase) {
-    try {
-      const { data, error } = await supabase.from('tasks').select('*');
-      if (!error && Array.isArray(data) && data.length > 0) {
-        return calculateVelocityMetrics(data, true);
-      }
-    } catch {
-      // Fall through to fallback
-    }
-  }
+  // Never aggregate the whole tasks table with a service-role client from a public route.
+  // Until a verified user's access token is passed through to an RLS-scoped query,
+  // calculate only from the explicitly supplied workspace tasks.
   return calculateVelocityMetrics(fallbackTasks, false);
 }
 

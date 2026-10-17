@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   GitBranch,
   Github,
@@ -34,12 +35,22 @@ import {
   Cpu,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
+import { getClientSupabase } from '../../services/supabaseService';
+import { BrowserControlPanel } from './BrowserControlPanel';
 
-export type IntegrationTab = 'github' | 'vercel' | 'supabase' | 'webhooks' | 'google';
+export type IntegrationTab = 'github' | 'vercel' | 'supabase' | 'webhooks' | 'google' | 'browser';
 
 export const ConnectionsWorkspace: React.FC = () => {
-  const { settings, tasks, memories, projects, isGuest } = useAngel();
-  const isLight = settings.theme === 'light';
+  const { settings, tasks, memories, projects, isGuest, triggerManualSync } = useAngel();
+
+  const getAdminHeaders = async (): Promise<Record<string, string>> => {
+    const client = getClientSupabase();
+    if (!client) return {};
+    const result = await client.auth.getSession();
+    const token = result.data.session?.access_token;
+    return token ? { Authorization: 'Bearer ' + token } : {};
+  };
+  const isLight = useIsLightTheme(settings.theme);
 
   const [activeTab, setActiveTab] = useState<IntegrationTab>('github');
   const [isLoading, setIsLoading] = useState(false);
@@ -68,30 +79,31 @@ export const ConnectionsWorkspace: React.FC = () => {
   const [testEventName, setTestEventName] = useState('task.created');
   const [webhookReceipt, setWebhookReceipt] = useState<any | null>(null);
 
-  // Load initial status on mount
+  // Load only the active integration. The previous implementation fetched every
+  // provider's details on entry, multiplying startup requests for a single section.
   useEffect(() => {
-    loadGitHubDetails();
-    loadVercelDetails();
-    loadSupabaseDetails();
-  }, []);
+    if (activeTab === 'github') void loadGitHubDetails();
+    else if (activeTab === 'vercel') void loadVercelDetails();
+    else if (activeTab === 'supabase') void loadSupabaseDetails();
+  }, [activeTab]);
 
   const loadGitHubDetails = async () => {
     setIsLoading(true);
     try {
-      const testRes = await fetch('/api/integrations/github/test');
+      const testRes = await fetch('/api/integrations/github/test', { headers: await getAdminHeaders() });
       const testData = await testRes.json();
       setGhStatus(testData);
 
-      const repoRes = await fetch('/api/integrations/github/repo_details');
+      const repoRes = await fetch('/api/integrations/github/repo_details', { headers: await getAdminHeaders() });
       if (repoRes.ok) setGhRepo(await repoRes.json());
 
-      const branchRes = await fetch('/api/integrations/github/list_branches');
+      const branchRes = await fetch('/api/integrations/github/list_branches', { headers: await getAdminHeaders() });
       if (branchRes.ok) setGhBranches(await branchRes.json());
 
-      const filesRes = await fetch('/api/integrations/github/list_files');
+      const filesRes = await fetch('/api/integrations/github/list_files', { headers: await getAdminHeaders() });
       if (filesRes.ok) setGhFiles(await filesRes.json());
 
-      const issuesRes = await fetch('/api/integrations/github/list_issues');
+      const issuesRes = await fetch('/api/integrations/github/list_issues', { headers: await getAdminHeaders() });
       if (issuesRes.ok) setGhIssues(await issuesRes.json());
     } catch (err) {
       console.warn('[GitHub load error]', err);
@@ -102,14 +114,14 @@ export const ConnectionsWorkspace: React.FC = () => {
 
   const loadVercelDetails = async () => {
     try {
-      const testRes = await fetch('/api/integrations/vercel/test');
+      const testRes = await fetch('/api/integrations/vercel/test', { headers: await getAdminHeaders() });
       const testData = await testRes.json();
       setVercelStatus(testData);
 
-      const projRes = await fetch('/api/integrations/vercel/projects');
+      const projRes = await fetch('/api/integrations/vercel/projects', { headers: await getAdminHeaders() });
       if (projRes.ok) setVercelProjects(await projRes.json());
 
-      const depRes = await fetch('/api/integrations/vercel/deployments');
+      const depRes = await fetch('/api/integrations/vercel/deployments', { headers: await getAdminHeaders() });
       if (depRes.ok) setVercelDeployments(await depRes.json());
     } catch (err) {
       console.warn('[Vercel load error]', err);
@@ -121,7 +133,7 @@ export const ConnectionsWorkspace: React.FC = () => {
       const velRes = await fetch('/api/supabase/velocity');
       if (velRes.ok) setSupabaseStats(await velRes.json());
 
-      const ddlRes = await fetch('/api/supabase/ddl');
+      const ddlRes = await fetch('/api/supabase/ddl', { headers: await getAdminHeaders() });
       if (ddlRes.ok) setDdlCode(await ddlRes.text());
     } catch (err) {
       console.warn('[Supabase load error]', err);
@@ -130,9 +142,9 @@ export const ConnectionsWorkspace: React.FC = () => {
 
   const handleTriggerVercelDeploy = async () => {
     setIsDeploying(true);
-    setStatusMessage({ type: 'info', text: 'Dispatching Vercel production build...' });
+    setStatusMessage({ type: 'info', text: 'Requesting a Vercel deployment...' });
     try {
-      const res = await fetch('/api/integrations/vercel/trigger_deploy', { method: 'POST' });
+      const res = await fetch('/api/integrations/vercel/trigger_deploy', { method: 'POST', headers: await getAdminHeaders() });
       const data = await res.json();
       if (data.success) {
         setStatusMessage({ type: 'success', text: data.message });
@@ -149,26 +161,19 @@ export const ConnectionsWorkspace: React.FC = () => {
 
   const handleSyncAllSupabase = async () => {
     if (isGuest) {
-      setStatusMessage({ type: 'error', text: 'Guest workspaces are ephemeral and isolated from cloud persistence.' });
+      setStatusMessage({ type: 'error', text: 'Guest workspaces are local and isolated from cloud persistence.' });
       return;
     }
     setIsSyncingAll(true);
-    setStatusMessage({ type: 'info', text: 'Pushing tasks, memories, and projects to Supabase...' });
+    setStatusMessage({ type: 'info', text: 'Processing the account-scoped offline sync queue...' });
     try {
-      const res = await fetch('/api/supabase/sync-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tasks, memories, projects }),
+      await triggerManualSync();
+      setStatusMessage({
+        type: 'info',
+        text: 'Sync queue processing finished. Check the workspace Sync Status for any queued or failed records.',
       });
-      const data = await res.json();
-      if (data.success) {
-        setStatusMessage({ type: 'success', text: data.message });
-        loadSupabaseDetails();
-      } else {
-        setStatusMessage({ type: 'error', text: data.message });
-      }
     } catch (err) {
-      setStatusMessage({ type: 'error', text: String(err) });
+      setStatusMessage({ type: 'error', text: err instanceof Error ? err.message : String(err) });
     } finally {
       setIsSyncingAll(false);
     }
@@ -179,7 +184,7 @@ export const ConnectionsWorkspace: React.FC = () => {
     try {
       const res = await fetch('/api/webhooks/test-dispatch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...await getAdminHeaders() },
         body: JSON.stringify({
           event: testEventName,
           data: { timestamp: new Date().toISOString(), workspace: 'Angel AI', triggeredBy: 'ConnectionsWorkspace' },
@@ -195,7 +200,7 @@ export const ConnectionsWorkspace: React.FC = () => {
 
   const handleViewFile = async (path: string) => {
     try {
-      const res = await fetch(`/api/integrations/github/file_content?path=${encodeURIComponent(path)}`);
+      const res = await fetch(`/api/integrations/github/file_content?path=${encodeURIComponent(path)}`, { headers: await getAdminHeaders() });
       if (res.ok) {
         const data = await res.json();
         setSelectedFileContent(data.content);
@@ -214,7 +219,7 @@ export const ConnectionsWorkspace: React.FC = () => {
             <Radio className="w-5 h-5 text-indigo-400" />
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Connections & Integrations</h1>
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              Verified Pipeline
+              Integration status
             </span>
           </div>
           <p className="text-xs text-neutral-400 mt-1">
@@ -254,6 +259,7 @@ export const ConnectionsWorkspace: React.FC = () => {
           { id: 'supabase', label: 'Supabase Cloud', icon: Database, active: supabaseStats?.isSupabaseConnected },
           { id: 'webhooks', label: 'Zapier & Webhooks', icon: Zap, active: true },
           { id: 'google', label: 'Google Services', icon: Cloud, active: false },
+          { id: 'browser', label: 'Browser Control', icon: Shield, active: undefined },
         ].map((tab) => {
           const Icon = tab.icon;
           const isSelected = activeTab === tab.id;
@@ -276,6 +282,8 @@ export const ConnectionsWorkspace: React.FC = () => {
           );
         })}
       </div>
+
+      {activeTab === 'browser' && <BrowserControlPanel isLight={isLight} isGuest={isGuest} />}
 
       {/* Tab 1: GitHub */}
       {activeTab === 'github' && (
@@ -529,7 +537,7 @@ export const ConnectionsWorkspace: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-neutral-400 leading-relaxed">
-                Synchronizes profiles, tasks, memories, projects, and library items to Supabase PostgreSQL respecting Row Level Security.
+                Processes the signed-in workspace sync queue. Confirm the Sync Status panel for per-record failures; available cloud operations depend on account permissions and configured tables.
               </p>
               <button
                 onClick={handleSyncAllSupabase}
@@ -547,13 +555,13 @@ export const ConnectionsWorkspace: React.FC = () => {
                 Velocity Telemetry
               </span>
               <div className="text-2xl font-bold text-neutral-100">
-                {supabaseStats?.velocityScore ?? 78}/100
+                {supabaseStats ? `${supabaseStats.velocityScore}/100` : 'Not measured'}
               </div>
               <div className="text-xs text-neutral-400">
-                Rating: <strong className="text-emerald-400">{supabaseStats?.velocityRating || 'Optimal'}</strong>
+                Rating: <strong className="text-emerald-400">{supabaseStats?.velocityRating || 'Awaiting data'}</strong>
               </div>
               <div className="text-[11px] font-medium text-neutral-500 pt-1">
-                Burn-down rate: {supabaseStats?.burnDownRate || '2.4 tasks/day'}
+                Burn-down rate: {supabaseStats?.burnDownRate || 'Not measured'}
               </div>
             </div>
 
@@ -563,10 +571,10 @@ export const ConnectionsWorkspace: React.FC = () => {
                 Row Level Security (RLS)
               </span>
               <p className="text-xs text-neutral-400 leading-relaxed">
-                All cloud tables enforce user isolation with <code className="bg-neutral-950 px-1 py-0.5 rounded text-neutral-300">auth.uid() = user_id</code>.
+                New and owner-scoped tables use Row Level Security where defined. This screen does not audit every database table; verify policies per migration before relying on cross-user isolation.
               </p>
-              <span className="text-[10px] font-medium text-emerald-400 block pt-1">
-                ✓ RLS Policies Active
+              <span className="text-[10px] font-medium text-amber-400 block pt-1">
+                Table-by-table verification required
               </span>
             </div>
           </div>
@@ -651,13 +659,13 @@ export const ConnectionsWorkspace: React.FC = () => {
             <h3 className="text-sm font-semibold">Google Workspace & Services</h3>
           </div>
           <p className="text-xs text-neutral-400 leading-relaxed">
-            Google Workspace OAuth scopes allow Angel to read project documents, query Google Drive materials, and synchronize events with Google Calendar.
+            Google Drive, Calendar, Docs, and Sheets are not connected in this build. This section is informational only until Google OAuth consent, callback handling, token storage, and live integration tests are implemented.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             {['Google Drive (Files & References)', 'Google Calendar (Schedule Sync)', 'Google Docs (Document Export)', 'Google Sheets (Data Analysis)'].map((scope) => (
               <div key={scope} className="p-3 rounded-xl bg-neutral-950/60 border border-white/5 flex items-center justify-between">
                 <span className="text-neutral-300">{scope}</span>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-neutral-800 text-neutral-400">OAuth Ready</span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">Not connected</span>
               </div>
             ))}
           </div>

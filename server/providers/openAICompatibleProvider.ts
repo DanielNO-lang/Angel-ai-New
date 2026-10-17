@@ -240,7 +240,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     };
   }
 
-  async embeddings(texts: string[] | string): Promise<number[][]> {
+  async embeddings(texts: string[] | string, modelId?: string): Promise<number[][]> {
     const input = Array.isArray(texts) ? texts : [texts];
     const res = await fetch(`${this.baseUrl}/embeddings`, {
       method: 'POST',
@@ -249,7 +249,7 @@ export class OpenAICompatibleProvider implements AIProvider {
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
-        model: 'text-embedding-3-small',
+        model: modelId || 'text-embedding-3-small',
         input,
       }),
     });

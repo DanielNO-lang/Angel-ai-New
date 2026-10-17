@@ -78,7 +78,7 @@ export interface WorkspaceTool {
   inputSchema: ToolInputSchema;
   outputSchema: ToolOutputSchema;
   permissions?: string[];
-  authRequired?: 'none' | 'user' | 'github' | 'vercel' | 'google';
+  authRequired?: 'none' | 'user' | 'github' | 'vercel' | 'google' | 'automation';
   isAvailable?: boolean;
   unavailabilityReason?: string;
   execute: (input: Record<string, any>, context: ToolExecutionContext) => Promise<ToolExecutionResult>;

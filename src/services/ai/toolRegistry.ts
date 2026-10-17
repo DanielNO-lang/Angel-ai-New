@@ -298,6 +298,11 @@ export const memoryVaultTool: WorkspaceTool = {
         type: 'string',
         description: 'Search keyword when action is "retrieve".',
       },
+      sensitivity: {
+        type: 'string',
+        description: 'Mark the saved memory normal or sensitive. Sensitive memories are excluded from ordinary context retrieval.',
+        enum: ['normal', 'sensitive'],
+      },
     },
     required: ['action'],
   },
@@ -310,7 +315,7 @@ export const memoryVaultTool: WorkspaceTool = {
 
     if (action === 'list_pinned') {
       const pinned = context.memories
-        .filter((m) => m.isPinned)
+        .filter((m) => m.isPinned && m.sensitivity !== 'sensitive')
         .map((m) => ({ id: m.id, title: m.title, content: m.content, type: m.type }));
 
       return {
@@ -323,6 +328,7 @@ export const memoryVaultTool: WorkspaceTool = {
     if (action === 'retrieve') {
       const q = String(input.query || '').toLowerCase().trim();
       const results = context.memories
+        .filter((m) => m.sensitivity !== 'sensitive')
         .filter(
           (m) =>
             m.title.toLowerCase().includes(q) ||
@@ -360,6 +366,7 @@ export const memoryVaultTool: WorkspaceTool = {
           confidence: 0.95,
           tags: ['assistant-memorized'],
           source: 'conversation',
+          sensitivity: input.sensitivity === 'sensitive' ? 'sensitive' : 'normal',
           isPinned: false,
         });
 
@@ -456,43 +463,60 @@ export const timeUtilityTool: WorkspaceTool = {
 export const webSearchTool: WorkspaceTool = {
   id: 'web_search',
   name: 'web_search',
-  description: 'Search the live web for verified documentation, market facts, technical guides, or news.',
+  description: 'Search the live web using Google Search grounding. Return only source URLs and titles supplied by real grounding metadata.',
   category: 'web',
   inputSchema: {
     type: 'object',
     properties: {
       query: { type: 'string', description: 'The search query.' },
-      numResults: { type: 'number', description: 'Number of results (1-5).' },
+      numResults: { type: 'number', description: 'Number of grounded sources (1-5).' },
     },
     required: ['query'],
   },
-  outputSchema: { type: 'object', description: 'Web search results with titles, snippets, and URLs.' },
+  outputSchema: { type: 'object', description: 'Grounded answer and source links returned by the server.' },
   execute: async (input) => {
-    const q = String(input.query || '').trim();
-    if (!q) return { success: false, data: null, summary: 'Search query is empty.' };
+    const query = String(input.query || '').trim();
+    if (!query) {
+      return { success: false, data: null, summary: 'Search query is empty.', error: 'A search query is required.' };
+    }
 
-    return {
-      success: true,
-      data: {
-        query: q,
-        results: [
-          {
-            title: `${q} — Architecture & Documentation`,
-            snippet: `Verified technical specifications and live documentation for "${q}". Real-time knowledge grounded via Angel search pipelines.`,
-            url: `https://www.google.com/search?q=${encodeURIComponent(q)}`,
-          },
-          {
-            title: `${q} — Latest Updates & Implementation`,
-            snippet: `Ecosystem updates, community benchmarks, and release notes regarding ${q}.`,
-            url: `https://github.com/search?q=${encodeURIComponent(q)}`,
-          },
-        ],
-      },
-      summary: `Dispatched web search for "${q}" (2 results retrieved).`,
-    };
+    try {
+      const response = await fetch('/api/search/web', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          numResults: typeof input.numResults === 'number' ? input.numResults : 5,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success !== true || !Array.isArray(payload.sources)) {
+        const error = typeof payload.error === 'string' ? payload.error : 'Grounded web search failed.';
+        return { success: false, data: null, summary: error, error };
+      }
+
+      return {
+        success: true,
+        data: {
+          query: payload.query,
+          answer: payload.answer,
+          sources: payload.sources,
+          timestamp: payload.timestamp,
+          grounding: true,
+        },
+        summary: 'Grounded search completed with ' + payload.sources.length + ' real source(s).',
+      };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : 'Grounded web search failed.';
+      return {
+        success: false,
+        data: null,
+        summary: 'Grounded web search is unavailable. No synthetic search results were returned.',
+        error,
+      };
+    }
   },
 };
-
 /**
  * 6. project_manager
  */
@@ -700,16 +724,23 @@ export const githubIntegrationTool: WorkspaceTool = {
   },
   outputSchema: { type: 'object', description: 'GitHub API response payload.' },
   execute: async (input) => {
-    const owner = input.owner || 'danielokohnwachukwu22';
-    const repo = input.repo || 'angel-ai-workspace';
     const action = input.action || 'repo_details';
+    // Pass repository overrides only when explicitly supplied. Otherwise the
+    // server uses its configured GITHUB_REPO_OWNER / GITHUB_REPO_NAME.
+    const query = new URLSearchParams();
+    if (input.owner) query.set('owner', String(input.owner));
+    if (input.repo) query.set('repo', String(input.repo));
+    const qs = query.toString();
 
-    const res = await fetch(`/api/integrations/github/${action}?owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`);
+    const res = await fetch(`/api/integrations/github/${action}${qs ? `?${qs}` : ''}`);
     if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      const detail = typeof payload.error === 'string' ? payload.error : 'GitHub integration request failed.';
       return {
         success: false,
         data: null,
-        summary: `GitHub action "${action}" requires GITHUB_TOKEN configured in server secrets.`,
+        summary: detail,
+        error: detail,
       };
     }
 
@@ -717,7 +748,7 @@ export const githubIntegrationTool: WorkspaceTool = {
     return {
       success: true,
       data,
-      summary: `Successfully executed GitHub operation "${action}" on ${owner}/${repo}.`,
+      summary: `Successfully executed GitHub operation "${action}"${input.owner && input.repo ? ` on ${input.owner}/${input.repo}` : ' on the configured repository'}.`,
     };
   },
 };
@@ -774,6 +805,8 @@ export const automationWebhookTool: WorkspaceTool = {
   name: 'automation_webhook',
   description: 'Dispatch real-time outbound automation event to configured Zapier or custom webhook endpoints.',
   category: 'automation',
+  permissions: ['webhook:dispatch'],
+  authRequired: 'automation',
   inputSchema: {
     type: 'object',
     properties: {
@@ -843,7 +876,11 @@ export class ToolRegistry {
    * Generates model-discoverable tool declarations formatted for model function calling
    */
   getDiscoverableDeclarations(): ModelDiscoverableTool[] {
-    return this.getAllTools().map((tool) => ({
+    // Integration credentials and consequential capabilities are not exposed to
+    // automatic model tool selection. They require explicit, authenticated UI actions.
+    return this.getAllTools()
+      .filter((tool) => !(tool.permissions?.length) && !tool.authRequired)
+      .map((tool) => ({
       id: tool.id,
       name: tool.name,
       description: tool.description,
@@ -867,6 +904,15 @@ export class ToolRegistry {
         data: null,
         summary: `Tool "${name}" is not registered in Angel workspace.`,
         error: `Tool not found: ${name}`,
+      };
+    }
+
+    if (tool.permissions?.length || tool.authRequired) {
+      return {
+        success: false,
+        data: null,
+        summary: `Tool "${name}" requires an explicit authenticated integration action and cannot be run automatically from chat.`,
+        error: 'Explicit integration authorization required.',
       };
     }
 

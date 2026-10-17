@@ -78,6 +78,13 @@ export class ConversationService {
       'add task',
       'new task',
       'search workspace',
+      'web search',
+      'search the web',
+      'search online',
+      'research online',
+      'look up',
+      'latest news',
+      'find sources',
       'find task',
       'remember that',
       'store memory',
@@ -97,7 +104,8 @@ export class ConversationService {
             systemInstruction: assembledContext.systemInstruction,
             conversationHistory: assembledContext.recentMessages,
             tools: discoverableTools,
-            modelId: agent.modelConfig.modelId,
+            modelId: agent.isBuiltIn ? 'auto' : agent.modelConfig.modelId,
+            providerId: agent.isBuiltIn ? 'auto' : agent.modelConfig.provider,
           }),
         });
 
@@ -148,6 +156,23 @@ export class ConversationService {
     );
 
     let accumulatedText = '';
+    const requestStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    let firstTokenAt: number | null = null;
+    const controller = new AbortController();
+    let timeoutReason: 'idle' | 'total' | null = null;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    const requestTimer = setTimeout(() => {
+      timeoutReason = 'total';
+      controller.abort();
+    }, 180_000);
+    const resetIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        timeoutReason = 'idle';
+        controller.abort();
+      }, 45_000);
+    };
+    resetIdleTimer();
 
     try {
       const response = await fetch('/api/ai/stream', {
@@ -157,10 +182,11 @@ export class ConversationService {
           prompt,
           systemInstruction: toolAugmentedInstruction,
           conversationHistory: assembledContext.recentMessages,
-          modelId: agent.modelConfig.modelId,
-          providerId: agent.modelConfig.provider,
+          modelId: agent.isBuiltIn ? 'auto' : agent.modelConfig.modelId,
+          providerId: agent.isBuiltIn ? 'auto' : agent.modelConfig.provider,
           temperature: agent.modelConfig.temperature,
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok || !response.body) {
@@ -195,6 +221,7 @@ export class ConversationService {
           if (parsed.error) streamError = String(parsed.error);
           if (parsed.chunk) {
             const token = String(parsed.chunk);
+            if (firstTokenAt === null) firstTokenAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
             accumulatedText += token;
             onToken?.(token, accumulatedText);
           }
@@ -206,6 +233,7 @@ export class ConversationService {
 
       while (true) {
         const { value, done } = await reader.read();
+        resetIdleTimer();
         buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
         let newline = buffer.indexOf('\n');
         while (newline >= 0) {
@@ -217,10 +245,22 @@ export class ConversationService {
       }
       if (buffer.trim()) processSseLine(buffer.trim());
       if (streamError) throw new Error(streamError);
+      if (!streamFinished) {
+        throw new Error(accumulatedText.trim()
+          ? 'Angel stream disconnected before the response was marked complete. Retry to request a complete answer.'
+          : 'Angel stream ended before a response was received. Check the connection and retry.');
+      }
       if (!accumulatedText.trim()) {
-        throw new Error(streamFinished
-          ? 'Angel completed the stream without returning any text. Check the configured model and provider.'
-          : 'Angel stream ended before a response was received.');
+        throw new Error('Angel completed the stream without returning any text. Check the configured model and provider.');
+      }
+
+      const completedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      if (import.meta.env.DEV) {
+        console.info('[Angel performance] chat-stream', {
+          timeToFirstTokenMs: firstTokenAt === null ? null : Math.round(firstTokenAt - requestStartedAt),
+          totalResponseMs: Math.round(completedAt - requestStartedAt),
+          characters: accumulatedText.length,
+        });
       }
 
       agentExecutionLifecycle.advanceStage(
@@ -240,7 +280,12 @@ export class ConversationService {
         },
       };
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const failure = timeoutReason === 'idle'
+        ? new Error('Angel response stalled for 45 seconds. The request was stopped so you can retry.')
+        : timeoutReason === 'total'
+          ? new Error('Angel response exceeded the 3-minute request limit. The request was stopped so you can retry.')
+          : err instanceof Error ? err : new Error(String(err));
+      const errorMsg = failure.message;
       agentExecutionLifecycle.advanceStage(
         lifecycleSession.sessionId,
         'failed',
@@ -252,7 +297,10 @@ export class ConversationService {
         onError(errorMsg);
       }
 
-      throw err;
+      throw failure;
+    } finally {
+      if (idleTimer) clearTimeout(idleTimer);
+      clearTimeout(requestTimer);
     }
   }
 }

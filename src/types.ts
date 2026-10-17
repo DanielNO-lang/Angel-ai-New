@@ -18,6 +18,7 @@ export type NavigationTab =
   | 'tasks'
   | 'schedule'
   | 'library'
+  | 'research'
   | 'memories'
   | 'media_studio'
   | 'assistants'
@@ -39,6 +40,8 @@ export type SettingsSubSection =
   | 'privacy'
   | 'notifications'
   | 'connections'
+  | 'skills'
+  | 'plugins'
   | 'security';
 
 export type MessageRole = 'user' | 'assistant' | 'system' | 'tool';
@@ -169,6 +172,10 @@ export interface Memory {
   content: string;
   confidence: number; // 0 to 1
   source?: string; // conversation ID, manual input, or agent
+  sensitivity?: 'normal' | 'sensitive';
+  importance?: number;
+  lastAccessedAt?: string;
+  expiresAt?: string;
   tags: string[];
   agentId?: string;
   projectId?: string;
@@ -504,6 +511,13 @@ export interface AngelSettings {
   fontSize: FontSize;
   compactMode: boolean;
   focusMode?: boolean;
+  conversationalStyle?: {
+    warmth: number;
+    humor: number;
+    directness: number;
+    empathy: number;
+    emotionalTone: 'balanced' | 'calm' | 'upbeat' | 'serious';
+  };
   personality: {
     tone: 'balanced' | 'strategic' | 'direct' | 'creative';
     verbosity: 'concise' | 'balanced' | 'thorough';

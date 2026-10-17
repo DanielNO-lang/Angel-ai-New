@@ -9,6 +9,7 @@
  */
 
 import React, { useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Activity,
   ArrowRight,
@@ -77,7 +78,7 @@ export const AgentLabView: React.FC = () => {
     setMobileMenuOpen,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Active View Tab & Modals
   const [isWorkflowLibraryModalOpen, setIsWorkflowLibraryModalOpen] = useState(false);

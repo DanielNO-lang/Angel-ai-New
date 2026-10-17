@@ -10,6 +10,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   ArrowLeft,
   User,
@@ -54,6 +55,7 @@ import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ConnectionsWorkspace } from '../connections/ConnectionsWorkspace';
 import { UserProfileSettings } from './UserProfileSettings';
 import { playThemeSound } from '../../utils/themeAudio';
+import { PushNotificationSettings } from './PushNotificationSettings';
 
 export type SettingsSubSection =
   | 'account'
@@ -67,6 +69,8 @@ export type SettingsSubSection =
   | 'privacy'
   | 'notifications'
   | 'connections'
+  | 'skills'
+  | 'plugins'
   | 'security';
 
 interface NavItem {
@@ -85,35 +89,27 @@ interface NavCategory {
 export const SettingsView: React.FC = () => {
   const {
     userProfile,
-    updateUserProfile,
     settings,
     updateSettings,
     clearAllData,
     signOut,
     activeSettingsSection,
     setActiveSettingsSection,
+    setActiveTab,
     isFocusMode,
     setIsFocusMode,
     exportWorkspaceData,
     lastAutosavedAt,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Active Sub-Section from Context
   const activeSection = activeSettingsSection;
   const setActiveSection = setActiveSettingsSection;
-  const [isSaved, setIsSaved] = useState(false);
+  const style = settings.conversationalStyle || { warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced' as const };
+  const updateStyle = (updates: Partial<typeof style>) => updateSettings({ conversationalStyle: { ...style, ...updates } });
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-
-  // Profile form states
-  const [profileName, setProfileName] = useState(userProfile.name || 'Daniel Nwachukwu');
-  const [profileEmail, setProfileEmail] = useState(userProfile.email || 'danielokohnwachukwu22@gmail.com');
-  const [profileHandle, setProfileHandle] = useState('daniel');
-  const [profileBio, setProfileBio] = useState('AI engineer and autonomous systems developer.');
-  const [profileRole, setProfileRole] = useState('Lead Architect');
-  const [profileTimezone, setProfileTimezone] = useState('UTC-07:00 (Pacific Time)');
-  const [isProfileSaved, setIsProfileSaved] = useState(false);
 
   // Appearance states
   const [accentColor, setAccentColor] = useState(settings.accentColor || 'indigo');
@@ -129,34 +125,38 @@ export const SettingsView: React.FC = () => {
     try { localStorage.setItem('angel_font_scale', fontScale); } catch {}
   }, [fontScale]);
 
+  // Desktop notification preference is stored locally and only enabled after browser permission.
+  const [desktopNotifications, setDesktopNotifications] = useState(() => {
+    try { return localStorage.getItem('angel_desktop_notifications_enabled') === 'true'; } catch { return false; }
+  });
+  const [notificationStatus, setNotificationStatus] = useState('');
+
   useEffect(() => {
-    if (activeSection === 'visual' || activeSection === 'privacy') setActiveSection('account');
-  }, [activeSection, setActiveSection]);
-  const [animationEffects, setAnimationEffects] = useState(true);
-  const [uiDensity, setUiDensity] = useState<'comfortable' | 'compact'>('comfortable');
-  const [soundEffects, setSoundEffects] = useState(true);
+    try { localStorage.setItem('angel_desktop_notifications_enabled', String(desktopNotifications)); } catch {}
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('angel:notification-preference-changed'));
+  }, [desktopNotifications]);
 
-  // Theme states
-  const [backdropIntensity, setBackdropIntensity] = useState<'subtle' | 'standard' | 'vivid'>('standard');
-  const [highContrast, setHighContrast] = useState(false);
-
-  // Workspace settings states
-  const [language, setLanguage] = useState('English (US)');
-  const [startOnHome, setStartOnHome] = useState(true);
-  const [autoSaveDrafts, setAutoSaveDrafts] = useState(true);
-  const [defaultModel, setDefaultModel] = useState('Gemini 3.8 Flash');
-  const [sendOnEnter, setSendOnEnter] = useState(true);
-  const [streamResponses, setStreamResponses] = useState(true);
-  const [codeHighlighting, setCodeHighlighting] = useState(true);
-
-  // Voice states
-  const [defaultVoice, setDefaultVoice] = useState('Nova (Balanced)');
-  const [speechRate, setSpeechRate] = useState('1.0x');
-
-  // Privacy & Notifications
-  const [desktopNotifications, setDesktopNotifications] = useState(true);
-  const [telemetryOptOut, setTelemetryOptOut] = useState(true);
-  const [zeroRetentionVoice, setZeroRetentionVoice] = useState(true);
+  const handleNotificationToggle = async (enabled: boolean) => {
+    if (!enabled) { setDesktopNotifications(false); setNotificationStatus('Desktop notifications are paused on this browser.'); return; }
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setDesktopNotifications(false);
+      setNotificationStatus('This browser does not support desktop notifications.');
+      return;
+    }
+    try {
+      const permission = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+      if (permission === 'granted') {
+        setDesktopNotifications(true);
+        setNotificationStatus('Browser permission granted. Background task alerts are shown while this workspace is monitoring tasks.');
+      } else {
+        setDesktopNotifications(false);
+        setNotificationStatus('Permission was not granted. Enable notifications in your browser settings to use task alerts.');
+      }
+    } catch {
+      setDesktopNotifications(false);
+      setNotificationStatus('Notification permission could not be requested in this browser.');
+    }
+  };
 
   // Supabase SQL copy state
   const [copiedSql, setCopiedSql] = useState(false);
@@ -170,8 +170,7 @@ export const SettingsView: React.FC = () => {
           id: 'account',
           label: 'Account',
           icon: CreditCard,
-          badge: userProfile.plan,
-          description: 'Subscription, credentials, & billing',
+          description: 'Sign-in session and workspace tier',
         },
         {
           id: 'profile',
@@ -205,7 +204,7 @@ export const SettingsView: React.FC = () => {
           id: 'workspace',
           label: 'Workspace Settings',
           icon: Sliders,
-          description: 'Models, composer, & shortcuts',
+          description: 'Routing, composer, shortcuts, and data export',
         },
       ],
     },
@@ -216,30 +215,44 @@ export const SettingsView: React.FC = () => {
           id: 'voice',
           label: 'Voice & Speech',
           icon: Mic,
-          description: 'TTS synthesis & voice models',
+          description: 'Voice input, live speech, and interruption controls',
+        },
+        {
+          id: 'visual',
+          label: 'Visual Mode',
+          icon: Eye,
+          description: 'Camera and screen sharing permissions',
         },
         {
           id: 'memory',
-          label: 'Memory Vault',
+          label: 'Private Memory',
           icon: Brain,
-          description: 'Context retention & episodic recall',
+          description: 'Review and control remembered information',
         },
       ],
     },
     {
-      category: 'Security & System',
+      category: 'Connections & Privacy',
       items: [
+        { id: 'skills', label: 'Skills', icon: Flame, description: 'Manage available capabilities' },
+        { id: 'plugins', label: 'Plugins', icon: LayoutGrid, description: 'Review installed extensions and permissions' },
         {
           id: 'notifications',
           label: 'Notifications',
           icon: Bell,
-          description: 'Push alerts & background chimes',
+          description: 'Browser alerts for monitored tasks',
         },
         {
           id: 'connections',
           label: 'Connections & SQL',
           icon: Network,
           description: 'Database schema & API webhooks',
+        },
+        {
+          id: 'privacy',
+          label: 'Privacy & Incognito',
+          icon: Shield,
+          description: 'Memory usage and privacy boundaries',
         },
         {
           id: 'security',
@@ -250,18 +263,6 @@ export const SettingsView: React.FC = () => {
       ],
     },
   ];
-
-  const handleSaveProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateUserProfile({ name: profileName, email: profileEmail });
-    setIsProfileSaved(true);
-    setTimeout(() => setIsProfileSaved(false), 2000);
-  };
-
-  const handleSaveWorkspaceChanges = () => {
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
-  };
 
   const [isExporting, setIsExporting] = useState(false);
   const [isExportSuccess, setIsExportSuccess] = useState(false);
@@ -327,7 +328,7 @@ export const SettingsView: React.FC = () => {
           return (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => { if (item.id === 'skills' || item.id === 'plugins') { setActiveTab(item.id); return; } setActiveSection(item.id); }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-colors border ${
                 isSelected
                   ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
@@ -379,7 +380,7 @@ export const SettingsView: React.FC = () => {
                     return (
                       <button
                         key={sec.id}
-                        onClick={() => setActiveSection(sec.id)}
+                        onClick={() => { if (sec.id === 'skills' || sec.id === 'plugins') { setActiveTab(sec.id); return; } setActiveSection(sec.id); }}
                         className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                           isSelected
                             ? isLight
@@ -426,17 +427,17 @@ export const SettingsView: React.FC = () => {
           {activeSection === 'account' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Account & Subscription</h2>
+                <h2 className="text-lg font-bold tracking-tight">Account</h2>
                 <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Subscription tier, credential authentication, billing status, and third-party identity.
+                  Sign-in and workspace account details. Billing is not connected in this build.
                 </p>
               </div>
 
               <div className={`p-4 rounded-2xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-900/50 border-white/10'}`}>
-                <div className="text-xs font-semibold uppercase tracking-wider text-indigo-500">Current plan</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-indigo-500">Workspace tier</div>
                 <div className="mt-1 text-lg font-bold">{userProfile.plan}</div>
                 <p className={`mt-1 text-sm ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
-                  Your current account tier. Billing management will appear here when a billing provider is connected.
+                  This is the workspace tier shown by the app. It is not proof of an active paid subscription; payment and billing controls are unavailable in this build.
                 </p>
               </div>
 
@@ -473,9 +474,9 @@ export const SettingsView: React.FC = () => {
           {activeSection === 'appearance' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Appearance & Interface</h2>
+                <h2 className="text-lg font-bold tracking-tight">Appearance</h2>
                 <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Accent color highlights, typography sizing scale, interface density, and glowing visual aura.
+                  Typography size, accent color preference, and focus mode.
                 </p>
               </div>
 
@@ -492,7 +493,7 @@ export const SettingsView: React.FC = () => {
                   ].map((c) => (
                     <button
                       key={c.id}
-                      onClick={() => { setAccentColor(c.id); updateSettings({ accentColor: c.id as 'blue' | 'indigo' | 'purple' | 'emerald' | 'rose' | 'amber' }); }}
+                      onClick={() => { setAccentColor(c.id as 'blue' | 'indigo' | 'purple' | 'emerald' | 'rose' | 'amber'); updateSettings({ accentColor: c.id as 'blue' | 'indigo' | 'purple' | 'emerald' | 'rose' | 'amber' }); }}
                       className={`w-9 h-9 rounded-2xl ${c.bg} flex items-center justify-center transition-all ${
                         accentColor === c.id ? 'ring-4 ring-indigo-400/40 scale-105 shadow-md' : 'opacity-70 hover:opacity-100'
                       }`}
@@ -528,111 +529,15 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Layout Density */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Layout Density</label>
-                <div className="grid grid-cols-2 gap-2.5 max-w-sm">
-                  <button
-                    type="button"
-                    onClick={() => setUiDensity('comfortable')}
-                    className={`py-2 px-3 rounded-xl border text-xs text-center transition-all ${
-                      uiDensity === 'comfortable'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                        : 'border-inherit opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    Comfortable (Standard)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUiDensity('compact')}
-                    className={`py-2 px-3 rounded-xl border text-xs text-center transition-all ${
-                      uiDensity === 'compact'
-                        ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                        : 'border-inherit opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    Compact (High Data)
-                  </button>
-                </div>
-              </div>
-
-              {/* Toggles */}
-              <div className="space-y-3 pt-3 border-t border-inherit">
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block flex items-center gap-1.5">
-                      <span>Focus Mode (Deep Work)</span>
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-semibold">New</span>
-                    </span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Hides the sidebar and minimizes the workspace header to eliminate distractions during deep work sessions.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={isFocusMode}
-                    onChange={(e) => setIsFocusMode(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Interactive Workspace Tour</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Revisit the guided walkthrough highlighting the sidebar, chat, and AI tools.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined' && (window as unknown as { startAngelTour?: () => void }).startAngelTour) {
-                        (window as unknown as { startAngelTour: () => void }).startAngelTour();
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
-                      isLight ? 'hover:bg-slate-100 border-slate-200 text-slate-700' : 'hover:bg-neutral-800 border-white/10 text-neutral-300'
-                    }`}
-                  >
-                    Start Tour
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Cosmic Ambient Glow Effects</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Enable smooth radial blur orbs and luminous gradient auras
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={animationEffects}
-                    onChange={(e) => setAnimationEffects(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Interface Chimes & Audio Feedback</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Subtle tactile audio cues for button clicks and task completions
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={soundEffects}
-                    onChange={(e) => setSoundEffects(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
+              {/* Workspace distraction controls: only the connected focus-mode control is offered. */}
+              <div className={`flex items-center justify-between rounded-xl border p-3 ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-white/[0.03]'}`}>
+                <div><span className="block text-xs font-semibold">Focus Mode</span><span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Hide workspace distractions using the app's active focus-mode setting.</span></div>
+                <input type="checkbox" checked={isFocusMode} onChange={(e) => setIsFocusMode(e.target.checked)} aria-label="Focus Mode" className="h-4 w-4 accent-indigo-600" />
               </div>
             </div>
           )}
 
-          {/* ==========================================================
+                    {/* ==========================================================
               SUBSECTION 4: THEME (Categorized under Appearance & Theme)
              ========================================================== */}
           {activeSection === 'theme' && (
@@ -745,37 +650,6 @@ export const SettingsView: React.FC = () => {
                   </p>
                 </button>
               </div>
-
-              {/* Atmospheric Backdrop Lighting Treatment */}
-              <div className="space-y-3 pt-3 border-t border-inherit">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-xs font-bold">Independent Backdrop Layer Intensity</h4>
-                    <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Adjust the fixed atmospheric glow orbs rendered beneath the interface (z-index: 0)
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">
-                    {backdropIntensity}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2.5 max-w-sm">
-                  {(['subtle', 'standard', 'vivid'] as const).map((intensity) => (
-                    <button
-                      key={intensity}
-                      onClick={() => setBackdropIntensity(intensity)}
-                      className={`py-2 px-3 rounded-xl border text-xs capitalize text-center transition-all ${
-                        backdropIntensity === intensity
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                          : 'border-inherit opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      {intensity}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
@@ -791,122 +665,15 @@ export const SettingsView: React.FC = () => {
                 </p>
               </div>
 
-              {/* Default Model Selector */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Default Inference Model</label>
-                <select
-                  value={defaultModel}
-                  onChange={(e) => setDefaultModel(e.target.value)}
-                  className={`w-full max-w-sm px-3.5 py-2.5 rounded-xl text-xs border outline-none font-medium transition-colors ${
-                    isLight
-                      ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                      : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                  }`}
-                >
-                  <option value="Gemini 3.8 Flash">Gemini 3.8 Flash (Recommended • Fast & Multimodal)</option>
-                  <option value="GPT-4o">GPT-4o (Omni Reasoning)</option>
-                  <option value="Claude 3.5 Sonnet">Claude 3.5 Sonnet (Code & Writing)</option>
-                  <option value="Angel Core Autonomous">Angel Core Autonomous Orchestrator</option>
-                </select>
-              </div>
+              <section className={`rounded-2xl border p-4 space-y-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.03]'}`}>
+                <div><h3 className="text-sm font-semibold">Conversational behavior</h3><p className="mt-1 text-xs opacity-70">Adjust how Angel communicates without changing her core identity.</p></div>
+                {([['warmth','Warmth'],['humor','Humor'],['directness','Directness'],['empathy','Empathy']] as const).map(([key,label]) => <label key={key} className="block space-y-1.5"><span className="flex justify-between text-xs"><span>{label}</span><span>{style[key]}%</span></span><input type="range" min={0} max={100} step={5} value={style[key]} onChange={(e) => updateStyle({ [key]: Number(e.target.value) })} className="w-full accent-indigo-500" /></label>)}
+                <label className="block space-y-1.5 text-xs"><span>Emotional tone</span><select value={style.emotionalTone} onChange={(e) => updateStyle({ emotionalTone: e.target.value as typeof style.emotionalTone })} className={`ml-3 rounded-lg border px-3 py-2 ${isLight ? 'bg-white border-slate-200' : 'bg-neutral-900 border-white/10'}`}><option value="balanced">Balanced</option><option value="calm">Calm</option><option value="upbeat">Upbeat</option><option value="serious">Serious</option></select></label>
+              </section>
 
-              {/* Language Selection */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Language & Region</label>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className={`w-full max-w-sm px-3.5 py-2.5 rounded-xl text-xs border outline-none font-medium transition-colors ${
-                    isLight
-                      ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                      : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                  }`}
-                >
-                  <option value="English (US)">English (US)</option>
-                  <option value="English (UK)">English (UK)</option>
-                  <option value="Spanish (ES)">Español (ES)</option>
-                  <option value="French (FR)">Français (FR)</option>
-                  <option value="German (DE)">Deutsch (DE)</option>
-                  <option value="Japanese (JA)">日本語 (JA)</option>
-                </select>
-              </div>
-
-              {/* Startup & Editor Toggles */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Start on Home Workspace</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Launch Angel directly on the Home dashboard instead of the previous conversation
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={startOnHome}
-                    onChange={(e) => setStartOnHome(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Auto-save Message Drafts</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Persist in-progress chat input drafts automatically across page changes
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={autoSaveDrafts}
-                    onChange={(e) => setAutoSaveDrafts(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Send Message on Enter</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Press Enter to dispatch immediately; Shift+Enter creates a new paragraph
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={sendOnEnter}
-                    onChange={(e) => setSendOnEnter(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Real-time Token Streaming</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Stream generated tokens progressively with live fluid typing animation
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={streamResponses}
-                    onChange={(e) => setStreamResponses(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Code Syntax Highlighting</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Highlight TypeScript, Python, and SQL snippets with copy triggers
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={codeHighlighting}
-                    onChange={(e) => setCodeHighlighting(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
+              <div className={`rounded-2xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.03]'}`}>
+                <h3 className="text-sm font-semibold">AI provider</h3>
+                <p className="mt-1 text-xs opacity-70">The active model is selected by the server-side provider configuration. Model choices that are not connected are intentionally not offered here.</p>
               </div>
 
               {/* Workspace Data Export & Persistence */}
@@ -947,74 +714,26 @@ export const SettingsView: React.FC = () => {
                 )}
               </div>
 
-              {/* Save workspace changes button */}
-              <div className="flex justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={handleSaveWorkspaceChanges}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-md transition-all flex items-center gap-2"
-                >
-                  {isSaved ? <Check className="w-4 h-4 text-emerald-300" /> : <Save className="w-4 h-4" />}
-                  <span>{isSaved ? 'Changes saved!' : 'Save changes'}</span>
-                </button>
-              </div>
             </div>
           )}
 
-          {/* ==========================================================
+                    {/* ==========================================================
               SUBSECTION 6: VOICE & SPEECH (AI Capabilities)
              ========================================================== */}
           {activeSection === 'voice' && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-bold tracking-tight">Voice & Speech Synthesis</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Configure synthesis voice models, conversational speech rate, and Web Speech API settings.
-                </p>
+                <h2 className="text-lg font-bold tracking-tight">Voice & Speech</h2>
+                <p className={`mt-1 text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Voice input and playback are provided by the active chat/live voice runtime. Vendor voice selection and speech-rate choices are not connected to that runtime yet, so this section does not offer selectors that would not change speech.</p>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Active Voice Model</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {['Nova (Balanced)', 'Alloy (Direct)', 'Echo (Calm)', 'Shimmer (Warm)', 'Sol (Energetic)'].map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setDefaultVoice(v)}
-                      className={`p-3.5 rounded-2xl border text-left text-xs transition-all ${
-                        defaultVoice === v
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold shadow-xs'
-                          : 'border-inherit opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      <div className="font-bold">{v.split(' ')[0]}</div>
-                      <div className="text-[10px] opacity-70">{v.split(' ')[1]}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Speech Cadence Rate</label>
-                <div className="flex gap-2 max-w-xs">
-                  {['0.9x', '1.0x', '1.15x', '1.25x'].map((rate) => (
-                    <button
-                      key={rate}
-                      onClick={() => setSpeechRate(rate)}
-                      className={`flex-1 py-1.5 px-3 rounded-xl border text-xs text-center transition-all ${
-                        speechRate === rate
-                          ? 'bg-indigo-500/10 border-indigo-500 text-indigo-500 font-bold'
-                          : 'border-inherit opacity-70 hover:opacity-100'
-                      }`}
-                    >
-                      {rate}
-                    </button>
-                  ))}
-                </div>
+              <div className={`rounded-2xl border p-4 ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-white/[0.03]'}`}>
+                <h3 className="text-sm font-semibold">Current capability</h3>
+                <p className={`mt-1 text-xs leading-5 ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>Use voice and interruption controls inside Chat. Browser voice availability depends on the device and browser. A selected vendor model is not persisted here because the chat pipeline does not expose a verified voice-model switch.</p>
               </div>
             </div>
           )}
 
-          {/* ==========================================================
+                    {/* ==========================================================
               SUBSECTION 7: VISUAL MULTIMODAL (AI Capabilities)
              ========================================================== */}
           {activeSection === 'visual' && (
@@ -1022,7 +741,7 @@ export const SettingsView: React.FC = () => {
               <div>
                 <h2 className="text-lg font-bold tracking-tight">Visual Multimodal Perception</h2>
                 <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Configure camera stream resolution, display capture FPS, and vision perception heuristics.
+                  Manage how visual context is used inside chat and approved workflows. Capture requires browser permission.
                 </p>
               </div>
 
@@ -1033,10 +752,10 @@ export const SettingsView: React.FC = () => {
               >
                 <h4 className="text-xs font-bold flex items-center gap-2">
                   <Monitor className="w-4 h-4 text-indigo-500" />
-                  <span>Real-time Screen & Webcam Pipeline</span>
+                  <span>Permission-gated camera and screen context</span>
                 </h4>
                 <p className="text-xs opacity-75 leading-relaxed">
-                  Visual Mode operates real-time screen sharing and live camera capture directly feeding into Gemini 3.8 Flash multimodal reasoning for UI audits, code debugging, and diagram deconstruction.
+                  Camera and screen sessions are initiated by the user and use browser capture permissions. The current cross-device flow shares a live media session and inspects captured frames; it does not guarantee continuous real-time model analysis or silently operate a device.
                 </p>
               </div>
             </div>
@@ -1074,80 +793,33 @@ export const SettingsView: React.FC = () => {
               SUBSECTION 9: PRIVACY & INCOGNITO (Security & System)
              ========================================================== */}
           {activeSection === 'privacy' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-lg font-bold tracking-tight">Privacy & Incognito Policies</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Manage anonymous sessions, telemetry opt-out, and zero-retention voice/visual guarantees.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Anonymous Diagnostic Telemetry</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Share crash stacks and latency metrics without personal identifiers
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={telemetryOptOut}
-                    onChange={(e) => setTelemetryOptOut(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Strict Incognito Zero-Retention</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Never write transcripts or generated visual snapshots to local memory during Incognito
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={zeroRetentionVoice}
-                    onChange={(e) => setZeroRetentionVoice(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-              </div>
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold tracking-tight">Privacy & Incognito</h2>
+              <p className={`text-xs leading-5 ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>Memory review, correction, and deletion are available in Memory Vault. This build does not provide a universal provider-side zero-retention guarantee or a configurable telemetry-upload service, so no switch is shown that could imply those controls govern services it cannot verify.</p>
+              <button type="button" onClick={() => setActiveTab('memories')} className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white">Open Memory Vault</button>
             </div>
           )}
 
-          {/* ==========================================================
+                    {/* ==========================================================
               SUBSECTION 10: NOTIFICATIONS (Security & System)
              ========================================================== */}
           {activeSection === 'notifications' && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-bold tracking-tight">Notifications & Alerts</h2>
-                <p className={`text-xs mt-0.5 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
-                  Configure workspace alert badges, sound chimes, and browser push notifications.
-                </p>
+                <p className={`mt-1 text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Enable browser permission for task-completion alerts while the background task monitor is active.</p>
               </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Desktop Push Alerts</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Receive desktop notifications when background agent pipelines complete tasks
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={desktopNotifications}
-                    onChange={(e) => setDesktopNotifications(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
+              <div className={`flex items-center justify-between gap-4 rounded-xl border p-3 ${isLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-white/[0.03]'}`}>
+                <div><span className="block text-xs font-semibold">Desktop task notifications</span><span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{typeof window !== 'undefined' && 'Notification' in window ? `Browser permission: ${Notification.permission}` : 'Browser notifications are not supported here.'}</span></div>
+                <input type="checkbox" checked={desktopNotifications} onChange={(e) => void handleNotificationToggle(e.target.checked)} aria-label="Desktop task notifications" className="h-4 w-4 accent-indigo-600" />
               </div>
+              {notificationStatus && <p role="status" className={`text-xs ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>{notificationStatus}</p>}
+              <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>Notifications do not make queued jobs execute by themselves; the authenticated server worker and scheduler must be configured and online.</p>
+              <PushNotificationSettings isLight={isLight} />
             </div>
           )}
 
-          {/* ==========================================================
+                    {/* ==========================================================
               SUBSECTION 11: CONNECTIONS & SQL (Security & System)
              ========================================================== */}
           {activeSection === 'connections' && (
@@ -1171,10 +843,10 @@ export const SettingsView: React.FC = () => {
               <div className="p-5 rounded-3xl border border-red-500/20 bg-red-500/5 space-y-3">
                 <div className="flex items-center gap-2 text-red-500 font-bold text-xs">
                   <AlertTriangle className="w-4 h-4" />
-                  <span>Reset Local Storage & Cache</span>
+                  <span>Clear Local Workspace Data</span>
                 </div>
                 <p className="text-xs opacity-80 leading-relaxed">
-                  Clear all cached conversations, custom agent personas, tasks, and memory entries to restore factory defaults.
+                  Remove workspace data stored in this browser. This does not claim to delete cloud records, revoke provider permissions, or sign out other devices.
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   <button
@@ -1182,7 +854,7 @@ export const SettingsView: React.FC = () => {
                     className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Clear & Reset Local Storage</span>
+                    <span>Clear Local Workspace</span>
                   </button>
                   <button
                     type="button"
@@ -1212,8 +884,8 @@ export const SettingsView: React.FC = () => {
           clearAllData();
           setIsResetDialogOpen(false);
         }}
-        title="Reset All Local Workspace Data?"
-        message="This will restore all conversations, agents, and workspace settings back to factory defaults. This action cannot be undone."
+        title="Clear Local Workspace Data?"
+        message="This clears local workspace conversations, tasks, memories, projects, and settings stored in this browser. Export a backup first if you need to keep them. Cloud records and other devices are not remotely wiped by this control."
         confirmLabel="Reset Everything"
         isDestructive={true}
       />

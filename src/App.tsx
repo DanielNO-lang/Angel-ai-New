@@ -5,6 +5,8 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import { useIsLightTheme } from './utils/useIsLightTheme';
+import { NavigationTab } from './types';
 import { AnimatePresence, motion } from 'motion/react';
 import { AppProvider, useAngel } from './context/AppContext';
 import { Sidebar } from './components/layout/Sidebar';
@@ -34,6 +36,10 @@ import { PluginsView } from './components/plugins/PluginsView';
 import { CommandPalette } from './components/search/CommandPalette';
 import { BackdropLayer } from './components/ui/BackdropLayer';
 import { NetworkStatusToast } from './components/ui/NetworkStatusToast';
+import { DevicePresence } from './components/ui/DevicePresence';
+import { RemoteVisualSessions } from './components/ui/RemoteVisualSessions';
+import { BackgroundJobsPanel } from './components/ui/BackgroundJobsPanel';
+import { ResearchWorkspace } from './components/research/ResearchWorkspace';
 import { Maximize2 } from 'lucide-react';
 import {
   WorkspaceStageControls,
@@ -57,7 +63,26 @@ const WorkspaceContent: React.FC = () => {
     isFocusMode,
     toggleFocusMode,
   } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
+
+  // Lightweight, local-only performance measurements. These log observed timings without
+  // transmitting usage data or adding a third-party analytics dependency.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('performance' in window)) return;
+    const frame = window.requestAnimationFrame(() => {
+      const navigation = window.performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+      const paints = window.performance.getEntriesByType('paint');
+      const firstContentfulPaint = paints.find((entry) => entry.name === 'first-contentful-paint');
+      if (import.meta.env.DEV) {
+        console.info('[Angel performance]', {
+          domInteractiveMs: navigation ? Math.round(navigation.domInteractive) : null,
+          loadEventMs: navigation?.loadEventEnd ? Math.round(navigation.loadEventEnd) : null,
+          firstContentfulPaintMs: firstContentfulPaint ? Math.round(firstContentfulPaint.startTime) : null,
+        });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     try {
@@ -69,8 +94,8 @@ const WorkspaceContent: React.FC = () => {
 
   // Section Scroll Anchor: Reset scroll position to top whenever active section changes or clicked
   const mainScrollRef = useRef<HTMLElement>(null);
-  const previousTabRef = useRef<string>('home');
-  const currentTabRef = useRef<string>(activeTab);
+  const previousTabRef = useRef<NavigationTab>('home');
+  const currentTabRef = useRef<NavigationTab>(activeTab);
 
   useEffect(() => {
     if (activeTab !== currentTabRef.current) {
@@ -80,10 +105,20 @@ const WorkspaceContent: React.FC = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    const handleNavigateBack = () => setActiveTab(previousTabRef.current || 'home');
+    const handleNavigateBack = () => {
+      // On mobile, section-level back controls reveal the navigation drawer instead
+      // of unexpectedly hopping to a different section. Desktop keeps history behavior.
+      if (typeof window !== 'undefined' &&
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(max-width: 767px)').matches) {
+        setMobileMenuOpen(true);
+        return;
+      }
+      setActiveTab(previousTabRef.current || 'home');
+    };
     window.addEventListener('angel-navigate-back', handleNavigateBack);
     return () => window.removeEventListener('angel-navigate-back', handleNavigateBack);
-  }, [setActiveTab]);
+  }, [setActiveTab, setMobileMenuOpen]);
   useEffect(() => {
     const handleScrollToTop = () => {
       if (mainScrollRef.current) {
@@ -203,7 +238,7 @@ const WorkspaceContent: React.FC = () => {
       isTracking = false;
 
       // Swiped right with dominant horizontal velocity (> 45px deltaX and deltaX > 1.5 * abs(deltaY))
-      if (deltaX > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+      if ((activeTab === 'home' || activeTab === 'chat') && deltaX > 45 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
         setMobileMenuOpen(true);
       }
     };
@@ -215,7 +250,7 @@ const WorkspaceContent: React.FC = () => {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [setMobileMenuOpen]);
+  }, [activeTab, setMobileMenuOpen]);
 
   const renderActiveView = () => {
     // 1. Incognito Mode: dedicated isolated page comprising only the chats and chat bar
@@ -226,6 +261,7 @@ const WorkspaceContent: React.FC = () => {
     // 2. Guests can use basic chat, voice, and visual mode. Persistent sections offer an optional sign-in gate.
     const guestLockedSections: Record<string, { name: string; description: string }> = {
       library: { name: 'Library', description: 'Keep documents, files, and saved resources in your personal workspace.' },
+      research: { name: 'Research', description: 'Save source-grounded research reports to your private workspace.' },
       projects: { name: 'Projects', description: 'Organize long-term work and preserve project context between sessions.' },
       agent_lab: { name: 'Agent Lab', description: 'Build and manage persistent autonomous agents and workflows.' },
       tasks: { name: 'Tasks', description: 'Save tasks and track progress when you return.' },
@@ -268,6 +304,8 @@ const WorkspaceContent: React.FC = () => {
         return <TasksView />;
       case 'library':
         return <LibraryView />;
+      case 'research':
+        return <ResearchWorkspace />;
       case 'agent_lab':
         return <AgentLabView />;
       case 'memories':
@@ -293,7 +331,7 @@ const WorkspaceContent: React.FC = () => {
   return (
     <div
       className={`relative flex h-[100dvh] min-h-[100dvh] overflow-hidden font-sans antialiased selection:bg-indigo-600/30 selection:text-white transition-colors duration-500 ease-in-out ${
-        settings.theme === 'light'
+        isLight
           ? 'light text-slate-900 bg-transparent'
           : settings.theme === 'midnight'
           ? 'midnight dark text-white bg-transparent'
@@ -344,10 +382,10 @@ const WorkspaceContent: React.FC = () => {
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div
                     key={activeTab}
-                    initial={{ opacity: 0, y: 8, filter: 'blur(2px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: -6, filter: 'blur(1px)' }}
-                    transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                    initial={false}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.12 }}
                     className={activeTab === 'chat' ? 'h-full flex flex-col flex-1 min-h-0' : 'min-h-full'}
                   >
                     {renderActiveView()}
@@ -377,6 +415,9 @@ const WorkspaceContent: React.FC = () => {
 
       {/* Network Connectivity & PWA Service Worker Status Listener Toast */}
       <NetworkStatusToast />
+      <DevicePresence />
+      {activeTab === 'chat' && <RemoteVisualSessions />}
+      <BackgroundJobsPanel />
 
       {/* Global Workspace Search & Command Palette */}
       <CommandPalette />

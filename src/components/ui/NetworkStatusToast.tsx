@@ -7,10 +7,11 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, X, Database } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 
 export const NetworkStatusToast: React.FC = () => {
   const { settings } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [isOffline, setIsOffline] = useState<boolean>(() => {
     return typeof navigator !== 'undefined' ? !navigator.onLine : false;

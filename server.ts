@@ -10,17 +10,42 @@
 
 import express, { Express, Request, Response, NextFunction } from 'express';
 import path from 'path';
+import crypto from 'crypto';
+import { isIP } from 'node:net';
 import { executeAgentPipeline } from './server/orchestrator.js';
-import { providerRegistry } from './server/providers/index.js';
-import { getSupabaseServerStatus, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
+import { providerRegistry, rankAvailableModels, modelRoutingTelemetry } from './server/providers/index.js';
+import { getSupabaseServerStatus, getSupabaseClient, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service.js';
 import { automationService, AutomationEventType } from './server/services/automationService.js';
 import { dispatchZapierEvent } from './server/zapier_service.js';
 import { authService } from './server/services/authService.js';
 import { mediaService } from './server/services/mediaService.js';
 import { voiceService } from './server/services/voiceService.js';
 import { intelligenceService } from './server/services/intelligenceService.js';
+import { searchGroundedWeb } from './server/services/groundedSearchService.js';
+import { runGroundedResearch } from './server/services/researchService.js';
+import { calculateRetryDelay, verifyWorkflowOutcome } from './server/services/verifiedWorkflowService.js';
+import { recordAdminAuditEvent } from './server/services/auditService.js';
 import { githubService } from './server/services/githubService.js';
 import { vercelService } from './server/services/vercelService.js';
+import { evaluateBrowserAction, validateApprovedBrowserUrl, type BrowserActionKind } from './server/services/browserActionPolicy.js';
+import { callBrowserWorker, getBrowserWorkerStatus } from './server/services/browserWorkerService.js';
+import { parseScheduledTaskInput } from './server/services/scheduledTaskPolicy.js';
+import { getWebPushConfiguration, getPushSubscriptionCount, sendTaskPushNotification, validatePushEndpoint } from './server/services/pushNotificationService.js';
+
+function isAllowedCallbackUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password) return false;
+    if (url.port && url.port !== '443') return false;
+    const allowedHosts = (process.env.ANGEL_CALLBACK_HOST_ALLOWLIST || '')
+      .split(',')
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean);
+    return allowedHosts.includes(url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
 
 export interface CreateAppOptions {
   isServerless?: boolean;
@@ -29,7 +54,7 @@ export interface CreateAppOptions {
 export async function createApp(options: CreateAppOptions = {}): Promise<Express> {
   const app = express();
 
-  app.use(express.json({ limit: '25mb' }));
+  app.use(express.json({ limit: '10mb' }));
 
   // Security Headers
   app.use((_req, res, next) => {
@@ -40,20 +65,123 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   // Rate Limiting Map
   const ipCounters = new Map<string, { count: number; resetAt: number }>();
-  const rateLimit = (maxRequests: number = 60) => (req: Request, res: Response, next: NextFunction) => {
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || 'client';
+  const rateLimit = (maxRequests: number = 60) => async (req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || 'unknown';
+    const scope = req.baseUrl || '/api';
     const now = Date.now();
-    const entry = ipCounters.get(ip);
+    const localKey = scope + ':' + ip;
+
+    // Use the existing atomic Supabase RPC in production so limits are shared
+    // across serverless instances. Preview/local environments fall back to memory.
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          const key = crypto.createHash('sha256').update(localKey).digest('hex');
+          const { data, error } = await supabase.rpc('consume_api_rate_limit', {
+            p_key: key,
+            p_limit: maxRequests,
+            p_window_seconds: 60,
+          });
+          const decision = data && typeof data === 'object' && !Array.isArray(data)
+            ? data as { allowed?: boolean; remaining?: number; resetAt?: string }
+            : null;
+          if (!error && decision && typeof decision.allowed === 'boolean') {
+            res.setHeader('X-RateLimit-Limit', String(maxRequests));
+            res.setHeader('X-RateLimit-Remaining', String(decision.remaining ?? 0));
+            if (!decision.allowed) {
+              const resetAt = decision.resetAt ? Date.parse(decision.resetAt) : now + 60000;
+              const retryAfter = Math.max(1, Math.ceil((resetAt - now) / 1000));
+              res.setHeader('Retry-After', String(retryAfter));
+              return res.status(429).json({ error: 'Too many requests. Please slow down.', retryAfterSeconds: retryAfter });
+            }
+            return next();
+          }
+        }
+      } catch (error) {
+        console.warn('[RateLimit] Distributed limiter unavailable; using local fallback.', error);
+      }
+    }
+
+    if (ipCounters.size > 5000) {
+      for (const [key, value] of ipCounters) {
+        if (now > value.resetAt) ipCounters.delete(key);
+      }
+    }
+    const entry = ipCounters.get(localKey);
     if (!entry || now > entry.resetAt) {
-      ipCounters.set(ip, { count: 1, resetAt: now + 60000 });
+      ipCounters.set(localKey, { count: 1, resetAt: now + 60000 });
+      res.setHeader('X-RateLimit-Limit', String(maxRequests));
+      res.setHeader('X-RateLimit-Remaining', String(Math.max(0, maxRequests - 1)));
       return next();
     }
     if (entry.count >= maxRequests) {
-      return res.status(429).json({ error: 'Too many requests. Please slow down.' });
+      const retryAfter = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({ error: 'Too many requests. Please slow down.', retryAfterSeconds: retryAfter });
     }
     entry.count++;
-    next();
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(0, maxRequests - entry.count)));
+    return next();
   };
+
+  // Apply shared server-side rate limits. These are a baseline, not a substitute
+  // for a distributed limiter when running multiple serverless instances.
+  app.use('/api', rateLimit(120));
+  app.use(['/api/ai', '/api/chat', '/api/voice', '/api/media', '/api/search'], rateLimit(24));
+
+  const requireVerifiedAdminSession = async (req: Request, res: Response, next: NextFunction) => {
+    const authorization = req.headers.authorization;
+    const token = typeof authorization === 'string' && authorization.startsWith('Bearer ')
+      ? authorization.slice(7).trim()
+      : '';
+    const adminEmails = (process.env.ADMIN_EMAILS || '')
+      .split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (!token || adminEmails.length === 0) {
+      return res.status(401).json({ error: 'A verified, allowlisted administrator session is required.' });
+    }
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase authentication is not configured for admin authorization.' });
+    }
+
+    try {
+      const { data, error } = await supabase.auth.getUser(token);
+      const user = data?.user;
+      const email = user?.email?.toLowerCase();
+      const verified = Boolean(user?.email_confirmed_at || user?.confirmed_at);
+      if (error || !user || !email || !verified || !adminEmails.includes(email)) {
+        return res.status(403).json({ error: 'Administrator access denied.' });
+      }
+      res.locals.authenticatedAdmin = { id: user.id, email };
+      res.on('finish', () => {
+        const admin = res.locals.authenticatedAdmin as { id: string; email: string } | undefined;
+        if (!admin) return;
+        void recordAdminAuditEvent({
+          userId: admin.id,
+          email: admin.email,
+          method: req.method,
+          route: (req.baseUrl + req.path).slice(0, 500),
+          statusCode: res.statusCode,
+          requestId: typeof req.headers['x-vercel-id'] === 'string' ? req.headers['x-vercel-id'] : undefined,
+          ip: req.ip,
+        });
+      });
+      return next();
+    } catch {
+      return res.status(401).json({ error: 'Unable to verify administrator session.' });
+    }
+  };
+
+  // Privileged integrations can read private repositories and trigger deployments.
+  app.use('/api/integrations/github', requireVerifiedAdminSession);
+  app.use('/api/integrations/vercel', requireVerifiedAdminSession);
+  app.use('/api/automation', requireVerifiedAdminSession);
 
   // ============================================================================
   // API ROUTES
@@ -164,30 +292,21 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  app.post('/api/supabase/sync', async (req: Request, res: Response) => {
-    try {
-      const { tasks } = req.body || {};
-      if (!Array.isArray(tasks)) {
-        return res.status(400).json({ error: 'tasks array is required' });
-      }
-      const result = await syncTasksToSupabase(tasks);
-      res.json(result);
-    } catch (err) {
-      console.error('[API /api/supabase/sync Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
+  // Legacy server-side sync used a service-role client without deriving user_id
+  // from a verified Supabase access token. Disable it until ownership-scoped sync exists.
+  app.post('/api/supabase/sync', (_req: Request, res: Response) => {
+    res.status(503).json({
+      error: 'Legacy server-side sync is temporarily disabled until authenticated, user-scoped Supabase persistence is enabled. Existing local/offline workspace data remains available.',
+    });
   });
 
-  app.post('/api/supabase/sync-all', async (req: Request, res: Response) => {
-    try {
-      const result = await syncAllEntitiesToSupabase(req.body || {});
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
+  app.post('/api/supabase/sync-all', (_req: Request, res: Response) => {
+    res.status(503).json({
+      error: 'Legacy bulk sync is temporarily disabled until authenticated, user-scoped Supabase persistence is enabled.',
+    });
   });
 
-  app.get('/api/supabase/ddl', (_req: Request, res: Response) => {
+  app.get('/api/supabase/ddl', requireVerifiedAdminSession, (_req: Request, res: Response) => {
     res.type('text/plain').send(getSupabaseDDL());
   });
 
@@ -197,6 +316,67 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   app.get('/api/models', (_req: Request, res: Response) => {
     res.json(providerRegistry.getModelCatalog());
+  });
+
+  // Explain a routing decision without exposing prompts or credentials.
+  app.post('/api/models/route', (req: Request, res: Response) => {
+    const task = req.body?.task;
+    const allowed: string[] = ['chat', 'research', 'vision', 'tool_calling', 'embeddings', 'coding', 'reasoning', 'structured_output'];
+    if (typeof task !== 'string' || !allowed.includes(task)) {
+      return res.status(400).json({ error: 'Provide a supported task type.', supportedTasks: allowed });
+    }
+    try {
+      const preferredProvider = typeof req.body?.preferredProvider === 'string' ? req.body.preferredProvider : undefined;
+      const ranked = rankAvailableModels(providerRegistry.getModelCatalog(), task as any, modelRoutingTelemetry.snapshot(), preferredProvider);
+      if (!ranked.length) return res.status(503).json({ error: 'No configured model supports this task.', task });
+      const selected = ranked[0];
+      return res.json({
+        task,
+        selected: { provider: selected.provider, modelId: selected.id, name: selected.name },
+        alternatives: ranked.slice(1, 4).map((model) => ({ provider: model.provider, modelId: model.id, name: model.name })),
+        metricsScope: 'in-memory aggregate observations for this server process; not a guarantee of future performance',
+      });
+    } catch {
+      return res.status(500).json({ error: 'Model routing is temporarily unavailable.' });
+    }
+  });
+
+  // Real web search. Citations are taken from provider-returned source metadata; never fabricate URLs.
+  app.post('/api/search/web', async (req: Request, res: Response) => {
+    const query = req.body?.query;
+    const numResults = req.body?.numResults;
+    if (typeof query !== 'string' || !query.trim()) {
+      return res.status(400).json({ success: false, error: 'A search query is required.' });
+    }
+    if (!process.env.GEMINI_API_KEY?.trim() && !process.env.BRAVE_SEARCH_API_KEY?.trim()) {
+      return res.status(503).json({ success: false, error: 'Grounded search is not configured. Set GEMINI_API_KEY or BRAVE_SEARCH_API_KEY on the server.' });
+    }
+    try {
+      const result = await searchGroundedWeb(query, typeof numResults === 'number' ? numResults : 5);
+      if (!result.success) return res.status(502).json(result);
+      return res.json(result);
+    } catch (err) {
+      console.error('[API /api/search/web Error]', err);
+      const status = typeof (err as any)?.status === 'number' ? (err as any).status : 0;
+      if (status === 429) {
+        res.setHeader('Retry-After', '60');
+        return res.status(429).json({
+          success: false,
+          error: 'Google Search grounding quota is exhausted for the Gemini API project used by the configured key. No search results were returned. Restore Gemini API quota/billing or configure an approved alternative search provider.',
+          retryAfterSeconds: 60,
+        });
+      }
+      if (status === 401 || status === 403) {
+        return res.status(503).json({
+          success: false,
+          error: 'Google Search grounding is not authorized for the configured Gemini API key. Check the key, project, and grounding/model access.',
+        });
+      }
+      return res.status(502).json({
+        success: false,
+        error: 'Grounded web search failed. No unverified or synthetic results were returned.',
+      });
+    }
   });
 
   // ============================================================================
@@ -348,8 +528,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const prompt = body.prompt ?? body.message;
     const systemInstruction = body.systemInstruction;
     const conversationHistory = body.conversationHistory ?? body.history;
-    const modelId = body.modelId;
-    const providerId = body.providerId;
+    const requestedModelId = body.modelId;
+    const requestedProviderId = body.providerId;
     const temperature = body.temperature;
     const maxTokens = body.maxTokens;
 
@@ -357,70 +537,190 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
+    let selectedModelId = typeof requestedModelId === 'string' && requestedModelId !== 'auto' ? requestedModelId : '';
+    let selectedProviderId = typeof requestedProviderId === 'string' ? requestedProviderId : '';
+    let startedAt = 0;
     try {
-      const provider = providerRegistry.getProvider(providerId);
+      let provider;
+      let fallbackCandidates: ReturnType<typeof providerRegistry.routeCandidatesForTask> = [];
+      if (!selectedProviderId || selectedProviderId === 'auto') {
+        const normalizedPrompt = prompt.toLowerCase();
+        const task = /(research|sources|cite|citation|evidence|web search)/.test(normalizedPrompt)
+          ? 'research'
+          : /(write code|debug|typescript|javascript|python|implement|refactor|compile error)/.test(normalizedPrompt)
+            ? 'coding'
+            : /(reason through|proof|derive|complex analysis|compare trade-offs)/.test(normalizedPrompt)
+              ? 'reasoning'
+              : 'chat';
+        fallbackCandidates = providerRegistry.routeCandidatesForTask(task);
+        const routed = fallbackCandidates[0];
+        if (!routed) throw new Error(`No configured model is eligible for task "${task}".`);
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(selectedProviderId);
+      }
+
       if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+        return res.status(503).json({ error: `The selected AI provider (${provider.id}) is not configured on the server.` });
       }
 
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
+      startedAt = Date.now();
 
-      await provider.stream(
-        {
-          prompt,
-          systemInstruction,
-          conversationHistory,
-          modelId,
-          temperature,
-          maxTokens,
-        },
-        (chunk) => {
-          res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+      if (fallbackCandidates.length > 0) {
+        let streamedSuccessfully = false;
+        let lastProviderError: unknown;
+        for (const candidate of fallbackCandidates) {
+          const candidateStartedAt = Date.now();
+          let emittedAnyChunk = false;
+          let candidateText = '';
+          try {
+            await candidate.provider.stream(
+              { prompt, systemInstruction, conversationHistory, modelId: candidate.model.id, temperature, maxTokens },
+              (chunk) => {
+                if (typeof chunk === 'string' && chunk.length > 0) {
+                  emittedAnyChunk = true;
+                  candidateText += chunk;
+                  res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+                }
+              }
+            );
+            if (!candidateText.trim()) throw new Error('Provider returned an empty response stream.');
+            modelRoutingTelemetry.record(candidate.model.id, true, Date.now() - candidateStartedAt);
+            selectedProviderId = candidate.provider.id;
+            selectedModelId = candidate.model.id;
+            provider = candidate.provider;
+            streamedSuccessfully = true;
+            break;
+          } catch (providerError) {
+            modelRoutingTelemetry.record(candidate.model.id, false, Date.now() - candidateStartedAt);
+            lastProviderError = providerError;
+            // Never restart a response after even one chunk has reached the user:
+            // doing so could duplicate or contradict text already displayed.
+            if (emittedAnyChunk) throw providerError;
+          }
         }
-      );
+        if (!streamedSuccessfully) {
+          throw lastProviderError instanceof Error
+            ? lastProviderError
+            : new Error('All eligible providers failed before producing a response.');
+        }
+      } else {
+        let emittedAnyChunk = false;
+        await provider.stream(
+          { prompt, systemInstruction, conversationHistory, modelId: selectedModelId, temperature, maxTokens },
+          (chunk) => {
+            if (typeof chunk === 'string' && chunk.length > 0) {
+              emittedAnyChunk = true;
+              res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+            }
+          }
+        );
+        if (!emittedAnyChunk) throw new Error('Provider returned an empty response stream.');
+        modelRoutingTelemetry.record(selectedModelId || selectedProviderId || provider.id, true, Date.now() - startedAt);
+      }
 
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, provider: selectedProviderId, modelId: selectedModelId || undefined })}\n\n`);
       res.end();
     } catch (err) {
+      if (startedAt > 0) modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'unknown', false, Date.now() - startedAt);
       console.error('[API /api/ai/stream Error]', err);
       const msg = err instanceof Error ? err.message : String(err);
+      if (!res.headersSent) {
+        res.status(503).json({ error: msg });
+        return;
+      }
       res.write(`data: ${JSON.stringify({ error: msg, done: true })}\n\n`);
       res.end();
     }
   });
 
-  // Single-Shot Generation
+  // Single-shot generation. Automatic routing retries eligible providers only before
+  // any result is returned to the caller; explicit provider choices remain respected.
   app.post(['/api/ai/generate', '/api/chat/generate'], async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
+    const body = req.body || {};
+    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = body;
 
-    if (!prompt) {
+    if (typeof prompt !== 'string' || !prompt.trim()) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    try {
-      const provider = providerRegistry.getProvider(providerId);
-      if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+    const requestedProvider = typeof providerId === 'string' ? providerId : '';
+    const explicitProvider = Boolean(requestedProvider && requestedProvider !== 'auto');
+    const startedAt = Date.now();
+
+    if (!explicitProvider) {
+      const normalizedPrompt = prompt.toLowerCase();
+      const task = /(research|sources|cite|citation|evidence|web search)/.test(normalizedPrompt)
+        ? 'research'
+        : /(write code|debug|typescript|javascript|python|implement|refactor|compile error)/.test(normalizedPrompt)
+          ? 'coding'
+          : /(reason through|proof|derive|complex analysis|compare trade-offs)/.test(normalizedPrompt)
+            ? 'reasoning'
+            : 'chat';
+      const candidates = providerRegistry.routeCandidatesForTask(task);
+      if (!candidates.length) {
+        return res.status(503).json({ error: `No configured model is eligible for task "${task}".` });
       }
+
+      let lastProviderError: unknown;
+      for (const candidate of candidates) {
+        const attemptStartedAt = Date.now();
+        try {
+          const result = await candidate.provider.generate({
+            prompt,
+            systemInstruction,
+            conversationHistory,
+            modelId: candidate.model.id,
+            temperature,
+            maxTokens,
+          });
+          if (typeof result.text !== 'string' || !result.text.trim()) {
+            throw new Error('Provider returned an empty generation result.');
+          }
+          modelRoutingTelemetry.record(candidate.model.id, true, Date.now() - attemptStartedAt);
+          return res.json({ ...result, provider: candidate.provider.id, modelId: candidate.model.id });
+        } catch (err) {
+          modelRoutingTelemetry.record(candidate.model.id, false, Date.now() - attemptStartedAt);
+          lastProviderError = err;
+          // This is a single-shot request, so no partial output has been sent yet.
+        }
+      }
+
+      console.error('[API /api/ai/generate] All eligible providers failed:', lastProviderError);
+      modelRoutingTelemetry.record('auto-generate', false, Date.now() - startedAt);
+      return res.status(503).json({
+        error: 'All eligible AI providers failed before returning a response. Check provider availability or retry shortly.',
+      });
+    }
+
+    try {
+      const provider = providerRegistry.getProvider(requestedProvider);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({ error: `The selected AI provider (${provider.id}) is not configured on the server.` });
+      }
+      const selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : undefined;
       const result = await provider.generate({
         prompt,
         systemInstruction,
         conversationHistory,
-        modelId,
+        modelId: selectedModelId,
         temperature,
         maxTokens,
       });
-
-      res.json(result);
+      if (typeof result.text !== 'string' || !result.text.trim()) {
+        throw new Error('Provider returned an empty generation result.');
+      }
+      modelRoutingTelemetry.record(selectedModelId || result.modelId || provider.id, true, Date.now() - startedAt);
+      return res.json({ ...result, provider: provider.id, modelId: selectedModelId || result.modelId });
     } catch (err) {
+      modelRoutingTelemetry.record(typeof modelId === 'string' ? modelId : requestedProvider, false, Date.now() - startedAt);
       console.error('[API /api/ai/generate Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: 'The selected AI provider could not complete this request. Check its configuration or try again.' });
     }
   });
 
@@ -428,16 +728,23 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.post('/api/ai/structured', async (req: Request, res: Response) => {
     const { prompt, systemInstruction, conversationHistory, jsonSchema, schemaName, modelId, providerId, temperature } = req.body;
 
-    if (!prompt || !jsonSchema) {
-      return res.status(400).json({ error: 'Prompt and jsonSchema are required' });
+    if (typeof prompt !== 'string' || !prompt.trim() || !jsonSchema || typeof jsonSchema !== 'object' || Array.isArray(jsonSchema)) {
+      return res.status(400).json({ error: 'Prompt and a JSON schema object are required.' });
     }
 
+    const requestedProvider = typeof providerId === 'string' ? providerId : '';
+    const startedAt = Date.now();
+    let selectedProviderId = requestedProvider;
+    let selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : '';
     try {
-      const provider = providerRegistry.getProvider(providerId);
-      if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+      let provider;
+      if (!requestedProvider || requestedProvider === 'auto') {
+        const routed = providerRegistry.routeForTask('structured_output');
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(requestedProvider);
       }
       const result = await provider.structuredOutput({
         prompt,
@@ -445,45 +752,51 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         conversationHistory,
         jsonSchema,
         schemaName,
-        modelId,
+        modelId: selectedModelId || undefined,
         temperature,
       });
-
-      res.json({ success: true, data: result });
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId, true, Date.now() - startedAt);
+      return res.json({ success: true, data: result, provider: selectedProviderId, modelId: selectedModelId || undefined });
     } catch (err) {
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'structured_output', false, Date.now() - startedAt);
       console.error('[API /api/ai/structured Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: err instanceof Error ? err.message : 'Structured generation is temporarily unavailable.' });
     }
   });
 
   // Discoverable Tool Call
   app.post('/api/ai/tool-call', async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, tools, modelId, providerId, temperature } = req.body;
-
-    if (!prompt || !tools || !Array.isArray(tools)) {
+    const { prompt, systemInstruction, conversationHistory, tools, modelId, providerId, temperature } = req.body || {};
+    if (typeof prompt !== 'string' || !prompt.trim() || !Array.isArray(tools)) {
       return res.status(400).json({ error: 'Prompt and tools array are required' });
     }
 
+    let selectedProviderId = typeof providerId === 'string' ? providerId : '';
+    let selectedModelId = typeof modelId === 'string' ? modelId : '';
+    const startedAt = Date.now();
     try {
-      const provider = providerRegistry.getProvider(providerId);
+      let provider;
+      if (!selectedProviderId || selectedProviderId === 'auto') {
+        const routed = providerRegistry.routeForTask('tool_calling');
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(selectedProviderId);
+      }
       if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+        return res.status(503).json({ error: `The selected AI provider (${provider.id}) is not configured on the server.` });
       }
       const result = await provider.toolCall({
-        prompt,
-        systemInstruction,
-        conversationHistory,
-        tools,
-        modelId,
-        temperature,
+        prompt, systemInstruction, conversationHistory, tools,
+        modelId: selectedModelId, temperature,
       });
-
-      res.json(result);
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId, true, Date.now() - startedAt);
+      return res.json({ ...result, provider: selectedProviderId, modelId: selectedModelId || undefined });
     } catch (err) {
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'tool_calling', false, Date.now() - startedAt);
       console.error('[API /api/ai/tool-call Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: err instanceof Error ? err.message : 'Tool-call provider request failed.' });
     }
   });
 
@@ -491,35 +804,43 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.post(['/api/ai/vision', '/api/visual/inspect'], async (req: Request, res: Response) => {
     const { base64Data, mimeType, prompt, modelId, providerId, systemInstruction } = req.body;
 
-    if (!base64Data) {
-      return res.status(400).json({ error: 'base64Data image frame is required' });
+    if (typeof base64Data !== 'string' || !base64Data.trim() || base64Data.length > 9_000_000) {
+      return res.status(400).json({ error: 'A valid base64 image frame up to 9 MB is required.' });
     }
 
+    const requestedProvider = typeof providerId === 'string' ? providerId : '';
+    const startedAt = Date.now();
+    let selectedProviderId = requestedProvider;
+    let selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : '';
     try {
-      const provider = providerRegistry.getProvider(providerId);
-      if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+      let provider;
+      if (!requestedProvider || requestedProvider === 'auto') {
+        const routed = providerRegistry.routeForTask('vision');
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(requestedProvider);
       }
       const result = await provider.vision({
         base64Data,
-        mimeType: mimeType || 'image/jpeg',
-        prompt: prompt || 'Analyze this frame and describe its key elements concisely.',
+        mimeType: typeof mimeType === 'string' && /^image\/(?:jpeg|png|webp|gif|avif)$/i.test(mimeType) ? mimeType : 'image/jpeg',
+        prompt: typeof prompt === 'string' && prompt.trim() ? prompt.slice(0, 2000) : 'Analyze this frame and describe its key elements concisely.',
         systemInstruction,
-        modelId,
+        modelId: selectedModelId || undefined,
       });
-
-      res.json({
+      modelRoutingTelemetry.record(selectedModelId || result.modelId || selectedProviderId, true, Date.now() - startedAt);
+      return res.json({
         analysis: result.analysis,
-        provider: result.provider,
-        modelId: result.modelId,
+        provider: result.provider || selectedProviderId,
+        modelId: result.modelId || selectedModelId || undefined,
         isPendingConfig: Boolean(result.isPendingConfig),
         timestamp: new Date().toISOString(),
       });
     } catch (err) {
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'vision', false, Date.now() - startedAt);
       console.error('[API /api/ai/vision Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: err instanceof Error ? err.message : 'Visual analysis is temporarily unavailable.' });
     }
   });
 
@@ -527,22 +848,32 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   app.post('/api/ai/embeddings', async (req: Request, res: Response) => {
     const { texts, modelId, providerId } = req.body;
 
-    if (!texts) {
-      return res.status(400).json({ error: 'texts string or array is required' });
+    if (!(typeof texts === 'string' && texts.trim()) &&
+        !(Array.isArray(texts) && texts.length > 0 && texts.length <= 100 && texts.every((item) => typeof item === 'string' && item.trim()))) {
+      return res.status(400).json({ error: 'texts must be a non-empty string or an array of up to 100 non-empty strings.' });
     }
 
+    const requestedProvider = typeof providerId === 'string' ? providerId : '';
+    const startedAt = Date.now();
+    let selectedProviderId = requestedProvider;
+    let selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : '';
     try {
-      const provider = providerRegistry.getProvider(providerId);
-      if (!provider.isConfigured()) {
-        return res.status(503).json({
-          error: `The selected AI provider (${provider.id}) is not configured on the server. Add its API key to the Vercel Production environment and redeploy.`,
-        });
+      let provider;
+      if (!requestedProvider || requestedProvider === 'auto') {
+        const routed = providerRegistry.routeForTask('embeddings');
+        provider = routed.provider;
+        selectedProviderId = provider.id;
+        selectedModelId = routed.model.id;
+      } else {
+        provider = providerRegistry.getProvider(requestedProvider);
       }
-      const embeddings = await provider.embeddings(texts);
-      res.json({ embeddings, count: embeddings.length });
+      const embeddings = await provider.embeddings(texts, selectedModelId || undefined);
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId, true, Date.now() - startedAt);
+      return res.json({ embeddings, count: embeddings.length, provider: selectedProviderId, modelId: selectedModelId || undefined });
     } catch (err) {
+      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'embeddings', false, Date.now() - startedAt);
       console.error('[API /api/ai/embeddings Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      return res.status(503).json({ error: err instanceof Error ? err.message : 'Embedding service is temporarily unavailable.' });
     }
   });
 
@@ -591,6 +922,1082 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // ============================================================================
 
   // Outbound Dispatch API (Internal workspace & client events)
+  // Durable background agent jobs. User endpoints verify the Supabase bearer token;
+  // worker endpoint requires a separate server-only CRON_SECRET and service-role credentials.
+  const authenticateJobUser = async (req: Request, res: Response): Promise<{ id: string; email?: string } | null> => {
+    const authorization = req.headers.authorization;
+    const token = typeof authorization === 'string' && authorization.startsWith('Bearer ')
+      ? authorization.slice(7).trim()
+      : '';
+    if (!token) { res.status(401).json({ error: 'Sign in to manage background jobs.' }); return null; }
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      res.status(503).json({ error: 'Durable background jobs require server-side Supabase service-role configuration.' });
+      return null;
+    }
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) { res.status(401).json({ error: 'Your session could not be verified.' }); return null; }
+    return { id: data.user.id, email: data.user.email };
+  };
+
+  // Private, owner-scoped research workspace and editable artifact APIs.
+  app.post('/api/research', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const query = req.body?.query;
+    const followUpQueries = req.body?.followUpQueries;
+    if (typeof query !== 'string' || !query.trim() || query.length > 500) {
+      return res.status(400).json({ error: 'A research question of 1–500 characters is required.' });
+    }
+    if (followUpQueries !== undefined && (!Array.isArray(followUpQueries) || followUpQueries.length > 3 || followUpQueries.some((item: unknown) => typeof item !== 'string'))) {
+      return res.status(400).json({ error: 'followUpQueries must be an array of at most three strings.' });
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Research persistence requires Supabase configuration.' });
+    try {
+      const report = await runGroundedResearch(query, followUpQueries || []);
+      const { data, error } = await supabase.from('angel_research_reports').insert({
+        user_id: user.id,
+        title: report.title || 'Research report',
+        query: report.query,
+        status: report.status,
+        report,
+      }).select('id,title,query,status,report,created_at,updated_at').single();
+      if (error || !data) {
+        console.error('[Research] Report persistence failed:', error?.message || 'No row returned');
+        return res.status(503).json({ error: 'The research ran, but could not be saved. Confirm the research/artifact migration has been applied to this Supabase project.' });
+      }
+      return res.status(201).json(data);
+    } catch (error) {
+      console.error('[Research] Request failed:', error instanceof Error ? error.message : 'Unknown error');
+      return res.status(502).json({ error: 'Research could not be completed. Check grounded-search configuration and try again.' });
+    }
+  });
+
+  app.get('/api/research/reports', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Research persistence requires Supabase configuration.' });
+    const rawLimit = Number(req.query.limit || 25);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(100, Math.floor(rawLimit))) : 25;
+    const { data, error } = await supabase.from('angel_research_reports')
+      .select('id,title,query,status,created_at,updated_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
+    if (error) {
+      console.error('[Research] Report list failed:', error.message);
+      return res.status(503).json({ error: 'Could not load saved reports. Confirm the research/artifact migration is applied.' });
+    }
+    return res.json({ reports: data || [] });
+  });
+
+  app.get('/api/research/reports/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Research persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_research_reports')
+      .select('id,title,query,status,report,created_at,updated_at')
+      .eq('user_id', user.id).eq('id', req.params.id).maybeSingle();
+    if (error) {
+      console.error('[Research] Report retrieval failed:', error.message);
+      return res.status(503).json({ error: 'Could not open saved report.' });
+    }
+    if (!data) return res.status(404).json({ error: 'Research report not found.' });
+    return res.json(data);
+  });
+
+  app.delete('/api/research/reports/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Research persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_research_reports').delete()
+      .eq('user_id', user.id).eq('id', req.params.id).select('id');
+    if (error) {
+      console.error('[Research] Report deletion failed:', error.message);
+      return res.status(503).json({ error: 'Could not delete the report.' });
+    }
+    if (!data?.length) return res.status(404).json({ error: 'Research report not found.' });
+    return res.status(204).end();
+  });
+
+  app.get('/api/artifacts', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const rawLimit = Number(req.query.limit || 50);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(100, Math.floor(rawLimit))) : 50;
+    const { data, error } = await supabase.from('angel_work_artifacts').select('*')
+      .eq('user_id', user.id).order('updated_at', { ascending: false }).limit(limit);
+    if (error) {
+      console.error('[Artifacts] List failed:', error.message);
+      return res.status(503).json({ error: 'Could not load artifacts. Confirm the research/artifact migration is applied.' });
+    }
+    return res.json({ artifacts: data || [] });
+  });
+
+  app.post('/api/artifacts', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    const validKinds = ['document', 'code', 'plan', 'media', 'research'];
+    if (typeof body.title !== 'string' || !body.title.trim() || body.title.length > 200 ||
+        typeof body.kind !== 'string' || !validKinds.includes(body.kind) ||
+        typeof (body.content ?? '') !== 'string' || (body.content ?? '').length > 2_000_000 ||
+        (body.assetUrl !== undefined && typeof body.assetUrl !== 'string')) {
+      return res.status(400).json({ error: 'Provide title, a supported kind, content up to 2 MB, and an optional asset URL.' });
+    }
+    if (body.assetUrl) {
+      try {
+        const url = new URL(body.assetUrl);
+        if (!['https:', 'http:'].includes(url.protocol)) return res.status(400).json({ error: 'assetUrl must use HTTP or HTTPS.' });
+      } catch {
+        return res.status(400).json({ error: 'assetUrl must be a valid HTTP or HTTPS URL.' });
+      }
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_work_artifacts').insert({
+      user_id: user.id,
+      title: body.title.trim(),
+      kind: body.kind,
+      content: body.content || '',
+      project_id: typeof body.projectId === 'string' ? body.projectId.slice(0, 128) : null,
+      asset_url: body.assetUrl || null,
+      mime_type: typeof body.mimeType === 'string' ? body.mimeType.slice(0, 120) : null,
+      metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {},
+    }).select('*').single();
+    if (error || !data) {
+      console.error('[Artifacts] Create failed:', error?.message || 'No row returned');
+      return res.status(503).json({ error: 'Could not save the artifact. Confirm the research/artifact migration is applied.' });
+    }
+    return res.status(201).json(data);
+  });
+
+  app.get('/api/artifacts/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_work_artifacts').select('*')
+      .eq('user_id', user.id).eq('id', req.params.id).maybeSingle();
+    if (error) return res.status(503).json({ error: 'Could not open the artifact.' });
+    if (!data) return res.status(404).json({ error: 'Artifact not found.' });
+    return res.json(data);
+  });
+
+  app.patch('/api/artifacts/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const { data: existing, error: readError } = await supabase.from('angel_work_artifacts').select('id,version')
+      .eq('user_id', user.id).eq('id', req.params.id).maybeSingle();
+    if (readError) return res.status(503).json({ error: 'Could not verify artifact ownership.' });
+    if (!existing) return res.status(404).json({ error: 'Artifact not found.' });
+    const body = req.body || {};
+    if (body.expectedVersion !== undefined &&
+        (!Number.isInteger(body.expectedVersion) || body.expectedVersion < 1)) {
+      return res.status(400).json({ error: 'expectedVersion must be a positive integer.' });
+    }
+    if (body.expectedVersion !== undefined && body.expectedVersion !== existing.version) {
+      return res.status(409).json({ error: 'Artifact version conflict: this artifact changed since you opened it.' });
+    }
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), version: existing.version + 1 };
+    if (body.title !== undefined) {
+      if (typeof body.title !== 'string' || !body.title.trim() || body.title.length > 200) return res.status(400).json({ error: 'title must be 1–200 characters.' });
+      patch.title = body.title.trim();
+    }
+    if (body.content !== undefined) {
+      if (typeof body.content !== 'string' || body.content.length > 2_000_000) return res.status(400).json({ error: 'content must be a string up to 2 MB.' });
+      patch.content = body.content;
+    }
+    if (body.metadata !== undefined) {
+      if (!body.metadata || typeof body.metadata !== 'object' || Array.isArray(body.metadata)) return res.status(400).json({ error: 'metadata must be an object.' });
+      patch.metadata = body.metadata;
+    }
+    const { data, error } = await supabase.from('angel_work_artifacts').update(patch)
+      .eq('user_id', user.id).eq('id', req.params.id).eq('version', existing.version).select('*').maybeSingle();
+    if (error) {
+      console.error('[Artifacts] Update failed:', error.message);
+      return res.status(503).json({ error: 'Could not update artifact.' });
+    }
+    if (!data) return res.status(409).json({ error: 'Artifact version conflict: this artifact changed since you opened it.' });
+    return res.json(data);
+  });
+
+  app.delete('/api/artifacts/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Artifact persistence requires Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_work_artifacts').delete()
+      .eq('user_id', user.id).eq('id', req.params.id).select('id');
+    if (error) return res.status(503).json({ error: 'Could not delete artifact.' });
+    if (!data?.length) return res.status(404).json({ error: 'Artifact not found.' });
+    return res.status(204).end();
+  });
+
+
+
+  // Private background notifications. Push endpoints/keys never return to the client after registration.
+  app.get('/api/push/status', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const configuration = getWebPushConfiguration();
+    const supabase = getSupabaseClient();
+    let subscriptionCount: number | null = null;
+    let storageWarning: string | undefined;
+    if (supabase && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const count = await getPushSubscriptionCount(supabase, user.id);
+      subscriptionCount = count.count;
+      storageWarning = count.error;
+    } else {
+      storageWarning = 'Server-side Supabase persistence is not configured.';
+    }
+    return res.json({
+      configured: configuration.configured && Boolean(subscriptionCount !== null),
+      vapidConfigured: configuration.configured,
+      publicKey: configuration.publicKey,
+      subscriptionCount,
+      reason: !configuration.configured ? configuration.reason : storageWarning,
+    });
+  });
+
+  app.post('/api/push/subscriptions', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const configuration = getWebPushConfiguration();
+    if (!configuration.configured) return res.status(503).json({ error: configuration.reason || 'Background push is not configured.' });
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(503).json({ error: 'Push subscriptions require server-side Supabase configuration.' });
+    }
+    const subscription = req.body?.subscription;
+    if (!subscription || typeof subscription !== 'object' || Array.isArray(subscription)) {
+      return res.status(400).json({ error: 'A browser PushSubscription object is required.' });
+    }
+    const endpointCheck = validatePushEndpoint(subscription.endpoint);
+    if (!endpointCheck.allowed) return res.status(400).json({ error: endpointCheck.reason });
+    const keys = subscription.keys;
+    if (!endpointCheck.endpoint || !keys || typeof keys !== 'object' ||
+        typeof keys.p256dh !== 'string' || !/^[A-Za-z0-9_-]{40,200}$/.test(keys.p256dh) ||
+        typeof keys.auth !== 'string' || !/^[A-Za-z0-9_-]{16,100}$/.test(keys.auth)) {
+      return res.status(400).json({ error: 'PushSubscription keys are invalid.' });
+    }
+    const normalized = {
+      endpoint: endpointCheck.endpoint,
+      keys: { p256dh: keys.p256dh, auth: keys.auth },
+    };
+    const { data: existing, error: lookupError } = await supabase.from('angel_push_subscriptions')
+      .select('id,user_id').eq('endpoint', endpointCheck.endpoint).maybeSingle();
+    if (lookupError) return res.status(503).json({ error: 'Could not verify this push endpoint ownership.' });
+    if (existing && existing.user_id !== user.id) {
+      return res.status(409).json({ error: 'This push endpoint is already registered to another account. Unregister it from that account or browser profile first.' });
+    }
+    if (existing) {
+      const { error } = await supabase.from('angel_push_subscriptions').update({
+        subscription: normalized, updated_at: new Date().toISOString(),
+      }).eq('id', existing.id).eq('user_id', user.id);
+      if (error) return res.status(503).json({ error: 'Could not update this device push subscription.' });
+    } else {
+      const { error } = await supabase.from('angel_push_subscriptions').insert({
+        user_id: user.id, endpoint: endpointCheck.endpoint, subscription: normalized,
+      });
+      if (error) {
+        // A concurrent insert may have claimed this globally unique endpoint. Do not overwrite its owner.
+        if (error.code === '23505') return res.status(409).json({ error: 'This push endpoint was registered concurrently. Refresh status and try again.' });
+        console.warn('[Web Push] Subscription persistence failed:', error.message);
+        return res.status(503).json({ error: 'Could not register this device. Confirm the Web Push migration was applied.' });
+      }
+    }
+    const count = await getPushSubscriptionCount(supabase, user.id);
+    return res.status(201).json({ registered: true, subscriptionCount: count.count });
+  });
+
+  app.delete('/api/push/subscriptions', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(503).json({ error: 'Push subscription storage is not configured.' });
+    }
+    const endpointCheck = validatePushEndpoint(req.body?.endpoint);
+    if (!endpointCheck.allowed) return res.status(400).json({ error: endpointCheck.reason });
+    if (!endpointCheck.endpoint) return res.status(400).json({ error: 'A valid push endpoint is required.' });
+    const { data, error } = await supabase.from('angel_push_subscriptions').delete()
+      .eq('user_id', user.id).eq('endpoint', endpointCheck.endpoint).select('id');
+    if (error) return res.status(503).json({ error: 'Could not remove this device subscription.' });
+    return res.json({ removed: (data || []).length > 0 });
+  });
+
+  // Browser automation is mediated by user-owned grants and an isolated Playwright worker.
+  // The worker remains unavailable unless a dedicated HTTPS service and server-only secret exist.
+  const browserActionKinds = ['navigate', 'read_page', 'click', 'fill_form', 'submit_form', 'screenshot'] as const;
+  type BrowserUiActionKind = typeof browserActionKinds[number];
+  type BrowserGrantRow = { id: string; user_id: string; host: string; scopes: string[]; created_at?: string; updated_at?: string };
+  type BrowserSessionRow = { id: string; user_id: string; worker_session_id: string; start_url: string; current_url: string; approved_hosts: string[]; status: string; created_at: string; last_activity_at: string; expires_at: string };
+  const browserPayloadHash = (kind: BrowserUiActionKind, url: string, selector?: string, value?: string) =>
+    crypto.createHash('sha256').update(JSON.stringify({
+      kind, url,
+      selector: typeof selector === 'string' ? selector : '',
+      value: typeof value === 'string' ? value : '',
+    })).digest('hex');
+  const loadBrowserGrants = async (userId: string): Promise<BrowserGrantRow[] | null> => {
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+    const { data, error } = await supabase.from('angel_browser_permission_grants')
+      .select('id,user_id,host,scopes,created_at,updated_at').eq('user_id', userId).order('host');
+    if (error) {
+      console.error('[Browser] Grant lookup failed:', error.message);
+      return null;
+    }
+    return (data || []) as BrowserGrantRow[];
+  };
+  const logBrowserAudit = async (entry: {
+    userId: string; sessionId?: string | null; actionId: string; actionKind: string;
+    host?: string | null; status: 'denied'|'prepared'|'started'|'completed'|'failed'|'cancelled'; message?: string;
+  }) => {
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
+    const { error } = await supabase.from('angel_browser_action_audit').insert({
+      user_id: entry.userId, session_id: entry.sessionId || null, action_id: entry.actionId,
+      action_kind: entry.actionKind, target_host: entry.host || null, status: entry.status,
+      message: (entry.message || '').slice(0, 300) || null,
+    });
+    if (error) console.error('[Browser] Audit event could not be persisted:', error.message);
+    return !error;
+  };
+
+  app.get('/api/browser/status', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const worker = getBrowserWorkerStatus();
+    const supabaseReady = Boolean(getSupabaseClient() && process.env.SUPABASE_SERVICE_ROLE_KEY);
+    return res.json({
+      configured: worker.configured && supabaseReady,
+      workerConfigured: worker.configured,
+      persistenceConfigured: supabaseReady,
+      reason: !supabaseReady ? 'Browser control requires server-side Supabase persistence.' : worker.reason,
+      supportedActions: browserActionKinds,
+      unsupportedActions: ['upload_file','download_file','purchase','delete','manage_credentials','operating_system_control'],
+    });
+  });
+
+  app.get('/api/browser/grants', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const grants = await loadBrowserGrants(user.id);
+    if (!grants) return res.status(503).json({ error: 'Browser permission storage is unavailable. Confirm the browser-control migration was applied.' });
+    return res.json({ grants });
+  });
+
+  app.post('/api/browser/grants', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    if (typeof body.host !== 'string' || !body.host.trim() || body.host.length > 253 ||
+        /[/*:\\s]/.test(body.host.trim()) || body.host.includes('://')) {
+      return res.status(400).json({ error: 'Enter one exact hostname only, for example docs.example.com. Wildcards, paths, ports, and URLs are not accepted.' });
+    }
+    const parsed = new URL('https://' + body.host.trim());
+    const host = parsed.hostname.toLowerCase().replace(/\.$/, '');
+    const checked = validateApprovedBrowserUrl('https://' + host, [host]);
+    if (!checked.allowed || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
+      return res.status(400).json({ error: checked.reason || 'Enter a valid public hostname.' });
+    }
+    const allowedScopes = new Set(['browser:read','browser:interact','browser:submit','browser:download','browser:upload','browser:purchase','browser:delete','browser:credentials']);
+    if (!Array.isArray(body.scopes) || body.scopes.length < 1 || body.scopes.length > 8 ||
+        body.scopes.some((scope: unknown) => typeof scope !== 'string' || !allowedScopes.has(scope)) ||
+        !body.scopes.includes('browser:read')) {
+      return res.status(400).json({ error: 'Choose supported browser permissions and include Read pages. Permissions can be narrowed or revoked later.' });
+    }
+    const currentGrants = await loadBrowserGrants(user.id);
+    if (!currentGrants) return res.status(503).json({ error: 'Browser grant storage is unavailable.' });
+    if (!currentGrants.some((grant) => grant.host === host) && currentGrants.length >= 20) {
+      return res.status(409).json({ error: 'A maximum of 20 exact host grants is supported. Revoke one before adding another.' });
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser grants require server-side Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_browser_permission_grants').upsert({
+      user_id: user.id, host, scopes: [...new Set(body.scopes)], updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,host' }).select('id,user_id,host,scopes,created_at,updated_at').single();
+    if (error || !data) {
+      console.error('[Browser] Grant save failed:', error?.message || 'No row returned');
+      return res.status(503).json({ error: 'Could not save the browser permission grant. Confirm the browser-control migration was applied.' });
+    }
+    return res.status(201).json({ grant: data, message: 'Host saved. New browser sessions will use this grant.' });
+  });
+
+  app.delete('/api/browser/grants/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser grants require server-side Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_browser_permission_grants').delete()
+      .eq('id', req.params.id).eq('user_id', user.id).select('id').maybeSingle();
+    if (error) return res.status(503).json({ error: 'Could not revoke the browser grant.' });
+    if (!data) return res.status(404).json({ error: 'Browser grant not found.' });
+    return res.status(204).end();
+  });
+
+  app.get('/api/browser/sessions', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser sessions require server-side Supabase configuration.' });
+    const { data, error } = await supabase.from('angel_browser_sessions')
+      .select('id,start_url,current_url,approved_hosts,status,created_at,last_activity_at,expires_at')
+      .eq('user_id', user.id).order('last_activity_at', { ascending: false }).limit(20);
+    if (error) return res.status(503).json({ error: 'Could not load browser sessions. Confirm the browser-control migration was applied.' });
+    const now = Date.now();
+    const sessions = (data || []).map((session: any) => ({
+      ...session,
+      status: session.status === 'active' && Date.parse(session.expires_at) <= now ? 'expired' : session.status,
+    }));
+    return res.json({ sessions });
+  });
+
+  app.post('/api/browser/sessions', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    if (typeof body.startUrl !== 'string' || body.startUrl.length > 2048) return res.status(400).json({ error: 'A starting HTTPS URL is required.' });
+    const grants = await loadBrowserGrants(user.id);
+    if (!grants) return res.status(503).json({ error: 'Browser grant storage is unavailable. Confirm the browser-control migration was applied.' });
+    const approvedHosts = grants.map((grant) => grant.host);
+    const target = validateApprovedBrowserUrl(body.startUrl, approvedHosts);
+    if (!target.allowed || !target.host) return res.status(403).json({ error: target.reason || 'The starting host is not approved.' });
+    const hostGrant = grants.find((grant) => grant.host === target.host);
+    if (!hostGrant?.scopes.includes('browser:read')) return res.status(403).json({ error: 'Grant Read pages permission for this host before starting a session.' });
+    const workerStatus = getBrowserWorkerStatus();
+    if (!workerStatus.configured) return res.status(503).json({ error: workerStatus.reason || 'The isolated browser worker is not configured.' });
+    const worker = await callBrowserWorker('v1/sessions', {
+      method: 'POST', timeoutMs: 25000,
+      body: { ownerId: user.id, startUrl: body.startUrl, approvedHosts },
+    });
+    const workerSessionId = typeof worker.data.sessionId === 'string' ? worker.data.sessionId : '';
+    const currentUrl = typeof worker.data.url === 'string' ? worker.data.url : '';
+    if (!worker.ok || !workerSessionId || !currentUrl) {
+      return res.status(worker.status >= 400 && worker.status < 500 ? worker.status : 502).json({
+        error: typeof worker.data.error === 'string' ? worker.data.error : 'The browser worker could not create a session.',
+        detail: typeof worker.data.detail === 'string' ? worker.data.detail : undefined,
+      });
+    }
+    const supabase = getSupabaseClient()!;
+    const { data, error } = await supabase.from('angel_browser_sessions').insert({
+      user_id: user.id, worker_session_id: workerSessionId, start_url: body.startUrl,
+      current_url: currentUrl, approved_hosts: approvedHosts, status: 'active',
+      last_activity_at: new Date().toISOString(),
+      expires_at: typeof worker.data.expiresAt === 'string' ? worker.data.expiresAt : new Date(Date.now() + 20 * 60_000).toISOString(),
+    }).select('id,start_url,current_url,approved_hosts,status,created_at,last_activity_at,expires_at').single();
+    if (error || !data) {
+      await callBrowserWorker('v1/sessions/' + encodeURIComponent(workerSessionId), { method: 'DELETE', body: { ownerId: user.id } });
+      console.error('[Browser] Session persistence failed:', error?.message || 'No row returned');
+      return res.status(503).json({ error: 'The browser session started but could not be securely saved. It was closed; confirm the browser-control migration.' });
+    }
+    await logBrowserAudit({ userId: user.id, sessionId: data.id, actionId: crypto.randomUUID(), actionKind: 'start_session', host: target.host, status: 'completed', message: 'Isolated browser session started.' });
+    return res.status(201).json({ session: data, title: typeof worker.data.title === 'string' ? worker.data.title : '' });
+  });
+
+  app.post('/api/browser/sessions/:id/prepare', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    const kind = body.kind as BrowserUiActionKind;
+    if (!browserActionKinds.includes(kind) || (body.url !== undefined && (typeof body.url !== 'string' || body.url.length > 2048)) ||
+        (body.selector !== undefined && (typeof body.selector !== 'string' || body.selector.length < 1 || body.selector.length > 500)) ||
+        (body.value !== undefined && (typeof body.value !== 'string' || body.value.length > 10000))) {
+      return res.status(400).json({ error: 'Action type or parameters are invalid.' });
+    }
+    if ((kind === 'click' || kind === 'fill_form' || kind === 'submit_form') && typeof body.selector !== 'string') {
+      return res.status(400).json({ error: 'This browser action needs an explicit page selector.' });
+    }
+    if (kind === 'fill_form' && typeof body.value !== 'string') return res.status(400).json({ error: 'Filling a field requires a value.' });
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser persistence is not configured.' });
+    const { data: session, error: sessionError } = await supabase.from('angel_browser_sessions')
+      .select('id,user_id,worker_session_id,current_url,approved_hosts,status,expires_at')
+      .eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (sessionError) return res.status(503).json({ error: 'Could not verify browser session ownership.' });
+    if (!session || session.status !== 'active') return res.status(404).json({ error: 'Active browser session was not found.' });
+    if (Date.parse(session.expires_at) <= Date.now()) return res.status(410).json({ error: 'Browser session expired. Start a new session.' });
+    const grants = await loadBrowserGrants(user.id);
+    if (!grants) return res.status(503).json({ error: 'Browser permission storage is unavailable.' });
+    const eligibleGrants = grants.filter((grant) => session.approved_hosts.includes(grant.host));
+    const approvedHosts = eligibleGrants.map((grant) => grant.host);
+    const targetUrl = kind === 'navigate' ? body.url : session.current_url;
+    const probe = validateApprovedBrowserUrl(targetUrl, approvedHosts);
+    if (!probe.allowed || !probe.host || !session.approved_hosts.includes(probe.host)) return res.status(403).json({ error: probe.reason || 'Target host is outside this session’s approved scope.' });
+    const hostGrant = eligibleGrants.find((grant) => grant.host === probe.host);
+    const policyKind: BrowserActionKind = kind === 'screenshot' ? 'read_page' : kind;
+    const actionId = crypto.randomUUID();
+    const decision = evaluateBrowserAction({
+      actionId, kind: policyKind, url: targetUrl, approvedHosts,
+      grantedScopes: hostGrant?.scopes || [], now: Date.now(),
+    });
+    if (!decision.allowed) {
+      await logBrowserAudit({ userId: user.id, sessionId: session.id, actionId, actionKind: kind, host: probe.host, status: 'denied', message: decision.reason || 'Permission denied.' });
+      return res.status(403).json({ error: decision.reason || 'The browser permission policy denied this action.' });
+    }
+    const expiresAt = new Date(Date.now() + 5 * 60_000).toISOString();
+    const { data: challenge, error } = await supabase.from('angel_browser_action_confirmations').insert({
+      user_id: user.id, session_id: session.id, action_id: actionId, action_kind: kind,
+      target_host: probe.host, target_url: targetUrl,
+      payload_hash: browserPayloadHash(kind, targetUrl, body.selector, body.value),
+      requires_confirmation: decision.requiresConfirmation, expires_at: expiresAt,
+    }).select('id,action_id,action_kind,target_host,target_url,requires_confirmation,expires_at').single();
+    if (error || !challenge) return res.status(503).json({ error: 'Could not prepare a one-time browser action. Confirm the browser-control migration was applied.' });
+    const summary = kind === 'navigate' ? 'Navigate to ' + targetUrl
+      : kind === 'read_page' ? 'Read visible page content from ' + targetUrl
+      : kind === 'screenshot' ? 'Capture a screenshot of ' + targetUrl
+      : kind === 'fill_form' ? 'Fill a form field on ' + targetUrl
+      : kind === 'submit_form' ? 'Click a form submission control on ' + targetUrl
+      : 'Click a page element on ' + targetUrl;
+    if (!await logBrowserAudit({ userId: user.id, sessionId: session.id, actionId, actionKind: kind, host: probe.host, status: 'prepared', message: decision.requiresConfirmation ? 'Prepared; explicit confirmation required.' : 'Prepared; read/interact permission checked.' })) {
+      return res.status(503).json({ error: 'The action could not be audited and therefore was not enabled.' });
+    }
+    return res.status(201).json({
+      challengeId: challenge.id, actionId, kind, host: probe.host, targetUrl,
+      requiresConfirmation: decision.requiresConfirmation, expiresAt, summary,
+    });
+  });
+
+  app.post('/api/browser/sessions/:id/execute', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body || {};
+    if (typeof body.challengeId !== 'string' || body.challengeId.length > 100) return res.status(400).json({ error: 'A prepared action challenge is required.' });
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser persistence is not configured.' });
+    const { data: session, error: sessionError } = await supabase.from('angel_browser_sessions')
+      .select('id,user_id,worker_session_id,current_url,approved_hosts,status,expires_at')
+      .eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (sessionError) return res.status(503).json({ error: 'Could not verify browser session ownership.' });
+    if (!session || session.status !== 'active') return res.status(404).json({ error: 'Active browser session was not found.' });
+    if (Date.parse(session.expires_at) <= Date.now()) return res.status(410).json({ error: 'Browser session expired. Start a new session.' });
+    const { data: challenge, error: challengeError } = await supabase.from('angel_browser_action_confirmations')
+      .select('id,action_id,action_kind,target_host,target_url,payload_hash,requires_confirmation,expires_at,used_at')
+      .eq('id', body.challengeId).eq('user_id', user.id).eq('session_id', session.id).maybeSingle();
+    if (challengeError) return res.status(503).json({ error: 'Could not verify the browser action confirmation.' });
+    if (!challenge || challenge.used_at || Date.parse(challenge.expires_at) <= Date.now()) return res.status(409).json({ error: 'This prepared action is missing, expired, or already used. Prepare it again.' });
+    const kind = challenge.action_kind as BrowserUiActionKind;
+    if (!browserActionKinds.includes(kind) || (body.kind !== undefined && body.kind !== kind)) return res.status(400).json({ error: 'Prepared action type does not match.' });
+    if (challenge.requires_confirmation && body.confirmed !== true) return res.status(428).json({ error: 'This action requires an explicit confirmation. Review the action summary and confirm before continuing.' });
+    const selector = typeof body.selector === 'string' ? body.selector : undefined;
+    const value = typeof body.value === 'string' ? body.value : undefined;
+    if ((kind === 'click' || kind === 'fill_form' || kind === 'submit_form') &&
+        (typeof selector !== 'string' || !selector.trim() || selector.length > 500)) return res.status(400).json({ error: 'The exact selector from the prepared action must be provided.' });
+    if ((kind === 'fill_form' && typeof value !== 'string') ||
+        (value !== undefined && value.length > 10000)) return res.status(400).json({ error: 'The prepared field value is invalid.' });
+    const actionUrl = kind === 'navigate' ? body.url : challenge.target_url;
+    if (kind === 'navigate' && typeof actionUrl !== 'string') return res.status(400).json({ error: 'The prepared navigation URL is required.' });
+    if (browserPayloadHash(kind, actionUrl, selector, value) !== challenge.payload_hash) return res.status(409).json({ error: 'The action details changed after preparation. Prepare it again to review the updated action.' });
+    const grants = await loadBrowserGrants(user.id);
+    if (!grants) return res.status(503).json({ error: 'Browser permission storage is unavailable.' });
+    const eligibleGrants = grants.filter((grant) => session.approved_hosts.includes(grant.host));
+    const approvedHosts = eligibleGrants.map((grant) => grant.host);
+    const probe = validateApprovedBrowserUrl(actionUrl, approvedHosts);
+    if (!probe.allowed || probe.host !== challenge.target_host) return res.status(403).json({ error: 'The host grant was revoked or no longer matches this prepared action.' });
+    const hostGrant = eligibleGrants.find((grant) => grant.host === probe.host);
+    const policyKind: BrowserActionKind = kind === 'screenshot' ? 'read_page' : kind;
+    const now = Date.now();
+    const decision = evaluateBrowserAction({
+      actionId: challenge.action_id, kind: policyKind, url: actionUrl, approvedHosts,
+      grantedScopes: hostGrant?.scopes || [], now,
+      confirmation: challenge.requires_confirmation && body.confirmed === true
+        ? { actionId: challenge.action_id, host: challenge.target_host, approvedAt: now }
+        : undefined,
+    });
+    if (!decision.allowed) {
+      await logBrowserAudit({ userId: user.id, sessionId: session.id, actionId: challenge.action_id, actionKind: kind, host: probe.host, status: 'denied', message: decision.reason || 'Permission revoked.' });
+      return res.status(403).json({ error: decision.reason || 'The browser permission policy denied this action.' });
+    }
+    // Atomically consume the challenge before the side effect to prevent replay/double-click execution.
+    const usedAt = new Date().toISOString();
+    const { data: consumed, error: consumeError } = await supabase.from('angel_browser_action_confirmations')
+      .update({ used_at: usedAt }).eq('id', challenge.id).eq('user_id', user.id)
+      .is('used_at', null).gt('expires_at', usedAt).select('id').maybeSingle();
+    if (consumeError) return res.status(503).json({ error: 'Could not consume the one-time action challenge.' });
+    if (!consumed) return res.status(409).json({ error: 'This browser action was already used or expired. Prepare it again.' });
+    const { data: audit, error: auditError } = await supabase.from('angel_browser_action_audit').insert({
+      user_id: user.id, session_id: session.id, action_id: challenge.action_id,
+      action_kind: kind, target_host: probe.host, status: 'started',
+      message: challenge.requires_confirmation ? 'User confirmed the prepared action.' : 'Prepared action executing.',
+    }).select('id').single();
+    if (auditError || !audit) return res.status(503).json({ error: 'The action could not be audited and therefore was not executed.' });
+    const response = await callBrowserWorker('v1/sessions/' + encodeURIComponent(session.worker_session_id) + '/actions', {
+      method: 'POST', timeoutMs: 25000,
+      body: {
+        ownerId: user.id, approvedHosts, actionId: challenge.action_id, kind,
+        expectedUrl: challenge.target_url,
+        ...(kind === 'navigate' ? { url: actionUrl } : {}),
+        ...(selector ? { selector } : {}),
+        ...(value !== undefined ? { value } : {}),
+      },
+    });
+    const workerUrl = typeof response.data.url === 'string' ? response.data.url : session.current_url;
+    if (response.data.closed === true) {
+      await supabase.from('angel_browser_sessions').update({ status: 'closed', last_activity_at: usedAt })
+        .eq('id', session.id).eq('user_id', user.id);
+    } else if (response.ok) {
+      await supabase.from('angel_browser_sessions').update({ current_url: workerUrl, last_activity_at: usedAt })
+        .eq('id', session.id).eq('user_id', user.id).eq('status', 'active');
+    }
+    const completed = response.ok;
+    await supabase.from('angel_browser_action_audit').update({
+      status: completed ? 'completed' : 'failed',
+      message: completed ? 'Browser action completed.' :
+        (typeof response.data.error === 'string' ? response.data.error : 'Browser worker action failed.').slice(0, 300),
+    }).eq('id', audit.id).eq('user_id', user.id);
+    if (!response.ok) return res.status(response.status >= 400 && response.status < 500 ? response.status : 502).json({
+      error: typeof response.data.error === 'string' ? response.data.error : 'Browser action failed.',
+      detail: typeof response.data.detail === 'string' ? response.data.detail : undefined,
+    });
+    return res.json({ result: response.data, message: 'Browser action completed by the isolated worker.' });
+  });
+
+  app.post('/api/browser/sessions/:id/close', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser persistence is not configured.' });
+    const { data: session, error } = await supabase.from('angel_browser_sessions')
+      .select('id,worker_session_id,status').eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (error) return res.status(503).json({ error: 'Could not verify browser session ownership.' });
+    if (!session) return res.status(404).json({ error: 'Browser session not found.' });
+    if (session.status === 'active') {
+      const closed = await callBrowserWorker('v1/sessions/' + encodeURIComponent(session.worker_session_id), {
+        method: 'DELETE', body: { ownerId: user.id }, timeoutMs: 5000,
+      });
+      if (!closed.ok && closed.status !== 404 && closed.status !== 410) {
+        return res.status(502).json({ error: typeof closed.data.error === 'string' ? closed.data.error : 'The worker did not confirm that the session closed.' });
+      }
+      await supabase.from('angel_browser_sessions').update({ status: 'closed', last_activity_at: new Date().toISOString() })
+        .eq('id', session.id).eq('user_id', user.id);
+    }
+    return res.json({ closed: true });
+  });
+
+  app.get('/api/browser/audit', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Browser audit storage is not configured.' });
+    const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 30));
+    const { data, error } = await supabase.from('angel_browser_action_audit')
+      .select('id,session_id,action_id,action_kind,target_host,status,message,created_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
+    if (error) return res.status(503).json({ error: 'Could not load browser activity history.' });
+    return res.json({ events: data || [] });
+  });
+
+
+  // Bounded scheduled assistance. The worker adds due schedules to the same
+  // durable queue, so existing retry, cancellation, privacy, and verification
+  // rules continue to apply to scheduled runs.
+  app.get('/api/schedules', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Scheduled assistance requires server-side Supabase configuration.' });
+    const rawLimit = Number(req.query.limit || 50);
+    const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(100, Math.floor(rawLimit))) : 50;
+    const { data, error } = await supabase.from('angel_scheduled_tasks')
+      .select('id,title,task_prompt,schedule_type,scheduled_at,interval_minutes,max_runs,runs_enqueued,enabled,notify_on_completion,next_run_at,last_enqueued_at,created_at,updated_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
+    if (error) {
+      console.error('[Schedules] List failed:', error.message);
+      return res.status(503).json({ error: 'Could not load schedules. Confirm the proactive-scheduled-tasks migration has been applied.' });
+    }
+    return res.json({ schedules: data || [] });
+  });
+
+  app.post('/api/schedules', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const parsedInput = parseScheduledTaskInput(req.body);
+    if (!parsedInput.ok) return res.status(400).json({ error: parsedInput.error });
+    const { scheduleType, title, taskPrompt, scheduledAt, intervalMinutes, maxRuns, notifyOnCompletion } = parsedInput.value;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Scheduled assistance requires server-side Supabase configuration.' });
+    const { count, error: countError } = await supabase.from('angel_scheduled_tasks')
+      .select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('enabled', true);
+    if (countError) return res.status(503).json({ error: 'Could not verify your active schedule limit. Try again.' });
+    if ((count || 0) >= 20) return res.status(409).json({ error: 'A maximum of 20 enabled schedules is allowed per account. Pause or delete one before creating another.' });
+    const firstRun = scheduledAt;
+    const { data, error } = await supabase.from('angel_scheduled_tasks').insert({
+      user_id: user.id,
+      title,
+      task_prompt: taskPrompt,
+      schedule_type: scheduleType,
+      scheduled_at: firstRun,
+      interval_minutes: intervalMinutes,
+      max_runs: maxRuns,
+      runs_enqueued: 0,
+      enabled: true,
+      notify_on_completion: notifyOnCompletion,
+      next_run_at: firstRun,
+    }).select('id,title,task_prompt,schedule_type,scheduled_at,interval_minutes,max_runs,runs_enqueued,enabled,notify_on_completion,next_run_at,last_enqueued_at,created_at,updated_at').single();
+    if (error || !data) {
+      console.error('[Schedules] Create failed:', error?.message || 'No schedule row returned');
+      return res.status(503).json({ error: 'Could not save this schedule. Confirm the proactive-scheduled-tasks migration has been applied.' });
+    }
+    return res.status(201).json({ schedule: data, message: 'Schedule saved. It will enqueue work when the authenticated background worker is running.' });
+  });
+
+  app.patch('/api/schedules/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'Provide enabled=true or enabled=false.' });
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Scheduled assistance requires server-side Supabase configuration.' });
+    const { data: existing, error: readError } = await supabase.from('angel_scheduled_tasks')
+      .select('id,user_id,schedule_type,scheduled_at,interval_minutes,max_runs,runs_enqueued,enabled,next_run_at')
+      .eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (readError) return res.status(503).json({ error: 'Could not read this schedule.' });
+    if (!existing) return res.status(404).json({ error: 'Schedule not found.' });
+    let nextRunAt: string | null = existing.next_run_at;
+    if (req.body.enabled) {
+      if (existing.runs_enqueued >= existing.max_runs) return res.status(409).json({ error: 'This schedule has reached its run limit. Create a new schedule with a new limit.' });
+      if (existing.schedule_type === 'once' && Date.parse(existing.scheduled_at) <= Date.now()) {
+        return res.status(409).json({ error: 'This one-time schedule has passed. Create a new one-time schedule with a future time.' });
+      }
+      if (existing.schedule_type === 'interval') {
+        const currentNext = typeof existing.next_run_at === 'string' ? Date.parse(existing.next_run_at) : NaN;
+        nextRunAt = new Date(Math.max(Number.isFinite(currentNext) ? currentNext : 0, Date.now() + 30_000)).toISOString();
+      } else {
+        nextRunAt = existing.scheduled_at;
+      }
+    }
+    const { data, error } = await supabase.from('angel_scheduled_tasks').update({
+      enabled: req.body.enabled,
+      next_run_at: nextRunAt,
+      updated_at: new Date().toISOString(),
+    }).eq('id', req.params.id).eq('user_id', user.id)
+      .select('id,title,task_prompt,schedule_type,scheduled_at,interval_minutes,max_runs,runs_enqueued,enabled,notify_on_completion,next_run_at,last_enqueued_at,created_at,updated_at').maybeSingle();
+    if (error) return res.status(503).json({ error: 'Could not update schedule status.' });
+    if (!data) return res.status(404).json({ error: 'Schedule not found.' });
+    return res.json({ schedule: data });
+  });
+
+  app.delete('/api/schedules/:id', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) return res.status(503).json({ error: 'Scheduled assistance requires server-side Supabase configuration.' });
+    const { data: existing, error: readError } = await supabase.from('angel_scheduled_tasks')
+      .select('id').eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+    if (readError) return res.status(503).json({ error: 'Could not verify schedule ownership.' });
+    if (!existing) return res.status(404).json({ error: 'Schedule not found.' });
+    const now = new Date().toISOString();
+    const { error: queuedError } = await supabase.from('angel_background_jobs').update({
+      status: 'cancelled', finished_at: now, updated_at: now,
+      error: 'The scheduled task was removed before execution.',
+      progress: { stage: 'cancelled', percent: 100, message: 'Schedule removed; queued occurrence cancelled.' },
+    }).eq('user_id', user.id).eq('scheduled_task_id', req.params.id).in('status', ['queued','retrying']);
+    if (queuedError) return res.status(503).json({ error: 'Could not cancel queued occurrences, so the schedule was not removed.' });
+    const { error: runningError } = await supabase.from('angel_background_jobs').update({
+      cancel_requested_at: now, updated_at: now,
+      progress: { stage: 'cancellation_requested', percent: 95, message: 'Schedule removed; cancellation requested for the in-flight occurrence.' },
+    }).eq('user_id', user.id).eq('scheduled_task_id', req.params.id).eq('status', 'running').is('cancel_requested_at', null);
+    if (runningError) return res.status(503).json({ error: 'Could not request cancellation of the active occurrence, so the schedule was not removed.' });
+    const { data: deleted, error: deleteError } = await supabase.from('angel_scheduled_tasks')
+      .delete().eq('id', req.params.id).eq('user_id', user.id).select('id').maybeSingle();
+    if (deleteError) return res.status(503).json({ error: 'Could not remove the schedule.' });
+    if (!deleted) return res.status(404).json({ error: 'Schedule not found.' });
+    return res.status(204).end();
+  });
+
+  app.post('/api/jobs', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const body = req.body as { kind?: unknown; title?: unknown; taskPrompt?: unknown; agentName?: unknown; systemInstructions?: unknown; modelConfig?: unknown; context?: unknown };
+    if (body.kind !== 'agent_execution' || typeof body.taskPrompt !== 'string' || !body.taskPrompt.trim() || body.taskPrompt.length > 20000) {
+      return res.status(400).json({ error: 'Provide kind=agent_execution and a taskPrompt between 1 and 20,000 characters.' });
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
+    const input = {
+      taskPrompt: body.taskPrompt.trim(),
+      agentName: typeof body.agentName === 'string' ? body.agentName.slice(0, 120) : 'Angel',
+      systemInstructions: typeof body.systemInstructions === 'string' ? body.systemInstructions.slice(0, 12000) : 'Complete the user request carefully. Be honest about uncertainty and tool limitations.',
+      modelConfig: body.modelConfig && typeof body.modelConfig === 'object' ? body.modelConfig : {},
+      context: body.context && typeof body.context === 'object' ? body.context : {},
+    };
+    const { data, error } = await supabase.from('angel_background_jobs').insert({
+      user_id: user.id,
+      kind: 'agent_execution',
+      title: typeof body.title === 'string' && body.title.trim() ? body.title.trim().slice(0, 160) : input.taskPrompt.slice(0, 100),
+      input,
+      status: 'queued',
+    }).select('id,kind,title,status,created_at').single();
+    if (error || !data) return res.status(500).json({ error: 'Could not queue the background job.', detail: error?.message });
+    return res.status(202).json({ job: data, message: 'Queued. The job will run when the background worker is scheduled.' });
+  });
+
+  app.get('/api/jobs', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 30));
+    const { data, error } = await supabase.from('angel_background_jobs')
+      .select('id,kind,title,status,result,error,progress,attempt_count,max_attempts,cancel_requested_at,notify_on_completion,scheduled_task_id,scheduled_for,created_at,started_at,finished_at,updated_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
+    if (error) return res.status(500).json({ error: 'Could not load background jobs.', detail: error.message });
+    return res.json({ jobs: data || [] });
+  });
+
+  app.post('/api/jobs/:id/cancel', async (req: Request, res: Response) => {
+    const user = await authenticateJobUser(req, res);
+    if (!user) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return res.status(503).json({ error: 'Supabase is not configured.' });
+    const now = new Date().toISOString();
+    const { data: stopped, error: stopError } = await supabase.from('angel_background_jobs')
+      .update({
+        status: 'cancelled',
+        finished_at: now,
+        updated_at: now,
+        progress: { stage: 'cancelled', percent: 100, message: 'Cancelled before execution or retry.' },
+      })
+      .eq('id', req.params.id).eq('user_id', user.id).in('status', ['queued', 'retrying'])
+      .select('id,status,progress').maybeSingle();
+    if (stopError) return res.status(500).json({ error: 'Could not cancel the background job.' });
+    if (stopped) return res.json({ job: stopped, message: 'The queued task was cancelled.' });
+
+    // A running provider call cannot always be interrupted by its SDK. Record the
+    // request now; the worker will discard its result and will not schedule retries.
+    const { data: requested, error: requestError } = await supabase.from('angel_background_jobs')
+      .update({
+        cancel_requested_at: now,
+        updated_at: now,
+        progress: { stage: 'cancellation_requested', percent: 95, message: 'Cancellation requested. The current model call may need to finish first.' },
+      })
+      .eq('id', req.params.id).eq('user_id', user.id).eq('status', 'running').is('cancel_requested_at', null)
+      .select('id,status,progress,cancel_requested_at').maybeSingle();
+    if (requestError) return res.status(500).json({ error: 'Could not request task cancellation.' });
+    if (requested) return res.json({ job: requested, message: 'Cancellation requested. Any in-flight model call may finish before the worker stops and suppresses the result.' });
+    return res.status(409).json({ error: 'The job was not found, is already cancelled, or has already finished.' });
+  });
+
+  app.all('/api/jobs/worker', async (req: Request, res: Response) => {
+    const expected = process.env.CRON_SECRET || '';
+    const presented = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7).trim()
+      : '';
+    if (!expected || !presented || !crypto.timingSafeEqual(crypto.createHash('sha256').update(expected).digest(), crypto.createHash('sha256').update(presented).digest())) {
+      return res.status(401).json({ error: 'A valid server-only CRON_SECRET is required.' });
+    }
+    const supabase = getSupabaseClient();
+    if (!supabase || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(503).json({ error: 'The background worker requires SUPABASE_SERVICE_ROLE_KEY.' });
+    }
+    // Schedule enqueueing is deliberately isolated from ordinary queue processing:
+    // if the newer schedule migration is missing, existing manually queued jobs still run.
+    let scheduledTasksStatus: { configured: boolean; enqueued: number; warning?: string } = { configured: true, enqueued: 0 };
+    const { data: scheduledCount, error: scheduleError } = await supabase.rpc('enqueue_due_angel_scheduled_tasks', { p_limit: 20 });
+    if (scheduleError) {
+      scheduledTasksStatus = { configured: false, enqueued: 0, warning: 'Scheduled assistance is unavailable until its database migration is applied and the enqueue function is healthy.' };
+      console.warn('[Scheduled assistance] Due schedules were not enqueued:', scheduleError.message);
+    } else {
+      scheduledTasksStatus.enqueued = Math.max(0, Number(scheduledCount) || 0);
+    }
+    const { data: jobs, error } = await supabase.rpc('claim_angel_background_jobs', { p_limit: 3 });
+    if (error) return res.status(500).json({ error: 'Could not claim queued jobs.', detail: error.message });
+    const results: Array<{ id: string; status: string }> = [];
+    type ClaimedJob = {
+      id: string;
+      user_id: string;
+      input: Record<string, unknown>;
+      attempt_count?: number;
+      max_attempts?: number;
+      cancel_requested_at?: string | null;
+      title?: string;
+      notify_on_completion?: boolean;
+    };
+    const notifyTaskOutcome = async (job: ClaimedJob, outcome: 'completed' | 'failed') => {
+      if (job.notify_on_completion === false) return;
+      try {
+        const notification = await sendTaskPushNotification(
+          supabase,
+          job.user_id,
+          job.id,
+          typeof job.title === 'string' ? job.title : 'Background task',
+          outcome,
+        );
+        if (notification.configured && notification.sent === 0) {
+          console.info('[Web Push] No active subscription received the task notification.');
+        } else if (!notification.configured) {
+          console.info('[Web Push] Task finished, but background push is not configured.');
+        }
+      } catch {
+        // Push delivery must not change a verified task result or worker state.
+        console.warn('[Web Push] Notification delivery failed; job status is unchanged.');
+      }
+    };
+    const percentByStage: Record<string, number> = {
+      requested: 5, context_preparation: 15, memory_retrieval: 22,
+      tool_planning: 30, execution: 45, validation: 80, response: 90,
+      memory_update: 94, completed: 100, failed: 100,
+    };
+    for (const job of (jobs || []) as ClaimedJob[]) {
+      const now = () => new Date().toISOString();
+      const attempt = Math.max(1, Number(job.attempt_count) || 1);
+      const maxAttempts = Math.max(1, Math.min(8, Number(job.max_attempts) || 3));
+      try {
+        const input = job.input || {};
+        const result = await executeAgentPipeline({
+          agentId: 'background-agent',
+          agentName: typeof input.agentName === 'string' ? input.agentName : 'Angel',
+          systemInstructions: typeof input.systemInstructions === 'string' ? input.systemInstructions : 'Complete the user request carefully and report limitations honestly.',
+          taskPrompt: typeof input.taskPrompt === 'string' ? input.taskPrompt : '',
+          modelConfig: input.modelConfig && typeof input.modelConfig === 'object' ? input.modelConfig as any : undefined,
+          context: input.context && typeof input.context === 'object' ? input.context as any : undefined,
+          allowedTools: [],
+          permissions: [],
+          memoryAccess: { canRead: false, canWrite: false, types: [] },
+          onProgress: async (step) => {
+            const { error: progressError } = await supabase.from('angel_background_jobs').update({
+              progress: {
+                stage: step.stage,
+                percent: percentByStage[step.stage] ?? 40,
+                message: step.message.slice(0, 240),
+                attempt,
+                maxAttempts,
+              },
+              updated_at: now(),
+            }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null);
+            if (progressError) console.warn('[Background job progress persistence]', progressError.message);
+          },
+        });
+
+        const { data: latest, error: latestError } = await supabase.from('angel_background_jobs')
+          .select('cancel_requested_at').eq('id', job.id).maybeSingle();
+        if (latestError) throw latestError;
+        if (latest?.cancel_requested_at) {
+          await supabase.from('angel_background_jobs').update({
+            status: 'cancelled',
+            result: null,
+            error: 'Cancellation was requested while the model call was running. The result was discarded.',
+            progress: { stage: 'cancelled', percent: 100, message: 'Cancelled after the in-flight call ended; result discarded.', attempt, maxAttempts },
+            finished_at: now(),
+            updated_at: now(),
+          }).eq('id', job.id).eq('status', 'running');
+          results.push({ id: job.id, status: 'cancelled' });
+          continue;
+        }
+
+        const verification = result.status === 'completed'
+          ? verifyWorkflowOutcome(result.output)
+          : { verified: false, reason: result.error || 'The agent pipeline reported failure.' };
+        if (verification.verified) {
+          const { data: saved, error: saveError } = await supabase.from('angel_background_jobs').update({
+            status: 'completed',
+            result: { output: result.output, executionId: result.executionId, toolsExecuted: result.toolsExecuted, logs: result.logs, verified: true },
+            error: null,
+            progress: { stage: 'completed', percent: 100, message: 'The agent result was checked and saved.', attempt, maxAttempts },
+            finished_at: now(),
+            updated_at: now(),
+          }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null).select('id').maybeSingle();
+          if (saveError) throw saveError;
+          if (!saved) {
+            const { data: cancelState } = await supabase.from('angel_background_jobs')
+              .select('cancel_requested_at').eq('id', job.id).maybeSingle();
+            if (cancelState?.cancel_requested_at) {
+              await supabase.from('angel_background_jobs').update({
+                status: 'cancelled', result: null,
+                error: 'Cancellation was requested while the model call was running. The result was discarded.',
+                progress: { stage: 'cancelled', percent: 100, message: 'Cancelled; result discarded.', attempt, maxAttempts },
+                finished_at: now(), updated_at: now(),
+              }).eq('id', job.id).eq('status', 'running');
+              results.push({ id: job.id, status: 'cancelled' });
+              continue;
+            }
+            throw new Error('The verified result could not be committed because the job state changed.');
+          }
+          await notifyTaskOutcome(job, 'completed');
+          results.push({ id: job.id, status: 'completed' });
+          continue;
+        }
+
+        const failure = (verification.reason || result.error || 'The result failed verification.').slice(0, 2000);
+        const retry = attempt < maxAttempts;
+        const delayMs = retry ? calculateRetryDelay(attempt, { maxRetries: maxAttempts - 1, baseDelayMs: 15_000, maxDelayMs: 300_000 }) : 0;
+        const retryAt = retry ? new Date(Date.now() + delayMs).toISOString() : null;
+        const { data: failureSaved, error: saveError } = await supabase.from('angel_background_jobs').update({
+          status: retry ? 'retrying' : 'failed',
+          result: { output: result.output, executionId: result.executionId, verified: false, reason: failure },
+          error: failure,
+          next_attempt_at: retryAt,
+          progress: {
+            stage: retry ? 'retrying' : 'failed',
+            percent: retry ? 10 : 100,
+            message: retry ? `Attempt ${attempt} failed verification. A bounded retry is scheduled.` : 'Attempts exhausted; the task failed verification.',
+            attempt, maxAttempts,
+          },
+          finished_at: retry ? null : now(),
+          updated_at: now(),
+        }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null).select('id').maybeSingle();
+        if (saveError) throw saveError;
+        if (!failureSaved) {
+          const { data: cancelState } = await supabase.from('angel_background_jobs')
+            .select('cancel_requested_at').eq('id', job.id).maybeSingle();
+          if (cancelState?.cancel_requested_at) {
+            await supabase.from('angel_background_jobs').update({
+              status: 'cancelled', result: null,
+              error: 'Cancellation was requested while the model call was running. The result was discarded.',
+              progress: { stage: 'cancelled', percent: 100, message: 'Cancelled; result discarded.', attempt, maxAttempts },
+              finished_at: now(), updated_at: now(),
+            }).eq('id', job.id).eq('status', 'running');
+            results.push({ id: job.id, status: 'cancelled' });
+            continue;
+          }
+          throw new Error('The failed attempt could not be committed because the job state changed.');
+        }
+        if (!retry) await notifyTaskOutcome(job, 'failed');
+        results.push({ id: job.id, status: retry ? 'retrying' : 'failed' });
+      } catch (jobError) {
+        const message = jobError instanceof Error ? jobError.message : 'Background execution failed.';
+        const { data: cancelState } = await supabase.from('angel_background_jobs')
+          .select('cancel_requested_at').eq('id', job.id).maybeSingle();
+        if (cancelState?.cancel_requested_at) {
+          await supabase.from('angel_background_jobs').update({
+            status: 'cancelled', result: null,
+            error: 'Cancellation was requested while the task was running. Its result was discarded.',
+            progress: { stage: 'cancelled', percent: 100, message: 'Cancelled; result discarded.', attempt, maxAttempts },
+            finished_at: now(), updated_at: now(),
+          }).eq('id', job.id).eq('status', 'running');
+          results.push({ id: job.id, status: 'cancelled' });
+          continue;
+        }
+        const retry = attempt < maxAttempts;
+        const delayMs = retry ? calculateRetryDelay(attempt, { maxRetries: maxAttempts - 1, baseDelayMs: 15_000, maxDelayMs: 300_000 }) : 0;
+        const retryAt = retry ? new Date(Date.now() + delayMs).toISOString() : null;
+        const { data: catchFailureSaved, error: catchFailureError } = await supabase.from('angel_background_jobs').update({
+          status: retry ? 'retrying' : 'failed',
+          error: message.slice(0, 2000),
+          next_attempt_at: retryAt,
+          progress: {
+            stage: retry ? 'retrying' : 'failed',
+            percent: retry ? 10 : 100,
+            message: retry ? `Attempt ${attempt} failed. Retry scheduled with backoff.` : 'Attempts exhausted; the task failed.',
+            attempt, maxAttempts,
+          },
+          finished_at: retry ? null : now(),
+          updated_at: now(),
+        }).eq('id', job.id).eq('status', 'running').is('cancel_requested_at', null).select('id').maybeSingle();
+        if (catchFailureError) console.warn('[Background job] Could not persist failure state:', catchFailureError.message);
+        if (!retry && catchFailureSaved) await notifyTaskOutcome(job, 'failed');
+        results.push({ id: job.id, status: retry ? 'retrying' : 'failed' });
+      }
+    }
+    return res.json({ processed: results.length, jobs: results, scheduledTasks: scheduledTasksStatus });
+  });
+
   app.post('/api/automation/dispatch', async (req: Request, res: Response) => {
     const { event, data, overrideUrl, callbackUrl } = req.body;
 
@@ -612,13 +2019,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   // Automation Delivery Telemetry & History
-  app.get('/api/automation/history', (req: Request, res: Response) => {
-    const history = automationService.getDeliveryHistory();
-    res.json({
-      history,
-      totalCount: history.length,
-      timestamp: new Date().toISOString(),
-    });
+  app.get('/api/automation/history', async (_req: Request, res: Response) => {
+    try {
+      const history = await automationService.getRecentDeliveryHistory(50);
+      res.json({
+        history,
+        totalCount: history.length,
+        timestamp: new Date().toISOString(),
+        durable: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      });
+    } catch (err) {
+      res.status(500).json({ error: 'Unable to read webhook delivery history.' });
+    }
   });
 
   // Inbound Webhook Listener (Zapier / Make / n8n / GitHub / custom services)
@@ -640,7 +2052,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     console.log(`[Angel Inbound Webhook Received] Event: ${event}`, data);
 
     // If caller provided a callbackUrl, report asynchronous receipt acknowledgment
-    if (callbackUrl && typeof callbackUrl === 'string') {
+    if (callbackUrl && typeof callbackUrl === 'string' && isAllowedCallbackUrl(callbackUrl)) {
       fetch(callbackUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -657,12 +2069,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       received: true,
       event: event || 'custom.event',
       authorized: true,
+      callbackAttempted: Boolean(callbackUrl && typeof callbackUrl === 'string' && isAllowedCallbackUrl(callbackUrl)),
       timestamp: new Date().toISOString(),
     });
   });
 
   // Trigger Test Webhook Outbound
-  app.post('/api/webhooks/test-dispatch', async (req: Request, res: Response) => {
+  app.post('/api/webhooks/test-dispatch', requireVerifiedAdminSession, async (req: Request, res: Response) => {
     const { event, data, overrideUrl } = req.body;
     const result = await automationService.dispatchEvent(
       (event as AutomationEventType) || 'task.created',
@@ -677,6 +2090,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   // ============================================================================
 
   app.post('/api/auth/signup', async (req: Request, res: Response) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ error: 'Serverless fallback authentication is not durable. Configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY and use Supabase Auth.' });
+    }
     try {
       const { email, password, name } = req.body || {};
       const result = await authService.signUp(email, password, name);
@@ -687,6 +2103,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   });
 
   app.post('/api/auth/signin', async (req: Request, res: Response) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({ error: 'Serverless fallback authentication is not durable. Configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY and use Supabase Auth.' });
+    }
     try {
       const { email, password } = req.body || {};
       const result = await authService.signIn(email, password);

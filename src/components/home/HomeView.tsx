@@ -1,31 +1,39 @@
 import React, { useMemo, useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import { ArrowUp, Sparkles, Search, Image as ImageIcon, FileText, Workflow, BookOpen, CalendarCheck } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
 
 const suggestionSets = [
   [
-    { label: 'Research a topic', prompt: 'Research the latest developments in a topic I care about and cite reliable sources.', icon: Search },
-    { label: 'Create something', prompt: 'Help me turn an idea into a polished piece of work.', icon: ImageIcon },
-    { label: 'Plan my next steps', prompt: 'Help me organize my priorities into a practical step-by-step plan.', icon: CalendarCheck },
+    { label: 'Research a topic', prompt: 'Research the latest developments in a topic I care about and cite reliable sources.', icon: Search, target: 'research' as const },
+    { label: 'Create something', prompt: 'Help me turn an idea into a polished piece of work.', icon: ImageIcon, target: 'media_studio' as const },
+    { label: 'Plan my next steps', prompt: 'Help me organize my priorities into a practical step-by-step plan.', icon: CalendarCheck, target: 'chat' as const },
   ],
   [
-    { label: 'Understand a difficult idea', prompt: 'Explain a difficult concept clearly, with examples and a short summary.', icon: BookOpen },
-    { label: 'Write or improve a document', prompt: 'Help me draft or improve a document. Ask only for essential missing details.', icon: FileText },
-    { label: 'Build a workflow', prompt: 'Help me design a reliable workflow for a repetitive task.', icon: Workflow },
+    { label: 'Understand a difficult idea', prompt: 'Explain a difficult concept clearly, with examples and a short summary.', icon: BookOpen, target: 'chat' as const },
+    { label: 'Write or improve a document', prompt: 'Help me draft or improve a document. Ask only for essential missing details.', icon: FileText, target: 'canvas' as const },
+    { label: 'Build a workflow', prompt: 'Help me design a reliable workflow for a repetitive task.', icon: Workflow, target: 'automation' as const },
   ],
   [
-    { label: 'Explore an idea', prompt: 'Help me explore this idea, test its assumptions, and identify useful next steps.', icon: Sparkles },
-    { label: 'Compare options', prompt: 'Compare the best options for my goal and explain the trade-offs.', icon: Search },
-    { label: 'Make a practical plan', prompt: 'Turn my goal into a practical plan with milestones and success checks.', icon: CalendarCheck },
+    { label: 'Explore an idea', prompt: 'Help me explore this idea, test its assumptions, and identify useful next steps.', icon: Sparkles, target: 'chat' as const },
+    { label: 'Compare options', prompt: 'Compare the best options for my goal and explain the trade-offs.', icon: Search, target: 'chat' as const },
+    { label: 'Make a practical plan', prompt: 'Turn my goal into a practical plan with milestones and success checks.', icon: CalendarCheck, target: 'chat' as const },
   ],
 ];
 
 export const HomeView: React.FC = () => {
   const { setActiveTab, createConversation, sendMessage, userProfile, settings } = useAngel();
   const [promptText, setPromptText] = useState('');
-  const isLight = settings.theme === 'light';
-  const suggestions = useMemo(() => suggestionSets[Math.floor(Date.now() / 86400000) % suggestionSets.length], []);
+  const isLight = useIsLightTheme(settings.theme);
+  const suggestions = useMemo(() => {
+    const pool = suggestionSets.flat();
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 3);
+  }, []);
 
   const submitPrompt = (event?: React.FormEvent) => {
     event?.preventDefault();
@@ -60,24 +68,24 @@ export const HomeView: React.FC = () => {
         />
         <div className="flex items-center justify-between gap-3 px-1 pb-1">
           <span className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>Enter to send · Shift+Enter for a new line</span>
-          <button type="submit" disabled={!promptText.trim()} aria-label="Send message to Angel" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40">
+          <button type="submit" disabled={!promptText.trim()} aria-label="Send message to Angel" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40">
             <ArrowUp className="h-4 w-4" />
           </button>
         </div>
       </form>
-      <div className="mt-8 w-full max-w-2xl">
+      <div className="mt-5 w-full max-w-xl">
         <h2 className={`mb-3 text-xs font-semibold uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-neutral-500'}`}>Suggestions</h2>
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {suggestions.map((item) => {
             const Icon = item.icon;
             return <li key={item.label}>
-              <button type="button" onClick={() => setPromptText(item.prompt)} className={`group flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition hover:-translate-y-px hover:border-indigo-400/40 ${isLight ? 'border-slate-200 bg-white/75 hover:bg-white' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-500/10 text-indigo-300'}`}><Icon className="h-4 w-4" /></span>
+              <button type="button" onClick={() => { if (item.target !== 'chat') { try { localStorage.setItem('angel_pending_capability_prompt', JSON.stringify({ target: item.target, prompt: item.prompt, createdAt: Date.now() })); } catch {} setActiveTab(item.target); return; } const conversationId = createConversation('angel-core', undefined, item.prompt.slice(0, 48)); setActiveTab('chat'); void sendMessage(item.prompt, undefined, conversationId); }} className={`group flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition hover:border-indigo-400/40 ${isLight ? 'border-slate-200 bg-white/75 hover:bg-white' : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
+                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-indigo-500/10 text-indigo-300'}`}><Icon className="h-3.5 w-3.5" /></span>
                 <span className="min-w-0 flex-1">
-                  <span className={`block text-sm font-medium ${isLight ? 'text-slate-800' : 'text-neutral-100'}`}>{item.label}</span>
-                  <span className={`mt-0.5 block text-xs leading-relaxed ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{item.prompt}</span>
+                  <span className={`block text-[12px] font-medium ${isLight ? 'text-slate-800' : 'text-neutral-100'}`}>{item.label}</span>
+                  <span className={`mt-0.5 block text-[10px] leading-snug line-clamp-1 ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{item.prompt}</span>
                 </span>
-                <Sparkles className={`h-4 w-4 shrink-0 opacity-50 transition group-hover:opacity-100 ${isLight ? 'text-indigo-500' : 'text-indigo-300'}`} />
+                <Sparkles className={`h-3.5 w-3.5 shrink-0 opacity-50 transition group-hover:opacity-100 ${isLight ? 'text-indigo-500' : 'text-indigo-300'}`} />
               </button>
             </li>;
           })}

@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   ArrowDownToLine,
   Bot,
@@ -46,7 +47,7 @@ export const MarketplaceView: React.FC = () => {
     setSelectedAgentId,
   } = useAngel();
 
-  const isLight = settings?.theme === 'light';
+  const isLight = useIsLightTheme(settings?.theme);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
