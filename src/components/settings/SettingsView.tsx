@@ -105,7 +105,6 @@ export const SettingsView: React.FC = () => {
   // Active Sub-Section from Context
   const activeSection = activeSettingsSection;
   const setActiveSection = setActiveSettingsSection;
-  const [isSaved, setIsSaved] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   // Profile form states
@@ -131,21 +130,10 @@ export const SettingsView: React.FC = () => {
     try { localStorage.setItem('angel_font_scale', fontScale); } catch {}
   }, [fontScale]);
 
-  const [animationEffects, setAnimationEffects] = useState(true);
-  const [uiDensity, setUiDensity] = useState<'comfortable' | 'compact'>('comfortable');
-  const [soundEffects, setSoundEffects] = useState(true);
 
   // Theme states
-  const [backdropIntensity, setBackdropIntensity] = useState<'subtle' | 'standard' | 'vivid'>('standard');
-  const [highContrast, setHighContrast] = useState(false);
 
   // Workspace settings states
-  const [language, setLanguage] = useState('English (US)');
-  const [startOnHome, setStartOnHome] = useState(true);
-  const [autoSaveDrafts, setAutoSaveDrafts] = useState(true);
-  const [sendOnEnter, setSendOnEnter] = useState(true);
-  const [streamResponses, setStreamResponses] = useState(true);
-  const [codeHighlighting, setCodeHighlighting] = useState(true);
 
   // Voice states
 
@@ -338,11 +326,6 @@ export const SettingsView: React.FC = () => {
     updateUserProfile({ name: profileName, email: profileEmail });
     setIsProfileSaved(true);
     setTimeout(() => setIsProfileSaved(false), 2000);
-  };
-
-  const handleSaveWorkspaceChanges = () => {
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
   };
 
   const [isExporting, setIsExporting] = useState(false);
@@ -868,103 +851,11 @@ export const SettingsView: React.FC = () => {
                 </p>
               </div>
 
-              {/* Language Selection */}
-              <div className="space-y-2">
-                <label className="text-xs font-semibold block opacity-80">Language & Region</label>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className={`w-full max-w-sm px-3.5 py-2.5 rounded-xl text-xs border outline-none font-medium transition-colors ${
-                    isLight
-                      ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-500'
-                      : 'bg-neutral-900 border-white/10 text-neutral-200 focus:border-indigo-500'
-                  }`}
-                >
-                  <option value="English (US)">English (US)</option>
-                  <option value="English (UK)">English (UK)</option>
-                  <option value="Spanish (ES)">Español (ES)</option>
-                  <option value="French (FR)">Français (FR)</option>
-                  <option value="German (DE)">Deutsch (DE)</option>
-                  <option value="Japanese (JA)">日本語 (JA)</option>
-                </select>
-              </div>
-
-              {/* Startup & Editor Toggles */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Start on Home Workspace</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Launch Angel directly on the Home dashboard instead of the previous conversation
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={startOnHome}
-                    onChange={(e) => setStartOnHome(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Auto-save Message Drafts</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Persist in-progress chat input drafts automatically across page changes
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={autoSaveDrafts}
-                    onChange={(e) => setAutoSaveDrafts(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Send Message on Enter</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Press Enter to dispatch immediately; Shift+Enter creates a new paragraph
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={sendOnEnter}
-                    onChange={(e) => setSendOnEnter(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Real-time Token Streaming</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Stream generated tokens progressively with live fluid typing animation
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={streamResponses}
-                    onChange={(e) => setStreamResponses(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between py-2 border-b border-inherit">
-                  <div>
-                    <span className="text-xs font-semibold block">Code Syntax Highlighting</span>
-                    <span className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-                      Highlight TypeScript, Python, and SQL snippets with copy triggers
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={codeHighlighting}
-                    onChange={(e) => setCodeHighlighting(e.target.checked)}
-                    className="w-4 h-4 accent-indigo-600 cursor-pointer"
-                  />
-                </div>
+              <div className={`rounded-xl border p-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.02]'}`}>
+                <h3 className="text-sm font-semibold">Workspace preferences</h3>
+                <p className="mt-1 text-xs leading-relaxed opacity-75">
+                  Startup destination, composer behavior, localization, and streaming options are hidden until each setting is wired to the corresponding runtime. This prevents a switch from appearing active when it has no effect.
+                </p>
               </div>
 
               {/* Workspace Data Export & Persistence */}
@@ -1005,17 +896,6 @@ export const SettingsView: React.FC = () => {
                 )}
               </div>
 
-              {/* Save workspace changes button */}
-              <div className="flex justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={handleSaveWorkspaceChanges}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-md transition-all flex items-center gap-2"
-                >
-                  {isSaved ? <Check className="w-4 h-4 text-emerald-300" /> : <Save className="w-4 h-4" />}
-                  <span>{isSaved ? 'Changes saved!' : 'Save changes'}</span>
-                </button>
-              </div>
             </div>
           )}
 
