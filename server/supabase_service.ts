@@ -446,7 +446,7 @@ export async function syncAllEntitiesToSupabase(
       is_favorite: l.isFavorite ?? l.is_favorite ?? false,
       created_at: l.createdAt || l.created_at || now,
       updated_at: now,
-    }).filter((row: any) => /^[A-Za-z0-9_-]{1,180}$/.test(row.id)), 'libraryItems');
+    })).filter((row: any) => /^[A-Za-z0-9_-]{1,180}$/.test(row.id)), 'libraryItems');
 
     await upsert('workflows', (payload.workflows || []).map((w: any) => ({
       id: w.id,
