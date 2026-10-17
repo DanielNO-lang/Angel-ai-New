@@ -64,7 +64,6 @@ export const MoreToolsView: React.FC = () => {
       title: 'Assistants Team',
       desc: 'Build, configure, and converse with specialized autonomous AI personas.',
       icon: Users,
-      badge: `${assistantsList.length} Active`,
       color: 'indigo',
       action: () => setActiveTab('assistants'),
     },
@@ -73,7 +72,6 @@ export const MoreToolsView: React.FC = () => {
       title: 'Marketplace Ecosystem',
       desc: 'Discover, install, publish, and manage verified agents, tools, workflows, and templates.',
       icon: Layers,
-      badge: 'Ecosystem',
       color: 'indigo',
     },
     {
@@ -81,7 +79,6 @@ export const MoreToolsView: React.FC = () => {
       title: 'Skills & Function Registry',
       desc: 'Standardized tool definitions, sandboxes, and discoverable function calling registry.',
       icon: Zap,
-      badge: `${availableTools.length} Active`,
       color: 'amber',
     },
     {
@@ -89,7 +86,6 @@ export const MoreToolsView: React.FC = () => {
       title: 'Plugins & Integrations',
       desc: 'Google Workspace, GitHub, Supabase PostgreSQL, and automated service pipelines.',
       icon: Puzzle,
-      badge: 'Connectors',
       color: 'emerald',
     },
     {
@@ -97,7 +93,6 @@ export const MoreToolsView: React.FC = () => {
       title: 'Connections & Webhooks',
       desc: 'Real-time outbound event dispatcher and verified inbound webhook listener endpoints.',
       icon: Share2,
-      badge: 'Webhooks',
       color: 'rose',
     },
     {
@@ -105,7 +100,6 @@ export const MoreToolsView: React.FC = () => {
       title: 'Secrets & API Vault',
       desc: 'Secure cryptographic store for Gemini, OpenAI, GitHub PAT, and service credentials.',
       icon: Lock,
-      badge: 'Encrypted',
       color: 'violet',
       action: () => setIsSecretsModalOpen(true),
     },
@@ -114,7 +108,6 @@ export const MoreToolsView: React.FC = () => {
       title: 'Memory Bank',
       desc: 'Neural knowledge records, persistent user preferences, and cross-project long-term context.',
       icon: Brain,
-      badge: `${memories.length} Records`,
       color: 'purple',
     },
     {
@@ -122,7 +115,6 @@ export const MoreToolsView: React.FC = () => {
       title: 'Recycle Bin',
       desc: 'Safe restore and permanent purge area for archived threads, soft-deleted tasks, and assets.',
       icon: Trash2,
-      badge: 'Recovery',
       color: 'zinc',
     },
   ];
@@ -313,7 +305,7 @@ export const MoreToolsView: React.FC = () => {
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex items-start justify-start gap-2 mb-3">
                     <span
                       className={`p-2.5 rounded-xl border ${
                         isLight
@@ -322,9 +314,6 @@ export const MoreToolsView: React.FC = () => {
                       }`}
                     >
                       <Icon className="w-5 h-5" />
-                    </span>
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-indigo-500/20 bg-indigo-500/10 text-indigo-400">
-                      {area.badge}
                     </span>
                   </div>
 
