@@ -74,9 +74,12 @@ export const MediaStudioView: React.FC = () => {
   const [artifacts, setArtifacts] = useState<MediaArtifactDTO[]>([]);
   const [isLoadingArtifacts, setIsLoadingArtifacts] = useState(false);
 
-  // Edit / Variation State
-  const [editSourceImage, setEditSourceImage] = useState<string | null>(null);
+  // Edit / Variation State. Selected images are converted to bounded data URIs in the browser
+  // so authenticated/private storage URLs are never handed to an external model as credentials.
+  const [editSourceImages, setEditSourceImages] = useState<Array<{ id: string; title: string; dataUrl: string }>>([]);
   const [editPrompt, setEditPrompt] = useState('');
+  const [editModel, setEditModel] = useState('gemini-3.1-flash-image');
+  const [isPreparingEditSource, setIsPreparingEditSource] = useState(false);
 
   const loadArtifacts = async () => {
     setIsLoadingArtifacts(true);
@@ -179,18 +182,89 @@ export const MediaStudioView: React.FC = () => {
     }
   };
 
+  const dataUrlByteLength = (dataUrl: string): number => {
+    const marker = dataUrl.indexOf(',');
+    if (marker < 0) return 0;
+    const base64 = dataUrl.slice(marker + 1);
+    const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+    return Math.max(0, Math.floor(base64.length * 3 / 4) - padding);
+  };
+
+  const prepareReferenceImage = async (source: string): Promise<string> => {
+    if (source.startsWith('data:')) {
+      const mimeMatch = source.match(/^data:(image\\/(?:png|jpeg|jpg|webp|gif|bmp|tiff));base64,/i);
+      if (!mimeMatch) throw new Error('Only PNG, JPEG, WEBP, GIF, BMP or TIFF reference images are supported.');
+      const bytes = dataUrlByteLength(source);
+      if (bytes <= 0 || bytes > 10 * 1024 * 1024) throw new Error('Each reference image must be smaller than 10 MB.');
+      return source;
+    }
+
+    let response: Response;
+    try {
+      response = await fetch(source);
+    } catch {
+      throw new Error('Angel could not read this saved image in the browser. Try downloading it and uploading it again.');
+    }
+    if (!response.ok) throw new Error('Angel could not load this saved reference image.');
+    const blob = await response.blob();
+    if (!blob.type.toLowerCase().startsWith('image/')) throw new Error('The selected artifact is not an image.');
+    if (blob.size <= 0 || blob.size > 10 * 1024 * 1024) throw new Error('Each reference image must be smaller than 10 MB.');
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not prepare the selected image.'));
+      reader.onerror = () => reject(new Error('Could not read the selected image.'));
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const toggleEditReference = async (artifact: MediaArtifactDTO) => {
+    const alreadySelected = editSourceImages.some((item) => item.id === artifact.id);
+    if (alreadySelected) {
+      setEditSourceImages((previous) => previous.filter((item) => item.id !== artifact.id));
+      return;
+    }
+    if (editSourceImages.length >= 10) {
+      setErrorMessage('Qwen Image 2.1 Pro accepts up to 10 source/reference images.');
+      return;
+    }
+
+    setIsPreparingEditSource(true);
+    setErrorMessage(null);
+    try {
+      const dataUrl = await prepareReferenceImage(artifact.url);
+      const currentBytes = editSourceImages.reduce((total, image) => total + dataUrlByteLength(image.dataUrl), 0);
+      if (currentBytes + dataUrlByteLength(dataUrl) > 20 * 1024 * 1024) {
+        throw new Error('The combined source and reference images must stay under 20 MB.');
+      }
+      const next = [...editSourceImages, { id: artifact.id, title: artifact.title, dataUrl }];
+      setEditSourceImages(next);
+      if (next.length > 1) setEditModel('qwen-image-2.1-pro');
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Could not prepare the reference image.');
+    } finally {
+      setIsPreparingEditSource(false);
+    }
+  };
+
   // Handle Image Edit / Variation
   const handleEditImage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editSourceImage || !editPrompt.trim()) return;
+    if (!editSourceImages.length || !editPrompt.trim()) return;
+    if (editSourceImages.length > 1 && editModel !== 'qwen-image-2.1-pro') {
+      setErrorMessage('Multiple reference images require Qwen Image 2.1 Pro.');
+      return;
+    }
 
     setErrorMessage(null);
     setIsSubmitting(true);
 
     try {
       const job = await mediaClient.editImage({
-        baseImageBase64: editSourceImage,
+        baseImageBase64: editSourceImages[0].dataUrl,
+        referenceImageDataUrls: editSourceImages.slice(1).map((image) => image.dataUrl),
         prompt: editPrompt.trim(),
+        modelId: editModel,
+        mimeType: editSourceImages[0].dataUrl.match(/^data:([^;]+);base64,/i)?.[1] || 'image/png',
         projectId: linkedProjectId || undefined,
       });
 
