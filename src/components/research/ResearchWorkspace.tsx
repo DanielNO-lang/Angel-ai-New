@@ -31,7 +31,7 @@ export const ResearchWorkspace: React.FC = () => {
     return () => { alive = false; listener.subscription.unsubscribe(); };
   }, []);
 
-  const headers = useCallback(() => token ? { Authorization: `Bearer ${token}` } : {}, [token]);
+  const headers = useCallback((): Record<string, string> => token ? { Authorization: `Bearer ${token}` } : {}, [token]);
   const loadReports = useCallback(async () => {
     if (!token) { setReports([]); return; }
     setLoading(true);
