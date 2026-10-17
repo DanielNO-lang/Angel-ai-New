@@ -225,10 +225,13 @@ export class ConversationService {
       }
       if (buffer.trim()) processSseLine(buffer.trim());
       if (streamError) throw new Error(streamError);
+      if (!streamFinished) {
+        throw new Error(accumulatedText.trim()
+          ? 'Angel stream disconnected before the response was marked complete. Retry to request a complete answer.'
+          : 'Angel stream ended before a response was received. Check the connection and retry.');
+      }
       if (!accumulatedText.trim()) {
-        throw new Error(streamFinished
-          ? 'Angel completed the stream without returning any text. Check the configured model and provider.'
-          : 'Angel stream ended before a response was received.');
+        throw new Error('Angel completed the stream without returning any text. Check the configured model and provider.');
       }
 
       agentExecutionLifecycle.advanceStage(
