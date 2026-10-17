@@ -144,6 +144,7 @@ export const Sidebar: React.FC = () => {
     badge?: string;
   }> = [
     { id: 'chat', label: 'Chat', icon: MessageSquare, tabTarget: 'chat' },
+    { id: 'research', label: 'Research', icon: Search, tabTarget: 'research' },
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
   ];
 
@@ -155,6 +156,7 @@ export const Sidebar: React.FC = () => {
     onClickCustom?: () => void;
   }> = [
     { id: 'agent_lab', label: 'Agent Lab', icon: Bot, tabTarget: 'agent_lab' },
+    { id: 'research', label: 'Research', icon: Search, tabTarget: 'research' },
     { id: 'projects', label: 'Projects', icon: FolderGit2, tabTarget: 'projects' },
     { id: 'library', label: 'Library', icon: BookOpen, tabTarget: 'library' },
     { id: 'tasks', label: 'Schedule', icon: Calendar, tabTarget: 'tasks' },
