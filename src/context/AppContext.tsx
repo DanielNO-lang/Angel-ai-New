@@ -520,9 +520,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       zapier: {
         webhookEnabled: false,
       },
+      conversationalStyle: {
+        warmth: 70,
+        humor: 35,
+        directness: 65,
+        empathy: 75,
+        emotionalTone: 'balanced',
+      },
     };
 
-    const saved = getStoredItem<AngelSettings>('settings', defaultSettings);
+    const stored = getStoredItem<AngelSettings>('settings', defaultSettings);
+    // Migrate older saved settings without losing the user's existing preferences.
+    const saved: AngelSettings = {
+      ...defaultSettings,
+      ...stored,
+      personality: { ...defaultSettings.personality, ...stored.personality },
+      models: { ...defaultSettings.models, ...stored.models },
+      supabase: { ...defaultSettings.supabase, ...stored.supabase },
+      zapier: { ...defaultSettings.zapier, ...stored.zapier },
+      conversationalStyle: { ...defaultSettings.conversationalStyle!, ...stored.conversationalStyle },
+    };
     // Explicitly restore last theme preference from local storage
     if (typeof localStorage !== 'undefined') {
       const persistedTheme = localStorage.getItem('angel_theme') as ThemeMode;
@@ -1531,6 +1548,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         conversationId: targetConvId,
         prompt: resolvedContent,
         agent,
+        conversationalStyle: settings.conversationalStyle || {
+          warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced',
+        },
         conversationHistory: convHistory,
         contextState: {
           memories,
