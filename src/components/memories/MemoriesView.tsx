@@ -18,6 +18,7 @@ import {
   Clock,
   Compass,
   Copy,
+  Download,
   Edit2,
   Filter,
   FolderGit2,
@@ -477,6 +478,29 @@ export const MemoriesView: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+
+  const handleExportMemories = () => {
+    const payload = {
+      schemaVersion: 1,
+      exportedAt: new Date().toISOString(),
+      count: memories.length,
+      memories: memories.map((memory) => ({
+        ...memory,
+        // Exclude transient browser object URLs that cannot be restored after this page closes.
+        audioUrl: memory.audioUrl?.startsWith('blob:') ? undefined : memory.audioUrl,
+      })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = \`angel-memory-export-\${new Date().toISOString().slice(0, 10)}.json\`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   // Memory Classification Matcher
   const matchesClassification = (mem: Memory, filter: MemoryClassificationFilter): boolean => {
     switch (filter) {
@@ -639,6 +663,9 @@ export const MemoriesView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <button type="button" onClick={handleExportMemories} title="Export all saved memories as JSON" aria-label="Export memories" className={\`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-colors shrink-0 \${isLight ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200' : 'bg-white/[0.03] hover:bg-white/[0.07] text-neutral-200 border-white/10'}\`}>
+              <Download className="w-3.5 h-3.5" /><span>Export</span>
+            </button>
             {/* Record Audio Note Button via MediaRecorder */}
             <button
               onClick={() => {
