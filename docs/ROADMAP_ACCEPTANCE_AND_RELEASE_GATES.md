@@ -85,11 +85,13 @@ This document distinguishes code present in the branch from behavior verified by
 
 ### 6. Computer and browser control
 
-**Implemented in code:** a standalone browser-action policy checks HTTPS, exact approved hosts, public targets, action scopes and recent confirmation for consequential actions. Unit tests cover private-target blocking and action/host-bound confirmation.
+**Implemented in the branch:** a separate Playwright container worker under `browser-worker/`; server-mediated APIs; owner-scoped exact-host grants; persistent session records; single-use, time-limited action challenges bound to a payload hash and target; per-action audit events; and a Connections → Browser Control UI. Supported actions are navigate within approved hosts, read visible page text, capture screenshots, click selected elements, and fill ordinary non-sensitive fields. Clicks and form submissions require an explicit confirmation after a review step. Passwords, payment details, identity values, OTPs, API keys, and token-like fields are refused. The UI and API report setup failures rather than pretending the worker is available.
 
-**Not yet a complete feature:** there is no production browser-execution runtime wired to this policy in this branch. Angel cannot yet be claimed to be clicking, typing, uploading, downloading, or submitting forms in a real controlled browser session.
+**Not operational until configured:** the browser migration must be reviewed and applied to an approved test database; the worker container must be deployed separately; server-only `ANGEL_BROWSER_WORKER_URL` and `ANGEL_BROWSER_WORKER_SECRET` must be configured; and ingress/egress network restrictions must be in place. Browser control stays unavailable while any required dependency is missing.
 
-**Acceptance tests before enabling:** isolated browser worker; server-stored per-user host allowlist and grants; one-time confirmation bound to action ID and host; prompt-injection resistance; safe file boundaries; audit record; cancellation; read-after-write verification; and sandbox tests covering SSRF, redirects, private IPs, DNS rebinding, and credential leakage. Keep execution disabled until those controls and the runtime adapter are implemented and independently tested.
+**Security qualification:** application-level DNS checks are defense-in-depth, not a substitute for host-level egress isolation. DNS rebinding and redirect paths need adversarial validation in the actual deployment environment. Treat arbitrary page content as untrusted data, not policy or instructions. This worker currently refuses uploads, downloads, automated credential entry, purchasing, destructive operations, and operating-system control. The UI does not advertise those as working.
+
+**Acceptance tests before enabling for users:** deploy into a non-production environment; test SSRF against private/loopback/link-local/cloud metadata destinations, DNS rebinding, redirect chains, asset/subresource targets, prompt injection, credential leakage, stale action challenges, double-click/replay, host-grant revocation, cancellation/close, and cross-user isolation. Verify with two accounts that session identifiers and grants cannot be reused by another account. Only enable after an independent security review and read-after-write checks on actual supported websites.
 
 ### 7. Task and profession templates
 
@@ -145,6 +147,6 @@ This document distinguishes code present in the branch from behavior verified by
 ## D. Current verification snapshot
 
 - CI was passing for the earlier fixes and model-routing changes on commit `6347ee7df09b0c671a4c9a3626c2621e1d331714`.
-- Subsequent commits add workflow progress/retry handling, cancellation UI, workflow starters and reduced streaming-scroll animation. Recheck CI for the latest PR head before merge or preview acceptance.
-- No production deployment or production DB migration has been performed.
+- Subsequent commits add workflow progress/retry handling, cancellation UI, workflow starters, isolated browser worker and Connections UI. The type-check/template issue was fixed; CI must be green on the exact latest head before merge or preview acceptance.
+- No production deployment, browser-worker deployment, or production DB migration has been performed. Browser functionality is code-complete for the limited supported actions but remains gated by isolated deployment, approved migration, network controls, and integration/security testing.
 - A live preview URL is not evidence of the current code unless the deployed commit SHA matches the reviewed feature-branch head.
