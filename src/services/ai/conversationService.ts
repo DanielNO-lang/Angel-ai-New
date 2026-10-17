@@ -164,8 +164,8 @@ export class ConversationService {
           prompt,
           systemInstruction: toolAugmentedInstruction,
           conversationHistory: assembledContext.recentMessages,
-          modelId: agent.modelConfig.modelId,
-          providerId: agent.modelConfig.provider,
+          modelId: agent.isBuiltIn ? 'auto' : agent.modelConfig.modelId,
+          providerId: agent.isBuiltIn ? 'auto' : agent.modelConfig.provider,
           temperature: agent.modelConfig.temperature,
         }),
       });
