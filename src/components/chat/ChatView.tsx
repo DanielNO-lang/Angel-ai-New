@@ -121,7 +121,9 @@ export const ChatView: React.FC = () => {
   const activeAgent = agents.find((a) => a.id === selectedAgentId) || agents[0];
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Streaming can update the message tree for every token. Use instant scrolling
+    // during active generation to avoid repeatedly restarting smooth-scroll animation.
+    messagesEndRef.current?.scrollIntoView({ behavior: isChatStreaming ? 'auto' : 'smooth', block: 'end' });
   }, [messages, isChatStreaming]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -744,7 +746,7 @@ export const ChatView: React.FC = () => {
               isLight ? 'text-slate-400' : 'text-neutral-400'
             }`}
           >
-            <span>Routing: Google Gemini 3.8 Flash • Hardware Secured</span>
+            <span>{activeAgent?.isBuiltIn ? 'Intelligent routing • model selected for the task' : `Configured model: ${activeAgent?.modelConfig?.provider || 'provider unknown'} · ${activeAgent?.modelConfig?.modelId || 'default model'}`}</span>
             <span>Enter to send • Shift+Enter for newline</span>
           </div>
         </div>
