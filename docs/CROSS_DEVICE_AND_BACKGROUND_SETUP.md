@@ -60,3 +60,25 @@ This implementation provides remote visual transport and a durable background-ag
 - Template-generated workflows are saved disabled and use a notification step by default; they must not write persistent memory without an explicit workflow step.
 - Browser-action policy helpers are not a deployed browser executor. Do not enable live interaction until an isolated executor, server-owned grants/host allowlist, audit log, cancellation path, and security tests are delivered.
 - The added retry/progress migration has not been applied to the connected project by this change. Apply to a dedicated test project first, then verify the claim function, RLS, retry timing, and cancellation behavior.
+
+## 6. Controlled browser sessions
+
+The feature branch includes an isolated Playwright container in `browser-worker/`, authenticated backend endpoints, host grants, one-time action challenges, audit events, and a Connections → Browser Control screen. The browser worker is a separate service, not part of the Vercel frontend/serverless bundle.
+
+Before enabling it in a test environment:
+
+1. Review and apply `supabase/migrations/20261017150000_browser_control_permissions.sql` after the earlier migrations in timestamp order. Do not apply it to production as part of this code-only branch change.
+2. Deploy `browser-worker/` as a container service. Its Dockerfile is based on the matching Playwright image and runs the worker as the non-root `pwuser`.
+3. Generate a strong random secret (at least 32 random bytes). Configure it as `ANGEL_BROWSER_WORKER_SECRET` inside the worker and the same value as a **server-only** secret in Angel. Configure `ANGEL_BROWSER_WORKER_URL` to the worker's HTTPS origin. Never use a `VITE_` prefix.
+4. Restrict network ingress to Angel's server where the hosting platform allows it. Add host/firewall egress policy that blocks loopback, private, link-local, cloud metadata, internal service networks, and all unapproved destinations. The in-process URL and DNS checks are defense-in-depth; DNS rebinding and redirect behavior need adversarial deployment testing.
+5. Sign in to Angel, open Connections → Browser Control, grant an exact hostname and only the scopes that are required, then create a session. New sessions snapshot the current host grants. Review each proposed action. Actions must be prepared and then executed through a single-use challenge; clicks/submissions require explicit confirmation.
+
+Supported in this initial slice: approved HTTPS navigation, visible page text, screenshots, clicking a selected element, filling ordinary non-sensitive form fields, and closing a session. Sensitive credential fields are refused. File upload/download, credential management, purchasing, destructive actions and OS-level control are intentionally not enabled. Sessions are temporary, held in worker memory, and expire after 20 minutes by default; worker restarts close them. Do not deploy multiple replicas without addressing session affinity/shared session state.
+
+### Browser verification checklist
+
+- Test in a non-production account and use test pages, never a live purchase or destructive action.
+- Test a user with no grants, a revoked grant, expired/replayed confirmation, duplicate execution, cross-user session identifiers, and a worker with the wrong secret.
+- Test redirect chains, DNS changes/rebinding, private IP and cloud metadata requests, and subresource requests with network-level egress controls enabled.
+- Confirm sensitive input fields are refused, page changes invalidate prepared actions, every action has a visible audit record, and stop/close releases the browser context.
+- The browser feature remains disabled unless the migration, server secret, worker URL, container service, and network policy are all ready.
