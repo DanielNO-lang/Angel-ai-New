@@ -639,51 +639,88 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  // Single-Shot Generation
+  // Single-shot generation. Automatic routing retries eligible providers only before
+  // any result is returned to the caller; explicit provider choices remain respected.
   app.post(['/api/ai/generate', '/api/chat/generate'], async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
+    const body = req.body || {};
+    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = body;
 
     if (typeof prompt !== 'string' || !prompt.trim()) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
     const requestedProvider = typeof providerId === 'string' ? providerId : '';
+    const explicitProvider = Boolean(requestedProvider && requestedProvider !== 'auto');
     const startedAt = Date.now();
-    let selectedProviderId = requestedProvider;
-    let selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : '';
-    try {
-      let provider;
-      if (!requestedProvider || requestedProvider === 'auto') {
-        const normalizedPrompt = prompt.toLowerCase();
-        const task = /(research|sources|cite|citation|evidence|web search)/.test(normalizedPrompt)
-          ? 'research'
-          : /(write code|debug|typescript|javascript|python|implement|refactor|compile error)/.test(normalizedPrompt)
-            ? 'coding'
-            : /(reason through|proof|derive|complex analysis|compare trade-offs)/.test(normalizedPrompt)
-              ? 'reasoning'
-              : 'chat';
-        const routed = providerRegistry.routeForTask(task);
-        provider = routed.provider;
-        selectedProviderId = provider.id;
-        selectedModelId = routed.model.id;
-      } else {
-        provider = providerRegistry.getProvider(requestedProvider);
+
+    if (!explicitProvider) {
+      const normalizedPrompt = prompt.toLowerCase();
+      const task = /(research|sources|cite|citation|evidence|web search)/.test(normalizedPrompt)
+        ? 'research'
+        : /(write code|debug|typescript|javascript|python|implement|refactor|compile error)/.test(normalizedPrompt)
+          ? 'coding'
+          : /(reason through|proof|derive|complex analysis|compare trade-offs)/.test(normalizedPrompt)
+            ? 'reasoning'
+            : 'chat';
+      const candidates = providerRegistry.routeCandidatesForTask(task);
+      if (!candidates.length) {
+        return res.status(503).json({ error: `No configured model is eligible for task "${task}".` });
       }
 
+      let lastProviderError: unknown;
+      for (const candidate of candidates) {
+        const attemptStartedAt = Date.now();
+        try {
+          const result = await candidate.provider.generate({
+            prompt,
+            systemInstruction,
+            conversationHistory,
+            modelId: candidate.model.id,
+            temperature,
+            maxTokens,
+          });
+          if (typeof result.text !== 'string' || !result.text.trim()) {
+            throw new Error('Provider returned an empty generation result.');
+          }
+          modelRoutingTelemetry.record(candidate.model.id, true, Date.now() - attemptStartedAt);
+          return res.json({ ...result, provider: candidate.provider.id, modelId: candidate.model.id });
+        } catch (err) {
+          modelRoutingTelemetry.record(candidate.model.id, false, Date.now() - attemptStartedAt);
+          lastProviderError = err;
+          // This is a single-shot request, so no partial output has been sent yet.
+        }
+      }
+
+      console.error('[API /api/ai/generate] All eligible providers failed:', lastProviderError);
+      modelRoutingTelemetry.record('auto-generate', false, Date.now() - startedAt);
+      return res.status(503).json({
+        error: 'All eligible AI providers failed before returning a response. Check provider availability or retry shortly.',
+      });
+    }
+
+    try {
+      const provider = providerRegistry.getProvider(requestedProvider);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({ error: `The selected AI provider (${provider.id}) is not configured on the server.` });
+      }
+      const selectedModelId = typeof modelId === 'string' && modelId !== 'auto' ? modelId : undefined;
       const result = await provider.generate({
         prompt,
         systemInstruction,
         conversationHistory,
-        modelId: selectedModelId || undefined,
+        modelId: selectedModelId,
         temperature,
         maxTokens,
       });
-      modelRoutingTelemetry.record(selectedModelId || result.modelId || selectedProviderId, true, Date.now() - startedAt);
-      return res.json({ ...result, provider: selectedProviderId || result.provider, modelId: selectedModelId || result.modelId });
+      if (typeof result.text !== 'string' || !result.text.trim()) {
+        throw new Error('Provider returned an empty generation result.');
+      }
+      modelRoutingTelemetry.record(selectedModelId || result.modelId || provider.id, true, Date.now() - startedAt);
+      return res.json({ ...result, provider: provider.id, modelId: selectedModelId || result.modelId });
     } catch (err) {
-      modelRoutingTelemetry.record(selectedModelId || selectedProviderId || 'generate', false, Date.now() - startedAt);
+      modelRoutingTelemetry.record(typeof modelId === 'string' ? modelId : requestedProvider, false, Date.now() - startedAt);
       console.error('[API /api/ai/generate Error]', err);
-      return res.status(503).json({ error: err instanceof Error ? err.message : 'AI generation is temporarily unavailable.' });
+      return res.status(503).json({ error: 'The selected AI provider could not complete this request. Check its configuration or try again.' });
     }
   });
 
