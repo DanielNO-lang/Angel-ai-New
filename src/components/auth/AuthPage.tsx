@@ -96,22 +96,9 @@ export const AuthPage: React.FC = () => {
     setIsSubmitting(true);
     setAuthError(null);
     try {
-      const res = await signInWithGoogleOAuth() as { redirected?: boolean; previewSignedIn?: boolean; error?: string };
+      const res = await signInWithGoogleOAuth() as { redirected?: boolean; error?: string; isPreviewIframe?: boolean };
       if (res.redirected) {
         // OAuth flow initiated; browser redirected
-        return;
-      }
-      if (res.previewSignedIn) {
-        setIsAuthPageOpen(false);
-        updateUserProfile({
-          name: 'Danny Davis',
-          email: 'danielokohnwachukwu22@gmail.com',
-          initials: 'DD',
-          plan: 'Pro',
-          status: 'online',
-          bio: 'AI engineer and autonomous systems developer.',
-          role: 'user',
-        });
         return;
       }
       if (res.error) {
