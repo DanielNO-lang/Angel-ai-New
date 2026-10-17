@@ -13,6 +13,11 @@ test('browser policy blocks loopback and private network destinations', () => {
     assert.equal(validateApprovedBrowserUrl(url, [new URL(url).hostname]).allowed, false, url);
   }
 });
+test('browser policy blocks IPv6 literals and alternate loopback/private encodings', () => {
+  for (const url of ['https://[::1]', 'https://[fc00::1]', 'https://[fe80::1]', 'https://[::ffff:127.0.0.1]', 'https://2130706433']) {
+    assert.equal(validateApprovedBrowserUrl(url, [new URL(url).hostname]).allowed, false, url);
+  }
+});
 test('read-only navigation requires an explicit read permission', () => {
   const base = { actionId: 'a1', kind: 'read_page' as const, url: 'https://docs.example.com', approvedHosts: ['docs.example.com'] };
   assert.equal(evaluateBrowserAction({ ...base, grantedScopes: [] }).allowed, false);
