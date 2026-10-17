@@ -255,9 +255,18 @@ class SyncService {
     const existing = await offlineDb.syncQueue
       .where('entityId')
       .equals(entityId)
+      .filter((mutation) => mutation.entityType === entityType)
       .first();
 
     const timestamp = new Date().toISOString();
+
+    // Creating and then deleting an item before it has synced is a local-only change.
+    // Remove the pending create/update rather than sending a needless remote delete.
+    if (existing && existing.status === 'pending' && existing.action === 'create' && action === 'delete') {
+      await offlineDb.syncQueue.delete(existing.id);
+      this.notifyListeners();
+      return;
+    }
 
     if (existing && existing.status === 'pending') {
       // If we previously created and now update, keep action as 'create' but update payload
