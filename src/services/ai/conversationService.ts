@@ -156,6 +156,8 @@ export class ConversationService {
     );
 
     let accumulatedText = '';
+    const requestStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    let firstTokenAt: number | null = null;
     const controller = new AbortController();
     let timeoutReason: 'idle' | 'total' | null = null;
     let idleTimer: ReturnType<typeof setTimeout> | undefined;
@@ -219,6 +221,7 @@ export class ConversationService {
           if (parsed.error) streamError = String(parsed.error);
           if (parsed.chunk) {
             const token = String(parsed.chunk);
+            if (firstTokenAt === null) firstTokenAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
             accumulatedText += token;
             onToken?.(token, accumulatedText);
           }
@@ -249,6 +252,15 @@ export class ConversationService {
       }
       if (!accumulatedText.trim()) {
         throw new Error('Angel completed the stream without returning any text. Check the configured model and provider.');
+      }
+
+      const completedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      if (import.meta.env.DEV) {
+        console.info('[Angel performance] chat-stream', {
+          timeToFirstTokenMs: firstTokenAt === null ? null : Math.round(firstTokenAt - requestStartedAt),
+          totalResponseMs: Math.round(completedAt - requestStartedAt),
+          characters: accumulatedText.length,
+        });
       }
 
       agentExecutionLifecycle.advanceStage(
