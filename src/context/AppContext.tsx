@@ -1636,7 +1636,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return {
           ...prev,
           [targetConvId]: msgs.map((m) =>
-            m.id === assistantMessageId ? { ...m, isStreaming: false, content: fallbackText } : m
+            m.id === assistantMessageId
+              ? { ...m, isStreaming: false, content: fallbackText, error: err instanceof Error ? err.message : String(err) }
+              : m
           ),
         };
       });
