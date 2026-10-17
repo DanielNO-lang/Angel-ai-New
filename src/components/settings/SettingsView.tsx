@@ -737,7 +737,7 @@ export const SettingsView: React.FC = () => {
                       Adjust the fixed atmospheric glow orbs rendered beneath the interface (z-index: 0)
                     </p>
                   </div>
-                  <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-bold">
+                  <span className="text-[10px] font-bold uppercase text-indigo-500">
                     {backdropIntensity}
                   </span>
                 </div>

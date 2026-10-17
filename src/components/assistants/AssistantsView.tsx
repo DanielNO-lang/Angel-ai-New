@@ -270,9 +270,7 @@ export const AssistantsView: React.FC = () => {
                       </div>
 
                       {asst.isPublished && (
-                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400">
-                          Published
-                        </span>
+                        <span className="text-[9px] font-medium text-emerald-400">Published</span>
                       )}
                     </div>
 
@@ -299,9 +297,7 @@ export const AssistantsView: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-bold">{selectedAssistant.name}</h2>
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white/10 text-neutral-300">
-                      v{selectedAssistant.version}
-                    </span>
+                    <span className="text-xs font-medium text-neutral-400">v{selectedAssistant.version}</span>
                     <span className="text-xs font-medium text-purple-400">({selectedAssistant.modelId})</span>
                   </div>
                   <p className="text-xs text-neutral-400 mt-0.5">{selectedAssistant.tagline}</p>

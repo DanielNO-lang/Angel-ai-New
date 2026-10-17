@@ -129,17 +129,9 @@ export const SessionHistorySidebar: React.FC<SessionHistorySidebarProps> = ({
                           {record.agentName}
                         </span>
                       </div>
-                      <span
-                        className={`text-[9px] font-medium px-1.5 py-0.5 rounded border uppercase shrink-0 ${
-                          isCompleted
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                            : isFailed
-                            ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                            : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                        }`}
-                      >
-                        {record.status}
-                      </span>
+                      <span className={`text-[10px] font-medium uppercase shrink-0 ${
+                        isCompleted ? 'text-emerald-400' : isFailed ? 'text-rose-400' : 'text-amber-400'
+                      }`}>{record.status}</span>
                     </div>
 
                     <p className={`text-xs line-clamp-2 leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-300'}`}>
@@ -215,21 +207,11 @@ export const SessionHistorySidebar: React.FC<SessionHistorySidebarProps> = ({
                         </div>
                       </div>
 
-                      {/* Tools Used Badge List */}
+                      {/* Tool execution details as plain text */}
                       {record.toolsUsed && record.toolsUsed.length > 0 && (
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-medium opacity-60 block">Tools Executed:</span>
-                          <div className="flex items-center gap-1 flex-wrap">
-                            {record.toolsUsed.map((tool) => (
-                              <span
-                                key={tool}
-                                className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20"
-                              >
-                                {tool}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
+                        <p className="text-[10px] opacity-70">
+                          Tools executed: {record.toolsUsed.join(', ')}
+                        </p>
                       )}
                     </div>
                   )}

@@ -466,10 +466,10 @@ export const ChatView: React.FC = () => {
                                 <span className="font-semibold">{tc.toolName}</span>
                               </div>
                               <span
-                                className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                className={`text-[10px] font-medium ${
                                   tc.status === 'completed'
-                                    ? 'bg-emerald-500/10 text-emerald-500'
-                                    : 'bg-amber-500/10 text-amber-500'
+                                    ? 'text-emerald-500'
+                                    : 'text-amber-500'
                                 }`}
                               >
                                 {tc.status}
