@@ -11,7 +11,7 @@ installApiAuth();
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('/sw.js')
+      .register('/angel-service-worker.js')
       .then((reg) => {
         // Check for updates
         reg.addEventListener('updatefound', () => {
