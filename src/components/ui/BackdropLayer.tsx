@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAngel } from '../../context/AppContext';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import angelBackdropImg from '../../assets/images/Luminous Angelic A Emblem in Flowing Wings.png';
 
 interface BackdropLayerProps {
@@ -11,7 +12,7 @@ interface BackdropLayerProps {
 export const BackdropLayer: React.FC<BackdropLayerProps> = ({ className = '', forceTheme }) => {
   const { settings } = useAngel();
   const theme = forceTheme || settings.theme;
-  const isLight = theme === 'light' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches);
+  const isLight = useIsLightTheme(theme);
   const isMidnight = theme === 'midnight';
   return (
     <div aria-hidden="true" data-testid="backdrop-layer" className={`backdrop-layer fixed inset-0 z-0 pointer-events-none select-none overflow-hidden ${className}`} style={{ backgroundColor: isLight ? '#f8fafc' : isMidnight ? '#000000' : '#060813' }}>
