@@ -388,11 +388,6 @@ export const AgentLabView: React.FC = () => {
             >
               <History className="w-3.5 h-3.5 text-indigo-400" />
               <span>History</span>
-              {executions.length > 0 && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-400">
-                  {executions.length}
-                </span>
-              )}
             </button>
 
             {/* Primary Action: New Worker */}
@@ -569,7 +564,9 @@ export const AgentLabView: React.FC = () => {
                   </div>
                   <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200/80' : 'bg-white/5 border-white/5'}`}>
                     <span className="opacity-60 block text-[10px] uppercase">Pipeline Status</span>
-                    <span className="font-semibold text-emerald-500">Verified Ready</span>
+                    <span className="font-semibold text-neutral-400">
+                      {isRunningPipeline ? 'Running' : 'Idle'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -663,7 +660,7 @@ export const AgentLabView: React.FC = () => {
                     </h3>
                   </div>
                   {isRunningPipeline && (
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 font-semibold animate-pulse">
+                    <span className="text-[10px] text-indigo-500 animate-pulse">
                       Backend execution running...
                     </span>
                   )}
