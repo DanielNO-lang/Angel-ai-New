@@ -51,6 +51,8 @@ export interface OrchestrationRequest {
     canWrite?: boolean;
     types?: string[];
   };
+  /** Optional progress callback for durable background-job status updates. */
+  onProgress?: (step: ExecutionStepLog) => void | Promise<void>;
 }
 
 export interface OrchestrationResult {
@@ -78,12 +80,26 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
   const tasksCreated: Array<{ title: string; priority: string; description: string }> = [];
 
   const addLog = (stage: ExecutionStepLog['stage'], message: string, metadata?: Record<string, unknown>) => {
-    logs.push({
+    const entry: ExecutionStepLog = {
       stage,
       message,
       timestamp: new Date().toISOString(),
       metadata,
-    });
+    };
+    logs.push(entry);
+    if (request.onProgress) {
+      // Progress callbacks are best-effort: a transient persistence issue must not
+      // crash the core execution lifecycle or leak prompt previews into task status.
+      try {
+        Promise.resolve(request.onProgress({
+          stage: entry.stage,
+          message: entry.message.slice(0, 240),
+          timestamp: entry.timestamp,
+        })).catch((error) => console.warn('[Agent progress persistence]', error instanceof Error ? error.message : 'Unknown error'));
+      } catch (error) {
+        console.warn('[Agent progress persistence]', error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
   };
 
   try {
