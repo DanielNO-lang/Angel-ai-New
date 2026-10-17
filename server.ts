@@ -1905,10 +1905,13 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     // Load Vite only for the standalone development server. Keeping this as a
     // dynamic import prevents serverless production functions from loading Vite's
-    // native Rolldown bindings during cold start.
     const { createServer: createViteServer } = await import('vite');
+    const isHmrDisabled = process.env.DISABLE_HMR === 'true';
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: isHmrDisabled ? false : undefined,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

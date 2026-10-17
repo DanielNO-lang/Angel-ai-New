@@ -14,7 +14,7 @@
  * - Safe client-side Supabase client reuse without exposing service-role keys
  */
 
-import { offlineDb, QueuedMutation } from './db/offlineDb';
+import { offlineDb, QueuedMutation, setStoredSessionToken, getStoredSessionToken } from './db/offlineDb';
 import { SyncStatus, Task, Memory, Project, Workflow, Conversation, Message } from '../types';
 
 export type ConflictResolutionStrategy = 'client_wins' | 'server_wins' | 'last_write_wins' | 'merge';
@@ -53,6 +53,31 @@ class SyncService {
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => this.handleNetworkTransition(true));
       window.addEventListener('offline', () => this.handleNetworkTransition(false));
+      
+      // Initialize stored auth token for offline background sync
+      getStoredSessionToken().then((token) => {
+        if (token && !this.sessionToken) {
+          this.sessionToken = token;
+        }
+      }).catch(() => {});
+
+      // Listen for Background Sync completion events dispatched by the Service Worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data?.type === 'BACKGROUND_SYNC_COMPLETE') {
+            console.log('[SyncService] Service Worker completed background sync:', event.data);
+            this.lastSyncedAt = event.data.timestamp || new Date().toISOString();
+            this.lastError = null;
+            this.setStatus('synced');
+            this.notifyListeners();
+          } else if (event.data?.type === 'BACKGROUND_SYNC_ERROR') {
+            console.warn('[SyncService] Service Worker background sync warning:', event.data.error);
+            this.setStatus('error', event.data.error);
+            this.notifyListeners();
+          }
+        });
+      }
+
       // Periodic connectivity verification
       setInterval(() => {
         const actualOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -64,10 +89,20 @@ class SyncService {
   }
 
   /**
-   * Set or update current session auth token for cloud requests
+   * Set or update current session auth token for cloud requests and coordinate with Service Worker
    */
   public setSessionToken(token: string | null) {
     this.sessionToken = token;
+    // Persist to IndexedDB so Service Worker background sync can access it
+    setStoredSessionToken(token).catch(() => {});
+    
+    // Broadcast auth token to Service Worker
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SET_AUTH_TOKEN',
+        token,
+      });
+    }
   }
 
   /**
@@ -80,12 +115,45 @@ class SyncService {
     if (online) {
       this.lastError = null;
       if (!wasOnline) {
-        // Just returned online
+        // Just returned online — trigger background sync and local queue flush
         this.setStatus('syncing');
         this.processQueue();
+        this.requestServiceWorkerSync();
       }
     } else {
       this.setStatus('offline');
+    }
+  }
+
+  /**
+   * Requests Service Worker to register and execute background sync if supported
+   */
+  public async requestServiceWorkerSync(): Promise<void> {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if ('sync' in reg) {
+        await (reg as any).sync.register('angel-sync-queue');
+      } else if (reg.active) {
+        // Fallback for browsers without SyncManager: trigger via postMessage
+        reg.active.postMessage({
+          type: 'TRIGGER_SYNC',
+          token: this.sessionToken,
+        });
+      }
+    } catch (err) {
+      console.debug('[SyncService] Background sync registration:', err);
+    }
+  }
+
+  /**
+   * Returns current count of pending unsynced changes in queue
+   */
+  public async getPendingCount(): Promise<number> {
+    try {
+      return await offlineDb.syncQueue.where('status').equals('pending').count();
+    } catch {
+      return 0;
     }
   }
 
@@ -217,6 +285,12 @@ class SyncService {
       };
       await offlineDb.syncQueue.put(mutation);
     }
+
+    // Immediately notify UI listeners so unsynced changes counter updates in real time
+    this.notifyListeners();
+
+    // Register Background Sync with Service Worker
+    this.requestServiceWorkerSync().catch(() => {});
 
     if (!this.isOnline) {
       this.setStatus('offline');

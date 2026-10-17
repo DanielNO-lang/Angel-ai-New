@@ -113,6 +113,7 @@ interface AppContextType {
   guestMode: boolean;
   discardGuestSession: () => void;
   syncStatus: SyncStatus;
+  pendingSyncCount: number;
   triggerManualSync: () => Promise<void>;
   isAuthPageOpen: boolean;
   setIsAuthPageOpen: (open: boolean) => void;
@@ -567,10 +568,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Offline & Real-Time Sync State (Driven by syncService)
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(() => syncService.getStatus().status);
+  const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
 
   useEffect(() => {
     const unsub = syncService.subscribe((event) => {
       setSyncStatus(event.status);
+      setPendingSyncCount(event.pendingCount);
     });
     return unsub;
   }, []);
@@ -2318,6 +2321,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         guestMode,
         discardGuestSession,
         syncStatus,
+        pendingSyncCount,
         triggerManualSync,
         isAuthPageOpen,
         setIsAuthPageOpen,

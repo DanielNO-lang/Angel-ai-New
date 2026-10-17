@@ -13,6 +13,7 @@ export interface OfflineAppState {
   syncStatus: 'synced' | 'syncing' | 'offline_queued' | 'error' | 'offline';
   lastSyncedAt: string;
   updatedAt: string;
+  sessionToken?: string | null;
 }
 
 export interface QueuedMutation {
@@ -200,6 +201,7 @@ export async function syncWorkspaceToIndexedDB(payload: {
   activeTab?: string;
   theme?: string;
   syncStatus?: 'synced' | 'syncing' | 'offline_queued' | 'error' | 'offline';
+  sessionToken?: string | null;
 }): Promise<void> {
   try {
     const promises: Promise<unknown>[] = [];
@@ -243,15 +245,17 @@ export async function syncWorkspaceToIndexedDB(payload: {
       promises.push(offlineDb.assistants.bulkPut(payload.assistants));
     }
 
-    if (payload.activeTab || payload.theme || payload.syncStatus) {
+    if (payload.activeTab || payload.theme || payload.syncStatus || payload.sessionToken !== undefined) {
+      const current = await offlineDb.appState.get('current_session').catch(() => null);
       promises.push(
         offlineDb.appState.put({
           id: 'current_session',
-          activeTab: payload.activeTab || 'home',
-          theme: payload.theme || 'dark',
-          syncStatus: payload.syncStatus || 'synced',
+          activeTab: payload.activeTab || current?.activeTab || 'home',
+          theme: payload.theme || current?.theme || 'dark',
+          syncStatus: payload.syncStatus || current?.syncStatus || 'synced',
           lastSyncedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
+          sessionToken: payload.sessionToken !== undefined ? payload.sessionToken : current?.sessionToken || null,
         })
       );
     }
@@ -259,5 +263,44 @@ export async function syncWorkspaceToIndexedDB(payload: {
     await Promise.all(promises);
   } catch (error) {
     console.warn('[OfflineDB] IndexedDB sync error:', error);
+  }
+}
+
+/**
+ * Save auth session token to IndexedDB appState so background sync worker can authenticate requests
+ */
+export async function setStoredSessionToken(token: string | null): Promise<void> {
+  try {
+    const existing = await offlineDb.appState.get('current_session').catch(() => null);
+    if (existing) {
+      await offlineDb.appState.update('current_session', {
+        sessionToken: token,
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      await offlineDb.appState.put({
+        id: 'current_session',
+        activeTab: 'home',
+        theme: 'dark',
+        syncStatus: 'synced',
+        lastSyncedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        sessionToken: token,
+      });
+    }
+  } catch (err) {
+    console.warn('[OfflineDB] Could not set stored session token:', err);
+  }
+}
+
+/**
+ * Retrieve stored auth session token from IndexedDB
+ */
+export async function getStoredSessionToken(): Promise<string | null> {
+  try {
+    const record = await offlineDb.appState.get('current_session').catch(() => null);
+    return record?.sessionToken || null;
+  } catch {
+    return null;
   }
 }
