@@ -400,7 +400,7 @@ export class GeminiProvider implements AIProvider {
   /**
    * 6. embeddings()
    */
-  async embeddings(texts: string[] | string): Promise<number[][]> {
+  async embeddings(texts: string[] | string, modelId?: string): Promise<number[][]> {
     const inputTexts = Array.isArray(texts) ? texts : [texts];
 
     if (!this.isConfigured()) {
@@ -420,7 +420,7 @@ export class GeminiProvider implements AIProvider {
 
       for (const text of inputTexts) {
         const response = await ai.models.embedContent({
-          model: this.embeddingModelId,
+          model: modelId || this.embeddingModelId,
           contents: text,
         });
 
