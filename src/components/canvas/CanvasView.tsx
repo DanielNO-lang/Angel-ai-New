@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   PenTool,
   Code,
@@ -60,7 +61,7 @@ export const CanvasView: React.FC = () => {
     projects,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Canvases state
   const [canvases, setCanvases] = useState<CanvasArtifact[]>(() => getSavedCanvases());
