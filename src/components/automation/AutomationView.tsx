@@ -206,9 +206,7 @@ export const AutomationView: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Event-Driven Automation Engine</h1>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Event Stream Active
-                </span>
+
               </div>
               <p className="text-xs text-neutral-400 mt-1">
                 Deterministic triggers, conditional branching, autonomous agent execution, and Zapier/outbound webhooks.
@@ -298,13 +296,7 @@ export const AutomationView: React.FC = () => {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm">{auto.name}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                              auto.enabled
-                                ? 'bg-emerald-500/10 text-emerald-400'
-                                : 'bg-neutral-500/10 text-neutral-400'
-                            }`}
-                          >
+                          <span className={`text-[10px] font-medium ${auto.enabled ? 'text-emerald-500' : 'text-neutral-500'}`}>
                             {auto.enabled ? 'Enabled' : 'Paused'}
                           </span>
                         </div>
@@ -438,7 +430,7 @@ export const AutomationView: React.FC = () => {
                               </span>
                               <span className="text-xs font-bold">{step.name}</span>
                             </div>
-                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/5 uppercase opacity-70">
+                            <span className="text-[10px] font-medium uppercase opacity-60">
                               {step.type}
                             </span>
                           </div>
@@ -550,15 +542,13 @@ export const AutomationView: React.FC = () => {
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-xs">{run.automationName}</span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                            run.status === 'completed'
-                              ? 'bg-emerald-500/10 text-emerald-400'
-                              : run.status === 'failed'
-                              ? 'bg-rose-500/10 text-rose-400'
-                              : 'bg-neutral-500/10 text-neutral-400'
-                          }`}
-                        >
+                        <span className={`text-[10px] font-medium ${
+                          run.status === 'completed'
+                            ? 'text-emerald-500'
+                            : run.status === 'failed'
+                            ? 'text-rose-500'
+                            : 'text-neutral-500'
+                        }`}>
                           {run.status.toUpperCase()}
                         </span>
                       </div>
