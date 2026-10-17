@@ -962,6 +962,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (readError) return res.status(503).json({ error: 'Could not verify artifact ownership.' });
     if (!existing) return res.status(404).json({ error: 'Artifact not found.' });
     const body = req.body || {};
+    if (body.expectedVersion !== undefined &&
+        (!Number.isInteger(body.expectedVersion) || body.expectedVersion < 1)) {
+      return res.status(400).json({ error: 'expectedVersion must be a positive integer.' });
+    }
+    if (body.expectedVersion !== undefined && body.expectedVersion !== existing.version) {
+      return res.status(409).json({ error: 'Artifact version conflict: this artifact changed since you opened it.' });
+    }
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), version: existing.version + 1 };
     if (body.title !== undefined) {
       if (typeof body.title !== 'string' || !body.title.trim() || body.title.length > 200) return res.status(400).json({ error: 'title must be 1–200 characters.' });
@@ -976,11 +983,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       patch.metadata = body.metadata;
     }
     const { data, error } = await supabase.from('angel_work_artifacts').update(patch)
-      .eq('user_id', user.id).eq('id', req.params.id).select('*').single();
-    if (error || !data) {
-      console.error('[Artifacts] Update failed:', error?.message || 'No row returned');
+      .eq('user_id', user.id).eq('id', req.params.id).eq('version', existing.version).select('*').maybeSingle();
+    if (error) {
+      console.error('[Artifacts] Update failed:', error.message);
       return res.status(503).json({ error: 'Could not update artifact.' });
     }
+    if (!data) return res.status(409).json({ error: 'Artifact version conflict: this artifact changed since you opened it.' });
     return res.json(data);
   });
 
