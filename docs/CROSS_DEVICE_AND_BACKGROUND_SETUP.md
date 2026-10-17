@@ -100,7 +100,11 @@ The interval cadence is bounded to 15 minutes through 30 days, with 1–100 runs
 
 **Important:** the code does not create a hosted scheduler by itself. Until a scheduler is configured and database migrations are applied, scheduled tasks may be saved but will not run. Production must remain gated until preview verification succeeds.
 
-## 8. Background push notifications
+## 8. Grounded web search fallback
+
+The research workspace prefers Gemini Google Search grounding when `GEMINI_API_KEY` is configured. To add a real search fallback for Gemini quota/rate-limit outages, configure `BRAVE_SEARCH_API_KEY` as a server-only secret. The code calls Brave Search's documented web-search endpoint and only keeps valid HTTP(S) source links returned by the provider. If fallback search is used, the report labels the content as attributed source snippets, not an AI-generated synthesis. Never prefix the key with `VITE_`, expose it in browser code, or commit it. Test provider quota errors, empty results, malformed URLs, and successful fallback in the approved preview environment before release.
+
+## 9. Background push notifications
 
 Background push is separate from the existing in-tab browser notification monitor. Push requires a service worker, user consent, a valid server-side VAPID key pair, the push subscription migration, and a running background worker.
 
