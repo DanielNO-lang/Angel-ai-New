@@ -1367,16 +1367,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: now,
     };
     setLibraryItems((prev) => [newItem, ...prev]);
+    syncService.enqueueMutation('library_item', 'create', newId, newItem, isGuest);
     return newItem;
   };
 
   const updateLibraryItem = (id: string, updates: Partial<LibraryItem>) => {
     setLibraryItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: new Date().toISOString() } : item))
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const updated = { ...item, ...updates, updatedAt: new Date().toISOString() };
+        syncService.enqueueMutation('library_item', 'update', id, updated, isGuest);
+        return updated;
+      })
     );
   };
 
   const deleteLibraryItem = (id: string) => {
+    syncService.enqueueMutation('library_item', 'delete', id, { id }, isGuest);
     setLibraryItems((prev) => prev.filter((item) => item.id !== id));
   };
 
