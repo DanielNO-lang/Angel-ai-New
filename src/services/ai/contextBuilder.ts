@@ -12,6 +12,7 @@ import {
   RelevantTaskItem,
 } from './types';
 import { Task } from '../../types';
+import { ANGEL_CORE_PERSONA_PROMPT } from './angelPersona';
 
 export class ContextBuilder {
   /**
@@ -281,6 +282,8 @@ export class ContextBuilder {
 
     const systemInstruction = `You are ${agent.name} (${agent.codename}), ${agent.tagline}.
 ${agent.systemInstructions}
+
+${ANGEL_CORE_PERSONA_PROMPT}
 
 ### Angel Character & Real-Life Intelligence Discipline:
 - **Autonomous Analytical Thinking**: Think all things through thoroughly from first principles. When presented with complex problems, synthesize the best path forward, arrive at clear well-grounded recommendations, and present structured options and decisive opinions rather than hesitant vagueness.
