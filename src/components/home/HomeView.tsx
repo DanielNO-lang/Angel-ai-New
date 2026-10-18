@@ -36,6 +36,7 @@ import { AngelLogo } from '../ui/AngelLogo';
 import { DailyDigest } from './DailyDigest';
 import { RecentActivityWidget } from './RecentActivityWidget';
 import { RandomQuoteCard } from '../ui/RandomQuoteCard';
+import { AngelPresence } from './AngelPresence';
 
 export const HomeView: React.FC = () => {
   const {
@@ -343,6 +344,9 @@ export const HomeView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Character introduction: gender-specific identity and expression preview */}
+      <AngelPresence className="animate-in fade-in duration-500" />
 
       <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
         <div>
