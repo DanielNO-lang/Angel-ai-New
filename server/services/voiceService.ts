@@ -6,6 +6,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
+import { ANGEL_DEFAULT_TTS_STYLE_PROMPT } from '../../src/services/ai/angelPersona';
 
 export interface TranscribeAudioRequest {
   base64Audio: string;
@@ -107,7 +108,7 @@ class VoiceService {
             parts: [
               {
                 text: req.text,
-                ...(req.stylePrompt ? { speechMetadata: { style: req.stylePrompt } } : {}),
+                speechMetadata: { style: req.stylePrompt?.trim() || ANGEL_DEFAULT_TTS_STYLE_PROMPT },
               },
             ],
           },
