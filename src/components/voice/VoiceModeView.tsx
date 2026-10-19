@@ -87,16 +87,18 @@ export const VoiceModeView: React.FC = () => {
     }
     try {
       stopVideoStream();
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        mediaStreamRef.current = stream;
-        if (videoFeedRef.current) {
-          videoFeedRef.current.srcObject = stream;
-        }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera capture is not supported by this browser.');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      mediaStreamRef.current = stream;
+      if (videoFeedRef.current) {
+        videoFeedRef.current.srcObject = stream;
       }
       setVideoStreamMode('camera');
     } catch {
-      setVideoStreamMode('camera');
+      stopVideoStream();
+      setAngelResponse('Camera access was denied or is unavailable. Allow camera access and try again.');
     }
   };
 
@@ -107,19 +109,20 @@ export const VoiceModeView: React.FC = () => {
     }
     try {
       stopVideoStream();
-      if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        mediaStreamRef.current = stream;
-        if (videoFeedRef.current) {
-          videoFeedRef.current.srcObject = stream;
-        }
-        stream.getVideoTracks()[0].onended = () => {
-          stopVideoStream();
-        };
+      if (!navigator.mediaDevices?.getDisplayMedia) {
+        throw new Error('Screen sharing is not supported by this browser.');
       }
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      mediaStreamRef.current = stream;
+      if (videoFeedRef.current) {
+        videoFeedRef.current.srcObject = stream;
+      }
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) videoTrack.onended = () => stopVideoStream();
       setVideoStreamMode('screen');
     } catch {
-      setVideoStreamMode('screen');
+      stopVideoStream();
+      setAngelResponse('Screen sharing was denied or is unavailable. Choose a screen to share and try again.');
     }
   };
 
@@ -373,7 +376,7 @@ export const VoiceModeView: React.FC = () => {
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: response }]);
       await speakAngelResponse(response);
     } catch {
-      const fallback = `Autonomous agent pipeline dispatched for your command: "${prompt}".`;
+      const fallback = 'I could not reach the response service, so I have not completed that request. Check the connection and try again.';
       setAngelResponse(fallback);
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: fallback }]);
       await speakAngelResponse(fallback);
