@@ -150,6 +150,33 @@ export const SettingsView: React.FC = () => {
   // Voice states
   const [defaultVoice, setDefaultVoice] = useState('Nova (Balanced)');
   const [speechRate, setSpeechRate] = useState('1.0x');
+  const [voiceIsolationMode, setVoiceIsolationMode] = useState(() => {
+    try { return localStorage.getItem('angel_voice_isolation_mode') || 'focused'; } catch { return 'focused'; }
+  });
+  const [wakePhrase, setWakePhrase] = useState(() => {
+    try { return localStorage.getItem('angel_wake_phrase') || 'Angel'; } catch { return 'Angel'; }
+  });
+  const [micCheckStatus, setMicCheckStatus] = useState('not-checked');
+  useEffect(() => {
+    try {
+      localStorage.setItem('angel_voice_isolation_mode', voiceIsolationMode);
+      localStorage.setItem('angel_wake_phrase', wakePhrase.trim() || 'Angel');
+    } catch {}
+  }, [voiceIsolationMode, wakePhrase]);
+  const checkMicrophonePermission = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMicCheckStatus('unsupported');
+      return;
+    }
+    setMicCheckStatus('checking');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setMicCheckStatus('available');
+    } catch (error) {
+      setMicCheckStatus(error instanceof DOMException && error.name === 'NotAllowedError' ? 'denied' : 'unavailable');
+    }
+  };
 
   // Privacy & Notifications
   const [desktopNotifications, setDesktopNotifications] = useState(true);
@@ -954,6 +981,50 @@ export const SettingsView: React.FC = () => {
                   Configure synthesis voice models, conversational speech rate, and Web Speech API settings.
                 </p>
               </div>
+
+              <section className={`rounded-2xl border p-4 space-y-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-white/[0.03]'}`} aria-labelledby="voice-isolation-heading">
+                <div>
+                  <h3 id="voice-isolation-heading" className="font-semibold flex items-center gap-2"><Mic className="h-4 w-4" /> High-priority voice isolation</h3>
+                  <p className={`mt-1 text-xs leading-relaxed ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>Choose how Angel should handle microphone input. These preferences do not themselves provide AI noise cancellation or speaker separation; those require a supported audio pipeline.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    { id: 'focused', label: 'Focused speaker', detail: 'Preferred mode for primary-speaker focus, where supported.' },
+                    { id: 'push-to-talk', label: 'Push to talk', detail: 'Only capture after you deliberately start a voice action.' },
+                    { id: 'wake-word', label: 'Wake phrase', detail: 'Wake phrase support depends on the active voice engine.' },
+                    { id: 'off', label: 'Off', detail: 'No hands-free listening preference.' },
+                  ].map((option) => (
+                    <button key={option.id} type="button" onClick={() => setVoiceIsolationMode(option.id)}
+                      aria-pressed={voiceIsolationMode === option.id}
+                      className={`rounded-xl border p-3 text-left transition ${voiceIsolationMode === option.id ? 'border-violet-400 bg-violet-500/10' : isLight ? 'border-slate-200 hover:bg-slate-100' : 'border-white/10 hover:bg-white/5'}`}>
+                      <span className="block text-sm font-medium">{option.label}</span>
+                      <span className={`mt-1 block text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>{option.detail}</span>
+                    </button>
+                  ))}
+                </div>
+                {voiceIsolationMode === 'wake-word' && (
+                  <label className="block space-y-1">
+                    <span className="text-xs font-medium">Wake phrase</span>
+                    <input value={wakePhrase} onChange={(event) => setWakePhrase(event.target.value)} maxLength={40}
+                      placeholder="Angel" className={`w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-400 ${isLight ? 'border-slate-300 bg-white' : 'border-white/10 bg-black/20'}`} />
+                    <span className={`block text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>Saved on this device. Always-on wake-word detection is not activated by this setting alone.</span>
+                  </label>
+                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  <button type="button" onClick={checkMicrophonePermission} disabled={micCheckStatus === 'checking'}
+                    className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-500 disabled:opacity-60">
+                    {micCheckStatus === 'checking' ? 'Checking microphone…' : 'Check microphone access'}
+                  </button>
+                  <span role="status" aria-live="polite" className={`text-xs ${isLight ? 'text-slate-600' : 'text-neutral-300'}`}>
+                    {micCheckStatus === 'not-checked' && 'Microphone has not been checked.'}
+                    {micCheckStatus === 'checking' && 'Waiting for browser permission…'}
+                    {micCheckStatus === 'available' && 'Microphone access worked. The test stream has been stopped.'}
+                    {micCheckStatus === 'denied' && 'Microphone permission was denied. Review this site’s browser permissions.'}
+                    {micCheckStatus === 'unavailable' && 'Microphone could not be opened. Check device availability and permissions.'}
+                    {micCheckStatus === 'unsupported' && 'This browser does not expose microphone capture.'}
+                  </span>
+                </div>
+              </section>
 
               <div className="space-y-2">
                 <label className="text-xs font-semibold block opacity-80">Active Voice Model</label>
