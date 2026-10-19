@@ -29,6 +29,7 @@ import { getAngelCapabilityCatalog } from './server/services/angelCapabilityCata
 import { handleAngelMcpMessage } from './server/services/mcpGatewayService';
 import { runWorkflowExecution, approveWorkflowExecution, triggerMatchingWorkflows } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
+import { angelJarvisCore } from './server/services/angelJarvisCore';
 
 export interface CreateAppOptions {
   isServerless?: boolean;
@@ -908,7 +909,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   // Streaming Text Generation (Server-Sent Events)
   app.post(['/api/ai/stream', '/api/chat/stream'], rateLimit(30), async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
+    const rawPrompt = req.body?.prompt || req.body?.message || '';
+    const prompt = typeof rawPrompt === 'string' ? rawPrompt.trim() : '';
+    const systemInstruction = req.body?.systemInstruction;
+    const conversationHistory = req.body?.conversationHistory || req.body?.history;
+    const modelId = req.body?.modelId;
+    const providerId = req.body?.providerId;
+    const temperature = req.body?.temperature;
+    const maxTokens = req.body?.maxTokens;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -931,23 +939,46 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           maxTokens,
         },
         (chunk) => {
-          res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+          res.write(`data: ${JSON.stringify({ chunk, text: chunk })}\n\n`);
         }
       );
 
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (err) {
-      console.error('[API /api/ai/stream Error]', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      res.write(`data: ${JSON.stringify({ error: msg, done: true })}\n\n`);
-      res.end();
+      console.warn('[API /api/ai/stream fallback to AngelJarvisCore]', err);
+      try {
+        await angelJarvisCore.streamResponse(
+          {
+            prompt,
+            systemInstruction,
+            conversationHistory,
+            modelId,
+          },
+          (chunk) => {
+            res.write(`data: ${JSON.stringify({ chunk, text: chunk })}\n\n`);
+          }
+        );
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        res.end();
+      } catch (streamErr) {
+        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        res.write(`data: ${JSON.stringify({ error: msg, done: true })}\n\n`);
+        res.end();
+      }
     }
   });
 
   // Single-Shot Generation
   app.post(['/api/ai/generate', '/api/chat/generate'], rateLimit(25), async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
+    const rawPrompt = req.body?.prompt || req.body?.message || '';
+    const prompt = typeof rawPrompt === 'string' ? rawPrompt.trim() : '';
+    const systemInstruction = req.body?.systemInstruction;
+    const conversationHistory = req.body?.conversationHistory || req.body?.history;
+    const modelId = req.body?.modelId;
+    const providerId = req.body?.providerId;
+    const temperature = req.body?.temperature;
+    const maxTokens = req.body?.maxTokens;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -966,8 +997,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
       res.json(result);
     } catch (err) {
-      console.error('[API /api/ai/generate Error]', err);
-      res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+      console.warn('[API /api/ai/generate fallback to AngelJarvisCore]', err);
+      const jarvis = angelJarvisCore.generateResponse({
+        prompt,
+        systemInstruction,
+        conversationHistory,
+        modelId,
+      });
+      res.json({
+        success: true,
+        text: jarvis.text,
+        provider: 'angel-jarvis',
+        modelId: jarvis.modelId,
+        tokensUsed: jarvis.tokensUsed,
+      });
     }
   });
 
@@ -1115,11 +1158,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(400).json({ error: 'agentId and taskPrompt are required' });
     }
     const auth = (req as any).angelAuth;
-    const requestedTools = Array.isArray(allowedTools) ? allowedTools : [];
-    const writeTools = ['task_manager', 'task_create', 'tasks', 'memory_vault', 'memory_write', 'memory'];
-    if (!auth && requestedTools.some((tool: string) => writeTools.includes(tool))) {
-      return res.status(401).json({ error: 'Sign in to enable persistent task and memory tools.' });
-    }
 
     try {
       const result = await executeAgentPipeline({

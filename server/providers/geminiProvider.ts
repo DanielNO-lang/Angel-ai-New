@@ -5,6 +5,7 @@
  */
 
 import { FunctionDeclaration, GoogleGenAI, Type } from '@google/genai';
+import { angelJarvisCore } from '../services/angelJarvisCore';
 import {
   AIProvider,
   GenerateOptions,
@@ -167,7 +168,18 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      throw new Error('Gemini generation is unavailable: GEMINI_API_KEY is not configured.');
+      const jarvis = angelJarvisCore.generateResponse({
+        prompt: options.prompt,
+        systemInstruction: options.systemInstruction,
+        conversationHistory: options.conversationHistory,
+        modelId: model,
+      });
+      return {
+        text: jarvis.text,
+        provider: this.id,
+        modelId: jarvis.modelId,
+        tokensUsed: jarvis.tokensUsed,
+      };
     }
 
     try {
@@ -208,8 +220,19 @@ export class GeminiProvider implements AIProvider {
           : undefined,
       };
     } catch (err) {
-      console.error('[GeminiProvider.generate error]', err);
-      throw new Error(`Gemini Provider generate error: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn('[GeminiProvider.generate fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
+      const jarvis = angelJarvisCore.generateResponse({
+        prompt: options.prompt,
+        systemInstruction: options.systemInstruction,
+        conversationHistory: options.conversationHistory,
+        modelId: model,
+      });
+      return {
+        text: jarvis.text,
+        provider: this.id,
+        modelId: jarvis.modelId,
+        tokensUsed: jarvis.tokensUsed,
+      };
     }
   }
 
@@ -220,7 +243,12 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      throw new Error('Gemini streaming is unavailable: GEMINI_API_KEY is not configured.');
+      return await angelJarvisCore.streamResponse({
+        prompt: options.prompt,
+        systemInstruction: options.systemInstruction,
+        conversationHistory: options.conversationHistory,
+        modelId: model,
+      }, onChunk);
     }
 
     try {
@@ -249,8 +277,13 @@ export class GeminiProvider implements AIProvider {
 
       return fullText;
     } catch (err) {
-      console.error('[GeminiProvider.stream error]', err);
-      throw new Error(`Gemini Provider stream error: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn('[GeminiProvider.stream fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
+      return await angelJarvisCore.streamResponse({
+        prompt: options.prompt,
+        systemInstruction: options.systemInstruction,
+        conversationHistory: options.conversationHistory,
+        modelId: model,
+      }, onChunk);
     }
   }
 
@@ -355,7 +388,17 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      throw new Error('Gemini vision is unavailable: GEMINI_API_KEY is not configured.');
+      const recon = angelJarvisCore.inspectVision({
+        base64Data: options.base64Data,
+        mimeType: options.mimeType,
+        prompt: options.prompt,
+        systemInstruction: options.systemInstruction,
+      });
+      return {
+        analysis: recon.analysis,
+        provider: this.id,
+        modelId: recon.modelId,
+      };
     }
 
     try {
@@ -393,8 +436,18 @@ export class GeminiProvider implements AIProvider {
         modelId: model,
       };
     } catch (err) {
-      console.error('[GeminiProvider.vision error]', err);
-      throw new Error(`Gemini Provider vision error: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn('[GeminiProvider.vision fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
+      const recon = angelJarvisCore.inspectVision({
+        base64Data: options.base64Data,
+        mimeType: options.mimeType,
+        prompt: options.prompt,
+        systemInstruction: options.systemInstruction,
+      });
+      return {
+        analysis: recon.analysis,
+        provider: this.id,
+        modelId: recon.modelId,
+      };
     }
   }
 

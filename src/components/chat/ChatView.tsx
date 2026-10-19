@@ -136,11 +136,12 @@ export const ChatView: React.FC = () => {
     setInput('');
     setAttachments([]);
 
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+    let convId = activeConversationId;
+    if (!convId || !conversations.some((c) => c.id === convId)) {
+      convId = createConversation(selectedAgentId);
     }
 
-    await sendMessage(textToSend, filesToSend);
+    await sendMessage(textToSend, filesToSend, convId);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -371,8 +372,14 @@ export const ChatView: React.FC = () => {
                   {quickSearchSuggestions.map((sug) => (
                     <button
                       key={sug.label}
-                      onClick={() => sendMessage(sug.prompt)}
-                      className={`p-3 rounded-xl transition-all duration-200 transform-gpu hover:-translate-y-0.5 ${
+                      onClick={() => {
+                        let convId = activeConversationId;
+                        if (!convId || !conversations.some((c) => c.id === convId)) {
+                          convId = createConversation(selectedAgentId);
+                        }
+                        sendMessage(sug.prompt, undefined, convId);
+                      }}
+                      className={`p-3 rounded-xl transition-all duration-200 transform-gpu hover:-translate-y-0.5 cursor-pointer ${
                         isLight
                           ? 'bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-700 shadow-2xs'
                           : 'bg-[#121622]/90 hover:bg-[#181E2E] border border-white/5 text-neutral-300 shadow-md'

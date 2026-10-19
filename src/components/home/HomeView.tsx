@@ -114,8 +114,8 @@ export const HomeView: React.FC = () => {
       prefix = '[Agent Execution]: ';
     }
 
-    createConversation(targetAgentId, undefined, promptText.slice(0, 36));
-    sendMessage(`${prefix}${promptText}`);
+    const newId = createConversation(targetAgentId, undefined, promptText.slice(0, 36));
+    sendMessage(`${prefix}${promptText}`, undefined, newId);
     setActiveTab('chat');
     setPromptText('');
   };

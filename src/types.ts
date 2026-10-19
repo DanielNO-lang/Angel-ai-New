@@ -1,6 +1,6 @@
 /**
  * ANGEL AI — Core Domain Data Models & Type Definitions
- * Designed for cross-environment portability (AI Studio, Supabase, GitHub, Vercel)
+ * Designed for cross-environment portability (AI Studio, Supabase, GitHub, Netlify)
  */
 
 export type NavigationTab =

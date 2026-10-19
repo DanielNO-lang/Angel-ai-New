@@ -48,10 +48,10 @@ export const ANGEL_ARCHITECTURE_CONCEPTS: AngelArchitectureConcept[] = [
   {
     concept: 'Integration',
     definition: 'A configured connection instance with credentials, OAuth tokens, or webhook endpoints targeting external services.',
-    primaryRole: 'Bridges Angel data and execution to external platforms (e.g. GitHub repos, Vercel deployments, Supabase tables).',
+    primaryRole: 'Bridges Angel data and execution to external platforms (e.g. GitHub repos, Netlify deployments, Supabase tables).',
     inputOutput: 'Authenticated API requests, event webhooks, and telemetry synchronization.',
     executionModel: 'Secure OAuth/PAT token handling with token refresh and endpoint health verification.',
-    example: 'GitHub OAuth Connection, Vercel Deploy Token, Supabase Project Link.',
+    example: 'GitHub OAuth Connection, Netlify Site Link, Supabase Project Link.',
   },
 ];
 

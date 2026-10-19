@@ -184,7 +184,18 @@ export const INITIAL_AGENTS: Agent[] = [
   },
 ];
 
-export const INITIAL_CONVERSATIONS: Conversation[] = [];
+export const INITIAL_CONVERSATIONS: Conversation[] = [
+  {
+    id: 'conv-welcome',
+    title: 'Welcome to Angel AI',
+    createdAt: '2026-10-19T00:00:00Z',
+    updatedAt: '2026-10-19T00:00:00Z',
+    agentId: 'angel-core',
+    pinned: false,
+    messageCount: 1,
+    lastMessagePreview: 'Angel Jarvis Core ready for tactical intelligence and workspace execution.',
+  },
+];
 
 export const INITIAL_TASKS: Task[] = [];
 
@@ -205,7 +216,7 @@ export const INITIAL_MEMORIES: Memory[] = [
     id: 'mem-2',
     type: 'long_term_instruction',
     title: 'Multi-Environment Architecture Mandate',
-    content: 'All features must be architected to support GitHub synchronization, Supabase PostgreSQL persistence, Vercel deployments, and multi-model routing (Gemini + ChatGPT/OpenAI compatibility).',
+    content: 'All features must be architected to support GitHub synchronization, Supabase PostgreSQL persistence, Netlify deployments, and multi-model routing (Gemini + ChatGPT/OpenAI compatibility).',
     confidence: 1.0,
     source: 'System Engineering Directive',
     tags: ['architecture', 'supabase', 'github', 'long_term'],

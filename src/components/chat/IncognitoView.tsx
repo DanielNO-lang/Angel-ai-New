@@ -75,7 +75,12 @@ export const IncognitoView: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          prompt: userText,
           message: userText,
+          conversationHistory: messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
           history: messages.map((m) => ({
             role: m.role,
             content: m.content,
@@ -93,28 +98,31 @@ export const IncognitoView: React.FC = () => {
       const decoder = new TextDecoder();
       let accumulated = '';
 
+      let sseBuffer = '';
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() || '';
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.replace('data: ', '').trim();
-            if (dataStr === '[DONE]') continue;
-            try {
-              const parsed = JSON.parse(dataStr);
-              if (parsed.text) {
-                accumulated += parsed.text;
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === asstId ? { ...m, content: accumulated } : m))
-                );
-              }
-            } catch {
-              // ignore partial lines
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data: ')) continue;
+          const dataStr = trimmed.slice(6).trim();
+          if (dataStr === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(dataStr);
+            const token = parsed.chunk || parsed.text;
+            if (token) {
+              accumulated += token;
+              setMessages((prev) =>
+                prev.map((m) => (m.id === asstId ? { ...m, content: accumulated } : m))
+              );
             }
+          } catch {
+            // ignore partial line
           }
         }
       }
