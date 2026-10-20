@@ -14,7 +14,9 @@ Under **Authorized JavaScript origins**, add:
 
 Under **Authorized redirect URIs**, add this exact URI:
 
-    <SUPABASE_URL>/auth/v1/callback (replace <SUPABASE_URL> with the project's configured URL in Google Cloud Console)
+    <SUPABASE_URL>/auth/v1/callback
+
+Replace `<SUPABASE_URL>` with the exact project URL configured in Netlify before adding this URI to Google Cloud Console.
 
 **Important:** the Authorized redirect URI for Google is the Supabase callback URL above, not the Netlify app URL and not /auth/callback. Google returns the provider response to Supabase first; Supabase then redirects the browser back to Angel.
 
