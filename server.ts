@@ -1570,41 +1570,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   </div>
   <script>
     (function() {
-      var hash = window.location.hash || '';
-      var search = window.location.search || '';
-
-      // Persist directly to localStorage so any parent tab picks it up immediately via storage listener
-      try {
-        if (hash.indexOf('access_token=') !== -1) {
-          var params = new URLSearchParams(hash.substring(1));
-          var token = params.get('access_token');
-          var refresh = params.get('refresh_token');
-          if (token) {
-            localStorage.setItem('angel_auth_token', token);
-            localStorage.removeItem('angel_is_guest');
-            if (refresh) localStorage.setItem('angel_refresh_token', refresh);
-          }
-        }
-      } catch (err) {}
-
-      // Relay to opener window if opened in a popup
-      if (window.opener) {
-        try {
-          window.opener.postMessage({
-            type: 'ANGEL_OAUTH_CALLBACK',
-            hash: hash,
-            search: search
-          }, '*');
-        } catch (e) {}
-        setTimeout(function() {
-          window.close();
-        }, 400);
-      } else {
-        // If loaded in main frame / redirect, return to base application
-        setTimeout(function() {
-          window.location.href = '/' + hash;
-        }, 600);
-      }
+      // Let Supabase JS process the standard OAuth callback on the application origin.
+      // Preserve both PKCE query parameters (?code=...) and implicit-flow fragments
+      // without manually copying credentials or relaying tokens through postMessage.
+      var returnUrl = new URL('/', window.location.origin);
+      returnUrl.search = window.location.search || '';
+      returnUrl.hash = window.location.hash || '';
+      window.location.replace(returnUrl.toString());
     })();
   </script>
 </body>
