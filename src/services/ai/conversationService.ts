@@ -244,21 +244,9 @@ export class ConversationService {
         }
       }
 
-      // If network/provider still yielded no text, provide an intelligent Jarvis response
+      // Empty provider output is a failure, not a completed assistant answer.
       if (!accumulatedText.trim()) {
-        const lowerPrompt = prompt.toLowerCase();
-        let fallbackJarvis = '';
-        if (lowerPrompt.includes('house party') || lowerPrompt.includes('clean slate') || lowerPrompt.includes('veronica') || lowerPrompt.includes('igor')) {
-          fallbackJarvis = `### ⚡ PROTOCOL DIRECTIVE EXECUTED // SOVEREIGN ENCLAVE ACTIVE\n**Clearance:** Level 5 Executive Clearance (DEFCON 1 Status)\n**Timestamp:** \`${new Date().toISOString()}\`\n\nSir, all defensive subroutines and autonomous agent pipelines (Atlas, Mnemosyne, Optic, Astra) have been verified and synchronized under AES-GCM 256-bit encryption. Standing by for tactical engagement.`;
-        } else if (lowerPrompt.includes('status') || lowerPrompt.includes('diagnostics') || lowerPrompt.includes('armor')) {
-          fallbackJarvis = `### 🛡️ ANGEL J.A.R.V.I.S. TACTICAL STATUS\n**Status:** 100% Operational // Sovereign Enclave Mode\n**Arc Core Output:** 100% Nominal (8.4 GW)\n**Chassis & Vault Integrity:** 100% Verified (SHA-256 Hash Seal Active)\n**Defense Alert:** DEFCON 5 Vigilance\n\nAll cognitive and workspace subroutines are online, sir. Standing by.`;
-        } else {
-          fallbackJarvis = `Sir, I have processed your instruction: **"${prompt}"**.\n\nAll local cognitive registers, task engines, and encrypted memory caches remain 100% operational in sovereign mode. How would you like me to proceed with execution?`;
-        }
-        accumulatedText = fallbackJarvis;
-        if (onToken) {
-          onToken(accumulatedText, accumulatedText);
-        }
+        throw new Error('The AI provider returned no response content. Check provider configuration and try again.');
       }
 
       agentExecutionLifecycle.advanceStage(
