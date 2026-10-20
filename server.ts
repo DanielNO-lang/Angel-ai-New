@@ -9,7 +9,6 @@
  */
 
 import express, { Express, Request, Response, NextFunction } from 'express';
-import path from 'path';
 import { createHash } from 'node:crypto';
 import { executeAgentPipeline } from './server/orchestrator';
 import { providerRegistry } from './server/providers';
@@ -2112,43 +2111,3 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   return app;
 }
 
-async function startServer() {
-  // In AI Studio and preview environments, the dev server must always listen on port 3000.
-  const PORT = 3000;
-  const app = await createApp();
-
-  // ============================================================================
-  // VITE / STATIC FILE SERVING
-  // ============================================================================
-  if (process.env.NODE_ENV !== 'production') {
-    // Load Vite only for the standalone development server. Keeping this as a
-    // dynamic import prevents serverless production functions from loading Vite's
-    const { createServer: createViteServer } = await import('vite');
-    const isHmrDisabled = process.env.DISABLE_HMR === 'true';
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: isHmrDisabled ? false : undefined,
-      },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Angel AI] Server listening on http://0.0.0.0:${PORT} (Node ${process.version})`);
-  });
-}
-
-// Avoid starting a listening server inside Netlify Functions or another serverless host.
-if (!process.env.NETLIFY) {
-  startServer().catch((err) => {
-    console.error('[Angel AI Server Fatal Startup Error]', err);
-  });
-}
