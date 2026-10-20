@@ -478,11 +478,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
     if (hasStoredAuthSession()) {
       return getStoredItem('user_profile', {
-        id: 'user_danny',
-        name: 'Danny Davis',
-        email: 'danielokohnwachukwu22@gmail.com',
-        initials: 'DD',
-        plan: 'Pro',
+        id: 'auth_user',
+        name: 'Angel User',
+        email: '',
+        initials: 'AU',
+        plan: 'Free',
         status: 'online',
       });
     }
@@ -786,7 +786,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name,
           email: session.user.email || prev.email,
           initials,
-          plan: 'Pro',
+          plan: 'Free',
           status: 'online',
           avatarUrl: session.user.user_metadata?.avatar_url || prev.avatarUrl,
         }));
@@ -822,7 +822,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name,
           email: session.user.email || prev.email,
           initials,
-          plan: 'Pro',
+          plan: 'Free',
           status: 'online',
           avatarUrl: session.user.user_metadata?.avatar_url || prev.avatarUrl,
         }));
@@ -1147,7 +1147,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           name,
           email: cleanEmail,
           initials,
-          plan: 'Pro',
+          plan: 'Free',
           status: 'online',
           avatarUrl: session.user.user_metadata?.avatar_url,
         });
@@ -1183,7 +1183,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         name,
         email: data.profile.email || cleanEmail,
         initials,
-        plan: 'Pro',
+        plan: 'Free',
         status: 'online',
         avatarUrl: data.profile.avatarUrl,
         title: data.profile.title,
@@ -1240,7 +1240,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             name: cleanName,
             email: cleanEmail,
             initials,
-            plan: 'Pro',
+            plan: 'Free',
             status: 'online',
             avatarUrl: user.user_metadata?.avatar_url,
           });
@@ -1295,7 +1295,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         name: profileName,
         email: data.profile.email || cleanEmail,
         initials,
-        plan: 'Pro',
+        plan: 'Free',
         status: 'online',
         avatarUrl: data.profile.avatarUrl,
         title: data.profile.title,
