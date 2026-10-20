@@ -144,6 +144,7 @@ export const Sidebar: React.FC = () => {
     badge?: string;
   }> = [
     { id: 'chat', label: 'Chat', icon: MessageSquare, tabTarget: 'chat' },
+    { id: 'research', label: 'Research', icon: Search, tabTarget: 'research' },
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
   ];
 
