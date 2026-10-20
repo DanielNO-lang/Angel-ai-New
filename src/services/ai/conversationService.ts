@@ -14,7 +14,17 @@ import {
 } from './types';
 
 
-/** Normalize transport/provider failures before displaying them to a user. */
+/** Normalize transport/provider failures without leaking credentials or internals. */
+function redactSensitiveRequestText(message: string): string {
+  return message
+    .replace(/\bauthorization\s*[:=]\s*bearer\s+[^\s,;]+/gi, 'Authorization=[redacted]')
+    .replace(/\bbearer\s+[^\s,;]+/gi, 'Bearer [redacted]')
+    .replace(/(api[_ -]?key|authorization|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240);
+}
+
 export function describeRequestFailure(body: string, status: number, fallback: string): string {
   let detail = body.trim();
   if (detail) {
@@ -23,17 +33,13 @@ export function describeRequestFailure(body: string, status: number, fallback: s
       detail = typeof parsed?.error === 'string' ? parsed.error : typeof parsed?.message === 'string' ? parsed.message : detail;
     } catch {}
   }
-  detail = detail
-    .replace(/(api[_ -]?key|authorization|bearer|token|secret)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 240);
+  detail = redactSensitiveRequestText(detail);
   return detail ? `${fallback} (HTTP ${status}): ${detail}` : `${fallback} (HTTP ${status}).`;
 }
 
 export function describeUnknownFailure(error: unknown, fallback: string): string {
   if (!(error instanceof Error)) return fallback;
-  const message = error.message.replace(/\s+/g, ' ').trim().slice(0, 240);
+  const message = redactSensitiveRequestText(error.message);
   return message || fallback;
 }
 
