@@ -454,8 +454,8 @@ test('OAuth callback never relays tokens through postMessage', () => {
   const callbackEnd = source.indexOf("app.get('/api/auth/google/url'", callbackStart);
   assert.ok(callbackStart >= 0 && callbackEnd > callbackStart, 'OAuth callback route must be present');
   const callbackRoute = source.slice(callbackStart, callbackEnd);
-  assert.doesNotMatch(callbackRoute, /postMessage\s*\\(/,
+  assert.doesNotMatch(callbackRoute, /postMessage\s*\(/,
     'OAuth tokens must not be relayed through window.postMessage');
-  assert.match(callbackRoute, /window\.location\.replace\\(returnUrl\.toString\\(\\)\\)/,
+  assert.match(callbackRoute, /window\.location\.replace\(returnUrl\.toString\(\)\)/,
     'OAuth callback must return to the app origin for Supabase JS to process the session');
 });
