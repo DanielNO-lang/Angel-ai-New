@@ -13,6 +13,7 @@ import path from 'path';
 import { createHash } from 'node:crypto';
 import { executeAgentPipeline } from './server/orchestrator';
 import { providerRegistry } from './server/providers';
+import { BUILD_COMMIT_SHA } from './server/buildMeta';
 import { getSupabaseServerStatus, getSupabaseAuthClient, getSupabaseAdminClient, getSupabaseClient, getSupabaseClientForUser, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
 import { automationService, AutomationEventType } from './server/services/automationService';
 import { dispatchZapierEvent } from './server/zapier_service';
@@ -189,7 +190,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       status: 'ok',
       workspace: 'Angel AI',
       timestamp: new Date().toISOString(),
-      commitSha: process.env.COMMIT_REF || process.env.GITHUB_SHA || null,
+      commitSha: process.env.COMMIT_REF || process.env.NETLIFY_COMMIT_REF || process.env.GITHUB_SHA || BUILD_COMMIT_SHA,
       supabase,
       providers,
       environment: process.env.NODE_ENV || 'development',
