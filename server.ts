@@ -1370,96 +1370,39 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (typeof email !== 'string' || !email.includes('@') || typeof password !== 'string' || password.length < 6) {
       return res.status(400).json({ error: 'A valid email and password of at least 6 characters are required.' });
     }
+
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = typeof name === 'string' && name.trim() ? name.trim() : cleanEmail.split('@')[0];
-
-    const adminClient = getSupabaseAdminClient() || getSupabaseClient();
     const authClient = getSupabaseAuthClient();
     if (!authClient) return res.status(503).json({ error: 'Supabase Auth is not configured on the server.' });
 
     try {
-      let createdUserId: string | null = null;
-      if (adminClient) {
-        const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
-          email: cleanEmail,
-          password,
-          email_confirm: true,
-          user_metadata: { name: cleanName, full_name: cleanName },
-        });
-
-        if (createData?.user?.id) {
-          createdUserId = createData.user.id;
-        } else if (createError && (createError.message?.toLowerCase().includes('already') || createError.status === 422)) {
-          // If the email was already registered, update their password & confirm their email so they can sign in immediately
-          const { data: usersData } = await adminClient.auth.admin.listUsers();
-          const existingUser = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-          if (existingUser) {
-            createdUserId = existingUser.id;
-            await adminClient.auth.admin.updateUserById(existingUser.id, {
-              password,
-              email_confirm: true,
-              user_metadata: { name: cleanName, full_name: cleanName },
-            });
-          }
-        }
-      }
-
-      // Now establish an active session via signInWithPassword
-      let { data: sessionData, error: signinError } = await authClient.auth.signInWithPassword({
+      // Public sign-up must never use admin APIs to modify an existing account or bypass email confirmation.
+      const { data, error } = await authClient.auth.signUp({
         email: cleanEmail,
         password,
+        options: { data: { name: cleanName, full_name: cleanName } },
       });
+      if (error) return res.status(400).json({ error: error.message });
+      if (!data.user) return res.status(400).json({ error: 'Supabase did not return a new account.' });
 
-      // If signin fails due to email not confirmed, use admin client to confirm it and retry
-      if (signinError && adminClient && (signinError.message?.toLowerCase().includes('not confirmed') || (signinError as any).code === 'email_not_confirmed')) {
-        const { data: usersData } = await adminClient.auth.admin.listUsers();
-        const userToConfirm = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-        if (userToConfirm) {
-          await adminClient.auth.admin.updateUserById(userToConfirm.id, { email_confirm: true });
-          const retry = await authClient.auth.signInWithPassword({ email: cleanEmail, password });
-          sessionData = retry.data;
-          signinError = retry.error;
-        }
-      }
-
-      if (signinError || !sessionData?.session || !sessionData?.user) {
-        // Fallback: if signInWithPassword cannot generate session directly, try standard signUp
-        const { data: fallbackSignUp, error: fallbackError } = await authClient.auth.signUp({
-          email: cleanEmail,
-          password,
-          options: { data: { name: cleanName } },
-        });
-        if (fallbackError) return res.status(400).json({ error: fallbackError.message });
-        const fallbackProfile = fallbackSignUp.user ? profileFromAuthUser(fallbackSignUp.user) : { id: `usr_${Date.now()}`, name: cleanName, email: cleanEmail };
+      const profile = profileFromAuthUser(data.user);
+      if (!data.session) {
         return res.status(200).json({
-          success: true,
-          profile: fallbackProfile,
-          token: fallbackSignUp.session?.access_token || null,
-          refreshToken: fallbackSignUp.session?.refresh_token || null,
+          success: false,
+          requiresEmailConfirmation: true,
+          message: 'Your account request was received. Check your email to confirm your account, then sign in.',
+          profile,
+          token: null,
+          refreshToken: null,
         });
-      }
-
-      // Upsert profile in Supabase public.profiles table
-      const profile = profileFromAuthUser(sessionData.user);
-      if (adminClient) {
-        try {
-          await adminClient.from('profiles').upsert({
-            id: sessionData.user.id,
-            name: cleanName,
-            email: cleanEmail,
-            initials: cleanName.split(' ').map((p: string) => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU',
-            plan: 'Pro',
-            status: 'online',
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
-        } catch {}
       }
 
       return res.status(200).json({
         success: true,
         profile,
-        token: sessionData.session.access_token,
-        refreshToken: sessionData.session.refresh_token,
+        token: data.session.access_token,
+        refreshToken: data.session.refresh_token,
       });
     } catch (err) {
       return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
@@ -1476,25 +1419,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (!authClient) return res.status(503).json({ error: 'Supabase Auth is not configured on the server.' });
 
     try {
-      let { data, error } = await authClient.auth.signInWithPassword({
+      const { data, error } = await authClient.auth.signInWithPassword({
         email: cleanEmail,
         password,
       });
-
-      // Handle unconfirmed email gracefully by auto-confirming via admin client and retrying
-      if (error && (error.message?.toLowerCase().includes('email not confirmed') || (error as any).code === 'email_not_confirmed')) {
-        const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-        if (adminClient) {
-          const { data: usersData } = await adminClient.auth.admin.listUsers();
-          const user = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-          if (user) {
-            await adminClient.auth.admin.updateUserById(user.id, { email_confirm: true });
-            const retry = await authClient.auth.signInWithPassword({ email: cleanEmail, password });
-            data = retry.data;
-            error = retry.error;
-          }
-        }
-      }
 
       if (error || !data?.user || !data?.session) {
         return res.status(401).json({
