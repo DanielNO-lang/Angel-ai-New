@@ -11,7 +11,7 @@
   node_bundler = "esbuild"
   # Vite is loaded only by the local development server. Keep its optional dev-time imports
   # out of the serverless function bundle; these packages are present in package.json.
-  external_node_modules = ["express", "vite", "@vitejs/devtools", "esbuild", "lightningcss"]
+  external_node_modules = ["express", "vite", "esbuild", "lightningcss"]
 
 # Keep the original /api/* path so Express's /api/... routes continue to match.
 [[redirects]]
