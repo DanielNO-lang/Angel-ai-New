@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { routeAngelVoiceUtterance } from '../src/services/voice/voiceCommandRouter';
@@ -426,4 +427,35 @@ test('Qwen Image 2.1 Pro sends ordered multi-reference images and enforces provi
     if (priorApiKey === undefined) delete process.env.QWEN_IMAGE_API_KEY; else process.env.QWEN_IMAGE_API_KEY = priorApiKey;
     if (priorModelId === undefined) delete process.env.QWEN_IMAGE_MODEL_ID; else process.env.QWEN_IMAGE_MODEL_ID = priorModelId;
   }
+});
+
+
+test('authentication routes cannot mutate existing accounts or bypass confirmation', () => {
+  const source = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+  const signupStart = source.indexOf("app.post('/api/auth/signup'");
+  const signinStart = source.indexOf("app.post('/api/auth/signin'");
+  const recoveryStart = source.indexOf("app.post('/api/auth/recovery'");
+  assert.ok(signupStart >= 0 && signinStart > signupStart && recoveryStart > signinStart,
+    'signup, signin, and recovery routes must remain identifiable for security review');
+
+  const signupRoute = source.slice(signupStart, signinStart);
+  const signinRoute = source.slice(signinStart, recoveryStart);
+  assert.doesNotMatch(signupRoute, /admin\\.createUser|admin\\.updateUserById|admin\\.listUsers|email_confirm\\s*:\\s*true/,
+    'public signup must not change an existing account password or bypass email confirmation');
+  assert.doesNotMatch(signupRoute, /plan\\s*:\\s*['"]Pro['"]/,
+    'new accounts must not be granted Pro by the signup endpoint');
+  assert.doesNotMatch(signinRoute, /admin\\.updateUserById|admin\\.listUsers|email_confirm\\s*:/,
+    'signin must not administratively confirm accounts');
+});
+
+test('OAuth callback never relays tokens through postMessage', () => {
+  const source = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+  const callbackStart = source.indexOf("app.get('/auth/callback'");
+  const callbackEnd = source.indexOf("app.get('/api/auth/google/url'", callbackStart);
+  assert.ok(callbackStart >= 0 && callbackEnd > callbackStart, 'OAuth callback route must be present');
+  const callbackRoute = source.slice(callbackStart, callbackEnd);
+  assert.doesNotMatch(callbackRoute, /postMessage\\s*\\(/,
+    'OAuth tokens must not be relayed through window.postMessage');
+  assert.match(callbackRoute, /window\\.location\\.replace\\(returnUrl\\.toString\\(\\)\\)/,
+    'OAuth callback must return to the app origin for Supabase JS to process the session');
 });
