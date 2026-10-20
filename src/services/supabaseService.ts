@@ -5,6 +5,7 @@
 
 import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import { Task } from '../types';
+import { normalizeSupabaseProjectUrl } from './supabaseUrl';
 
 export interface VelocityMetrics {
   total: number;
@@ -25,8 +26,9 @@ export interface VelocityMetrics {
   tasksCount: number;
 }
 
-const supabaseUrl =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
+const supabaseUrl = normalizeSupabaseProjectUrl(
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || ''
+);
 const supabaseKey =
   (typeof import.meta !== 'undefined' &&
     (import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY ||
