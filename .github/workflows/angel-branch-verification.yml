@@ -40,3 +40,6 @@ jobs:
 
       - name: Build application
         run: bun run build
+
+      - name: Bundle Netlify function entrypoint without deployment
+        run: bunx esbuild netlify/functions/api.ts --bundle --platform=node --format=esm --packages=external --outfile=/tmp/angel-netlify-api.mjs
