@@ -347,7 +347,7 @@ export async function signInWithGoogleOAuth(): Promise<{
       popup = null;
     }
 
-    // If popup was opened successfully, user will choose their account and callback will relay session
+    // Supabase completes the callback and persists the session for this origin.
     if (popup && !popup.closed) {
       return { redirected: true };
     }
@@ -359,20 +359,11 @@ export async function signInWithGoogleOAuth(): Promise<{
       return { redirected: true };
     }
 
-    // In an iframe where popup was blocked: NEVER set window.location.href to Google inside an iframe
-    // because Google responds with X-Frame-Options: DENY, causing the browser to reload/bounce back!
-    // Instead, authenticate the registered account seamlessly via verify-or-create
-    const verifyRes = await fetch('/api/auth/google/verify-or-create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'danielokohnwachukwu22@gmail.com', name: 'Daniel Nwachukwu' }),
-    });
-    const verifyData = await verifyRes.json();
-    if (verifyData.success && verifyData.token) {
-      return { sessionEstablished: true, profile: verifyData.profile, token: verifyData.token };
-    }
-
-    return { error: 'Popup was blocked by your browser. Please allow popups or use manual sign in.' };
+    // Never turn a failed popup into a privileged server-side shortcut.
+    // A browser tab or popup is required to complete the real Google OAuth flow.
+    return {
+      error: 'Your browser blocked the Google sign-in popup. Allow popups for this site or open Angel in a full browser tab, then try again.',
+    };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { error: message || 'Google authentication encountered an unexpected error.' };
