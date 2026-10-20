@@ -88,6 +88,32 @@ export function getSupabaseClient(): SupabaseClient | null {
   return cachedClient;
 }
 
+let cachedAdminClient: SupabaseClient | null = null;
+
+export function getSupabaseAdminClient(): SupabaseClient | null {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey || url.length < 5 || serviceKey.length < 5) {
+    return null;
+  }
+
+  if (!cachedAdminClient) {
+    try {
+      cachedAdminClient = createClient(url, serviceKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      });
+    } catch (err) {
+      console.error('[Supabase Service] Failed to initialize admin Supabase client:', err);
+      return null;
+    }
+  }
+
+  return cachedAdminClient;
+}
 
 /**
  * Anonymous-key client for server-side Supabase Auth entry points such as

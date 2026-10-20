@@ -109,6 +109,7 @@ interface AppContextType {
   isIncognitoActive: boolean;
   setIsIncognitoActive: (active: boolean) => void;
   isSignedIn: boolean;
+  setIsSignedIn: (signedIn: boolean) => void;
   isGuest: boolean;
   guestMode: boolean;
   discardGuestSession: () => void;
@@ -868,8 +869,78 @@ State your directive, or select a command from the matrix below.`,
       }
     });
 
+    // Listen for OAuth popup completion relay
+    const handleOAuthPopupMessage = async (event: MessageEvent) => {
+      if (event.data?.type === 'ANGEL_OAUTH_CALLBACK') {
+        const hash = String(event.data.hash || '');
+        if (hash.includes('error=')) {
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const desc =
+            hashParams.get('error_description') ||
+            hashParams.get('error') ||
+            'Google authentication was cancelled or could not be completed.';
+          setAuthError(decodeURIComponent(desc.replace(/\+/g, ' ')));
+          setAuthPageMode('signin');
+          setIsAuthPageOpen(true);
+          return;
+        }
+
+        if (hash.includes('access_token=')) {
+          try {
+            const hashParams = new URLSearchParams(hash.substring(1));
+            const accessToken = hashParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token');
+            if (accessToken) {
+              if (refreshToken) {
+                await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+              }
+              const { data: userData } = await client.auth.getUser(accessToken);
+              const user = userData?.user;
+              if (user) {
+                const name =
+                  user.user_metadata?.full_name ||
+                  user.user_metadata?.name ||
+                  user.email?.split('@')[0] ||
+                  'Daniel Nwachukwu';
+                const initials =
+                  name
+                    .split(' ')
+                    .map((n: string) => n[0])
+                    .filter(Boolean)
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase() || 'DN';
+                setSessionToken(accessToken);
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('angel_auth_token', accessToken);
+                  localStorage.removeItem('angel_is_guest');
+                }
+                setIsSignedIn(true);
+                setUserProfile((prev) => ({
+                  ...prev,
+                  id: user.id,
+                  name,
+                  email: user.email || prev.email,
+                  initials,
+                  plan: 'Pro',
+                  status: 'online',
+                  avatarUrl: user.user_metadata?.avatar_url || prev.avatarUrl,
+                }));
+                setIsAuthPageOpen(false);
+                setAuthError(null);
+              }
+            }
+          } catch (err) {
+            console.warn('[Supabase OAuth] Failed to process popup callback tokens:', err);
+          }
+        }
+      }
+    };
+    window.addEventListener('message', handleOAuthPopupMessage);
+
     return () => {
       authSub?.subscription?.unsubscribe();
+      window.removeEventListener('message', handleOAuthPopupMessage);
     };
   }, []);
 
@@ -880,27 +951,26 @@ State your directive, or select a command from the matrix below.`,
       setIsSignedIn(false);
       return;
     }
-    if (/^eyJ[A-Za-z0-9_-]*\./.test(token)) {
-      setIsSignedIn(true);
-      return;
-    }
+
+    // Always maintain signed-in state while token is present
+    setIsSignedIn(true);
 
     fetch('/api/auth/session', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => {
         if (res.ok) return res.json();
-        throw new Error('Unauthorized');
+        return null;
       })
       .then((data) => {
-        if (data.authenticated && data.profile) {
+        if (data && data.authenticated && data.profile) {
           setIsSignedIn(true);
           setUserProfile((prev) => ({
             ...prev,
             id: data.profile.id,
             name: data.profile.name,
             email: data.profile.email,
-            initials: data.profile.name.slice(0, 2).toUpperCase(),
+            initials: data.profile.name.slice(0, 2).toUpperCase() || 'DN',
             status: 'online',
             avatarUrl: data.profile.avatarUrl || prev.avatarUrl,
             title: data.profile.title || prev.title,
@@ -921,18 +991,35 @@ State your directive, or select a command from the matrix below.`,
               }
             })
             .catch(() => {});
-        } else {
+        } else if (data && data.authenticated === false) {
+          // Explicit token rejection from server
           resetToGuestWorkspace();
         }
       })
       .catch(() => {
-        // If the server is unreachable while offline, retain the local session. Online failures clear stale tokens.
-        if (!navigator.onLine) {
-          setIsSignedIn(true);
-        } else {
-          resetToGuestWorkspace();
-        }
+        // On network error or offline, retain local signed-in state so user is never kicked out
+        setIsSignedIn(true);
       });
+  }, [sessionToken]);
+
+  // Window focus & storage synchronization: automatically detect logins completed in other windows
+  useEffect(() => {
+    const syncActiveStorageToken = () => {
+      if (typeof localStorage === 'undefined') return;
+      const storedToken = localStorage.getItem('angel_auth_token');
+      if (storedToken && storedToken !== sessionToken) {
+        setSessionToken(storedToken);
+        setIsSignedIn(true);
+        setIsAuthPageOpen(false);
+      }
+    };
+
+    window.addEventListener('storage', syncActiveStorageToken);
+    window.addEventListener('focus', syncActiveStorageToken);
+    return () => {
+      window.removeEventListener('storage', syncActiveStorageToken);
+      window.removeEventListener('focus', syncActiveStorageToken);
+    };
   }, [sessionToken]);
 
   // Centralized autosave engine: frequent, change-detected local persistence with cloud queue processing.
@@ -1142,28 +1229,86 @@ State your directive, or select a command from the matrix below.`,
     }
 
     try {
+      // 1. Primary: Use the server auth endpoint which handles auto-confirmation and profile synchronization
+      const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data.success && data.token) {
+        const client = getClientSupabase();
+        if (client && data.refreshToken) {
+          try {
+            await client.auth.setSession({ access_token: data.token, refresh_token: data.refreshToken });
+          } catch {}
+        }
+
+        const name = data.profile?.name || cleanEmail.split('@')[0];
+        const initials =
+          name.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
+
+        setSessionToken(data.token);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('angel_auth_token', data.token);
+          localStorage.removeItem('angel_is_guest');
+        }
+
+        setUserProfile({
+          id: data.profile?.id || `usr_${Date.now()}`,
+          name,
+          email: data.profile?.email || cleanEmail,
+          initials,
+          plan: 'Pro',
+          status: 'online',
+          avatarUrl: data.profile?.avatarUrl,
+          title: data.profile?.title || 'Executive Operator',
+        });
+        setIsSignedIn(true);
+        setIsAuthPageOpen(false);
+        setAuthError(null);
+        return true;
+      }
+
+      // If server returned a specific credential error, display it
+      if (data.error && response.status === 401) {
+        setAuthError(data.error);
+        return false;
+      }
+
+      // 2. Client-side fallback if server endpoint was unreachable
       const client = getClientSupabase();
       if (client) {
-        const { data, error } = await client.auth.signInWithPassword({ email: cleanEmail, password });
-        if (error) {
-          setAuthError(error.message || 'Unable to sign in with that email and password.');
+        const { data: clientAuthData, error: clientAuthError } = await client.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
+
+        if (clientAuthError) {
+          setAuthError(clientAuthError.message || 'Unable to sign in with that email and password.');
           return false;
         }
-        const session = data.session;
+
+        const session = clientAuthData.session;
         if (!session?.user) {
           setAuthError('Authentication completed without an active session. Please try again.');
           return false;
         }
+
         const name =
           session.user.user_metadata?.full_name ||
           session.user.user_metadata?.name ||
           cleanEmail.split('@')[0];
-        const initials = name.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'U';
+        const initials =
+          name.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
+
         setSessionToken(session.access_token);
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem('angel_auth_token', session.access_token);
           localStorage.removeItem('angel_is_guest');
         }
+
         setUserProfile({
           id: session.user.id,
           name,
@@ -1172,109 +1317,19 @@ State your directive, or select a command from the matrix below.`,
           plan: 'Pro',
           status: 'online',
           avatarUrl: session.user.user_metadata?.avatar_url,
+          title: 'Executive Operator',
         });
         setIsSignedIn(true);
         setIsAuthPageOpen(false);
+        setAuthError(null);
         return true;
       }
 
-      // Server fallback is only for environments where Supabase browser auth is not configured.
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        // Fall back to sovereign authenticated local profile
-        const localToken = `angel_sov_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
-        const name = cleanEmail.split('@')[0];
-        const initials = name.slice(0, 2).toUpperCase() || 'AU';
-        setSessionToken(localToken);
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('angel_auth_token', localToken);
-          localStorage.removeItem('angel_is_guest');
-        }
-        setUserProfile({
-          id: `usr_${Date.now()}`,
-          name,
-          email: cleanEmail,
-          initials,
-          plan: 'Pro',
-          status: 'online',
-          title: 'Executive Operator',
-        });
-        setIsSignedIn(true);
-        setIsAuthPageOpen(false);
-        setAuthError(null);
-        return true;
-      }
-      if (!data.token || !data.profile) {
-        const localToken = `angel_sov_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
-        const name = cleanEmail.split('@')[0];
-        const initials = name.slice(0, 2).toUpperCase() || 'AU';
-        setSessionToken(localToken);
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('angel_auth_token', localToken);
-          localStorage.removeItem('angel_is_guest');
-        }
-        setUserProfile({
-          id: `usr_${Date.now()}`,
-          name,
-          email: cleanEmail,
-          initials,
-          plan: 'Pro',
-          status: 'online',
-          title: 'Executive Operator',
-        });
-        setIsSignedIn(true);
-        setIsAuthPageOpen(false);
-        setAuthError(null);
-        return true;
-      }
-      const name = data.profile.name || cleanEmail.split('@')[0];
-      const initials = name.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'U';
-      setSessionToken(data.token);
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('angel_auth_token', data.token);
-        localStorage.removeItem('angel_is_guest');
-      }
-      setUserProfile({
-        id: data.profile.id,
-        name,
-        email: data.profile.email || cleanEmail,
-        initials,
-        plan: 'Pro',
-        status: 'online',
-        avatarUrl: data.profile.avatarUrl,
-        title: data.profile.title,
-      });
-      setIsSignedIn(true);
-      setIsAuthPageOpen(false);
-      return true;
+      setAuthError(data.error || 'Authentication failed. Please verify your credentials.');
+      return false;
     } catch (err) {
-      // Offline / server unconfigured: fallback to sovereign authenticated session
-      const localToken = `angel_sov_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
-      const name = cleanEmail.split('@')[0];
-      const initials = name.slice(0, 2).toUpperCase() || 'AU';
-      setSessionToken(localToken);
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('angel_auth_token', localToken);
-        localStorage.removeItem('angel_is_guest');
-      }
-      setUserProfile({
-        id: `usr_${Date.now()}`,
-        name,
-        email: cleanEmail,
-        initials,
-        plan: 'Pro',
-        status: 'online',
-        title: 'Executive Operator',
-      });
-      setIsSignedIn(true);
-      setIsAuthPageOpen(false);
-      setAuthError(null);
-      return true;
+      setAuthError(err instanceof Error ? err.message : 'Network error during sign in.');
+      return false;
     }
   };
 
@@ -1327,25 +1382,73 @@ State your directive, or select a command from the matrix below.`,
     }
 
     try {
+      // 1. Primary: Use the server auth endpoint which handles auto-confirmation and instant active session creation
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password, name: cleanName }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data.success && data.token) {
+        const client = getClientSupabase();
+        if (client && data.refreshToken) {
+          try {
+            await client.auth.setSession({ access_token: data.token, refresh_token: data.refreshToken });
+          } catch {}
+        }
+
+        const profileName = data.profile?.name || cleanName;
+        const initials =
+          profileName.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
+
+        setSessionToken(data.token);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('angel_auth_token', data.token);
+          localStorage.removeItem('angel_is_guest');
+        }
+
+        setUserProfile({
+          id: data.profile?.id || `usr_${Date.now()}`,
+          name: profileName,
+          email: data.profile?.email || cleanEmail,
+          initials,
+          plan: 'Pro',
+          status: 'online',
+          avatarUrl: data.profile?.avatarUrl,
+          title: data.profile?.title || 'Executive Operator',
+        });
+        setIsSignedIn(true);
+        setIsAuthPageOpen(false);
+        setAuthError(null);
+        return { success: true };
+      }
+
+      if (data.error) {
+        setAuthError(data.error);
+        return { success: false };
+      }
+
+      // 2. Client fallback if server was not reachable
       const client = getClientSupabase();
       if (client) {
-        const { data, error } = await client.auth.signUp({
+        const { data: clientSignUpData, error: clientSignUpError } = await client.auth.signUp({
           email: cleanEmail,
           password,
           options: { data: { full_name: cleanName, name: cleanName } },
         });
-        if (error) {
-          // If Supabase throws, fall back to sovereign authenticated account
-          signInWithExecutivePass(cleanEmail, cleanName);
-          return { success: true };
+
+        if (clientSignUpError) {
+          setAuthError(clientSignUpError.message);
+          return { success: false };
         }
 
-        if (data.session?.user) {
-          const user = data.session.user;
-          const initials = cleanName.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'U';
-          setSessionToken(data.session.access_token);
+        if (clientSignUpData.session?.user) {
+          const user = clientSignUpData.session.user;
+          const initials = cleanName.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
+          setSessionToken(clientSignUpData.session.access_token);
           if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('angel_auth_token', data.session.access_token);
+            localStorage.setItem('angel_auth_token', clientSignUpData.session.access_token);
             localStorage.removeItem('angel_is_guest');
           }
           setUserProfile({
@@ -1362,60 +1465,20 @@ State your directive, or select a command from the matrix below.`,
           return { success: true };
         }
 
-        if (data.user) {
+        if (clientSignUpData.user) {
           return {
             success: true,
             requiresEmailConfirmation: true,
             message: 'Your account has been created. Check your email to confirm it, then sign in.',
           };
         }
-
-        signInWithExecutivePass(cleanEmail, cleanName);
-        return { success: true };
       }
 
-      // Server fallback is only used when Supabase browser auth is not configured.
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password, name: cleanName }),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        signInWithExecutivePass(cleanEmail, cleanName);
-        return { success: true };
-      }
-      if (data.requiresEmailConfirmation && data.profile) {
-        return {
-          success: true,
-          requiresEmailConfirmation: true,
-          message: data.message || 'Your account has been created. Check your email to confirm it, then sign in.',
-        };
-      }
-      const profileName = data.profile?.name || cleanName;
-      const initials = profileName.split(' ').map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'U';
-      const token = data.token || `angel_sov_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
-      setSessionToken(token);
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('angel_auth_token', token);
-        localStorage.removeItem('angel_is_guest');
-      }
-      setUserProfile({
-        id: data.profile?.id || `usr_${Date.now()}`,
-        name: profileName,
-        email: data.profile?.email || cleanEmail,
-        initials,
-        plan: 'Pro',
-        status: 'online',
-        avatarUrl: data.profile?.avatarUrl,
-        title: data.profile?.title,
-      });
-      setIsSignedIn(true);
-      setIsAuthPageOpen(false);
-      return { success: true };
-    } catch {
-      signInWithExecutivePass(cleanEmail, cleanName);
-      return { success: true };
+      setAuthError('Unable to create account. Please try again.');
+      return { success: false };
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Network error during account registration.');
+      return { success: false };
     }
   };
 
@@ -2430,6 +2493,7 @@ All active parameters have been synchronized with your personal workspace memory
         isIncognitoActive,
         setIsIncognitoActive,
         isSignedIn,
+        setIsSignedIn,
         isGuest,
         guestMode,
         discardGuestSession,

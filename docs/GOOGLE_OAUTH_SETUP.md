@@ -1,6 +1,6 @@
 # Enable Google Sign-In for Angel AI
 
-This guide applies to the Angel Supabase project `qltiogotxbxwzwmnypwu` and the production web app `https://angel-ai-new.vercel.app/`.
+This guide applies to the Angel Supabase project `qltiogotxbxwzwmnypwu` and the production web app `https://angel-ai-new.netlify.app/`.
 
 ## What the application already does
 
@@ -22,7 +22,7 @@ Open the [Google Auth Platform Clients page](https://console.cloud.google.com/au
 Add this under **Authorized JavaScript origins**:
 
 ```text
-https://angel-ai-new.vercel.app
+https://angel-ai-new.netlify.app
 ```
 
 Add this under **Authorized redirect URIs**:
@@ -48,20 +48,20 @@ Open [Angel Auth URL Configuration](https://supabase.com/dashboard/project/qltio
 Set **Site URL** to:
 
 ```text
-https://angel-ai-new.vercel.app
+https://angel-ai-new.netlify.app
 ```
 
 Add this to **Redirect URLs**:
 
 ```text
-https://angel-ai-new.vercel.app/**
+https://angel-ai-new.netlify.app/**
 ```
 
 If Google Auth is left in **Testing** mode, add the intended testing accounts as test users on the Google consent-screen/audience configuration. For public launch, finish the relevant Google consent-screen setup.
 
 ## Verify
 
-1. Open https://angel-ai-new.vercel.app and choose **Continue with Google**.
+1. Open https://angel-ai-new.netlify.app and choose **Continue with Google**.
 2. Complete the Google consent flow.
 3. Confirm the browser returns to Angel and the account appears as signed in.
 4. In Supabase, open **Authentication → Users** and confirm that the identity was created.

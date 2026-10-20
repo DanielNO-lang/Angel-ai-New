@@ -12,7 +12,7 @@ import crypto from 'crypto';
 export interface JarvisResponseOptions {
   prompt: string;
   systemInstruction?: string;
-  conversationHistory?: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+  conversationHistory?: Array<{ role: 'user' | 'assistant' | 'system' | 'tool' | string; content: string }>;
   modelId?: string;
   temperature?: number;
   maxTokens?: number;

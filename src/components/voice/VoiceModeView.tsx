@@ -29,11 +29,15 @@ import {
   Monitor,
   Camera,
   CameraOff,
+  User,
+  Sparkles,
+  Smile,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
 import { voiceEngine } from '../../services/voice/voiceService';
 import { routeAngelVoiceUtterance } from '../../services/voice/voiceCommandRouter';
+import { buildAngelMasterSystemPrompt, ANGEL_CHARACTER_PRESENTATIONS } from '../../services/ai/angelMasterPrompt';
 
 export const VoiceModeView: React.FC = () => {
   const {
@@ -47,6 +51,20 @@ export const VoiceModeView: React.FC = () => {
     createMemory,
   } = useAngel();
   const isLight = settings.theme === 'light';
+
+  // Character Presentation Profile (Section 1: Default East Asian-inspired young adult woman or male presentation)
+  const [characterGender, setCharacterGender] = useState<'female' | 'male'>('female');
+
+  // Reaction Intensity (Section 6: Levels 0 to 5)
+  const [reactionIntensity, setReactionIntensity] = useState<0 | 1 | 2 | 3 | 4 | 5>(1);
+
+  // Expression-to-voice alignment (Section 5)
+  const [currentExpression, setCurrentExpression] = useState<
+    'neutral' | 'curiosity' | 'delight' | 'concern' | 'skepticism' | 'firm_disagreement' | 'thoughtful' | 'surprise' | 'professional'
+  >('thoughtful');
+
+  // Vocal Delivery Preferences (Section 3)
+  const [speakingSpeed, setSpeakingSpeed] = useState<number>(1.0);
 
   // Voice state
   const [isMuted, setIsMuted] = useState(false);
@@ -348,6 +366,45 @@ export const VoiceModeView: React.FC = () => {
     );
   };
 
+  const calculateEmotionalReaction = (userText: string, angelText: string) => {
+    const combined = (userText + ' ' + angelText).toLowerCase();
+    let expr: 'neutral' | 'curiosity' | 'delight' | 'concern' | 'skepticism' | 'firm_disagreement' | 'thoughtful' | 'surprise' | 'professional' = 'thoughtful';
+    let intensity: 0 | 1 | 2 | 3 | 4 | 5 = 1;
+
+    if (combined.includes('?') || combined.includes('how') || combined.includes('why') || combined.includes('what if')) {
+      expr = 'curiosity';
+      intensity = 2;
+    } else if (combined.includes('great') || combined.includes('congrat') || combined.includes('success') || combined.includes('love') || combined.includes('awesome') || combined.includes('haha') || combined.includes('brilliant')) {
+      expr = 'delight';
+      intensity = 2;
+    } else if (combined.includes('error') || combined.includes('fail') || combined.includes('danger') || combined.includes('problem') || combined.includes('warning') || combined.includes('risk') || combined.includes('sorry')) {
+      expr = 'concern';
+      intensity = 2;
+    } else if (combined.includes('really?') || combined.includes('doubt') || combined.includes('sure?') || combined.includes('disagree')) {
+      expr = 'skepticism';
+      intensity = 2;
+    } else if (combined.includes('wrong') || combined.includes('incorrect') || combined.includes('cannot agree') || combined.includes('mistake')) {
+      expr = 'firm_disagreement';
+      intensity = 3;
+    } else if (combined.includes('incredible') || combined.includes('breakthrough') || combined.includes('unbelievable') || combined.includes('surprise') || combined.includes('wow')) {
+      expr = 'surprise';
+      intensity = 4;
+    } else if (combined.includes('execute') || combined.includes('deploy') || combined.includes('pipeline') || combined.includes('architecture') || combined.includes('code')) {
+      expr = 'professional';
+      intensity = 1;
+    }
+
+    setCurrentExpression(expr);
+    setReactionIntensity(intensity);
+
+    // Natural fade-back of exceptional level 4-5 reactions per Section 6
+    if (intensity >= 4) {
+      window.setTimeout(() => {
+        setReactionIntensity(2);
+      }, 5000);
+    }
+  };
+
   const handleProcessUserPrompt = async (prompt: string) => {
     if (!prompt.trim()) return;
     setTranscript(prompt);
@@ -356,26 +413,28 @@ export const VoiceModeView: React.FC = () => {
     setIsSpeaking(false);
 
     try {
+      const masterPrompt = buildAngelMasterSystemPrompt(characterGender);
       const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt,
-          systemInstruction:
-            'You are Angel, a calm, disciplined, concise conversational AI voice assistant. Respond conversationally in 1-2 natural, spoken sentences without markdown or asterisks.',
+          systemInstruction: `${masterPrompt}\n\nIMPORTANT CONVERSATIONAL VOCAL CONSTRAINT: Respond conversationally as Angel in 1-3 spoken, natural sentences without markdown headings, asterisks, or robotic filler.`,
           modelId: 'gemini-3.8-flash',
         }),
       });
 
       const data = await res.json();
-      const response = data.text || `Processing your command across active agent pipelines.`;
+      const response = data.text || `I'm with you. Let's move forward and execute.`;
       setAngelResponse(response);
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: response }]);
+      calculateEmotionalReaction(prompt, response);
       await speakAngelResponse(response);
     } catch {
-      const fallback = `Autonomous agent pipeline dispatched for your command: "${prompt}".`;
+      const fallback = `I hear you. I'm synchronizing our neural models for: "${prompt}".`;
       setAngelResponse(fallback);
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: fallback }]);
+      calculateEmotionalReaction(prompt, fallback);
       await speakAngelResponse(fallback);
     }
   };
@@ -487,6 +546,38 @@ export const VoiceModeView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Character Presentation Switcher (Section 1) */}
+          <div className="flex items-center p-1 rounded-xl bg-indigo-950/40 border border-indigo-500/20 text-xs">
+            <button
+              onClick={() => {
+                setCharacterGender('female');
+                setSelectedVoice('Kore (Balanced)');
+              }}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                characterGender === 'female'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+              title="Female (Default: East Asian-inspired young adult woman)"
+            >
+              Angel (Female)
+            </button>
+            <button
+              onClick={() => {
+                setCharacterGender('male');
+                setSelectedVoice('Puck (Direct)');
+              }}
+              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+                characterGender === 'male'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+              title="Male Presentation"
+            >
+              Angel (Male)
+            </button>
+          </div>
+
           {/* Incognito Pill Button (Image 3) */}
           <button
             onClick={() => setIsIncognitoActive(!isIncognitoActive)}
@@ -508,7 +599,7 @@ export const VoiceModeView: React.FC = () => {
               if (window.speechSynthesis) window.speechSynthesis.cancel();
               setActiveTab('chat');
             }}
-            className={`p-2 rounded-xl transition-colors ${
+            className={`p-2 rounded-xl transition-colors cursor-pointer ${
               isLight ? 'hover:bg-slate-200/80 text-slate-600' : 'hover:bg-neutral-800 text-neutral-400'
             }`}
             title="Exit Voice Mode"
@@ -527,7 +618,19 @@ export const VoiceModeView: React.FC = () => {
       )}
 
       {/* Center 3D Acoustic Orb & Live Vision Stage */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 space-y-6">
+      <div className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 space-y-5">
+        {/* Expression & Reaction Intensity HUD (Sections 5 & 6) */}
+        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-950/50 backdrop-blur-md border border-indigo-500/20 text-[11px] shadow-sm animate-in fade-in">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <span className="font-semibold text-white capitalize">{currentExpression}</span>
+          <span className="text-white/30">•</span>
+          <span className="text-indigo-300 font-medium">Intensity: Level {reactionIntensity}</span>
+          <span className="text-white/30">•</span>
+          <span className="text-neutral-400 text-[10px]">
+            {characterGender === 'female' ? 'East Asian-inspired Persona' : 'Refined Male Persona'}
+          </span>
+        </div>
+
         {/* Live Multimodal Video / Screen Stream Viewport (When Active) */}
         {videoStreamMode !== 'off' && (
           <div className="relative w-full max-w-lg aspect-video rounded-3xl overflow-hidden border border-indigo-500/30 shadow-2xl bg-black animate-in zoom-in-95 duration-200">
@@ -546,11 +649,21 @@ export const VoiceModeView: React.FC = () => {
             {/* Close Video Stream Button */}
             <button
               onClick={stopVideoStream}
-              className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 hover:bg-red-600/80 border border-white/10 text-white transition-colors"
+              className="absolute top-3 right-3 p-1.5 rounded-full bg-black/70 hover:bg-red-600/80 border border-white/10 text-white transition-colors cursor-pointer"
               title="Stop video feed"
             >
               <X className="w-4 h-4" />
             </button>
+          </div>
+        )}
+
+        {/* Level 4-5 Exceptional Reaction Presentation Frame (Section 6) */}
+        {reactionIntensity >= 4 && (
+          <div className="w-full max-w-lg p-3 rounded-2xl bg-gradient-to-r from-purple-900/40 via-indigo-900/50 to-purple-900/40 border border-purple-500/40 text-center animate-in zoom-in-95 duration-300">
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-300 flex items-center justify-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              Peak Reaction Event — Level {reactionIntensity}
+            </span>
           </div>
         )}
 
