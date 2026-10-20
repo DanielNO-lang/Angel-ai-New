@@ -1518,7 +1518,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
     const host = req.get('host') || 'localhost:3000';
     const proto = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
-    const redirectUrl = `${proto}://${host}/auth/callback`;
+    const configuredOrigin = process.env.APP_URL?.trim();
+    let redirectUrl: string;
+    try {
+      // Prefer the configured canonical app origin over a request Host header.
+      // This keeps OAuth redirects stable on Netlify and avoids Host-header-derived URLs.
+      const origin = configuredOrigin ? new URL(configuredOrigin).origin : `${proto}://${host}`;
+      redirectUrl = new URL('/auth/callback', origin).toString();
+    } catch {
+      return res.status(500).json({ error: 'APP_URL must be a valid absolute application URL.' });
+    }
 
     try {
       const { data, error } = await authClient.auth.signInWithOAuth({
