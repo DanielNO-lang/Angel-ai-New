@@ -42,9 +42,7 @@ async function getAppHandler() {
   process.env.NETLIFY = "true";
 
   if (!appHandlerPromise) {
-    // The production build emits this bundled server entry before Netlify bundles functions.
-    // @ts-expect-error Generated at build time by the `build` script.
-    appHandlerPromise = import("../../server-build/server.js")
+    appHandlerPromise = import("../../server.ts")
       .then(({ createApp }) => createApp({ isServerless: true }))
       .then((app) => serverless(app));
   }
