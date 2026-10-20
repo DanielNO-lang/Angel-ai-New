@@ -136,7 +136,7 @@ export const HomeView: React.FC = () => {
 
   const openSuggestion = (suggestion: HomeSuggestion) => {
     if (suggestion.target === 'chat') {
-      openChatWithPrompt(suggestion.prompt);
+      setPromptText(suggestion.prompt);
       return;
     }
     saveCapabilityHandoff(suggestion.target, suggestion.prompt);
