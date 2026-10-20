@@ -290,62 +290,73 @@ export async function upsertAuthenticatedProfile(profile: AuthenticatedProfileIn
   }
 }
 
-export async function signInWithGoogleOAuth(): Promise<{ error?: string; redirected?: boolean; isPreviewIframe?: boolean }> {
-  const client = getClientSupabase();
-  if (!client) return { error: 'Supabase authentication service is not configured.' };
-
-  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+export async function signInWithGoogleOAuth(): Promise<{
+  error?: string;
+  redirected?: boolean;
+}> {
   if (typeof window === 'undefined') {
-    return { error: 'Google authentication must be started from the Angel browser app.' };
+    return { error: 'Google sign-in can only start in a browser.' };
   }
+
+  const client = getClientSupabase();
+  if (!client) {
+    return {
+      error: 'Google sign-in is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY, then enable Google in Supabase Auth.',
+    };
+  }
+
   const origin = window.location.origin;
   const redirectUrl = `${origin}/`;
+  const isIframe = window.self !== window.top;
+
+  // Open synchronously during the user gesture to avoid popup blockers in embedded previews.
+  // The popup completes Supabase's normal OAuth callback on this same origin; the Supabase
+  // client persists the verified session and the parent tab receives the normal storage event.
+  let popup: Window | null = null;
+  if (isIframe) {
+    try {
+      popup = window.open('about:blank', 'angel_google_oauth', 'popup,width=560,height=680,resizable=yes,scrollbars=yes');
+    } catch {
+      popup = null;
+    }
+    if (!popup) {
+      return {
+        error: 'Your browser blocked the Google sign-in window. Open Angel in a full browser tab or allow pop-ups, then try again.',
+      };
+    }
+  }
 
   try {
     const { data, error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: redirectUrl,
-        // In preview iframes, open OAuth in a separate window to avoid embedding Google's login.
-        skipBrowserRedirect: isIframe,
-        queryParams: { access_type: 'offline', prompt: 'consent' },
+        skipBrowserRedirect: true,
+        queryParams: { prompt: 'select_account' },
       },
     });
 
-    if (error) {
-      const message = error.message || 'Google authentication could not be started.';
-      const normalized = message.toLowerCase();
-      if (normalized.includes('unsupported provider') || normalized.includes('provider is not enabled')) {
-        return {
-          error: 'Google sign-in is not enabled in Supabase Auth. Enable Authentication → Sign In / Providers → Google in the Supabase dashboard.',
-          isPreviewIframe: isIframe,
-        };
-      }
-      if (normalized.includes('redirect') && (normalized.includes('not allowed') || normalized.includes('allow list'))) {
-        return {
-          error: `Supabase redirect URL allowlist must include ${redirectUrl} in Authentication → URL Configuration → Redirect URLs.`,
-          isPreviewIframe: isIframe,
-        };
-      }
-      return { error: message, isPreviewIframe: isIframe };
+    if (error) throw error;
+    const authUrl = data?.url;
+    if (!authUrl) throw new Error('Supabase did not return a Google authorization URL.');
+
+    if (isIframe && popup && !popup.closed) {
+      popup.location.replace(authUrl);
+    } else {
+      window.location.assign(authUrl);
     }
 
-    if (isIframe && data?.url) {
-      const popup = window.open(data.url, 'google_login_popup', 'width=520,height=650');
-      if (!popup) {
-        return {
-          error: 'The browser blocked the Google sign-in popup. Allow popups or open Angel in a standalone browser tab.',
-          isPreviewIframe: true,
-        };
-      }
-    }
-    return { redirected: true, isPreviewIframe: isIframe };
+    return { redirected: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.toLowerCase().includes('failed to fetch') || message.toLowerCase().includes('network')) {
-      return { error: 'Network error connecting to Google authentication. Check internet access and try again.', isPreviewIframe: isIframe };
+    try {
+      if (popup && !popup.closed) popup.close();
+    } catch {
+      // Ignore popup cleanup errors.
     }
-    return { error: message || 'Google authentication encountered an unexpected error.', isPreviewIframe: isIframe };
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      error: message || 'Google sign-in could not start. Check the Google provider and allowed redirect URLs in Supabase.',
+    };
   }
 }
 /**
