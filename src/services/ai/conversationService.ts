@@ -148,6 +148,9 @@ export class ConversationService {
     );
 
     let accumulatedText = '';
+    const requestStartedAt = Date.now();
+    let firstTokenLogged = false;
+    let responsePath: 'stream' | 'single-shot' = 'stream';
 
     try {
       let streamSucceeded = false;
@@ -201,6 +204,13 @@ export class ConversationService {
                   if (parsed.chunk) {
                     accumulatedText += parsed.chunk;
                     streamSucceeded = true;
+                    if (!firstTokenLogged) {
+                      firstTokenLogged = true;
+                      console.debug('[Angel Chat Timing] First streamed token', {
+                        milliseconds: Date.now() - requestStartedAt,
+                        path: 'stream',
+                      });
+                    }
                     if (onToken) {
                       onToken(parsed.chunk, accumulatedText);
                     }
@@ -220,6 +230,7 @@ export class ConversationService {
 
       // If streaming didn't produce text, fallback to /api/ai/generate
       if (!accumulatedText.trim()) {
+        responsePath = 'single-shot';
         try {
           const genRes = await fetch('/api/ai/generate', {
             method: 'POST',
@@ -237,6 +248,13 @@ export class ConversationService {
             const genData = await genRes.json();
             if (genData.text && genData.text.trim()) {
               accumulatedText = genData.text.trim();
+              if (!firstTokenLogged) {
+                firstTokenLogged = true;
+                console.debug('[Angel Chat Timing] First response content', {
+                  milliseconds: Date.now() - requestStartedAt,
+                  path: responsePath,
+                });
+              }
               if (onToken) {
                 onToken(accumulatedText, accumulatedText);
               }
@@ -254,6 +272,12 @@ export class ConversationService {
           'Angel could not get a response from the AI service. Check the provider configuration and connection, then try again.'
         );
       }
+
+      console.debug('[Angel Chat Timing] Response completed', {
+        totalMilliseconds: Date.now() - requestStartedAt,
+        path: responsePath,
+        characters: accumulatedText.length,
+      });
 
       agentExecutionLifecycle.advanceStage(
         lifecycleSession.sessionId,
