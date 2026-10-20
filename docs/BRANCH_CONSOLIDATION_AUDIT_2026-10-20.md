@@ -22,10 +22,10 @@ Release candidate branch: `release/predeploy-hardening-2026-10-20`
 ## OAuth configuration
 
 Active Supabase project base URL:
-`https://qltiogotxbxwzwmnypwu.supabase.co`
+`<SUPABASE_URL>` (use the value stored in Netlify environment variables; do not hard-code it in documentation)
 
 Register this exact URI in the **Google Cloud OAuth Web Client used by Supabase Auth > Providers > Google**:
-`https://qltiogotxbxwzwmnypwu.supabase.co/auth/v1/callback`
+`<SUPABASE_URL>/auth/v1/callback` (replace the placeholder with the configured project URL in Google Cloud Console)
 
 In Supabase Auth > URL Configuration, ensure the site URL is `https://angel-ai-new.netlify.app` and that the post-auth callback is allowed, including:
 `https://angel-ai-new.netlify.app/auth/callback`
@@ -39,7 +39,7 @@ The project URL variables in Netlify were found to contain a `/rest/v1/` suffix 
 - Netlify site `angel-ai-new` exists and its last published deploy reports Ready. The main-branch backend smoke test nevertheless fails because the live alias reports the commit marker as `unknown`, not the expected SHA. This needs post-release verification; it must not be “fixed” by weakening the smoke assertion.
 - Current Netlify configuration uses `npm run build`, publishes `dist`, uses `netlify/functions`, and rewrites `/api/*` to the Netlify function. The release branch passed type-check, backend smoke tests, and production build at SHA `b65803d2e2da1b0f1bf4abbb47a4de75f107b705`.
 - Supabase project is ACTIVE_HEALTHY. The listed live migration history includes `20261019041809_harden_user_rls_policies`.
-- Supabase security advisor reports **Leaked Password Protection Disabled**. Enable it in Supabase Auth settings before calling the authentication posture fully hardened.
+- Supabase Leaked Password Protection is a Pro-only setting and is deferred while the project is on Free. Revisit it after upgrading; it is not a release-blocking code change.
 - Supabase performance advisor reports unused indexes. These are informational and should not be dropped during this release without query-plan and production-use analysis.
 - The repository and Netlify site configuration use Supabase as the implemented auth/data platform. The main branch does not contain a Firebase SDK or `FIREBASE_*` runtime configuration; Firebase is therefore not part of the current app path and cannot be certified as integrated.
 - Paid official OpenAI usage is guarded by explicit opt-in in backend code; do not enable it by default because this project is credit-sensitive.
