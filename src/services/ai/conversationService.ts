@@ -247,12 +247,12 @@ export class ConversationService {
         }
       }
 
-      // If network/provider still yielded no text, provide an intelligent deterministic response
+      // Never turn provider/network failure into a fabricated successful answer.
+      // A truthful, actionable error is safer than implying the model processed the prompt.
       if (!accumulatedText.trim()) {
-        accumulatedText = `I have received your prompt: "${prompt}". I'm operating in connected workspace mode with your active project and memory context. How would you like me to proceed with this task?`;
-        if (onToken) {
-          onToken(accumulatedText, accumulatedText);
-        }
+        throw new Error(
+          'Angel could not get a response from the AI service. Check the provider configuration and connection, then try again.'
+        );
       }
 
       agentExecutionLifecycle.advanceStage(
