@@ -1,4 +1,7 @@
 import serverless from "serverless-http";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 type NetlifyApiEvent = {
   path?: string;
@@ -42,7 +45,13 @@ async function getAppHandler() {
   process.env.NETLIFY = "true";
 
   if (!appHandlerPromise) {
-    appHandlerPromise = import("../../server.ts")
+    // Netlify builds server-build/server.js before packaging this function. Loading it by
+    // file URL prevents esbuild from walking the development-time TypeScript source graph.
+    // In source tests, the generated bundle is absent, so fall back to server.ts.
+    const bundledServerPath = path.resolve(process.cwd(), "server-build/server.js");
+    const serverSourcePath = path.resolve(process.cwd(), "server.ts");
+    const serverEntryPath = existsSync(bundledServerPath) ? bundledServerPath : serverSourcePath;
+    appHandlerPromise = import(pathToFileURL(serverEntryPath).href)
       .then(({ createApp }) => createApp({ isServerless: true }))
       .then((app) => serverless(app));
   }
