@@ -459,3 +459,13 @@ test('OAuth callback never relays tokens through postMessage', () => {
   assert.match(callbackRoute, /window\.location\.replace\(returnUrl\.toString\(\)\)/,
     'OAuth callback must return to the app origin for Supabase JS to process the session');
 });
+
+
+test('Netlify API entrypoint does not import Vite development tooling', () => {
+  const apiSource = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+  const devSource = readFileSync(new URL('../devServer.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(apiSource, /import\(['"]vite['"]\)/,
+    'Netlify function bundling must not traverse Vite development-only imports');
+  assert.match(devSource, /import\(['"]vite['"]\)/,
+    'the standalone development server must retain Vite middleware');
+});
