@@ -255,9 +255,17 @@ class SyncService {
     const existing = await offlineDb.syncQueue
       .where('entityId')
       .equals(entityId)
+      .filter((mutation) => mutation.entityType === entityType)
       .first();
 
     const timestamp = new Date().toISOString();
+
+    // A create followed by a delete before sync never reached the server.
+    if (existing && existing.status === 'pending' && existing.action === 'create' && action === 'delete') {
+      await offlineDb.syncQueue.delete(existing.id);
+      this.notifyListeners();
+      return;
+    }
 
     if (existing && existing.status === 'pending') {
       // If we previously created and now update, keep action as 'create' but update payload
@@ -430,6 +438,27 @@ class SyncService {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${this.sessionToken}`,
     };
+
+    // Deletes must use the dedicated owner-scoped endpoint; sending an upsert
+    // would recreate an empty row instead of deleting the remote record.
+    if (mutation.action === 'delete') {
+      const deletableEntities = new Set([
+        'task', 'memory', 'project', 'conversation', 'message',
+        'library_item', 'workflow', 'agent',
+      ]);
+      if (!deletableEntities.has(mutation.entityType)) {
+        throw new Error(`Cloud deletion is not supported for entity type: ${mutation.entityType}`);
+      }
+      const response = await fetch(
+        `/api/supabase/sync-entity/${encodeURIComponent(mutation.entityType)}/${encodeURIComponent(mutation.entityId)}`,
+        { method: 'DELETE', headers },
+      );
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || body.success !== true) {
+        throw new Error(typeof body.error === 'string' ? body.error : `Cloud deletion returned HTTP ${response.status}`);
+      }
+      return;
+    }
 
     if (mutation.entityType === 'task') {
       const res = await fetch('/api/supabase/sync', {
