@@ -7,7 +7,16 @@ import { handleAngelMcpMessage } from '../server/services/mcpGatewayService';
 import { handler as netlifyApiHandler, normalizeNetlifyApiEvent } from '../netlify/functions/api';
 import { providerRegistry, GeminiProvider, OpenAICompatibleProvider } from '../server/providers';
 import { generateWithQwenImage, QwenImageError } from '../server/services/qwenImageService';
+import { normalizeSupabaseProjectUrl } from '../src/services/supabaseUrl';
 
+
+test('Supabase URL normalization prevents invalid REST path from corrupting auth URLs', () => {
+  assert.equal(normalizeSupabaseProjectUrl('https://example.supabase.co/rest/v1/'), 'https://example.supabase.co');
+  assert.equal(normalizeSupabaseProjectUrl('https://example.supabase.co/'), 'https://example.supabase.co');
+  assert.equal(normalizeSupabaseProjectUrl('http://localhost:54321/rest/v1'), 'http://localhost:54321');
+  assert.equal(normalizeSupabaseProjectUrl('not a URL'), '');
+  assert.equal(normalizeSupabaseProjectUrl(''), '');
+});
 
 test('Netlify API path normalization', () => {
   assert.equal(normalizeNetlifyApiEvent({ path: '/.netlify/functions/api/health' }).path, '/api/health');
@@ -79,6 +88,20 @@ test('Angel backend smoke contract', async (t) => {
   const address = server.address();
   assert.ok(address && typeof address === 'object');
   const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  const forgedExecutiveSession = await fetch(`${baseUrl}/api/auth/session`, {
+    headers: { Authorization: 'Bearer angel_unverified_test_token' },
+  });
+  assert.notEqual(forgedExecutiveSession.status, 200,
+    'an unverified executive token is never accepted as a Supabase session');
+
+  const removedAccountCreationRoute = await fetch(`${baseUrl}/api/auth/google/verify-or-create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'victim@example.com', name: 'Impersonated User' }),
+  });
+  assert.notEqual(removedAccountCreationRoute.status, 200,
+    'Google login cannot create or take over accounts from caller-supplied identity data');
 
   t.after(async () => {
     server.closeAllConnections();
