@@ -1238,12 +1238,6 @@ State your directive, or select a command from the matrix below.`,
       });
       const data = await response.json().catch(() => ({}));
 
-      if (response.ok && data.requiresEmailConfirmation) {
-        const message = data.message || 'Check your email to confirm your account, then sign in.';
-        setAuthError(message);
-        return { success: false, requiresEmailConfirmation: true, message };
-      }
-
       if (response.ok && data.success && data.token) {
         const client = getClientSupabase();
         if (client && data.refreshToken) {
@@ -1396,6 +1390,12 @@ State your directive, or select a command from the matrix below.`,
         body: JSON.stringify({ email: cleanEmail, password, name: cleanName }),
       });
       const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data.requiresEmailConfirmation) {
+        const message = data.message || 'Check your email to confirm your account, then sign in.';
+        setAuthError(message);
+        return { success: false, requiresEmailConfirmation: true, message };
+      }
 
       if (response.ok && data.success && data.token) {
         const client = getClientSupabase();
