@@ -126,7 +126,6 @@ interface AppContextType {
   sessionToken: string | null;
   signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
-  signInWithExecutivePass: (customEmail?: string, customName?: string) => void;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
   sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string) => Promise<void>;
@@ -1334,40 +1333,6 @@ State your directive, or select a command from the matrix below.`,
     }
   };
 
-  const signInWithExecutivePass = (customEmail?: string, customName?: string) => {
-    const userEmail = (customEmail || 'danielokohnwachukwu22@gmail.com').trim().toLowerCase();
-    const userName = customName?.trim() || 'Daniel Nwachukwu';
-    const initials = userName.split(' ').map((p) => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'DN';
-    const token = `angel_sov_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
-
-    setSessionToken(token);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('angel_auth_token', token);
-      localStorage.removeItem('angel_is_guest');
-    }
-    setUserProfile({
-      id: `usr_exec_${Date.now()}`,
-      name: userName,
-      email: userEmail,
-      initials,
-      plan: 'Free',
-      status: 'online',
-      title: 'Executive Commander',
-    });
-    setConversations((prev) => {
-      const stored = getStoredItem<Conversation[]>('conversations', INITIAL_CONVERSATIONS);
-      const chosen = (stored && stored.length > 0) ? stored : (prev.length > 0 ? prev : INITIAL_CONVERSATIONS);
-      if (chosen[0]?.id) {
-        setActiveConversationId(chosen[0].id);
-        activeConversationIdRef.current = chosen[0].id;
-      }
-      return chosen;
-    });
-    setIsSignedIn(true);
-    setIsAuthPageOpen(false);
-    setAuthError(null);
-  };
-
   const signUp = async (email: string, password: string, name: string): Promise<SignUpResult> => {
     setAuthError(null);
     const cleanEmail = email.trim().toLowerCase();
@@ -2539,8 +2504,7 @@ State your directive, or select a command from the matrix below.`,
         sessionToken,
         signIn,
         signUp,
-        signInWithExecutivePass,
-        signOut,
+            signOut,
         requestPasswordRecovery,
         sendMessage,
         userProfile,
