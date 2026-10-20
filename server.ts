@@ -908,7 +908,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   // Streaming Text Generation (Server-Sent Events)
   app.post(['/api/ai/stream', '/api/chat/stream'], rateLimit(30), async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
+    const rawPrompt = req.body?.prompt ?? req.body?.message ?? '';
+    const prompt = typeof rawPrompt === 'string' ? rawPrompt.trim() : '';
+    const systemInstruction = req.body?.systemInstruction;
+    const conversationHistory = req.body?.conversationHistory ?? req.body?.history;
+    const modelId = req.body?.modelId;
+    const providerId = req.body?.providerId;
+    const temperature = req.body?.temperature;
+    const maxTokens = req.body?.maxTokens;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -931,7 +938,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           maxTokens,
         },
         (chunk) => {
-          res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+          res.write(`data: ${JSON.stringify({ chunk, text: chunk })}\n\n`);
         }
       );
 
@@ -947,7 +954,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   // Single-Shot Generation
   app.post(['/api/ai/generate', '/api/chat/generate'], rateLimit(25), async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, modelId, providerId, temperature, maxTokens } = req.body;
+    const rawPrompt = req.body?.prompt ?? req.body?.message ?? '';
+    const prompt = typeof rawPrompt === 'string' ? rawPrompt.trim() : '';
+    const systemInstruction = req.body?.systemInstruction;
+    const conversationHistory = req.body?.conversationHistory ?? req.body?.history;
+    const modelId = req.body?.modelId;
+    const providerId = req.body?.providerId;
+    const temperature = req.body?.temperature;
+    const maxTokens = req.body?.maxTokens;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
