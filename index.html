@@ -38,15 +38,8 @@
       // OAuth popup callback relay: if this window was opened as a popup by Angel AI,
       // relay the hash tokens or error to the parent window and close itself.
       try {
-        if (window.opener && (window.location.hash.indexOf('access_token=') !== -1 || window.location.hash.indexOf('error=') !== -1)) {
-          window.opener.postMessage({
-            type: 'ANGEL_OAUTH_CALLBACK',
-            hash: window.location.hash,
-            search: window.location.search
-          }, '*');
-          setTimeout(function() {
-            window.close();
-          }, 150);
+        if (window.opener) {
+          // OAuth callbacks are handled by Supabase's supported session flow; do not relay tokens cross-origin.
         }
       } catch (e) {}
     </script>
