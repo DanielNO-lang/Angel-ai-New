@@ -8,9 +8,9 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "tsx devServer.ts",
     "build": "node scripts/write-build-meta.mjs && vite build && mkdir -p server-build && esbuild server.ts --bundle --platform=node --format=esm --packages=external --sourcemap --outfile=server-build/server.js",
-    "start": "node server.ts",
+    "start": "tsx devServer.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js server.cjs server-build",
     "lint": "tsc --noEmit",
