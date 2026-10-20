@@ -32,7 +32,7 @@ In Supabase Auth > URL Configuration, ensure the site URL is `https://angel-ai-n
 
 For Netlify preview deployment URLs, add only the preview wildcard appropriate to this app and hosting account. Do not copy Google provider callback URLs into the application's post-sign-in redirect allow-list, or vice versa; these are different settings.
 
-The project URL variables in Netlify were found to contain a `/rest/v1/` suffix in some contexts and were corrected where the available Netlify management operation permits it. The application now also normalizes the path to tolerate a stale value in the uneditable `dev-server` context. Environment changes do not modify the already-published build. No deploy was triggered.
+The project URL variables in Netlify were found to contain a `/rest/v1/` suffix in some contexts and were corrected where the available Netlify management operation permits it. The application now also normalizes the path to tolerate a stale value in the uneditable `dev-server` context. Environment changes do not modify the already-published build. Updating this release branch may trigger a Netlify deploy preview through the connected Git integration; no production deploy has been triggered by this audit.
 
 ## Platform/configuration review
 
