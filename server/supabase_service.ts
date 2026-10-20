@@ -8,6 +8,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { normalizeSupabaseProjectUrl } from '../src/services/supabaseUrl';
 
 export interface SupabaseServerStatus {
   isConfigured: boolean;
@@ -61,7 +62,7 @@ export interface SyncResult {
 let cachedClient: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
   const key =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_ANON_KEY ||
@@ -91,7 +92,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 let cachedAdminClient: SupabaseClient | null = null;
 
 export function getSupabaseAdminClient(): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceKey || url.length < 5 || serviceKey.length < 5) {
@@ -120,7 +121,7 @@ export function getSupabaseAdminClient(): SupabaseClient | null {
  * sign-up, password sign-in, and password recovery. Never uses service-role.
  */
 export function getSupabaseAuthClient(): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   if (!url || !anonKey) return null;
   try {
@@ -139,7 +140,7 @@ export function getSupabaseAuthClient(): SupabaseClient | null {
  * are deliberately never used for user-owned workspace data.
  */
 export function getSupabaseClientForUser(accessToken: string): SupabaseClient | null {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   if (!url || !anonKey || !accessToken) return null;
 
@@ -155,7 +156,7 @@ export function getSupabaseClientForUser(accessToken: string): SupabaseClient | 
 }
 
 export function getSupabaseServerStatus(): SupabaseServerStatus {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
