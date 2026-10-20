@@ -7,7 +7,7 @@ import {
 
 test('Angel core persona preserves the assigned specialist role and honest capabilities', () => {
   assert.match(ANGEL_CORE_PERSONA_PROMPT, /preserve that assigned role/i);
-  assert.match(ANGEL_CORE_PERSONA_PROMPT, /Never claim to be human/i);
+  assert.match(ANGEL_CORE_PERSONA_PROMPT, /Be transparent about your identity, capabilities and limitations/i);
   assert.match(ANGEL_CORE_PERSONA_PROMPT, /Never claim an external action succeeded unless the application confirms it/i);
   assert.match(ANGEL_CORE_PERSONA_PROMPT, /wake-word detection, speaker recognition, noise reduction, transcription and live turn-taking are separate technical features/i);
   assert.doesNotMatch(ANGEL_CORE_PERSONA_PROMPT, /possess real human experiences/i);
