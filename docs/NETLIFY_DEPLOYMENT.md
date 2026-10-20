@@ -12,7 +12,7 @@ After the preview passes smoke checks, set the production branch to `main`.
 
 Use the existing Supabase project:
 
-- URL: `https://qltiogotxbxwzwmnypwu.supabase.co`
+- URL: `<SUPABASE_URL>` (use the project's configured URL from the Netlify environment variables; do not hard-code it in documentation)
 - Browser variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
 - Server variables: `SUPABASE_URL`, `SUPABASE_ANON_KEY`
 
