@@ -12,6 +12,7 @@ import { Header } from './components/layout/Header';
 import { AuthPage } from './components/auth/AuthPage';
 import { HomeView } from './components/home/HomeView';
 import { ChatView } from './components/chat/ChatView';
+import { ResearchWorkspace } from './components/research/ResearchWorkspace';
 import { AgentLabView } from './components/agent_lab/AgentLabView';
 import { TasksView } from './components/tasks/TasksView';
 import { MemoriesView } from './components/memories/MemoriesView';
@@ -219,6 +220,8 @@ const WorkspaceContent: React.FC = () => {
         return <HomeView />;
       case 'chat':
         return <ChatView />;
+      case 'research':
+        return <ResearchWorkspace />;
       case 'voice':
       case 'visual_mode':
         return <ChatView />;
