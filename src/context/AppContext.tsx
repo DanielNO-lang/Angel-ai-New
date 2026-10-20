@@ -125,7 +125,7 @@ interface AppContextType {
   signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
-  sendMessage: (content: string, attachments?: Message['attachments'], targetConversationId?: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: Message['attachments'], targetConversationId?: string, retryAssistantMessageId?: string) => Promise<void>;
 
   // User Profile
   userProfile: UserProfile;
@@ -498,6 +498,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       fontSize: 'sm', // Reduced by one size per user specification
       compactMode: false,
       focusMode: false,
+      conversationalStyle: { warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced' },
       personality: {
         tone: 'balanced',
         verbosity: 'balanced',
@@ -631,13 +632,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const root = document.documentElement;
     const body = document.body;
 
-    let timer: number | undefined;
     if (body) {
-      body.classList.add('theme-transitioning');
-      timer = window.setTimeout(() => {
-        body.classList.remove('theme-transitioning');
-      }, 500);
-
       root.classList.remove('dark', 'light', 'midnight');
       body.classList.remove('dark', 'light', 'midnight');
 
@@ -662,10 +657,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             body.classList.add(isDark ? 'dark' : 'light');
           };
           applySystemTheme();
-          mq.addEventListener('change', applySystemTheme);
+          if (typeof mq.addEventListener === 'function') {
+            mq.addEventListener('change', applySystemTheme);
+            return () => {
+              mq.removeEventListener('change', applySystemTheme);
+            };
+          }
+          // Compatibility for older WebKit implementations.
+          mq.addListener(applySystemTheme);
           return () => {
-            if (timer) window.clearTimeout(timer);
-            mq.removeEventListener('change', applySystemTheme);
+            mq.removeListener(applySystemTheme);
           };
         }
       }
@@ -675,9 +676,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('angel_theme', settings.theme);
     }
 
-    return () => {
-      if (timer) window.clearTimeout(timer);
-    };
   }, [settings.theme]);
 
   const [isChatStreaming, setIsChatStreaming] = useState<boolean>(false);
@@ -906,69 +904,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
   }, [sessionToken]);
 
-  // Centralized autosave engine: frequent, change-detected local persistence with cloud queue processing.
+  // Centralized autosave uses one stable timer. Previously every message token/state
+  // update tore down and recreated the interval, then repeatedly serialized the entire
+  // workspace. A ref keeps the timer stable and saves the latest snapshot every 30s.
+  const latestAutosaveStateRef = useRef({
+    tasks, memories, projects, workflows, conversations, messagesMap,
+    agents, libraryItems, assistants: assistantsList, activeTab,
+    theme: settings.theme, syncStatus, isGuest,
+  });
+  latestAutosaveStateRef.current = {
+    tasks, memories, projects, workflows, conversations, messagesMap,
+    agents, libraryItems, assistants: assistantsList, activeTab,
+    theme: settings.theme, syncStatus, isGuest,
+  };
+
   useEffect(() => {
-    const AUTOSAVE_INTERVAL_MS = 10000;
+    const AUTOSAVE_INTERVAL_MS = 30000;
+    let saving = false;
 
     const performAutosave = async () => {
+      const snapshot = latestAutosaveStateRef.current;
+      if (snapshot.isGuest || saving) return;
+
+      const serializationStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const currentFingerprint = JSON.stringify({
+        tasks: snapshot.tasks,
+        memories: snapshot.memories,
+        projects: snapshot.projects,
+        workflows: snapshot.workflows,
+        conversations: snapshot.conversations,
+        messagesMap: snapshot.messagesMap,
+        agents: snapshot.agents,
+        libraryItems: snapshot.libraryItems,
+        assistants: snapshot.assistants,
+        activeTab: snapshot.activeTab,
+        theme: snapshot.theme,
+        syncStatus: snapshot.syncStatus,
+      });
+      const serializationMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - serializationStartedAt);
+      if (currentFingerprint === lastSavedFingerprintRef.current) return;
+
+      saving = true;
       try {
-        if (isGuest) return;
-        // Fingerprint full persisted state so edits to existing messages and settings are not missed.
-        const currentFingerprint = JSON.stringify({
-          tasks, memories, projects, workflows, conversations, messagesMap,
-          agents, libraryItems, assistants: assistantsList, activeTab,
-          theme: settings.theme, syncStatus,
-        });
-
-        // Only persist if data actually changed since last autosave (avoids unnecessary writes)
-        if (currentFingerprint === lastSavedFingerprintRef.current) {
-          return;
-        }
-
+        const persistenceStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
         await syncWorkspaceToIndexedDB({
-          conversations,
-          messagesMap,
-          tasks,
-          memories,
-          projects,
-          workflows,
-          agents,
-          libraryItems,
-          assistants: assistantsList,
-          activeTab,
-          theme: settings.theme,
-          syncStatus,
+          conversations: snapshot.conversations,
+          messagesMap: snapshot.messagesMap,
+          tasks: snapshot.tasks,
+          memories: snapshot.memories,
+          projects: snapshot.projects,
+          workflows: snapshot.workflows,
+          agents: snapshot.agents,
+          libraryItems: snapshot.libraryItems,
+          assistants: snapshot.assistants,
+          activeTab: snapshot.activeTab,
+          theme: snapshot.theme,
+          syncStatus: snapshot.syncStatus,
         });
 
+        const persistenceMs = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - persistenceStartedAt);
+        if (import.meta.env.DEV) {
+          console.info('[Angel performance] workspace-autosave', { serializationMs, persistenceMs });
+        }
+        // Store the fingerprint of the saved snapshot, not a possibly newer render.
         lastSavedFingerprintRef.current = currentFingerprint;
         setLastAutosavedAt(new Date().toISOString());
 
-        // Cooperate with syncService if online and user is authenticated
-        if (!isGuest && typeof navigator !== 'undefined' && navigator.onLine) {
-          syncService.processQueue();
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+          void syncService.processQueue();
         }
       } catch (err) {
         console.warn('[AppContext] Centralized autosave caught error:', err);
+      } finally {
+        saving = false;
       }
     };
 
-    const timer = setInterval(performAutosave, AUTOSAVE_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [
-    tasks,
-    memories,
-    projects,
-    workflows,
-    conversations,
-    messagesMap,
-    agents,
-    libraryItems,
-    assistantsList,
-    activeTab,
-    settings.theme,
-    syncStatus,
-    isGuest,
-  ]);
+    const timer = window.setInterval(() => { void performAutosave(); }, AUTOSAVE_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Fetch backend integration health
   const refreshIntegrations = async () => {
@@ -1421,52 +1435,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Send Message with SSE streaming
-  const sendMessage = async (content: string, attachments?: Message['attachments'], targetConversationId?: string) => {
-    if (!content.trim() && (!attachments || attachments.length === 0)) return;
-
+  // Send Message with SSE streaming. A retry reuses the failed assistant row and its
+  // original user message so it never duplicates the user's prompt or increments counts.
+  const sendMessage = async (
+    content: string,
+    attachments?: Message['attachments'],
+    targetConversationId?: string,
+    retryAssistantMessageId?: string
+  ) => {
     let targetConvId = targetConversationId || activeConversationId;
-    if (!targetConvId || (!targetConversationId && !conversations.some((c) => c.id === targetConvId))) {
+    if (!retryAssistantMessageId && (!targetConvId || (!targetConversationId && !conversations.some((c) => c.id === targetConvId)))) {
       targetConvId = createConversation(selectedAgentId);
     }
+    if (!targetConvId) return;
+
+    const priorMessages = messagesMap[targetConvId] || [];
+    let retryHistory: Message[] | undefined;
+    let effectiveContent = content;
+    let effectiveAttachments = attachments;
+
+    if (retryAssistantMessageId) {
+      const failedIndex = priorMessages.findIndex((item) => item.id === retryAssistantMessageId && item.role === 'assistant');
+      if (failedIndex < 0) return;
+      const previousUser = priorMessages.slice(0, failedIndex).reverse().find((item) => item.role === 'user');
+      if (!previousUser) return;
+      const previousUserIndex = priorMessages.findIndex((item) => item.id === previousUser.id);
+      if (previousUserIndex < 0) return;
+      // Use the stored original prompt and history rather than potentially stale UI state.
+      effectiveContent = previousUser.content;
+      effectiveAttachments = previousUser.attachments;
+      retryHistory = priorMessages.slice(0, previousUserIndex);
+    }
+
+    if (!effectiveContent.trim() && (!effectiveAttachments || effectiveAttachments.length === 0)) return;
 
     const now = new Date().toISOString();
-    const userMessageId = `msg-user-${Date.now()}`;
-    const userMessage: Message = {
-      id: userMessageId,
-      conversationId: targetConvId,
-      role: 'user',
-      content,
-      createdAt: now,
-      attachments,
-    };
+    const assistantMessageId = retryAssistantMessageId || `msg-asst-${Date.now()}`;
 
-    const assistantMessageId = `msg-asst-${Date.now()}`;
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      conversationId: targetConvId,
-      role: 'assistant',
-      content: '',
-      createdAt: now,
-      agentId: selectedAgentId,
-      isStreaming: true,
-    };
+    if (retryAssistantMessageId) {
+      setMessagesMap((prev) => ({
+        ...prev,
+        [targetConvId]: (prev[targetConvId] || []).map((message) =>
+          message.id === assistantMessageId
+            ? { ...message, content: '', createdAt: now, isStreaming: true, toolCalls: undefined, error: undefined }
+            : message
+        ),
+      }));
+    } else {
+      const userMessage: Message = {
+        id: `msg-user-${Date.now()}`,
+        conversationId: targetConvId,
+        role: 'user',
+        content: effectiveContent,
+        createdAt: now,
+        attachments: effectiveAttachments,
+      };
+      const assistantMessage: Message = {
+        id: assistantMessageId,
+        conversationId: targetConvId,
+        role: 'assistant',
+        content: '',
+        createdAt: now,
+        agentId: selectedAgentId,
+        isStreaming: true,
+      };
 
-    // Update conversation messages optimistically
-    setMessagesMap((prev) => ({
-      ...prev,
-      [targetConvId]: [...(prev[targetConvId] || []), userMessage, assistantMessage],
-    }));
+      setMessagesMap((prev) => ({
+        ...prev,
+        [targetConvId]: [...(prev[targetConvId] || []), userMessage, assistantMessage],
+      }));
+    }
 
-    // Update conversation preview
     setConversations((prev) =>
       prev.map((c) =>
         c.id === targetConvId
           ? {
               ...c,
               updatedAt: now,
-              messageCount: (c.messageCount || 0) + 2,
-              lastMessagePreview: content.slice(0, 80),
+              messageCount: (c.messageCount || 0) + (retryAssistantMessageId ? 0 : 2),
+              lastMessagePreview: effectiveContent.slice(0, 80),
             }
           : c
       )
@@ -1475,8 +1522,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsChatStreaming(true);
 
     try {
-      const agent = agents.find((a) => a.id === selectedAgentId) || agents[0];
-      const convHistory = messagesMap[targetConvId] || [];
+      const retryAgentId = retryAssistantMessageId
+        ? priorMessages.find((item) => item.id === retryAssistantMessageId)?.agentId
+        : undefined;
+      const agent = agents.find((a) => a.id === (retryAgentId || selectedAgentId)) || agents[0];
+      const convHistory = retryHistory ?? (messagesMap[targetConvId] || []);
 
       let runningToolCalls: Array<{
         id: string;
@@ -1490,10 +1540,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const currentConv = conversations.find((c) => c.id === targetConvId);
       const convProjectId = currentConv?.projectId || activeProjectId || undefined;
 
+      const style = settings.conversationalStyle || { warmth: 70, humor: 35, directness: 65, empathy: 75, emotionalTone: 'balanced' as const };
+      const deliveryGuide = [
+        'ANGEL DELIVERY PREFERENCES (adapt delivery, never replace Angel’s stable identity):',
+        `Warmth: ${style.warmth}/100. Humor: ${style.humor}/100. Directness: ${style.directness}/100. Empathy: ${style.empathy}/100. Emotional tone: ${style.emotionalTone}.`,
+        'Be truthful, grounded, and clear. Do not invent lived experience or claim actions that did not happen. Preserve Angel’s stable personality and adapt only the delivery.',
+      ].join(' ');
+      const styledAgent = { ...agent, systemInstructions: [agent?.systemInstructions, deliveryGuide].filter(Boolean).join('\n\n') };
+
       await conversationService.sendMessage({
         conversationId: targetConvId,
-        prompt: content,
-        agent,
+        prompt: effectiveContent,
+        agent: styledAgent,
         conversationHistory: convHistory,
         contextState: {
           memories,
@@ -1585,7 +1643,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return {
           ...prev,
           [targetConvId]: msgs.map((m) =>
-            m.id === assistantMessageId ? { ...m, isStreaming: false, content: fallbackText } : m
+            m.id === assistantMessageId
+              ? { ...m, isStreaming: false, content: fallbackText, error: err instanceof Error ? err.message : String(err) }
+              : m
           ),
         };
       });

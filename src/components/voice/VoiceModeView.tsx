@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Mic,
   MicOff,
@@ -45,14 +46,14 @@ export const VoiceModeView: React.FC = () => {
     createTask,
     createMemory,
   } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Voice state
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isListening, setIsListening] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState('Kore (Balanced)');
+  const [selectedVoice, setSelectedVoice] = useState('UNIQUE (Kore)');
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
@@ -131,13 +132,17 @@ export const VoiceModeView: React.FC = () => {
   }, []);
 
   const recognitionRef = useRef<any>(null);
+  const voiceCommandHandlerRef = useRef<(spokenText: string) => void>(() => {});
 
+  // UNIQUE is Angel's branded default profile. Provider voice names are shown honestly;
+  // aliases are not presented as separate trained voices unless a provider supplies them.
   const voices = [
-    'Kore (Balanced)',
-    'Puck (Direct)',
-    'Charon (Deep)',
-    'Fenrir (Authoritative)',
-    'Zephyr (Gentle)',
+    'UNIQUE (Kore)',
+    'Kore (Firm)',
+    'Puck (Lively)',
+    'Charon (Informative)',
+    'Fenrir (Expressive)',
+    'Zephyr (Bright)',
   ];
 
   useEffect(() => {
@@ -273,7 +278,7 @@ export const VoiceModeView: React.FC = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (SpeechRecognition && !isMuted && isListening) {
+    if (SpeechRecognition && !isMuted && isListening && !isSpeaking) {
       try {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
@@ -283,11 +288,13 @@ export const VoiceModeView: React.FC = () => {
         recognition.onresult = (event: any) => {
           let currentTranscript = '';
           for (let i = event.resultIndex; i < event.results.length; ++i) {
-            currentTranscript += event.results[i][0].transcript;
+            const result = event.results[i];
+            const spoken = String(result?.[0]?.transcript || '').trim();
+            currentTranscript += spoken;
+            // Run commands only on final speech segments, never on interim hypotheses.
+            if (result.isFinal && spoken) voiceCommandHandlerRef.current(spoken);
           }
-          if (currentTranscript.trim()) {
-            setTranscript(currentTranscript);
-          }
+          if (currentTranscript.trim()) setTranscript(currentTranscript.trim());
         };
 
         recognition.onerror = () => {
@@ -316,7 +323,7 @@ export const VoiceModeView: React.FC = () => {
         }
       }
     };
-  }, [isMuted, isListening]);
+  }, [isMuted, isListening, isSpeaking]);
 
   // Text to Speech playback function with neural TTS and fallback
   const speakAngelResponse = async (text: string) => {
@@ -349,13 +356,16 @@ export const VoiceModeView: React.FC = () => {
         }),
       });
 
-      const data = await res.json();
-      const response = data.text || `Processing your command across active agent pipelines.`;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.message || `AI request failed (HTTP ${res.status}).`);
+      const response = typeof data.text === 'string' ? data.text.trim() : '';
+      if (!response) throw new Error('The AI service returned an empty response. Check model configuration or quota.');
       setAngelResponse(response);
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: response }]);
       await speakAngelResponse(response);
-    } catch {
-      const fallback = `Autonomous agent pipeline dispatched for your command: "${prompt}".`;
+    } catch (requestError) {
+      const detail = requestError instanceof Error ? requestError.message : 'The request failed before Angel received a response.';
+      const fallback = `I couldn't get a response from the AI service just now. ${detail}`;
       setAngelResponse(fallback);
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: fallback }]);
       await speakAngelResponse(fallback);
@@ -398,6 +408,54 @@ export const VoiceModeView: React.FC = () => {
       tags: ['voice', 'oral-input'],
     });
   };
+
+  // Voice mode is an explicit opt-in listening session. Spoken commands are
+  // processed only from final recognition results, and the exact standalone
+  // phrase "end conversation" is the only phrase that closes the session.
+  useEffect(() => {
+    voiceCommandHandlerRef.current = (spokenText: string) => {
+      const normalized = spokenText.trim().toLowerCase().replace(/[.!?,]+$/g, '').trim();
+      if (!normalized) return;
+
+      if (normalized === 'end conversation') {
+        voiceEngine.stopSpeaking();
+        setIsSpeaking(false);
+        setIsListening(false);
+        setActiveTab('chat');
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?(?:stop speaking|stop talking|be quiet)$/.test(normalized)) {
+        voiceEngine.stopSpeaking();
+        setIsSpeaking(false);
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?(?:mute microphone|mute mic)$/.test(normalized)) {
+        setIsMuted(true);
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?(?:resume listening|unmute microphone|unmute mic)$/.test(normalized)) {
+        setIsMuted(false);
+        setIsListening(true);
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?send (?:this|the transcript) to chat$/.test(normalized)) {
+        handleSendToChat();
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?save (?:this|that) as a task$/.test(normalized)) {
+        handleSaveAsTask();
+        return;
+      }
+      if (/^(?:angel[,\s:]*)?save (?:this|that) as a memory$/.test(normalized)) {
+        handleSaveAsMemory();
+        return;
+      }
+
+      // Wake words are optional while Voice Mode is visibly active.
+      const command = spokenText.trim().replace(/^(?:(?:hey|hello|okay)\s+)?angel[,:]?\s*/i, '').trim();
+      if (command) void handleProcessUserPrompt(command);
+    };
+  }, [handleProcessUserPrompt, handleSendToChat, handleSaveAsTask, handleSaveAsMemory, setActiveTab]);
 
   return (
     <div

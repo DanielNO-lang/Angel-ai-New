@@ -3,12 +3,15 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import {ErrorBoundary} from './components/ui/ErrorBoundary';
 import './index.css';
+import { installApiAuth } from './services/apiAuth';
+
+installApiAuth();
 
 // PWA Service Worker Registration (Unified lifecycle with update detection)
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('/sw.js')
+      .register('/angel-service-worker.js')
       .then((reg) => {
         // Check for updates
         reg.addEventListener('updatefound', () => {

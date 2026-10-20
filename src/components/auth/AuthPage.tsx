@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Flame,
   ArrowRight,
@@ -47,7 +48,7 @@ export const AuthPage: React.FC = () => {
     settings,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

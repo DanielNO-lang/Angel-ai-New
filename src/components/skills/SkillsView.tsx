@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   PlayCircle,
   Search,
@@ -42,7 +43,7 @@ import {
 
 export const SkillsView: React.FC = () => {
   const { settings, setActiveTab, availableTools } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Skills state
   const [skills, setSkills] = useState<SkillDefinition[]>(() => getSavedSkills());

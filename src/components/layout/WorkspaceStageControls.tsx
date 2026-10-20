@@ -5,6 +5,7 @@
  */
 
 import React, { useEffect } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Minus,
   Maximize2,
@@ -42,7 +43,7 @@ export const WorkspaceStageControls: React.FC = () => {
     activeConversation,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Keyboard shortcut: Esc restores workspace if minimized
   useEffect(() => {
@@ -122,7 +123,7 @@ export const WorkspaceMinimizedView: React.FC = () => {
     userProfile,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Tab Title and Icon Mapping
   const tabDetails: Record<

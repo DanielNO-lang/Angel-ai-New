@@ -46,8 +46,7 @@ class AuthService {
   private userUserDataStore: Map<string, Record<string, unknown>> = new Map();
 
   constructor() {
-    // Seed default canonical user account for instant seamless developer experience
-    this.seedCanonicalUser();
+    // No pre-seeded or shared credentials. Accounts must be created explicitly.
   }
 
   private hashPassword(password: string, salt: string): string {
@@ -62,26 +61,6 @@ class AuthService {
     return 'angel_' + crypto.randomBytes(32).toString('hex');
   }
 
-  private seedCanonicalUser() {
-    const canonicalEmail = 'danielokohnwachukwu22@gmail.com';
-    const salt = this.generateSalt();
-    const passwordHash = this.hashPassword('Angel2026!', salt);
-
-    const canonicalUser: UserAccount = {
-      id: 'usr_canonical_danny_davis',
-      email: canonicalEmail,
-      passwordHash,
-      salt,
-      name: 'Danny Davis',
-      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-      title: 'Principal AI Architect',
-      role: 'user',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.users.set(canonicalEmail.toLowerCase(), canonicalUser);
-  }
 
   /**
    * Register a new user account with hashed credentials
@@ -135,8 +114,7 @@ class AuthService {
     }
 
     const computedHash = this.hashPassword(password, user.salt);
-    // Allow canonical user password match or master unlock
-    if (computedHash !== user.passwordHash && password !== 'Angel2026!' && password !== 'password123') {
+    if (computedHash !== user.passwordHash) {
       throw new Error('Incorrect password. Please verify your credentials and try again.');
     }
 
@@ -208,13 +186,13 @@ class AuthService {
       // Return success anyway for security best practice (prevent enumeration)
       return {
         success: true,
-        message: 'If an account exists for this email, password reset instructions have been dispatched.',
+        message: 'Password recovery is not configured on this server yet. No email has been sent.',
       };
     }
 
     return {
       success: true,
-      message: `Password reset instructions dispatched to ${cleanEmail}. Check your inbox to set a new password.`,
+      message: 'Password recovery is not configured on this server yet. No email has been sent.',
     };
   }
 

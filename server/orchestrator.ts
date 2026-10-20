@@ -5,7 +5,8 @@
  * EXECUTION -> VALIDATION -> RESPONSE -> MEMORY UPDATE -> COMPLETED
  */
 
-import { modelRouter } from './providers/index.js';
+import { modelRouter, modelRoutingTelemetry } from './providers/index.js';
+import type { AIProvider, GenerateResult } from './providers/types.js';
 import { dispatchZapierEvent } from './zapier_service.js';
 
 export interface ExecutionStepLog {
@@ -50,6 +51,8 @@ export interface OrchestrationRequest {
     canWrite?: boolean;
     types?: string[];
   };
+  /** Optional progress callback for durable background-job status updates. */
+  onProgress?: (step: ExecutionStepLog) => void | Promise<void>;
 }
 
 export interface OrchestrationResult {
@@ -77,12 +80,26 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
   const tasksCreated: Array<{ title: string; priority: string; description: string }> = [];
 
   const addLog = (stage: ExecutionStepLog['stage'], message: string, metadata?: Record<string, unknown>) => {
-    logs.push({
+    const entry: ExecutionStepLog = {
       stage,
       message,
       timestamp: new Date().toISOString(),
       metadata,
-    });
+    };
+    logs.push(entry);
+    if (request.onProgress) {
+      // Progress callbacks are best-effort: a transient persistence issue must not
+      // crash the core execution lifecycle or leak prompt previews into task status.
+      try {
+        Promise.resolve(request.onProgress({
+          stage: entry.stage,
+          message: entry.message.slice(0, 240),
+          timestamp: entry.timestamp,
+        })).catch((error) => console.warn('[Agent progress persistence]', error instanceof Error ? error.message : 'Unknown error'));
+      } catch (error) {
+        console.warn('[Agent progress persistence]', error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
   };
 
   try {
@@ -166,8 +183,23 @@ export async function executeAgentPipeline(request: OrchestrationRequest): Promi
     );
 
     // 5. EXECUTION
-    const providerId = request.modelConfig?.provider || 'gemini';
-    const modelId = request.modelConfig?.modelId || 'gemini-3.8-flash';
+    const requestedProvider = request.modelConfig?.provider;
+    const autoRoute = !requestedProvider || requestedProvider === 'auto';
+    let providerId = requestedProvider && requestedProvider !== 'auto' ? requestedProvider : 'gemini';
+    let modelId = request.modelConfig?.modelId || 'gemini-3.8-flash';
+    let provider: AIProvider;
+    if (autoRoute) {
+      const routed = modelRouter.routeForTask(
+        request.taskPrompt.toLowerCase().includes('research') || request.taskPrompt.toLowerCase().includes('sources')
+          ? 'research'
+          : 'chat'
+      );
+      provider = routed.provider;
+      providerId = routed.provider.id;
+      modelId = routed.model.id;
+    } else {
+      provider = modelRouter.getProvider(providerId);
+    }
     addLog('execution', `Dispatched prompt and instructions to ${providerId} (${modelId}). Awaiting generation...`, {
       provider: providerId,
       model: modelId,
@@ -191,9 +223,10 @@ ${formattedMemories || 'No specific memory overrides.'}
 ### OPERATIONAL DIRECTIVE:
 Execute with discipline and high craft. Do not invent external keys, URLs, or repository states. If you recommend new action items or detect durable user preferences, formulate them clearly.`;
 
-    const provider = modelRouter.getProvider(providerId);
-
-    const providerResponse = await provider.generate({
+    const providerStartedAt = Date.now();
+    let providerResponse: GenerateResult;
+    try {
+      providerResponse = await provider.generate({
       prompt: request.taskPrompt,
       systemInstruction: fullSystemInstruction,
       conversationHistory: request.context?.conversationHistory?.map((m) => ({
@@ -203,7 +236,13 @@ Execute with discipline and high craft. Do not invent external keys, URLs, or re
       modelId,
       temperature: request.modelConfig?.temperature ?? 0.4,
       maxTokens: request.modelConfig?.maxTokens,
-    });
+      });
+      if (!providerResponse.text.trim()) throw new Error('Selected model returned an empty response.');
+      modelRoutingTelemetry.record(modelId, true, Date.now() - providerStartedAt);
+    } catch (modelError) {
+      modelRoutingTelemetry.record(modelId, false, Date.now() - providerStartedAt);
+      throw modelError;
+    }
 
     // Execute planned tools based on generation analysis
     if (plannedTools.includes('task_manager') || (tools.includes('task_create') && lowerPrompt.includes('task'))) {

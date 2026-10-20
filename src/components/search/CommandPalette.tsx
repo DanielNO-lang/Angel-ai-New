@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Search,
   CheckSquare,
@@ -57,7 +58,7 @@ export const CommandPalette: React.FC = () => {
     settings,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'tasks' | 'memories' | 'chats' | 'agents' | 'projects'>('all');

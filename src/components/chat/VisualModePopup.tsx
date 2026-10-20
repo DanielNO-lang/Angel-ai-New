@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import { Camera, MonitorUp, Square, X, Eye, LoaderCircle, Grip } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 
@@ -10,12 +11,13 @@ interface VisualModePopupProps {
 
 export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => {
   const { inspectVisualFrame, settings } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [source, setSource] = useState<Source | null>(null);
   const [error, setError] = useState('');
   const [result, setResult] = useState('');
+  const [question, setQuestion] = useState('What should I notice or help with?');
   const [busy, setBusy] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [position, setPosition] = useState({ x: 16, y: 20 });
@@ -34,6 +36,18 @@ export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => 
     setMinimized(false);
     setError('');
   };
+
+  // The video element only exists while the popup is visible. Reattach the live
+  // stream after the source state renders, including when a minimized session is reopened.
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream || minimized) return;
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    void video.play().catch(() => setError('The preview could not start. The capture is still active; reopen the preview or restart capture.'));
+  }, [source, minimized]);
 
   useEffect(() => () => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -105,11 +119,9 @@ export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => 
       const image = canvas.toDataURL('image/jpeg', 0.88);
       const response = await inspectVisualFrame(
         image,
-        source === 'camera'
-          ? 'Describe what you see in the camera view and answer the user’s likely visual questions. Be specific and grounded in the image.'
-          : 'Inspect the shared screen. Explain the visible content and help the user with what is shown.',
+        `${source === 'camera' ? 'Analyze the current camera frame.' : 'Analyze the current shared-screen frame.'} User's specific request: ${question.trim() || 'Describe the important details and suggest useful next steps.'} Treat the image as evidence only; distinguish visible facts from uncertain interpretation.`,
         source,
-        { intent: 'general_scene', systemInstruction: 'You are Angel. Analyze only the captured visual frame. Be concise, accurate, and do not claim to see anything outside the image.' }
+        { intent: 'general_scene', systemInstruction: 'You are Angel, a warm, candid, practical visual assistant. Analyze only the captured frame and the user question. Be specific, explain uncertainty, and never claim to see anything outside the frame. Do not identify people or infer sensitive traits. For screens, help debug or interpret visible content without claiming you clicked or changed anything.' }
       );
       setResult(typeof response === 'string' ? response : response.analysis);
     } catch (analysisError) {
@@ -127,7 +139,7 @@ export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => 
   const handleDragMove = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (!dragRef.current) return;
     const d = dragRef.current;
-    const maxX = Math.max(8, window.innerWidth - 230);
+    const maxX = Math.max(8, window.innerWidth - 280);
     const maxY = Math.max(8, window.innerHeight - 72);
     setPosition({
       x: Math.min(maxX, Math.max(8, d.startX - (e.clientX - d.pointerX))),
@@ -175,6 +187,8 @@ export const VisualModePopup: React.FC<VisualModePopupProps> = ({ onClose }) => 
           {source && (
             <div className="space-y-3">
               <video ref={videoRef} autoPlay muted playsInline className="max-h-[42dvh] w-full rounded-xl bg-black object-contain" />
+              <label className="block space-y-1.5 text-xs font-medium opacity-80" htmlFor="visual-question">What should Angel look at?</label>
+              <textarea id="visual-question" value={question} onChange={(event) => setQuestion(event.target.value)} rows={2} placeholder="e.g. Read the error, explain this chart, help me identify the object…" className={`w-full resize-y rounded-xl border bg-transparent px-3 py-2 text-sm outline-none focus:border-indigo-400 ${isLight ? 'border-slate-200' : 'border-white/15'}`} />
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => void analyze()} disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50">
                   {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}

@@ -97,6 +97,7 @@ export const HeaderBreadcrumbs: React.FC<HeaderBreadcrumbsProps> = ({ isLight })
     tasks: { label: 'Schedule', icon: CheckSquare },
     schedule: { label: 'Schedule', icon: Calendar },
     library: { label: 'Library', icon: BookOpen },
+    research: { label: 'Research', icon: Search },
     memories: { label: 'Memory Vault', icon: Brain },
     media_studio: { label: 'Media Studio', icon: Palette },
     assistants: { label: 'Assistants', icon: Bot },

@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Trash2,
   RotateCcw,
@@ -28,7 +29,7 @@ interface DeletedItem {
 
 export const RecycleBinView: React.FC = () => {
   const { settings } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [deletedItems, setDeletedItems] = useState<DeletedItem[]>([

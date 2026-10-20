@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   BookOpen,
   Search,
@@ -37,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { LibraryCategory, LibraryItem } from '../../types';
+import { PersistentArtifactsPanel } from './PersistentArtifactsPanel';
 
 export const LibraryView: React.FC = () => {
   const {
@@ -55,7 +57,7 @@ export const LibraryView: React.FC = () => {
     setMobileMenuOpen,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -167,6 +169,7 @@ export const LibraryView: React.FC = () => {
       }`}
     >
       <div className="max-w-7xl mx-auto space-y-6">
+        <PersistentArtifactsPanel isLight={isLight} />
         {/* Sticky Header Bar with open sidebar icon on mobile/tablet */}
         <div
           className={`sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3.5 border-b transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs backdrop-blur-xl ${

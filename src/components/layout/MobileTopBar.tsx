@@ -6,8 +6,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
-  Menu,
+  ArrowLeft,
   Search,
   Minus,
   Maximize2,
@@ -37,7 +38,7 @@ export const MobileTopBar: React.FC = () => {
     settings,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
   const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -61,6 +62,7 @@ export const MobileTopBar: React.FC = () => {
     tasks: { label: 'Tasks', icon: CheckSquare },
     projects: { label: 'Projects', icon: FolderGit2 },
     memories: { label: 'Memory', icon: Brain },
+    research: { label: 'Research', icon: Search },
     media_studio: { label: 'Media Studio', icon: Palette },
     assistants: { label: 'Assistants', icon: Users },
     settings: { label: 'Settings', icon: Settings },
@@ -84,10 +86,10 @@ export const MobileTopBar: React.FC = () => {
           className={`p-2 rounded-xl transition-colors cursor-pointer ${
             isLight ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-white/10 text-neutral-300'
           }`}
-          aria-label="Open navigation drawer"
-          title="Open Menu"
+          aria-label="Back to navigation menu"
+          title="Back to menu"
         >
-          <Menu className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5" />
         </button>
 
         <div

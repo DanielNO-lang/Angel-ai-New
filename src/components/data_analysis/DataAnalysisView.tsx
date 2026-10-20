@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   BarChart3,
   Upload,
@@ -83,7 +84,7 @@ export const DataAnalysisView: React.FC = () => {
     projects,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Datasets state
   const [datasets, setDatasets] = useState<Dataset[]>(() => getSavedDatasets());

@@ -9,6 +9,7 @@
  */
 
 import React, { useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Users,
   Bot,
@@ -57,7 +58,7 @@ export const AssistantsView: React.FC = () => {
     settings,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   const [selectedAssistantId, setSelectedAssistantId] = useState<string>(assistantsList[0]?.id || 'asst-atlas');
   const [activeTab, setActiveSubTab] = useState<'configure' | 'testing' | 'history' | 'lifecycle'>('configure');

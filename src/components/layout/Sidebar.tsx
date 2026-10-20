@@ -22,6 +22,7 @@
  */
 
 import React, { useState, useRef } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import { motion } from 'motion/react';
 import {
   Bot,
@@ -86,7 +87,7 @@ export const Sidebar: React.FC = () => {
     isIncognitoActive,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Full-page hover-expand state on closed sidebar (per user specification)
   const [isHoverExpanded, setIsHoverExpanded] = useState(false);
@@ -141,6 +142,7 @@ export const Sidebar: React.FC = () => {
     icon: React.FC<{ className?: string }>;
     tabTarget?: NavigationTab;
     onClickCustom?: () => void;
+    badge?: string;
   }> = [
     { id: 'chat', label: 'Chat', icon: MessageSquare, tabTarget: 'chat' },
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
@@ -157,6 +159,7 @@ export const Sidebar: React.FC = () => {
     { id: 'agent_lab', label: 'Agent Lab', icon: Bot, tabTarget: 'agent_lab' },
     { id: 'projects', label: 'Projects', icon: FolderGit2, tabTarget: 'projects' },
     { id: 'library', label: 'Library', icon: BookOpen, tabTarget: 'library' },
+    { id: 'research', label: 'Research', icon: Search, tabTarget: 'research' },
     { id: 'tasks', label: 'Schedule', icon: Calendar, tabTarget: 'tasks' },
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
     { id: 'more', label: 'More', icon: MoreHorizontal, tabTarget: 'more' },
@@ -172,6 +175,7 @@ export const Sidebar: React.FC = () => {
   }> = [
     { id: 'media_studio', label: 'Media Studios', icon: ImageIcon, tabTarget: 'media_studio' },
     { id: 'library', label: 'Library', icon: BookOpen, onClickCustom: redirectToSignIn },
+    { id: 'research', label: 'Research', icon: Search, onClickCustom: redirectToSignIn },
     { id: 'projects', label: 'Projects', icon: FolderGit2, onClickCustom: redirectToSignIn },
     { id: 'tasks', label: 'Schedule', icon: Calendar, onClickCustom: redirectToSignIn },
   ];
@@ -249,41 +253,21 @@ export const Sidebar: React.FC = () => {
         onPointerLeave={handleMouseLeaveRail}
         style={{
           width: effectiveExpanded ? 240 : 60,
-          transition: 'width 0ms linear',
+          position: isSidebarCollapsed && isHoverExpanded ? 'fixed' : 'relative',
+          zIndex: isSidebarCollapsed && isHoverExpanded ? 60 : 40,
+          left: 0,
+          top: 0,
+          bottom: 0,
+          transition: 'width 120ms ease-out',
           willChange: 'width',
         }}
-        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-2xl ${
+        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-40 border-r backdrop-blur-2xl ${
           isLight
             ? 'border-slate-200/60 bg-white/40 text-slate-800'
             : 'border-white/10 bg-white/[0.03] text-neutral-200 shadow-2xl'
         }`}
       >
-        {/* Angel Backdrop Integration — Carries the left portion of the Angel artwork seamlessly */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 select-none">
-          <img
-            src={angelBackdropImg}
-            alt=""
-            aria-hidden="true"
-            className={`w-[100vw] h-full max-w-none object-cover object-left select-none transition-opacity duration-500 ${
-              isLight
-                ? 'opacity-20 mix-blend-multiply filter contrast-125 saturate-110'
-                : 'opacity-70 mix-blend-screen filter brightness-105 contrast-125'
-            }`}
-          />
-          <div
-            className={`absolute inset-0 backdrop-blur-2xl ${
-              isLight ? 'bg-[#F4F6FC]/60' : 'bg-[#060813]/60'
-            }`}
-          />
-          <div
-            className="absolute -top-[10%] -left-[20%] w-[120%] h-[50%] rounded-full pointer-events-none blur-[60px]"
-            style={{
-              background: isLight
-                ? 'radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, transparent 70%)'
-                : 'radial-gradient(circle, rgba(56, 189, 248, 0.18) 0%, rgba(99, 102, 241, 0.12) 50%, transparent 70%)',
-            }}
-          />
-        </div>
+        <div aria-hidden="true" className={`absolute inset-0 -z-10 pointer-events-none ${isLight ? 'bg-white/90' : 'bg-[#060813]/90'}`} />
 
         {/* ========================================================
             1. FIXED (UNSCROLLABLE) TOP REGION

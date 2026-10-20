@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Puzzle,
   Search,
@@ -37,7 +38,7 @@ import {
 
 export const PluginsView: React.FC = () => {
   const { settings } = useAngel();
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
 
   // Plugins state
   const [plugins, setPlugins] = useState<PluginDefinition[]>(() => getSavedPlugins());

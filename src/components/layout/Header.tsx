@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Bell,
   Menu,
@@ -54,7 +55,7 @@ export const Header: React.FC = () => {
     toggleFocusMode,
   } = useAngel();
 
-  const isLight = settings.theme === 'light';
+  const isLight = useIsLightTheme(settings.theme);
   const [hasUnreadNotification, setHasUnreadNotification] = useState(true);
   const [showToast, setShowToast] = useState<string | null>(null);
 
