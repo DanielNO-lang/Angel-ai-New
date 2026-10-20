@@ -40,7 +40,6 @@ export const AuthPage: React.FC = () => {
     setAuthPageMode,
     signIn,
     signUp,
-    signInWithExecutivePass,
     signOut,
     requestPasswordRecovery,
     authError,
