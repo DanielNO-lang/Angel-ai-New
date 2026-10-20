@@ -39,19 +39,23 @@ The already-integrated translation adapter calls a configured OpenAI-compatible 
 
 ## 3. Google ADK Python runtime
 
-The repository now includes a separate FastAPI service in `python/adk_service`. It uses Google ADK's `Agent` and `InMemoryRunner`, and exposes an authenticated `POST /run` contract. Deploy that service to a container runtime such as Cloud Run, not as part of the Netlify function.
+The repository includes a separate FastAPI service in `python/adk_service` built around Google ADK 2.0's multi-agent `Agent`/ `Runner` runtime. It exposes an authenticated `POST /run` contract with request-scoped MCP tools and durable-session support. Deploy that service to a container runtime such as Cloud Run, not as part of the Netlify function.
 
-Set on the ADK service:
+Set on the external ADK service:
 - `ANGEL_ADK_SERVICE_TOKEN`: strong shared service token
 - `GOOGLE_API_KEY`: Google AI API key for the selected model
+- `ANGEL_ADK_MCP_SERVER_URL=https://angel-ai-new.netlify.app/api/mcp`: authenticated Angel MCP URL
 - optionally `ANGEL_ADK_APP_NAME`, `ANGEL_ADK_MODEL`
+- `ANGEL_ADK_DATABASE_URL`: optional SQLAlchemy async database URL, recommended for multi-instance durable sessions, e.g. `postgresql+asyncpg://...`. Store it in the service's secret manager, not in Git.
+
+If `ANGEL_ADK_DATABASE_URL` is absent, the service explicitly reports an in-memory single-instance session mode. Configure a reachable PostgreSQL database before using durable sessions across restarts or multiple instances.
 
 Set in Netlify:
 - `ANGEL_ADK_RUN_URL`: exact deployed `/run` URL
 - `ANGEL_ADK_API_KEY`: same token as `ANGEL_ADK_SERVICE_TOKEN`
 - optionally `ANGEL_ADK_APP_NAME`
 
-The example runner uses in-memory ADK sessions and is suitable for a first deployment/proof of connection, not horizontally scaled durable sessions. Before production multi-instance use, replace it with an ADK persistent SessionService and durable session mapping.
+For each authenticated ADK request, Angel forwards the current user's Supabase access token over HTTPS to the ADK service. The ADK service attaches it only as the Authorization header for that request's MCP connection, filters out `angel_adk_run` to avoid recursion, and does not store the token in the ADK session. Configure both the Netlify project origin and Supabase auth policy before enabling the MCP-backed agent. The user JWT and the shared ADK service token are separate credentials.
 
 Authenticated API use:
 ```http
