@@ -1,75 +1,66 @@
-# Enable Google Sign-In for Angel AI
+# Google Sign-In configuration for Angel AI New
 
-This guide applies to the Angel Supabase project `qltiogotxbxwzwmnypwu` and the production web app `https://angel-ai-new.netlify.app/`.
+This setup is for the active Supabase project Angel (qltiogotxbxwzwmnypwu) and Netlify production origin https://angel-ai-new.netlify.app.
 
-## What the application already does
+## 1. Google Cloud OAuth client
 
-- Uses the Supabase browser client with the `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` environment variables.
-- Starts OAuth with `supabase.auth.signInWithOAuth({ provider: 'google' })`.
-- Redirects back to the production site root.
-- Handles Supabase sign-in state and stores safe profile fields in `public.profiles` under the signed-in user's own-row RLS policy.
+Open [Google Auth Platform → Clients](https://console.cloud.google.com/auth/clients) in the Google Cloud project whose OAuth Client ID is configured in Supabase.
 
-Supabase Auth creates the identity in `auth.users` when the Google OAuth flow succeeds. The app separately mirrors safe account details into `public.profiles`.
+The OAuth client must be of type **Web application**.
 
-## Required provider configuration
+Under **Authorized JavaScript origins**, add:
 
-Google's OAuth client credentials must be created in the owner's Google Cloud project. Do not put the Google Client Secret in frontend code, GitHub, chat, or Vercel client-side environment variables.
+    https://angel-ai-new.netlify.app
 
-### 1. Create a Google OAuth client
+Under **Authorized redirect URIs**, add this exact URI:
 
-Open the [Google Auth Platform Clients page](https://console.cloud.google.com/auth/clients) and create an OAuth client ID of type **Web application**.
+    https://qltiogotxbxwzwmnypwu.supabase.co/auth/v1/callback
 
-Add this under **Authorized JavaScript origins**:
+**Important:** the Authorized redirect URI for Google is the Supabase callback URL above, not the Netlify app URL and not /auth/callback. Google returns the provider response to Supabase first; Supabase then redirects the browser back to Angel.
 
-```text
-https://angel-ai-new.netlify.app
-```
+Save the client.
 
-Add this under **Authorized redirect URIs**:
+## 2. Supabase Google provider
 
-```text
-https://qltiogotxbxwzwmnypwu.supabase.co/auth/v1/callback
-```
+Open [Angel → Authentication → Sign In / Providers → Google](https://supabase.com/dashboard/project/qltiogotxbxwzwmnypwu/auth/providers?provider=Google).
 
-Save the generated **Client ID** and **Client Secret** privately.
+- Enable Google.
+- Verify that the **Client ID** matches the Google OAuth client you just edited.
+- Enter its matching **Client Secret** in Supabase.
+- Save the provider configuration.
 
-### 2. Enable Google in Supabase Auth
+Do not put the Google Client Secret in browser code, the repository, GitHub issues, or chat.
 
-Open the [Angel Google provider settings](https://supabase.com/dashboard/project/qltiogotxbxwzwmnypwu/auth/providers?provider=Google).
+## 3. Supabase redirect allowlist
 
-- Enable the Google provider.
-- Paste the Google **Client ID** and **Client Secret** from step 1.
-- Save.
-
-### 3. Allow the application redirect
-
-Open [Angel Auth URL Configuration](https://supabase.com/dashboard/project/qltiogotxbxwzwmnypwu/auth/url-configuration).
+Open [Angel → Authentication → URL Configuration](https://supabase.com/dashboard/project/qltiogotxbxwzwmnypwu/auth/url-configuration).
 
 Set **Site URL** to:
 
-```text
-https://angel-ai-new.netlify.app
-```
+    https://angel-ai-new.netlify.app
 
-Add this to **Redirect URLs**:
+Add this exact production callback to **Redirect URLs**:
 
-```text
-https://angel-ai-new.netlify.app/**
-```
+    https://angel-ai-new.netlify.app/auth/callback
 
-If Google Auth is left in **Testing** mode, add the intended testing accounts as test users on the Google consent-screen/audience configuration. For public launch, finish the relevant Google consent-screen setup.
+For other in-app return paths, the production-only wildcard may be used instead:
 
-## Verify
+    https://angel-ai-new.netlify.app/**
 
-1. Open https://angel-ai-new.netlify.app and choose **Continue with Google**.
-2. Complete the Google consent flow.
-3. Confirm the browser returns to Angel and the account appears as signed in.
-4. In Supabase, open **Authentication → Users** and confirm that the identity was created.
-5. Check `public.profiles` for that user's UUID. The app attempts this insert/update with the active session; if its own-row RLS policy rejects it, sign-in remains active and the sync warning is logged to the browser console.
+## 4. Diagnose Error 400: redirect_uri_mismatch
 
-## Common failures
+That error is issued by Google before Supabase can complete sign-in. The app code alone cannot authorize a redirect URI in Google Cloud. In Google Auth Platform → Clients, open the **same Client ID shown in Supabase's Google provider settings** and make the Authorized redirect URIs match the exact Supabase callback above.
 
-- **Provider disabled / unsupported provider:** enable Google in Supabase and save the client ID/secret.
-- **redirect_uri_mismatch on Google:** ensure the authorized redirect URI is exactly the Supabase callback URL above.
-- **redirect URL not allowed by Supabase:** add the deployed app URL to Auth URL Configuration.
-- **App still shows an old result:** hard-refresh the browser and retry after saving the provider settings.
+If the error persists after saving, open the Google error details and compare the exact redirect_uri shown there character for character with the configured value. Check for a different Google OAuth Client ID, a stale client secret/client pairing, a wrong Supabase project reference, or a missing callback URI. Do not guess a replacement URI.
+
+If Google's consent screen is in Testing mode, also include the Google account as a test user.
+
+## 5. Verification checklist
+
+1. Open https://angel-ai-new.netlify.app in a normal browser tab, not only an embedded AI Studio preview.
+2. Choose **Continue with Google** and select an account.
+3. Confirm that Google returns to the exact production URL and Angel shows the signed-in profile.
+4. Confirm that the identity appears in Supabase Authentication → Users.
+5. Confirm a new chat request succeeds and then reload the page to check session persistence.
+
+A successful build does not prove provider credentials or redirect allowlists are correct. End-to-end sign-in remains **unverified until a real browser test succeeds**.
