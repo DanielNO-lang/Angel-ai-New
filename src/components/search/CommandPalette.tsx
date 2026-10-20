@@ -11,7 +11,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useIsLightTheme } from '../utils/useIsLightTheme';
+import { useIsLightTheme } from '../../utils/useIsLightTheme';
 import {
   Search,
   CheckSquare,
