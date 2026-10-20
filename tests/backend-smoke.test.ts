@@ -192,6 +192,11 @@ test('Angel backend smoke contract', async (t) => {
   const artifacts = await fetch(`${baseUrl}/api/media/artifacts`);
   assert.equal(artifacts.status, 401, 'private media must require a verified user');
 
+  const unauthenticatedDelete = await fetch(`${baseUrl}/api/supabase/sync-entity/library_item/lib-test-1`, {
+    method: 'DELETE',
+  });
+  assert.equal(unauthenticatedDelete.status, 401, 'workspace deletion must require verified user authentication');
+
   const translationStatus = await fetch(`${baseUrl}/api/translation/status`);
   assert.equal(translationStatus.status, 200);
   const translationStatusBody = await translationStatus.json() as { provider?: string; model?: string; endpointConfigured?: boolean };
