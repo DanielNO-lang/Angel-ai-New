@@ -112,18 +112,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(401).json({ error: 'Sign in to synchronize your workspace.' });
     }
 
-    // Sovereign executive session tokens are directly valid
-    if (accessToken.startsWith('angel_')) {
-      const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-      (req as any).angelAuth = {
-        userId: '8da72a15-8909-410b-97e1-38709930d60d',
-        accessToken,
-        client: adminClient,
-        isExecutive: true,
-      };
-      return next();
-    }
-
     const client = getSupabaseClientForUser(accessToken);
     if (!client) {
       return res.status(503).json({ error: 'Supabase authentication is not configured on the server.' });
@@ -146,17 +134,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const header = req.headers.authorization || '';
     const accessToken = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
     if (!accessToken) return next();
-
-    if (accessToken.startsWith('angel_')) {
-      const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-      (req as any).angelAuth = {
-        userId: '8da72a15-8909-410b-97e1-38709930d60d',
-        accessToken,
-        client: adminClient,
-        isExecutive: true,
-      };
-      return next();
-    }
 
     const client = getSupabaseClientForUser(accessToken);
     if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured on the server.' });
@@ -1619,122 +1596,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  // Fast-track / verified Google account authorization for device/executive accounts
-  app.post('/api/auth/google/verify-or-create', rateLimit(20), async (req: Request, res: Response) => {
-    const { email, name, avatarUrl } = req.body || {};
-    const cleanEmail = typeof email === 'string' && email.includes('@')
-      ? email.trim().toLowerCase()
-      : 'danielokohnwachukwu22@gmail.com';
-    const cleanName = typeof name === 'string' && name.trim() ? name.trim() : 'Daniel Nwachukwu';
-
-    const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-    const authClient = getSupabaseAuthClient();
-    if (!adminClient || !authClient) {
-      return res.status(503).json({ error: 'Supabase service is unavailable.' });
-    }
-
-    try {
-      let targetUser: any = null;
-      const { data: usersData } = await adminClient.auth.admin.listUsers();
-      targetUser = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-
-      const fixedPassword = `AngelAuth_${createHash('sha256').update(cleanEmail + '_angel_auth_salt').digest('hex').slice(0, 16)}!`;
-
-      if (!targetUser) {
-        const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
-          email: cleanEmail,
-          password: fixedPassword,
-          email_confirm: true,
-          user_metadata: {
-            name: cleanName,
-            full_name: cleanName,
-            avatar_url: avatarUrl || 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-          },
-        });
-        if (createError) throw createError;
-        targetUser = createData.user;
-      } else {
-        // Ensure email is confirmed and password synchronized
-        await adminClient.auth.admin.updateUserById(targetUser.id, {
-          email_confirm: true,
-          password: fixedPassword,
-          user_metadata: {
-            ...targetUser.user_metadata,
-            name: cleanName,
-            full_name: cleanName,
-            avatar_url: avatarUrl || targetUser.user_metadata?.avatar_url || 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-          },
-        });
-      }
-
-      // Generate active session
-      let { data: sessionData, error: signinError } = await authClient.auth.signInWithPassword({
-        email: cleanEmail,
-        password: fixedPassword,
-      });
-
-      if (signinError || !sessionData?.session) {
-        // Fallback: update password again and retry
-        await adminClient.auth.admin.updateUserById(targetUser.id, { password: fixedPassword, email_confirm: true });
-        const retry = await authClient.auth.signInWithPassword({ email: cleanEmail, password: fixedPassword });
-        sessionData = retry.data;
-      }
-
-      const activeToken = sessionData?.session?.access_token || `angel_jwt_${targetUser.id}_${Date.now()}`;
-      const refreshToken = sessionData?.session?.refresh_token || null;
-
-      const profile = {
-        id: targetUser.id,
-        name: cleanName,
-        email: cleanEmail,
-        avatarUrl: avatarUrl || targetUser.user_metadata?.avatar_url || 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-        title: 'Executive Commander',
-        role: 'user' as const,
-        createdAt: targetUser.created_at || new Date().toISOString(),
-      };
-
-      // Persist profile in public.profiles table
-      try {
-        await adminClient.from('profiles').upsert({
-          id: targetUser.id,
-          name: cleanName,
-          email: cleanEmail,
-          initials: cleanName.split(' ').map((p: string) => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'DN',
-          plan: 'Pro',
-          status: 'online',
-          avatar_url: profile.avatarUrl,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-      } catch {}
-
-      return res.json({
-        success: true,
-        profile,
-        token: activeToken,
-        refreshToken,
-      });
-    } catch (err) {
-      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
-  });
 
   app.get('/api/auth/session', requireSupabaseUser, async (req: Request, res: Response) => {
     try {
       const auth = (req as any).angelAuth;
-      if (auth.isExecutive) {
-        return res.json({
-          authenticated: true,
-          profile: {
-            id: '8da72a15-8909-410b-97e1-38709930d60d',
-            name: 'Daniel Nwachukwu',
-            email: 'danielokohnwachukwu22@gmail.com',
-            role: 'user',
-            title: 'Executive Commander',
-            status: 'online',
-            avatarUrl: 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-          },
-        });
-      }
       const { data, error } = await auth.client.auth.getUser(auth.accessToken);
       if (error || !data.user) return res.status(401).json({ authenticated: false, error: 'Session expired or invalid.' });
       return res.json({ authenticated: true, profile: profileFromAuthUser(data.user) });
