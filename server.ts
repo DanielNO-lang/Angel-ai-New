@@ -9,10 +9,10 @@
  */
 
 import express, { Express, Request, Response, NextFunction } from 'express';
-import path from 'path';
 import { createHash } from 'node:crypto';
 import { executeAgentPipeline } from './server/orchestrator';
 import { providerRegistry } from './server/providers';
+import { BUILD_COMMIT_SHA } from './server/buildMeta';
 import { getSupabaseServerStatus, getSupabaseAuthClient, getSupabaseAdminClient, getSupabaseClient, getSupabaseClientForUser, getTasksVelocity, syncTasksToSupabase, syncAllEntitiesToSupabase, getSupabaseDDL } from './server/supabase_service';
 import { automationService, AutomationEventType } from './server/services/automationService';
 import { dispatchZapierEvent } from './server/zapier_service';
@@ -112,18 +112,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(401).json({ error: 'Sign in to synchronize your workspace.' });
     }
 
-    // Sovereign executive session tokens are directly valid
-    if (accessToken.startsWith('angel_')) {
-      const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-      (req as any).angelAuth = {
-        userId: '8da72a15-8909-410b-97e1-38709930d60d',
-        accessToken,
-        client: adminClient,
-        isExecutive: true,
-      };
-      return next();
-    }
-
     const client = getSupabaseClientForUser(accessToken);
     if (!client) {
       return res.status(503).json({ error: 'Supabase authentication is not configured on the server.' });
@@ -146,17 +134,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const header = req.headers.authorization || '';
     const accessToken = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
     if (!accessToken) return next();
-
-    if (accessToken.startsWith('angel_')) {
-      const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-      (req as any).angelAuth = {
-        userId: '8da72a15-8909-410b-97e1-38709930d60d',
-        accessToken,
-        client: adminClient,
-        isExecutive: true,
-      };
-      return next();
-    }
 
     const client = getSupabaseClientForUser(accessToken);
     if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured on the server.' });
@@ -212,7 +189,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       status: 'ok',
       workspace: 'Angel AI',
       timestamp: new Date().toISOString(),
-      commitSha: process.env.COMMIT_REF || process.env.GITHUB_SHA || null,
+      commitSha: process.env.COMMIT_REF || process.env.NETLIFY_COMMIT_REF || process.env.GITHUB_SHA || BUILD_COMMIT_SHA,
       supabase,
       providers,
       environment: process.env.NODE_ENV || 'development',
@@ -323,6 +300,46 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // Owner-scoped hard deletion for mutations queued offline. Table names are allowlisted.
+  app.delete('/api/supabase/sync-entity/:entity/:id', requireSupabaseUser, rateLimit(30), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
+    const entityTables: Record<string, string> = {
+      task: 'tasks',
+      memory: 'memories',
+      project: 'projects',
+      conversation: 'conversations',
+      message: 'messages',
+      library_item: 'library_items',
+      workflow: 'workflows',
+      agent: 'agents',
+    };
+    const table = entityTables[String(req.params.entity || '')];
+    const id = String(req.params.id || '');
+    if (!table || !/^[A-Za-z0-9_-]{1,180}$/.test(id)) {
+      return res.status(400).json({ success: false, error: 'Unsupported entity or invalid record ID.' });
+    }
+
+    try {
+      const { data, error } = await auth.client
+        .from(table)
+        .delete()
+        .eq('id', id)
+        .eq('user_id', auth.userId)
+        .select('id');
+      if (error) {
+        console.error('[API /api/supabase/sync-entity delete]', {
+          entity: req.params.entity,
+          message: error.message,
+        });
+        return res.status(400).json({ success: false, error: 'The record could not be deleted from the connected workspace.' });
+      }
+      return res.json({ success: true, deleted: Array.isArray(data) ? data.length : 0 });
+    } catch (err) {
+      console.error('[API /api/supabase/sync-entity delete]', err);
+      return res.status(500).json({ success: false, error: 'Workspace deletion failed. Please retry.' });
     }
   });
 
@@ -1352,96 +1369,39 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (typeof email !== 'string' || !email.includes('@') || typeof password !== 'string' || password.length < 6) {
       return res.status(400).json({ error: 'A valid email and password of at least 6 characters are required.' });
     }
+
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = typeof name === 'string' && name.trim() ? name.trim() : cleanEmail.split('@')[0];
-
-    const adminClient = getSupabaseAdminClient() || getSupabaseClient();
     const authClient = getSupabaseAuthClient();
     if (!authClient) return res.status(503).json({ error: 'Supabase Auth is not configured on the server.' });
 
     try {
-      let createdUserId: string | null = null;
-      if (adminClient) {
-        const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
-          email: cleanEmail,
-          password,
-          email_confirm: true,
-          user_metadata: { name: cleanName, full_name: cleanName },
-        });
-
-        if (createData?.user?.id) {
-          createdUserId = createData.user.id;
-        } else if (createError && (createError.message?.toLowerCase().includes('already') || createError.status === 422)) {
-          // If the email was already registered, update their password & confirm their email so they can sign in immediately
-          const { data: usersData } = await adminClient.auth.admin.listUsers();
-          const existingUser = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-          if (existingUser) {
-            createdUserId = existingUser.id;
-            await adminClient.auth.admin.updateUserById(existingUser.id, {
-              password,
-              email_confirm: true,
-              user_metadata: { name: cleanName, full_name: cleanName },
-            });
-          }
-        }
-      }
-
-      // Now establish an active session via signInWithPassword
-      let { data: sessionData, error: signinError } = await authClient.auth.signInWithPassword({
+      // Public sign-up must never use admin APIs to modify an existing account or bypass email confirmation.
+      const { data, error } = await authClient.auth.signUp({
         email: cleanEmail,
         password,
+        options: { data: { name: cleanName, full_name: cleanName } },
       });
+      if (error) return res.status(400).json({ error: error.message });
+      if (!data.user) return res.status(400).json({ error: 'Supabase did not return a new account.' });
 
-      // If signin fails due to email not confirmed, use admin client to confirm it and retry
-      if (signinError && adminClient && (signinError.message?.toLowerCase().includes('not confirmed') || (signinError as any).code === 'email_not_confirmed')) {
-        const { data: usersData } = await adminClient.auth.admin.listUsers();
-        const userToConfirm = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-        if (userToConfirm) {
-          await adminClient.auth.admin.updateUserById(userToConfirm.id, { email_confirm: true });
-          const retry = await authClient.auth.signInWithPassword({ email: cleanEmail, password });
-          sessionData = retry.data;
-          signinError = retry.error;
-        }
-      }
-
-      if (signinError || !sessionData?.session || !sessionData?.user) {
-        // Fallback: if signInWithPassword cannot generate session directly, try standard signUp
-        const { data: fallbackSignUp, error: fallbackError } = await authClient.auth.signUp({
-          email: cleanEmail,
-          password,
-          options: { data: { name: cleanName } },
-        });
-        if (fallbackError) return res.status(400).json({ error: fallbackError.message });
-        const fallbackProfile = fallbackSignUp.user ? profileFromAuthUser(fallbackSignUp.user) : { id: `usr_${Date.now()}`, name: cleanName, email: cleanEmail };
+      const profile = profileFromAuthUser(data.user);
+      if (!data.session) {
         return res.status(200).json({
-          success: true,
-          profile: fallbackProfile,
-          token: fallbackSignUp.session?.access_token || null,
-          refreshToken: fallbackSignUp.session?.refresh_token || null,
+          success: false,
+          requiresEmailConfirmation: true,
+          message: 'Your account request was received. Check your email to confirm your account, then sign in.',
+          profile,
+          token: null,
+          refreshToken: null,
         });
-      }
-
-      // Upsert profile in Supabase public.profiles table
-      const profile = profileFromAuthUser(sessionData.user);
-      if (adminClient) {
-        try {
-          await adminClient.from('profiles').upsert({
-            id: sessionData.user.id,
-            name: cleanName,
-            email: cleanEmail,
-            initials: cleanName.split(' ').map((p: string) => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU',
-            plan: 'Pro',
-            status: 'online',
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'id' });
-        } catch {}
       }
 
       return res.status(200).json({
         success: true,
         profile,
-        token: sessionData.session.access_token,
-        refreshToken: sessionData.session.refresh_token,
+        token: data.session.access_token,
+        refreshToken: data.session.refresh_token,
       });
     } catch (err) {
       return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
@@ -1458,25 +1418,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     if (!authClient) return res.status(503).json({ error: 'Supabase Auth is not configured on the server.' });
 
     try {
-      let { data, error } = await authClient.auth.signInWithPassword({
+      const { data, error } = await authClient.auth.signInWithPassword({
         email: cleanEmail,
         password,
       });
-
-      // Handle unconfirmed email gracefully by auto-confirming via admin client and retrying
-      if (error && (error.message?.toLowerCase().includes('email not confirmed') || (error as any).code === 'email_not_confirmed')) {
-        const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-        if (adminClient) {
-          const { data: usersData } = await adminClient.auth.admin.listUsers();
-          const user = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-          if (user) {
-            await adminClient.auth.admin.updateUserById(user.id, { email_confirm: true });
-            const retry = await authClient.auth.signInWithPassword({ email: cleanEmail, password });
-            data = retry.data;
-            error = retry.error;
-          }
-        }
-      }
 
       if (error || !data?.user || !data?.session) {
         return res.status(401).json({
@@ -1552,41 +1497,13 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   </div>
   <script>
     (function() {
-      var hash = window.location.hash || '';
-      var search = window.location.search || '';
-
-      // Persist directly to localStorage so any parent tab picks it up immediately via storage listener
-      try {
-        if (hash.indexOf('access_token=') !== -1) {
-          var params = new URLSearchParams(hash.substring(1));
-          var token = params.get('access_token');
-          var refresh = params.get('refresh_token');
-          if (token) {
-            localStorage.setItem('angel_auth_token', token);
-            localStorage.removeItem('angel_is_guest');
-            if (refresh) localStorage.setItem('angel_refresh_token', refresh);
-          }
-        }
-      } catch (err) {}
-
-      // Relay to opener window if opened in a popup
-      if (window.opener) {
-        try {
-          window.opener.postMessage({
-            type: 'ANGEL_OAUTH_CALLBACK',
-            hash: hash,
-            search: search
-          }, '*');
-        } catch (e) {}
-        setTimeout(function() {
-          window.close();
-        }, 400);
-      } else {
-        // If loaded in main frame / redirect, return to base application
-        setTimeout(function() {
-          window.location.href = '/' + hash;
-        }, 600);
-      }
+      // Let Supabase JS process the standard OAuth callback on the application origin.
+      // Preserve both PKCE query parameters (?code=...) and implicit-flow fragments
+      // without manually copying credentials or relaying tokens through postMessage.
+      var returnUrl = new URL('/', window.location.origin);
+      returnUrl.search = window.location.search || '';
+      returnUrl.hash = window.location.hash || '';
+      window.location.replace(returnUrl.toString());
     })();
   </script>
 </body>
@@ -1600,7 +1517,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
     const host = req.get('host') || 'localhost:3000';
     const proto = req.protocol === 'https' || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
-    const redirectUrl = `${proto}://${host}/auth/callback`;
+    const configuredOrigin = process.env.APP_URL?.trim();
+    let redirectUrl: string;
+    try {
+      // Prefer the configured canonical app origin over a request Host header.
+      // This keeps OAuth redirects stable on Netlify and avoids Host-header-derived URLs.
+      const origin = configuredOrigin ? new URL(configuredOrigin).origin : `${proto}://${host}`;
+      redirectUrl = new URL('/auth/callback', origin).toString();
+    } catch {
+      return res.status(500).json({ error: 'APP_URL must be a valid absolute application URL.' });
+    }
 
     try {
       const { data, error } = await authClient.auth.signInWithOAuth({
@@ -1619,122 +1545,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  // Fast-track / verified Google account authorization for device/executive accounts
-  app.post('/api/auth/google/verify-or-create', rateLimit(20), async (req: Request, res: Response) => {
-    const { email, name, avatarUrl } = req.body || {};
-    const cleanEmail = typeof email === 'string' && email.includes('@')
-      ? email.trim().toLowerCase()
-      : 'danielokohnwachukwu22@gmail.com';
-    const cleanName = typeof name === 'string' && name.trim() ? name.trim() : 'Daniel Nwachukwu';
-
-    const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-    const authClient = getSupabaseAuthClient();
-    if (!adminClient || !authClient) {
-      return res.status(503).json({ error: 'Supabase service is unavailable.' });
-    }
-
-    try {
-      let targetUser: any = null;
-      const { data: usersData } = await adminClient.auth.admin.listUsers();
-      targetUser = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-
-      const fixedPassword = `AngelAuth_${createHash('sha256').update(cleanEmail + '_angel_auth_salt').digest('hex').slice(0, 16)}!`;
-
-      if (!targetUser) {
-        const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
-          email: cleanEmail,
-          password: fixedPassword,
-          email_confirm: true,
-          user_metadata: {
-            name: cleanName,
-            full_name: cleanName,
-            avatar_url: avatarUrl || 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-          },
-        });
-        if (createError) throw createError;
-        targetUser = createData.user;
-      } else {
-        // Ensure email is confirmed and password synchronized
-        await adminClient.auth.admin.updateUserById(targetUser.id, {
-          email_confirm: true,
-          password: fixedPassword,
-          user_metadata: {
-            ...targetUser.user_metadata,
-            name: cleanName,
-            full_name: cleanName,
-            avatar_url: avatarUrl || targetUser.user_metadata?.avatar_url || 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-          },
-        });
-      }
-
-      // Generate active session
-      let { data: sessionData, error: signinError } = await authClient.auth.signInWithPassword({
-        email: cleanEmail,
-        password: fixedPassword,
-      });
-
-      if (signinError || !sessionData?.session) {
-        // Fallback: update password again and retry
-        await adminClient.auth.admin.updateUserById(targetUser.id, { password: fixedPassword, email_confirm: true });
-        const retry = await authClient.auth.signInWithPassword({ email: cleanEmail, password: fixedPassword });
-        sessionData = retry.data;
-      }
-
-      const activeToken = sessionData?.session?.access_token || `angel_jwt_${targetUser.id}_${Date.now()}`;
-      const refreshToken = sessionData?.session?.refresh_token || null;
-
-      const profile = {
-        id: targetUser.id,
-        name: cleanName,
-        email: cleanEmail,
-        avatarUrl: avatarUrl || targetUser.user_metadata?.avatar_url || 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-        title: 'Executive Commander',
-        role: 'user' as const,
-        createdAt: targetUser.created_at || new Date().toISOString(),
-      };
-
-      // Persist profile in public.profiles table
-      try {
-        await adminClient.from('profiles').upsert({
-          id: targetUser.id,
-          name: cleanName,
-          email: cleanEmail,
-          initials: cleanName.split(' ').map((p: string) => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'DN',
-          plan: 'Pro',
-          status: 'online',
-          avatar_url: profile.avatarUrl,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-      } catch {}
-
-      return res.json({
-        success: true,
-        profile,
-        token: activeToken,
-        refreshToken,
-      });
-    } catch (err) {
-      return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
-  });
 
   app.get('/api/auth/session', requireSupabaseUser, async (req: Request, res: Response) => {
     try {
       const auth = (req as any).angelAuth;
-      if (auth.isExecutive) {
-        return res.json({
-          authenticated: true,
-          profile: {
-            id: '8da72a15-8909-410b-97e1-38709930d60d',
-            name: 'Daniel Nwachukwu',
-            email: 'danielokohnwachukwu22@gmail.com',
-            role: 'user',
-            title: 'Executive Commander',
-            status: 'online',
-            avatarUrl: 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-          },
-        });
-      }
       const { data, error } = await auth.client.auth.getUser(auth.accessToken);
       if (error || !data.user) return res.status(401).json({ authenticated: false, error: 'Session expired or invalid.' });
       return res.json({ authenticated: true, profile: profileFromAuthUser(data.user) });
@@ -2297,43 +2111,3 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   return app;
 }
 
-async function startServer() {
-  // In AI Studio and preview environments, the dev server must always listen on port 3000.
-  const PORT = 3000;
-  const app = await createApp();
-
-  // ============================================================================
-  // VITE / STATIC FILE SERVING
-  // ============================================================================
-  if (process.env.NODE_ENV !== 'production') {
-    // Load Vite only for the standalone development server. Keeping this as a
-    // dynamic import prevents serverless production functions from loading Vite's
-    const { createServer: createViteServer } = await import('vite');
-    const isHmrDisabled = process.env.DISABLE_HMR === 'true';
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: isHmrDisabled ? false : undefined,
-      },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Angel AI] Server listening on http://0.0.0.0:${PORT} (Node ${process.version})`);
-  });
-}
-
-// Avoid starting a listening server inside Netlify Functions or another serverless host.
-if (!process.env.NETLIFY) {
-  startServer().catch((err) => {
-    console.error('[Angel AI Server Fatal Startup Error]', err);
-  });
-}

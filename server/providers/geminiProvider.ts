@@ -39,6 +39,9 @@ export class GeminiProvider implements AIProvider {
       this.client = new GoogleGenAI({
         apiKey,
         httpOptions: {
+          // Keep a slow provider from exceeding Netlify's function request window.
+          // On timeout, generate()/stream() can use Angel's explicit local fallback.
+          timeout: 20_000,
           headers: {
             'User-Agent': 'aistudio-build',
           },

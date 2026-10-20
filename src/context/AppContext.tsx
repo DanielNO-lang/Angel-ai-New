@@ -6,6 +6,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { conversationService } from '../services/ai';
+import { safeChatErrorMessage } from '../services/ai/requestErrors';
 import { syncWorkspaceToIndexedDB, loadWorkspaceFromIndexedDB } from '../services/db/offlineDb';
 import { syncService } from '../services/syncService';
 import { offlineSyncManager, SyncState } from '../services/db/offlineSyncManager';
@@ -125,10 +126,9 @@ interface AppContextType {
   sessionToken: string | null;
   signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
-  signInWithExecutivePass: (customEmail?: string, customName?: string) => void;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
-  sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string) => Promise<void>;
 
   // User Profile
   userProfile: UserProfile;
@@ -511,11 +511,11 @@ State your directive, or select a command from the matrix below.`,
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
     if (hasStoredAuthSession()) {
       return getStoredItem('user_profile', {
-        id: 'user_danny',
-        name: 'Danny Davis',
-        email: 'danielokohnwachukwu22@gmail.com',
-        initials: 'DD',
-        plan: 'Pro',
+        id: 'user_default',
+        name: 'Angel User',
+        email: '',
+        initials: 'AU',
+        plan: 'Free',
         status: 'online',
       });
     }
@@ -809,7 +809,7 @@ State your directive, or select a command from the matrix below.`,
           name,
           email: session.user.email || prev.email,
           initials,
-          plan: 'Pro',
+          plan: 'Free',
           status: 'online',
           avatarUrl: session.user.user_metadata?.avatar_url || prev.avatarUrl,
         }));
@@ -845,7 +845,7 @@ State your directive, or select a command from the matrix below.`,
           name,
           email: session.user.email || prev.email,
           initials,
-          plan: 'Pro',
+          plan: 'Free',
           status: 'online',
           avatarUrl: session.user.user_metadata?.avatar_url || prev.avatarUrl,
         }));
@@ -922,7 +922,7 @@ State your directive, or select a command from the matrix below.`,
                   name,
                   email: user.email || prev.email,
                   initials,
-                  plan: 'Pro',
+                  plan: 'Free',
                   status: 'online',
                   avatarUrl: user.user_metadata?.avatar_url || prev.avatarUrl,
                 }));
@@ -1260,7 +1260,7 @@ State your directive, or select a command from the matrix below.`,
           name,
           email: data.profile?.email || cleanEmail,
           initials,
-          plan: 'Pro',
+          plan: 'Free',
           status: 'online',
           avatarUrl: data.profile?.avatarUrl,
           title: data.profile?.title || 'Executive Operator',
@@ -1314,7 +1314,7 @@ State your directive, or select a command from the matrix below.`,
           name,
           email: cleanEmail,
           initials,
-          plan: 'Pro',
+          plan: 'Free',
           status: 'online',
           avatarUrl: session.user.user_metadata?.avatar_url,
           title: 'Executive Operator',
@@ -1331,40 +1331,6 @@ State your directive, or select a command from the matrix below.`,
       setAuthError(err instanceof Error ? err.message : 'Network error during sign in.');
       return false;
     }
-  };
-
-  const signInWithExecutivePass = (customEmail?: string, customName?: string) => {
-    const userEmail = (customEmail || 'danielokohnwachukwu22@gmail.com').trim().toLowerCase();
-    const userName = customName?.trim() || 'Daniel Nwachukwu';
-    const initials = userName.split(' ').map((p) => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'DN';
-    const token = `angel_sov_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
-
-    setSessionToken(token);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('angel_auth_token', token);
-      localStorage.removeItem('angel_is_guest');
-    }
-    setUserProfile({
-      id: `usr_exec_${Date.now()}`,
-      name: userName,
-      email: userEmail,
-      initials,
-      plan: 'Pro',
-      status: 'online',
-      title: 'Executive Commander',
-    });
-    setConversations((prev) => {
-      const stored = getStoredItem<Conversation[]>('conversations', INITIAL_CONVERSATIONS);
-      const chosen = (stored && stored.length > 0) ? stored : (prev.length > 0 ? prev : INITIAL_CONVERSATIONS);
-      if (chosen[0]?.id) {
-        setActiveConversationId(chosen[0].id);
-        activeConversationIdRef.current = chosen[0].id;
-      }
-      return chosen;
-    });
-    setIsSignedIn(true);
-    setIsAuthPageOpen(false);
-    setAuthError(null);
   };
 
   const signUp = async (email: string, password: string, name: string): Promise<SignUpResult> => {
@@ -1390,6 +1356,12 @@ State your directive, or select a command from the matrix below.`,
       });
       const data = await response.json().catch(() => ({}));
 
+      if (response.ok && data.requiresEmailConfirmation) {
+        const message = data.message || 'Check your email to confirm your account, then sign in.';
+        setAuthError(message);
+        return { success: false, requiresEmailConfirmation: true, message };
+      }
+
       if (response.ok && data.success && data.token) {
         const client = getClientSupabase();
         if (client && data.refreshToken) {
@@ -1413,7 +1385,7 @@ State your directive, or select a command from the matrix below.`,
           name: profileName,
           email: data.profile?.email || cleanEmail,
           initials,
-          plan: 'Pro',
+          plan: 'Free',
           status: 'online',
           avatarUrl: data.profile?.avatarUrl,
           title: data.profile?.title || 'Executive Operator',
@@ -1456,7 +1428,7 @@ State your directive, or select a command from the matrix below.`,
             name: cleanName,
             email: cleanEmail,
             initials,
-            plan: 'Pro',
+            plan: 'Free',
             status: 'online',
             avatarUrl: user.user_metadata?.avatar_url,
           });
@@ -1606,7 +1578,7 @@ State your directive, or select a command from the matrix below.`,
   };
 
   // Send Message with SSE streaming
-  const sendMessage = async (content: string, attachments?: Message['attachments'], explicitConversationId?: string) => {
+  const sendMessage = async (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
     let targetConvId = explicitConversationId || activeConversationIdRef.current || activeConversationId;
@@ -1615,9 +1587,15 @@ State your directive, or select a command from the matrix below.`,
     }
 
     const now = new Date().toISOString();
-    const userMessageId = `msg-user-${Date.now()}`;
-    const userMessage: Message = {
-      id: userMessageId,
+    const priorMessages = messagesMap[targetConvId] || [];
+    const retryMessage = retryAssistantMessageId
+      ? priorMessages.find((message) => message.id === retryAssistantMessageId && message.role === 'assistant')
+      : undefined;
+    if (retryAssistantMessageId && !retryMessage) return;
+
+    const targetAgentId = retryMessage?.agentId || selectedAgentId;
+    const userMessage: Message | null = retryMessage ? null : {
+      id: `msg-user-${Date.now()}`,
       conversationId: targetConvId,
       role: 'user',
       content,
@@ -1625,42 +1603,56 @@ State your directive, or select a command from the matrix below.`,
       attachments,
     };
 
-    const assistantMessageId = `msg-asst-${Date.now()}`;
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      conversationId: targetConvId,
-      role: 'assistant',
-      content: '',
-      createdAt: now,
-      agentId: selectedAgentId,
-      isStreaming: true,
-    };
+    const assistantMessageId = retryMessage?.id || `msg-asst-${Date.now()}`;
+    const assistantMessage: Message = retryMessage
+      ? { ...retryMessage, content: '', isStreaming: true, isError: false, toolCalls: [] }
+      : {
+          id: assistantMessageId,
+          conversationId: targetConvId,
+          role: 'assistant',
+          content: '',
+          createdAt: now,
+          agentId: targetAgentId,
+          isStreaming: true,
+          isError: false,
+        };
 
-    // Update conversation messages optimistically
-    setMessagesMap((prev) => ({
-      ...prev,
-      [targetConvId]: [...(prev[targetConvId] || []), userMessage, assistantMessage],
-    }));
+    // Retry the failed assistant bubble in place, without duplicating the user's message.
+    setMessagesMap((prev) => {
+      const currentMessages = prev[targetConvId] || [];
+      if (retryMessage) {
+        return {
+          ...prev,
+          [targetConvId]: currentMessages.map((message) =>
+            message.id === assistantMessageId ? assistantMessage : message
+          ),
+        };
+      }
+      return {
+        ...prev,
+        [targetConvId]: [...currentMessages, userMessage as Message, assistantMessage],
+      };
+    });
 
-    // Update conversation preview
     setConversations((prev) =>
-      prev.map((c) =>
-        c.id === targetConvId
+      prev.map((conversation) =>
+        conversation.id === targetConvId
           ? {
-              ...c,
+              ...conversation,
               updatedAt: now,
-              messageCount: (c.messageCount || 0) + 2,
-              lastMessagePreview: content.slice(0, 80),
+              messageCount: (conversation.messageCount || 0) + (retryMessage ? 0 : 2),
+              lastMessagePreview: retryMessage ? conversation.lastMessagePreview : content.slice(0, 80),
             }
-          : c
+          : conversation
       )
     );
 
     setIsChatStreaming(true);
 
     try {
-      const agent = agents.find((a) => a.id === selectedAgentId) || agents[0];
-      const convHistory = messagesMap[targetConvId] || [];
+      const agent = agents.find((a) => a.id === targetAgentId) || agents[0];
+      const convHistory = (messagesMap[targetConvId] || []).filter((message) => message.id !== assistantMessageId);
+      let accumulatedAssistantText = '';
 
       let runningToolCalls: Array<{
         id: string;
@@ -1689,6 +1681,7 @@ State your directive, or select a command from the matrix below.`,
           createMemory,
         },
         onToken: (_token, accumulatedText) => {
+          accumulatedAssistantText = accumulatedText;
           setMessagesMap((prev) => {
             const msgs = prev[targetConvId] || [];
             return {
@@ -1742,39 +1735,41 @@ State your directive, or select a command from the matrix below.`,
         },
       });
 
-      // Finalize assistant message streaming state and ensure content is never empty
+      const finalContent = accumulatedAssistantText.trim() || result?.content?.trim() || '';
+      if (!finalContent) {
+        throw new Error('The AI provider returned no response content. Please retry.');
+      }
+
       setMessagesMap((prev) => {
         const msgs = prev[targetConvId] || [];
         return {
           ...prev,
-          [targetConvId]: msgs.map((m) =>
-            m.id === assistantMessageId
+          [targetConvId]: msgs.map((message) =>
+            message.id === assistantMessageId
               ? {
-                  ...m,
-                  content: (m.content && m.content.trim()) ? m.content : (result?.content || 'Directive processed. All operational systems nominal.'),
+                  ...message,
+                  content: finalContent,
                   isStreaming: false,
+                  isError: false,
                   toolCalls: runningToolCalls,
                 }
-              : m
+              : message
           ),
         };
       });
     } catch (err) {
-      console.warn('[Angel Conversation Fallback]', err);
-      const fallbackText = `### 🛡️ ANGEL AUTONOMOUS DIRECTIVE EXECUTED
-**Operational Status:** Sovereign Jarvis Core Active  
-**Time Index:** \`${new Date().toISOString()}\`
-
-I have processed your command: **"${content.slice(0, 100)}"**
-
-All active parameters have been synchronized with your personal workspace memory. Subsystems report 100% operational readiness for your next directive.`;
+      const detail = safeChatErrorMessage(err);
+      console.warn('[Angel Conversation Failed]', detail);
+      const failureText = `I couldn't complete this response. ${detail} Please retry.`;
 
       setMessagesMap((prev) => {
         const msgs = prev[targetConvId] || [];
         return {
           ...prev,
-          [targetConvId]: msgs.map((m) =>
-            m.id === assistantMessageId ? { ...m, isStreaming: false, content: fallbackText } : m
+          [targetConvId]: msgs.map((message) =>
+            message.id === assistantMessageId
+              ? { ...message, isStreaming: false, isError: true, content: failureText }
+              : message
           ),
         };
       });
@@ -2509,8 +2504,7 @@ All active parameters have been synchronized with your personal workspace memory
         sessionToken,
         signIn,
         signUp,
-        signInWithExecutivePass,
-        signOut,
+            signOut,
         requestPasswordRecovery,
         sendMessage,
         userProfile,

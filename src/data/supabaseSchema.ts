@@ -83,7 +83,28 @@ create table if not exists public.messages (
   created_at timestamptz default now() not null
 );
 
--- 7. Memories Table (with semantic vector embedding readiness)
+-- 7. Persistent Library Items (research reports, editable documents and artifacts)
+create table if not exists public.library_items (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  description text not null default '',
+  category text not null default 'documents',
+  type text not null default 'document',
+  url text,
+  content text,
+  metadata jsonb not null default '{}'::jsonb,
+  mime_type text,
+  tags text[] not null default '{}',
+  project_id text,
+  is_favorite boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.library_items enable row level security;
+
+-- 8. Memories Table (with semantic vector embedding readiness)
 create table if not exists public.memories (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -109,7 +130,7 @@ create table if not exists public.memories (
   updated_at timestamptz default now() not null
 );
 
--- 8. Tasks Table
+-- 9. Tasks Table
 create table if not exists public.tasks (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -129,7 +150,7 @@ create table if not exists public.tasks (
   completed_at timestamptz
 );
 
--- 9. Agent Executions Log Table
+-- 10. Agent Executions Log Table
 create table if not exists public.agent_executions (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -153,7 +174,7 @@ create table if not exists public.agent_executions (
   error text
 );
 
--- 10. Workflows Table (Persistent Multi-Step Agent Chains & Triggers)
+-- 11. Workflows Table (Persistent Multi-Step Agent Chains & Triggers)
 create table if not exists public.workflows (
   id text primary key,
   user_id uuid references auth.users(id) on delete cascade,
@@ -211,6 +232,10 @@ create policy "Users can view built-in or own agents" on public.agents
 create policy "Users can manage own agents" on public.agents
   for all using (auth.uid() = user_id and is_built_in = false);
 
+-- Library Items
+create policy "Users can manage own library items" on public.library_items
+  for all to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- Conversations & Messages
 create policy "Users can manage own conversations" on public.conversations
   for all using (auth.uid() = user_id);
@@ -234,6 +259,7 @@ create policy "Users can manage own workflows" on public.workflows
   for all using (auth.uid() = user_id or is_template = true);
 
 -- Performance Indexes
+create index if not exists idx_library_items_user_updated on public.library_items(user_id, updated_at desc);
 create index if not exists idx_conversations_user on public.conversations(user_id, updated_at desc);
 create index if not exists idx_messages_conv on public.messages(conversation_id, created_at asc);
 create index if not exists idx_tasks_user_status on public.tasks(user_id, status);

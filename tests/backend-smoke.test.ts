@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { routeAngelVoiceUtterance } from '../src/services/voice/voiceCommandRouter';
@@ -7,7 +8,16 @@ import { handleAngelMcpMessage } from '../server/services/mcpGatewayService';
 import { handler as netlifyApiHandler, normalizeNetlifyApiEvent } from '../netlify/functions/api';
 import { providerRegistry, GeminiProvider, OpenAICompatibleProvider } from '../server/providers';
 import { generateWithQwenImage, QwenImageError } from '../server/services/qwenImageService';
+import { normalizeSupabaseProjectUrl } from '../src/services/supabaseUrl';
 
+
+test('Supabase URL normalization prevents invalid REST path from corrupting auth URLs', () => {
+  assert.equal(normalizeSupabaseProjectUrl('https://example.supabase.co/rest/v1/'), 'https://example.supabase.co');
+  assert.equal(normalizeSupabaseProjectUrl('https://example.supabase.co/'), 'https://example.supabase.co');
+  assert.equal(normalizeSupabaseProjectUrl('http://localhost:54321/rest/v1'), 'http://localhost:54321');
+  assert.equal(normalizeSupabaseProjectUrl('not a URL'), '');
+  assert.equal(normalizeSupabaseProjectUrl(''), '');
+});
 
 test('Netlify API path normalization', () => {
   assert.equal(normalizeNetlifyApiEvent({ path: '/.netlify/functions/api/health' }).path, '/api/health');
@@ -79,6 +89,20 @@ test('Angel backend smoke contract', async (t) => {
   const address = server.address();
   assert.ok(address && typeof address === 'object');
   const baseUrl = `http://127.0.0.1:${address.port}`;
+
+  const forgedExecutiveSession = await fetch(`${baseUrl}/api/auth/session`, {
+    headers: { Authorization: 'Bearer angel_unverified_test_token' },
+  });
+  assert.notEqual(forgedExecutiveSession.status, 200,
+    'an unverified executive token is never accepted as a Supabase session');
+
+  const removedAccountCreationRoute = await fetch(`${baseUrl}/api/auth/google/verify-or-create`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: 'victim@example.com', name: 'Impersonated User' }),
+  });
+  assert.notEqual(removedAccountCreationRoute.status, 200,
+    'Google login cannot create or take over accounts from caller-supplied identity data');
 
   t.after(async () => {
     server.closeAllConnections();
@@ -168,6 +192,11 @@ test('Angel backend smoke contract', async (t) => {
 
   const artifacts = await fetch(`${baseUrl}/api/media/artifacts`);
   assert.equal(artifacts.status, 401, 'private media must require a verified user');
+
+  const unauthenticatedDelete = await fetch(`${baseUrl}/api/supabase/sync-entity/library_item/lib-test-1`, {
+    method: 'DELETE',
+  });
+  assert.equal(unauthenticatedDelete.status, 401, 'workspace deletion must require verified user authentication');
 
   const translationStatus = await fetch(`${baseUrl}/api/translation/status`);
   assert.equal(translationStatus.status, 200);
@@ -398,4 +427,49 @@ test('Qwen Image 2.1 Pro sends ordered multi-reference images and enforces provi
     if (priorApiKey === undefined) delete process.env.QWEN_IMAGE_API_KEY; else process.env.QWEN_IMAGE_API_KEY = priorApiKey;
     if (priorModelId === undefined) delete process.env.QWEN_IMAGE_MODEL_ID; else process.env.QWEN_IMAGE_MODEL_ID = priorModelId;
   }
+});
+
+
+test('authentication routes cannot mutate existing accounts or bypass confirmation', () => {
+  const source = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+  const signupStart = source.indexOf("app.post('/api/auth/signup'");
+  const signinStart = source.indexOf("app.post('/api/auth/signin'");
+  const recoveryStart = source.indexOf("app.post('/api/auth/recovery'");
+  assert.ok(signupStart >= 0 && signinStart > signupStart && recoveryStart > signinStart,
+    'signup, signin, and recovery routes must remain identifiable for security review');
+
+  const signupRoute = source.slice(signupStart, signinStart);
+  const signinRoute = source.slice(signinStart, recoveryStart);
+  assert.doesNotMatch(signupRoute, /admin\.createUser|admin\.updateUserById|admin\.listUsers|email_confirm\s*:\s*true/,
+    'public signup must not change an existing account password or bypass email confirmation');
+  assert.doesNotMatch(signupRoute, /plan\s*:\s*['"]Pro['"]/,
+    'new accounts must not be granted Pro by the signup endpoint');
+  assert.doesNotMatch(signinRoute, /admin\.updateUserById|admin\.listUsers|email_confirm\s*:/,
+    'signin must not administratively confirm accounts');
+
+  const clientSource = readFileSync(new URL('../src/context/AppContext.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(clientSource, /angel_sov_|signInWithExecutivePass/,
+    'the client must not manufacture a fake privileged session');
+});
+
+test('OAuth callback never relays tokens through postMessage', () => {
+  const source = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+  const callbackStart = source.indexOf("app.get('/auth/callback'");
+  const callbackEnd = source.indexOf("app.get('/api/auth/google/url'", callbackStart);
+  assert.ok(callbackStart >= 0 && callbackEnd > callbackStart, 'OAuth callback route must be present');
+  const callbackRoute = source.slice(callbackStart, callbackEnd);
+  assert.doesNotMatch(callbackRoute, /postMessage\s*\(/,
+    'OAuth tokens must not be relayed through window.postMessage');
+  assert.match(callbackRoute, /window\.location\.replace\(returnUrl\.toString\(\)\)/,
+    'OAuth callback must return to the app origin for Supabase JS to process the session');
+});
+
+
+test('Netlify API entrypoint does not import Vite development tooling', () => {
+  const apiSource = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
+  const devSource = readFileSync(new URL('../devServer.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(apiSource, /import\(['"]vite['"]\)/,
+    'Netlify function bundling must not traverse Vite development-only imports');
+  assert.match(devSource, /import\(['"]vite['"]\)/,
+    'the standalone development server must retain Vite middleware');
 });

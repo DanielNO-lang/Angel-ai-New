@@ -59,6 +59,7 @@ export const MobileTopBar: React.FC = () => {
 
   const tabLabels: Record<string, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
     chat: { label: 'Chat', icon: MessageSquare },
+    research: { label: 'Research', icon: Search },
     agent_lab: { label: 'Agent Lab', icon: Bot },
     tasks: { label: 'Tasks', icon: CheckSquare },
     projects: { label: 'Projects', icon: FolderGit2 },

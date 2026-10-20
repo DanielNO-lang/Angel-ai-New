@@ -85,6 +85,7 @@ export const HeaderBreadcrumbs: React.FC<HeaderBreadcrumbsProps> = ({ isLight })
   const tabConfig: Record<NavigationTab, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
     home: { label: 'Home', icon: Home },
     chat: { label: 'Chat', icon: MessageSquare },
+    research: { label: 'Research', icon: Search },
     voice: { label: 'Voice Mode', icon: Mic },
     visual_mode: { label: 'Visual Mode', icon: Eye },
     canvas: { label: 'Canvas / Build', icon: PenTool },

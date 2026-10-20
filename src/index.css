@@ -476,3 +476,183 @@
 .accent-amber .bg-indigo-600, .accent-amber .bg-indigo-500 { background-color: #d97706 !important; }
 .accent-amber .text-indigo-500, .accent-amber .text-indigo-400 { color: #f59e0b !important; }
 .accent-amber .border-indigo-500, .accent-amber .border-indigo-400 { border-color: #f59e0b !important; }
+
+
+/* Enforce exactly one navigation sidebar at each viewport size.
+   Explicit media rules back up utility classes so desktop rail and mobile drawer
+   can never render visibly together, regardless of guest/auth state. */
+.angel-desktop-sidebar {
+  display: none;
+}
+.angel-mobile-sidebar {
+  display: block;
+}
+@media (min-width: 768px) {
+  .angel-desktop-sidebar {
+    display: flex !important;
+  }
+  .angel-mobile-sidebar {
+    display: none !important;
+  }
+}
+@media (max-width: 767.98px) {
+  .angel-desktop-sidebar {
+    display: none !important;
+  }
+  .angel-mobile-sidebar {
+    display: block;
+  }
+}
+
+
+/* ==========================================================
+   ANGEL GLASS UI — restrained glassmorphism system
+   Translucent layered surfaces, soft highlights, and readable
+   contrast. Backdrop blur degrades gracefully on older devices.
+   ========================================================== */
+:root {
+  --angel-glass-dark: rgba(15, 20, 38, 0.66);
+  --angel-glass-dark-strong: rgba(10, 14, 28, 0.82);
+  --angel-glass-light: rgba(255, 255, 255, 0.68);
+  --angel-glass-stroke-dark: rgba(255, 255, 255, 0.12);
+  --angel-glass-stroke-light: rgba(100, 116, 139, 0.22);
+  --angel-glass-highlight: rgba(255, 255, 255, 0.14);
+  --angel-glass-shadow: 0 16px 42px rgba(2, 6, 23, 0.16);
+}
+
+/* Reusable glass primitives for new and existing surfaces. */
+.glass-panel,
+.glass-card,
+.glass-surface {
+  background: var(--angel-glass-dark);
+  border: 1px solid var(--angel-glass-stroke-dark);
+  box-shadow: var(--angel-glass-shadow), inset 0 1px 0 var(--angel-glass-highlight);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  backdrop-filter: blur(22px) saturate(145%);
+}
+.glass-panel { border-radius: 1.25rem; }
+.glass-card {
+  border-radius: 1rem;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.glass-card:hover {
+  border-color: rgba(165, 180, 252, 0.28);
+  box-shadow: 0 20px 46px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255,255,255,0.16);
+}
+.glass-control {
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.glass-control:focus-within,
+.glass-control:focus-visible {
+  border-color: rgba(129, 140, 248, 0.65);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14);
+  outline: none;
+}
+
+/* Existing workspace chrome becomes translucent without changing layout. */
+.angel-desktop-sidebar,
+.angel-mobile-sidebar,
+header.sticky,
+[role="dialog"],
+[aria-modal="true"] {
+  -webkit-backdrop-filter: blur(24px) saturate(145%);
+  backdrop-filter: blur(24px) saturate(145%);
+}
+.angel-desktop-sidebar {
+  background-color: rgba(8, 12, 26, 0.68) !important;
+  border-right-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 10px 0 40px rgba(0, 0, 0, 0.12);
+}
+.light .angel-desktop-sidebar {
+  background-color: rgba(248, 250, 252, 0.78) !important;
+  border-right-color: rgba(100, 116, 139, 0.18) !important;
+  box-shadow: 10px 0 40px rgba(15, 23, 42, 0.045);
+}
+.midnight .angel-desktop-sidebar {
+  background-color: rgba(3, 4, 10, 0.82) !important;
+}
+header.sticky {
+  background-color: rgba(10, 14, 29, 0.56) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.light header.sticky {
+  background-color: rgba(255, 255, 255, 0.66) !important;
+  border-bottom-color: rgba(100, 116, 139, 0.18) !important;
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.045), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+.midnight header.sticky {
+  background-color: rgba(0, 0, 0, 0.74) !important;
+}
+
+/* Glassify common existing dark panels, modals, and cards while keeping
+   saturated action buttons and code blocks visually distinct. */
+.dark [class*="bg-neutral-950"],
+.dark [class*="bg-neutral-900"],
+.dark [class*="bg-[#0B0E14]"],
+.dark [class*="bg-[#0A0D15]"],
+.dark [class*="bg-[#0E121B]"],
+.dark [class*="bg-[#151926]"] {
+  background-color: rgba(15, 20, 38, 0.62) !important;
+  background-image: linear-gradient(135deg, rgba(255,255,255,0.035), transparent 58%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+.dark [class*="border-white/5"],
+.dark [class*="border-white/10"],
+.dark [class*="border-neutral-800"] {
+  border-color: rgba(255, 255, 255, 0.11);
+}
+.light [class*="bg-neutral-950"],
+.light [class*="bg-neutral-900"],
+.light [class*="bg-[#0B0E14]"],
+.light [class*="bg-[#0A0D15]"],
+.light [class*="bg-[#0E121B]"],
+.light [class*="bg-[#151926]"] {
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  background-image: linear-gradient(135deg, rgba(255,255,255,0.62), rgba(241,245,249,0.28));
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+.light [class*="border-white/5"],
+.light [class*="border-white/10"],
+.light [class*="border-neutral-800"] {
+  border-color: rgba(100, 116, 139, 0.18);
+}
+
+/* Inputs float above the glass instead of inheriting opaque page fills. */
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark textarea,
+.dark select {
+  background-color: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.light input:not([type="checkbox"]):not([type="radio"]),
+.light textarea,
+.light select {
+  background-color: rgba(255, 255, 255, 0.76);
+  border-color: rgba(100, 116, 139, 0.24);
+}
+
+/* Keep glass lightweight on mobile and respect reduced-motion settings. */
+@media (max-width: 767px) {
+  .glass-panel, .glass-card, .glass-surface,
+  .angel-desktop-sidebar, .angel-mobile-sidebar, header.sticky {
+    -webkit-backdrop-filter: blur(14px) saturate(125%);
+    backdrop-filter: blur(14px) saturate(125%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-card { transition: none; }
+}
+@supports not ((backdrop-filter: blur(1px))) {
+  .glass-panel, .glass-card, .glass-surface, .glass-control {
+    background-color: rgba(15, 20, 38, 0.94);
+  }
+  .light .glass-panel, .light .glass-card, .light .glass-surface, .light .glass-control {
+    background-color: rgba(255, 255, 255, 0.96);
+  }
+}

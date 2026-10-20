@@ -6,6 +6,7 @@
 export type NavigationTab =
   | 'home'
   | 'chat'
+  | 'research'
   | 'voice'
   | 'visual_mode'
   | 'canvas'
@@ -73,6 +74,8 @@ export interface Message {
   attachments?: Attachment[];
   toolCalls?: ToolCallRecord[];
   isStreaming?: boolean;
+  /** True when generation failed and the message offers recovery rather than success. */
+  isError?: boolean;
 }
 
 export interface Conversation {
