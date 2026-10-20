@@ -6,6 +6,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { conversationService } from '../services/ai';
+import { safeChatErrorMessage } from '../services/ai/requestErrors';
 import { syncWorkspaceToIndexedDB, loadWorkspaceFromIndexedDB } from '../services/db/offlineDb';
 import { syncService } from '../services/syncService';
 import { offlineSyncManager, SyncState } from '../services/db/offlineSyncManager';
@@ -128,7 +129,7 @@ interface AppContextType {
   signInWithExecutivePass: (customEmail?: string, customName?: string) => void;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
-  sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string) => Promise<void>;
 
   // User Profile
   userProfile: UserProfile;
@@ -1606,7 +1607,7 @@ State your directive, or select a command from the matrix below.`,
   };
 
   // Send Message with SSE streaming
-  const sendMessage = async (content: string, attachments?: Message['attachments'], explicitConversationId?: string) => {
+  const sendMessage = async (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
     let targetConvId = explicitConversationId || activeConversationIdRef.current || activeConversationId;
@@ -1615,9 +1616,15 @@ State your directive, or select a command from the matrix below.`,
     }
 
     const now = new Date().toISOString();
-    const userMessageId = `msg-user-${Date.now()}`;
-    const userMessage: Message = {
-      id: userMessageId,
+    const priorMessages = messagesMap[targetConvId] || [];
+    const retryMessage = retryAssistantMessageId
+      ? priorMessages.find((message) => message.id === retryAssistantMessageId && message.role === 'assistant')
+      : undefined;
+    if (retryAssistantMessageId && !retryMessage) return;
+
+    const targetAgentId = retryMessage?.agentId || selectedAgentId;
+    const userMessage: Message | null = retryMessage ? null : {
+      id: `msg-user-${Date.now()}`,
       conversationId: targetConvId,
       role: 'user',
       content,
@@ -1625,42 +1632,56 @@ State your directive, or select a command from the matrix below.`,
       attachments,
     };
 
-    const assistantMessageId = `msg-asst-${Date.now()}`;
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      conversationId: targetConvId,
-      role: 'assistant',
-      content: '',
-      createdAt: now,
-      agentId: selectedAgentId,
-      isStreaming: true,
-    };
+    const assistantMessageId = retryMessage?.id || `msg-asst-${Date.now()}`;
+    const assistantMessage: Message = retryMessage
+      ? { ...retryMessage, content: '', isStreaming: true, isError: false, toolCalls: [] }
+      : {
+          id: assistantMessageId,
+          conversationId: targetConvId,
+          role: 'assistant',
+          content: '',
+          createdAt: now,
+          agentId: targetAgentId,
+          isStreaming: true,
+          isError: false,
+        };
 
-    // Update conversation messages optimistically
-    setMessagesMap((prev) => ({
-      ...prev,
-      [targetConvId]: [...(prev[targetConvId] || []), userMessage, assistantMessage],
-    }));
+    // Retry the failed assistant bubble in place, without duplicating the user's message.
+    setMessagesMap((prev) => {
+      const currentMessages = prev[targetConvId] || [];
+      if (retryMessage) {
+        return {
+          ...prev,
+          [targetConvId]: currentMessages.map((message) =>
+            message.id === assistantMessageId ? assistantMessage : message
+          ),
+        };
+      }
+      return {
+        ...prev,
+        [targetConvId]: [...currentMessages, userMessage as Message, assistantMessage],
+      };
+    });
 
-    // Update conversation preview
     setConversations((prev) =>
-      prev.map((c) =>
-        c.id === targetConvId
+      prev.map((conversation) =>
+        conversation.id === targetConvId
           ? {
-              ...c,
+              ...conversation,
               updatedAt: now,
-              messageCount: (c.messageCount || 0) + 2,
-              lastMessagePreview: content.slice(0, 80),
+              messageCount: (conversation.messageCount || 0) + (retryMessage ? 0 : 2),
+              lastMessagePreview: retryMessage ? conversation.lastMessagePreview : content.slice(0, 80),
             }
-          : c
+          : conversation
       )
     );
 
     setIsChatStreaming(true);
 
     try {
-      const agent = agents.find((a) => a.id === selectedAgentId) || agents[0];
-      const convHistory = messagesMap[targetConvId] || [];
+      const agent = agents.find((a) => a.id === targetAgentId) || agents[0];
+      const convHistory = (messagesMap[targetConvId] || []).filter((message) => message.id !== assistantMessageId);
+      let accumulatedAssistantText = '';
 
       let runningToolCalls: Array<{
         id: string;
@@ -1689,6 +1710,7 @@ State your directive, or select a command from the matrix below.`,
           createMemory,
         },
         onToken: (_token, accumulatedText) => {
+          accumulatedAssistantText = accumulatedText;
           setMessagesMap((prev) => {
             const msgs = prev[targetConvId] || [];
             return {
@@ -1742,39 +1764,41 @@ State your directive, or select a command from the matrix below.`,
         },
       });
 
-      // Finalize assistant message streaming state and ensure content is never empty
+      const finalContent = accumulatedAssistantText.trim() || result?.content?.trim() || '';
+      if (!finalContent) {
+        throw new Error('The AI provider returned no response content. Please retry.');
+      }
+
       setMessagesMap((prev) => {
         const msgs = prev[targetConvId] || [];
         return {
           ...prev,
-          [targetConvId]: msgs.map((m) =>
-            m.id === assistantMessageId
+          [targetConvId]: msgs.map((message) =>
+            message.id === assistantMessageId
               ? {
-                  ...m,
-                  content: (m.content && m.content.trim()) ? m.content : (result?.content || 'Directive processed. All operational systems nominal.'),
+                  ...message,
+                  content: finalContent,
                   isStreaming: false,
+                  isError: false,
                   toolCalls: runningToolCalls,
                 }
-              : m
+              : message
           ),
         };
       });
     } catch (err) {
-      console.warn('[Angel Conversation Fallback]', err);
-      const fallbackText = `### 🛡️ ANGEL AUTONOMOUS DIRECTIVE EXECUTED
-**Operational Status:** Sovereign Jarvis Core Active  
-**Time Index:** \`${new Date().toISOString()}\`
-
-I have processed your command: **"${content.slice(0, 100)}"**
-
-All active parameters have been synchronized with your personal workspace memory. Subsystems report 100% operational readiness for your next directive.`;
+      const detail = safeChatErrorMessage(err);
+      console.warn('[Angel Conversation Failed]', detail);
+      const failureText = `I couldn't complete this response. ${detail} Please retry.`;
 
       setMessagesMap((prev) => {
         const msgs = prev[targetConvId] || [];
         return {
           ...prev,
-          [targetConvId]: msgs.map((m) =>
-            m.id === assistantMessageId ? { ...m, isStreaming: false, content: fallbackText } : m
+          [targetConvId]: msgs.map((message) =>
+            message.id === assistantMessageId
+              ? { ...message, isStreaming: false, isError: true, content: failureText }
+              : message
           ),
         };
       });
