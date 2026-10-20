@@ -251,7 +251,7 @@ export const Sidebar: React.FC = () => {
           transition: 'width 0ms linear',
           willChange: 'width',
         }}
-        className={`hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-2xl transition-colors duration-300 ${
+        className={`angel-desktop-sidebar hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-2xl transition-colors duration-300 ${
           isLight
             ? 'border-slate-200/60 bg-[#F8FAFC]/80 text-slate-800'
             : isMidnight
@@ -799,7 +799,7 @@ export const Sidebar: React.FC = () => {
           with NO bottom navigation panel!
           ======================================================== */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="angel-mobile-sidebar fixed inset-0 z-50 md:hidden">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-neutral-950/70 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
