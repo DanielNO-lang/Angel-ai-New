@@ -446,6 +446,10 @@ test('authentication routes cannot mutate existing accounts or bypass confirmati
     'new accounts must not be granted Pro by the signup endpoint');
   assert.doesNotMatch(signinRoute, /admin\.updateUserById|admin\.listUsers|email_confirm\s*:/,
     'signin must not administratively confirm accounts');
+
+  const clientSource = readFileSync(new URL('../src/context/AppContext.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(clientSource, /angel_sov_|signInWithExecutivePass/,
+    'the client must not manufacture a fake privileged session');
 });
 
 test('OAuth callback never relays tokens through postMessage', () => {
