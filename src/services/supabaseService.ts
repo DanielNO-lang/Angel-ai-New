@@ -327,17 +327,7 @@ export async function signInWithGoogleOAuth(): Promise<{
     }
 
     if (!authUrl) {
-      // Fallback directly to verified Google authentication
-      const verifyRes = await fetch('/api/auth/google/verify-or-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'danielokohnwachukwu22@gmail.com', name: 'Daniel Nwachukwu' }),
-      });
-      const verifyData = await verifyRes.json();
-      if (verifyData.success && verifyData.token) {
-        return { sessionEstablished: true, profile: verifyData.profile, token: verifyData.token };
-      }
-      return { error: 'Could not obtain Google authentication URL.' };
+      return { error: 'Could not obtain Google authentication URL. Check Supabase OAuth configuration and redirect URLs.' };
     }
 
     // 2. Open Google OAuth window
