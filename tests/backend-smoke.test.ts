@@ -440,11 +440,11 @@ test('authentication routes cannot mutate existing accounts or bypass confirmati
 
   const signupRoute = source.slice(signupStart, signinStart);
   const signinRoute = source.slice(signinStart, recoveryStart);
-  assert.doesNotMatch(signupRoute, /admin\\.createUser|admin\\.updateUserById|admin\\.listUsers|email_confirm\\s*:\\s*true/,
+  assert.doesNotMatch(signupRoute, /admin\.createUser|admin\.updateUserById|admin\.listUsers|email_confirm\s*:\s*true/,
     'public signup must not change an existing account password or bypass email confirmation');
-  assert.doesNotMatch(signupRoute, /plan\\s*:\\s*['"]Pro['"]/,
+  assert.doesNotMatch(signupRoute, /plan\s*:\s*['"]Pro['"]/,
     'new accounts must not be granted Pro by the signup endpoint');
-  assert.doesNotMatch(signinRoute, /admin\\.updateUserById|admin\\.listUsers|email_confirm\\s*:/,
+  assert.doesNotMatch(signinRoute, /admin\.updateUserById|admin\.listUsers|email_confirm\s*:/,
     'signin must not administratively confirm accounts');
 });
 
@@ -454,8 +454,8 @@ test('OAuth callback never relays tokens through postMessage', () => {
   const callbackEnd = source.indexOf("app.get('/api/auth/google/url'", callbackStart);
   assert.ok(callbackStart >= 0 && callbackEnd > callbackStart, 'OAuth callback route must be present');
   const callbackRoute = source.slice(callbackStart, callbackEnd);
-  assert.doesNotMatch(callbackRoute, /postMessage\\s*\\(/,
+  assert.doesNotMatch(callbackRoute, /postMessage\s*\\(/,
     'OAuth tokens must not be relayed through window.postMessage');
-  assert.match(callbackRoute, /window\\.location\\.replace\\(returnUrl\\.toString\\(\\)\\)/,
+  assert.match(callbackRoute, /window\.location\.replace\\(returnUrl\.toString\\(\\)\\)/,
     'OAuth callback must return to the app origin for Supabase JS to process the session');
 });
