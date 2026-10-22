@@ -32,6 +32,8 @@ export function getAdkBridgeStatus() {
 export interface AdkRunInput {
   message: string;
   sessionId?: string;
+  /** Current user's verified Supabase JWT. Forwarded only for request-scoped MCP auth. */
+  mcpAccessToken?: string;
 }
 
 export async function runAdkAgent(input: AdkRunInput, userId: string): Promise<{
@@ -40,6 +42,8 @@ export async function runAdkAgent(input: AdkRunInput, userId: string): Promise<{
   sessionId?: string;
   appName?: string;
   durationMs: number;
+  sessionPersistence?: string;
+  mcpToolsUsed?: boolean;
 }> {
   const c = config();
   if (!c.runUrl || !c.token) {
@@ -73,6 +77,9 @@ export async function runAdkAgent(input: AdkRunInput, userId: string): Promise<{
         userId,
         sessionId: input.sessionId?.trim().slice(0, 160) || undefined,
         message: input.message,
+        // Forward the verified user token only to the separately configured MCP-capable ADK service.
+        // Never persist or log this per-user credential.
+        ...(input.mcpAccessToken ? { mcpAccessToken: input.mcpAccessToken } : {}),
       }),
       signal: AbortSignal.timeout(50_000),
     });
@@ -108,5 +115,7 @@ export async function runAdkAgent(input: AdkRunInput, userId: string): Promise<{
     sessionId: typeof payload.sessionId === 'string' ? payload.sessionId : input.sessionId,
     appName: typeof payload.appName === 'string' ? payload.appName : c.appName,
     durationMs: Date.now() - started,
+    sessionPersistence: typeof payload.sessionPersistence === 'string' ? payload.sessionPersistence : undefined,
+    mcpToolsUsed: payload.mcpToolsUsed === true,
   };
 }

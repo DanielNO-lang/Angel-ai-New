@@ -695,7 +695,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
     try {
       const auth = (req as any).angelAuth;
-      const result = await runAdkAgent({ message: body.message.trim(), sessionId: body.sessionId }, auth.userId);
+      const result = await runAdkAgent({ message: body.message.trim(), sessionId: body.sessionId, mcpAccessToken: auth.accessToken }, auth.userId);
       return res.json(result);
     } catch (error) {
       if (error instanceof AdkBridgeError) return res.status(error.statusCode).json({ error: error.message, code: error.code });

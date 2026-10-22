@@ -1,7 +1,7 @@
 import serverless from "serverless-http";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 type NetlifyApiEvent = {
   path?: string;
@@ -39,18 +39,33 @@ export function normalizeNetlifyApiEvent<T extends NetlifyApiEvent>(event: T): T
 
 let appHandlerPromise: Promise<any> | undefined;
 
+function resolveServerEntryPath(): string {
+  const functionDirectory = path.dirname(fileURLToPath(import.meta.url));
+  const taskRoot = process.env.LAMBDA_TASK_ROOT || process.cwd();
+  const candidates = [
+    path.resolve(taskRoot, "server-build/server.mjs"),
+    path.resolve(process.cwd(), "server-build/server.mjs"),
+    path.resolve(functionDirectory, "server-build/server.mjs"),
+    path.resolve(functionDirectory, "../../server-build/server.mjs"),
+    path.resolve(functionDirectory, "../server-build/server.mjs"),
+  ];
+  const bundledServerPath = [...new Set(candidates)].find(existsSync);
+  if (bundledServerPath) return bundledServerPath;
+
+  // A deployed Lambda must never try to load the uncompiled TypeScript entrypoint.
+  // Source-mode tests can still use tsx when they run without a production bundle.
+  if (process.env.LAMBDA_TASK_ROOT || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    throw new Error("Packaged Angel server bundle server-build/server.mjs was not found.");
+  }
+  return path.resolve(process.cwd(), "server.ts");
+}
+
 async function getAppHandler() {
-  // Set this before evaluating server.ts so its standalone listener never starts
-  // inside a Netlify Function invocation.
+  // Avoid starting the standalone development listener inside Netlify Functions.
   process.env.NETLIFY = "true";
 
   if (!appHandlerPromise) {
-    // Netlify builds server-build/server.js before packaging this function. Loading it by
-    // file URL prevents esbuild from walking the development-time TypeScript source graph.
-    // In source tests, the generated bundle is absent, so fall back to server.ts.
-    const bundledServerPath = path.resolve(process.cwd(), "server-build/server.js");
-    const serverSourcePath = path.resolve(process.cwd(), "server.ts");
-    const serverEntryPath = existsSync(bundledServerPath) ? bundledServerPath : serverSourcePath;
+    const serverEntryPath = resolveServerEntryPath();
     appHandlerPromise = import(pathToFileURL(serverEntryPath).href)
       .then(({ createApp }) => createApp({ isServerless: true }))
       .then((app) => serverless(app));
