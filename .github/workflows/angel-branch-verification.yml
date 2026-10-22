@@ -35,11 +35,11 @@ jobs:
       - name: Type-check
         run: bun run lint
 
-      - name: Run tests
-        run: bun run test
-
-      - name: Build application
+      - name: Build application and ESM server bundle
         run: bun run build
+
+      - name: Run tests against the built server bundle
+        run: bun run test
 
       - name: Bundle Netlify function entrypoint without deployment
         run: bunx esbuild netlify/functions/api.ts --bundle --platform=node --format=esm --packages=external --outfile=/tmp/angel-netlify-api.mjs
