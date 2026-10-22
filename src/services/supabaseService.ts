@@ -299,9 +299,11 @@ export async function signInWithGoogleOAuth(): Promise<{
   profile?: any;
   token?: string;
 }> {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-  const redirectUrl = `${origin}/auth/callback`;
   const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  // An embedded preview has its own origin, which is not Angel's trusted OAuth return origin.
+  // In that case, only use the server-generated canonical OAuth URL.
+  const redirectUrl = `${origin}/auth/callback`;
 
   try {
     // 1. Obtain authorization URL either from server endpoint or Supabase client
@@ -315,6 +317,11 @@ export async function signInWithGoogleOAuth(): Promise<{
     } catch {}
 
     const client = getClientSupabase();
+    if (!authUrl && isIframe) {
+      return {
+        error: 'Angel could not resolve its canonical Google sign-in redirect from this embedded preview. Open Angel in a full browser tab and try again.',
+      };
+    }
     if (!authUrl && client) {
       const { data, error } = await client.auth.signInWithOAuth({
         provider: 'google',
