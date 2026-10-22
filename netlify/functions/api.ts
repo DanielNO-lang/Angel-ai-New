@@ -9,30 +9,15 @@ type NetlifyApiEvent = {
   [key: string]: any;
 };
 
-/**
- * Normalize Netlify's function-relative paths to the /api/* routes registered
- * by Express. This is safe for both direct function URLs and configured rewrites.
- */
+/** Normalize Netlify function-relative paths to the /api/* routes registered by Express. */
 export function normalizeNetlifyApiEvent<T extends NetlifyApiEvent>(event: T): T & { path: string } {
   let rawPath = typeof event.path === "string" ? event.path : "";
-
   if (!rawPath && typeof event.rawUrl === "string") {
-    try {
-      rawPath = new URL(event.rawUrl).pathname;
-    } catch {
-      rawPath = "/";
-    }
+    try { rawPath = new URL(event.rawUrl).pathname; } catch { rawPath = "/"; }
   }
-
   const functionPrefix = "/.netlify/functions/api";
-  if (rawPath.startsWith(functionPrefix)) {
-    rawPath = rawPath.slice(functionPrefix.length);
-  }
-
-  if (rawPath === "/api" || rawPath.startsWith("/api/")) {
-    return { ...event, path: rawPath };
-  }
-
+  if (rawPath.startsWith(functionPrefix)) rawPath = rawPath.slice(functionPrefix.length);
+  if (rawPath === "/api" || rawPath.startsWith("/api/")) return { ...event, path: rawPath };
   const suffix = rawPath && rawPath !== "/" ? rawPath : "";
   return { ...event, path: `/api${suffix.startsWith("/") ? suffix : suffix ? `/${suffix}` : ""}` };
 }
@@ -40,29 +25,19 @@ export function normalizeNetlifyApiEvent<T extends NetlifyApiEvent>(event: T): T
 let appHandlerPromise: Promise<any> | undefined;
 
 async function getAppHandler() {
-  // Set this before evaluating server.ts so its standalone listener never starts
-  // inside a Netlify Function invocation.
   process.env.NETLIFY = "true";
-
   if (!appHandlerPromise) {
-    // Netlify builds server-build/server.js before packaging this function. Loading it by
-    // file URL prevents esbuild from walking the development-time TypeScript source graph.
-    // In source tests, the generated bundle is absent, so fall back to server.ts.
-    const bundledServerPath = path.resolve(process.cwd(), "server-build/server.js");
+    // Production bundle is emitted as CommonJS (.cjs), matching Node's loader.
+    // Source tests may not have generated the bundle, so retain the TS fallback.
+    const bundledServerPath = path.resolve(process.cwd(), "server-build/server.cjs");
     const serverSourcePath = path.resolve(process.cwd(), "server.ts");
     const serverEntryPath = existsSync(bundledServerPath) ? bundledServerPath : serverSourcePath;
     appHandlerPromise = import(pathToFileURL(serverEntryPath).href)
       .then(({ createApp }) => createApp({ isServerless: true }))
       .then((app) => serverless(app));
   }
-
-  try {
-    return await appHandlerPromise;
-  } catch (error) {
-    // Allow a later warm invocation to retry after a transient initialization failure.
-    appHandlerPromise = undefined;
-    throw error;
-  }
+  try { return await appHandlerPromise; }
+  catch (error) { appHandlerPromise = undefined; throw error; }
 }
 
 export const handler = async (event: NetlifyApiEvent, context: any) => {
@@ -73,14 +48,8 @@ export const handler = async (event: NetlifyApiEvent, context: any) => {
     console.error("[Angel Netlify API] Initialization or dispatch failed.", error);
     return {
       statusCode: 500,
-      headers: {
-        "content-type": "application/json; charset=utf-8",
-        "cache-control": "no-store",
-      },
-      body: JSON.stringify({
-        error: "Angel API initialization failed.",
-        code: "api_init_failed",
-      }),
+      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" },
+      body: JSON.stringify({ error: "Angel API initialization failed.", code: "api_init_failed" }),
     };
   }
 };
