@@ -14,9 +14,9 @@ Under **Authorized JavaScript origins**, add:
 
 Under **Authorized redirect URIs**, add this exact URI:
 
-    <SUPABASE_URL>/auth/v1/callback
+    https://qltiogotxbxwzwmnypwu.supabase.co/auth/v1/callback
 
-Replace `<SUPABASE_URL>` with the exact project URL configured in Netlify before adding this URI to Google Cloud Console.
+This is the expected callback for the configured Supabase project URL `https://qltiogotxbxwzwmnypwu.supabase.co`. If Netlify's server-side `SUPABASE_URL` is intentionally pointed at another Supabase project, use that project's callback instead and align it with the client-side `VITE_SUPABASE_URL`.
 
 **Important:** the Authorized redirect URI for Google is the Supabase callback URL above, not the Netlify app URL and not /auth/callback. Google returns the provider response to Supabase first; Supabase then redirects the browser back to Angel.
 
@@ -59,7 +59,7 @@ If Google's consent screen is in Testing mode, also include the Google account a
 
 ## 5. Verification checklist
 
-1. Open https://angel-ai-new.netlify.app in a normal browser tab, not only an embedded AI Studio preview.
+1. Open https://angel-ai-new.netlify.app in a normal browser tab, not only an embedded AI Studio preview. The client now refuses to guess a redirect URI when the server's canonical OAuth endpoint is unavailable inside an iframe.
 2. Choose **Continue with Google** and select an account.
 3. Confirm that Google returns to the exact production URL and Angel shows the signed-in profile.
 4. Confirm that the identity appears in Supabase Authentication → Users.
