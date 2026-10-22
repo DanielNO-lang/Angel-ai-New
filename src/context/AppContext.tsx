@@ -49,6 +49,12 @@ import {
   SyncStatus,
 } from '../types';
 
+export interface ChatRequestOptions {
+  modelId?: string;
+  providerId?: string;
+  mode?: 'think' | 'search' | 'browse';
+}
+
 interface AppContextType {
   activeTab: NavigationTab;
   setActiveTab: (tab: NavigationTab) => void;
@@ -59,6 +65,8 @@ interface AppContextType {
   toggleSidebar: () => void;
   isMobileMenuOpen: boolean;
   setMobileMenuOpen: (open: boolean) => void;
+  isLiveVoiceOpen: boolean;
+  setIsLiveVoiceOpen: (open: boolean) => void;
 
   // Manual Workspace Minimization & Stage Sizing
   isWorkspaceMinimized: boolean;
@@ -128,7 +136,7 @@ interface AppContextType {
   signUp: (email: string, password: string, name: string) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
-  sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string) => Promise<void>;
+  sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string, requestOptions?: ChatRequestOptions) => Promise<void>;
 
   // User Profile
   userProfile: UserProfile;
@@ -265,13 +273,13 @@ function createGuestConversation(): Conversation {
   const now = new Date().toISOString();
   return {
     id: GUEST_CONVERSATION_ID,
-    title: 'Angel Jarvis Command',
+    title: 'Welcome to Angel',
     createdAt: now,
     updatedAt: now,
     agentId: 'angel-core',
     pinned: false,
     messageCount: 1,
-    lastMessagePreview: 'Jarvis tactical engine standing by.',
+    lastMessagePreview: 'Angel is ready to chat.',
   };
 }
 
@@ -281,14 +289,7 @@ function createGuestMessages(): Record<string, Message[]> {
       id: `msg-guest-${Date.now()}`,
       conversationId: GUEST_CONVERSATION_ID,
       role: 'assistant',
-      content: `### 🛡️ ANGEL COMMAND CENTER // ONLINE
-**Clearance:** Sovereign Executive Access  
-**Tactical Core:** Autonomous Jarvis Engine Active  
-**Cryptographic Enclave:** AES-GCM 256-bit
-
-Hello, Commander. I am **Angel** — your advanced, military-grade autonomous AI operating environment. I am ready to assist with high-speed intelligence, tactical reasoning, automated workflows, and multi-agent synthesis.
-
-State your directive or ask anything to begin.`,
+      content: `Hey, I'm Angel. I'm here to help you think, create, organise, and get things done. What would you like to work on?`,
       createdAt: new Date().toISOString(),
       agentId: 'angel-core',
     }],
@@ -334,15 +335,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // If page refreshed while user is signed in: continue from where it stopped
       const savedSessionTab = sessionStorage.getItem('angel_session_tab');
       if (savedSessionTab) {
-        return savedSessionTab as NavigationTab;
+        return (savedSessionTab === 'voice' ? 'chat' : savedSessionTab) as NavigationTab;
       }
     } catch {
       // Fallback
     }
     return 'home';
   });
+  const [isLiveVoiceOpen, setIsLiveVoiceOpen] = useState<boolean>(false);
 
   const setActiveTab = (tab: NavigationTab) => {
+    if (tab === 'voice') {
+      setIsLiveVoiceOpen(true);
+      tab = 'chat';
+    }
     setActiveTabState(tab);
     try {
       sessionStorage.setItem('angel_session_tab', tab);
@@ -453,26 +459,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [messagesMap, setMessagesMap] = useState<Record<string, Message[]>>(() => {
     if (!hasStoredAuthSession()) return createGuestMessages();
     const stored = getStoredItem<Record<string, Message[]>>('messages_map', {});
-    if (stored && Object.keys(stored).length > 0) return stored;
+    if (stored && Object.keys(stored).length > 0) {
+      const greeting = "Hey, I'm Angel. I'm here to help you think, create, organise, and get things done. What would you like to work on?";
+      return Object.fromEntries(Object.entries(stored).map(([conversationId, messages]) => [
+        conversationId,
+        messages.map((message) => {
+          const isLegacyWelcome = (message.id === 'msg-welcome-init' || message.id.startsWith('msg-guest-')) &&
+            /COMMAND CENTER|Commander|Jarvis tactical|military-grade|Tactical Core/i.test(message.content);
+          return isLegacyWelcome ? { ...message, content: greeting } : message;
+        }),
+      ]));
+    }
     return {
       'conv-welcome': [
         {
           id: 'msg-welcome-init',
           conversationId: 'conv-welcome',
           role: 'assistant',
-          content: `### 🛡️ ANGEL AI COMMAND CENTER // ONLINE
-**System Clearance:** Level 5 Sovereign Executive  
-**Status:** All Neural Subsystems Nominal  
-**Tactical Core:** Autonomous Jarvis Intelligence Engine Active
-
-Welcome, Commander. Angel is your military-grade, zero-compromise personal AI operating environment. 
-
-* ⚡ **High-Speed Tactical Reasoning & Code Synthesis**
-* 🌐 **Live Web Intelligence & Deep Multi-Agent Execution**
-* 🔒 **Sovereign Cryptographic Enclave (End-to-End Vault)**
-* 🎙️ **Voice Telemetry & HUD Perception**
-
-State your directive, or select a command from the matrix below.`,
+          content: `Hey, I'm Angel. I'm here to help you think, create, organise, and get things done. What would you like to work on?`,
           createdAt: new Date().toISOString(),
           agentId: 'angel-core',
         },
@@ -634,6 +638,7 @@ State your directive, or select a command from the matrix below.`,
     setAuthError(null);
     setIsAuthPageOpen(false);
     setIsIncognitoActive(false);
+    setIsLiveVoiceOpen(false);
     setIsSecretsUnlocked(false);
     setUserProfile({
       id: 'guest_user',
@@ -794,7 +799,7 @@ State your directive, or select a command from the matrix below.`,
           session.user.user_metadata?.full_name ||
           session.user.user_metadata?.name ||
           session.user.email?.split('@')[0] ||
-          'Daniel Nwachukwu';
+          'Angel User';
         const initials =
           name
             .split(' ')
@@ -802,7 +807,7 @@ State your directive, or select a command from the matrix below.`,
             .filter(Boolean)
             .join('')
             .substring(0, 2)
-            .toUpperCase() || 'DN';
+            .toUpperCase() || 'AU';
         setUserProfile((prev) => ({
           ...prev,
           id: session.user.id,
@@ -830,7 +835,7 @@ State your directive, or select a command from the matrix below.`,
           session.user.user_metadata?.full_name ||
           session.user.user_metadata?.name ||
           session.user.email?.split('@')[0] ||
-          'Daniel Nwachukwu';
+          'Angel User';
         const initials =
           name
             .split(' ')
@@ -838,7 +843,7 @@ State your directive, or select a command from the matrix below.`,
             .filter(Boolean)
             .join('')
             .substring(0, 2)
-            .toUpperCase() || 'DN';
+            .toUpperCase() || 'AU';
         setUserProfile((prev) => ({
           ...prev,
           id: session.user.id,
@@ -869,78 +874,8 @@ State your directive, or select a command from the matrix below.`,
       }
     });
 
-    // Listen for OAuth popup completion relay
-    const handleOAuthPopupMessage = async (event: MessageEvent) => {
-      if (event.data?.type === 'ANGEL_OAUTH_CALLBACK') {
-        const hash = String(event.data.hash || '');
-        if (hash.includes('error=')) {
-          const hashParams = new URLSearchParams(hash.substring(1));
-          const desc =
-            hashParams.get('error_description') ||
-            hashParams.get('error') ||
-            'Google authentication was cancelled or could not be completed.';
-          setAuthError(decodeURIComponent(desc.replace(/\+/g, ' ')));
-          setAuthPageMode('signin');
-          setIsAuthPageOpen(true);
-          return;
-        }
-
-        if (hash.includes('access_token=')) {
-          try {
-            const hashParams = new URLSearchParams(hash.substring(1));
-            const accessToken = hashParams.get('access_token');
-            const refreshToken = hashParams.get('refresh_token');
-            if (accessToken) {
-              if (refreshToken) {
-                await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-              }
-              const { data: userData } = await client.auth.getUser(accessToken);
-              const user = userData?.user;
-              if (user) {
-                const name =
-                  user.user_metadata?.full_name ||
-                  user.user_metadata?.name ||
-                  user.email?.split('@')[0] ||
-                  'Daniel Nwachukwu';
-                const initials =
-                  name
-                    .split(' ')
-                    .map((n: string) => n[0])
-                    .filter(Boolean)
-                    .join('')
-                    .substring(0, 2)
-                    .toUpperCase() || 'DN';
-                setSessionToken(accessToken);
-                if (typeof localStorage !== 'undefined') {
-                  localStorage.setItem('angel_auth_token', accessToken);
-                  localStorage.removeItem('angel_is_guest');
-                }
-                setIsSignedIn(true);
-                setUserProfile((prev) => ({
-                  ...prev,
-                  id: user.id,
-                  name,
-                  email: user.email || prev.email,
-                  initials,
-                  plan: 'Free',
-                  status: 'online',
-                  avatarUrl: user.user_metadata?.avatar_url || prev.avatarUrl,
-                }));
-                setIsAuthPageOpen(false);
-                setAuthError(null);
-              }
-            }
-          } catch (err) {
-            console.warn('[Supabase OAuth] Failed to process popup callback tokens:', err);
-          }
-        }
-      }
-    };
-    window.addEventListener('message', handleOAuthPopupMessage);
-
     return () => {
       authSub?.subscription?.unsubscribe();
-      window.removeEventListener('message', handleOAuthPopupMessage);
     };
   }, []);
 
@@ -958,8 +893,33 @@ State your directive, or select a command from the matrix below.`,
     fetch('/api/auth/session', {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => {
+      .then(async (res) => {
+        if (res.status === 401) {
+          // A stale access token may still have a valid Supabase refresh token.
+          // Refresh once before clearing the local account, then let the effect
+          // retry with the new token.
+          const authClient = getClientSupabase();
+          if (authClient) {
+            try {
+              const { data, error } = await authClient.auth.refreshSession();
+              const refreshedToken = data.session?.access_token;
+              if (!error && refreshedToken && refreshedToken !== token) {
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('angel_auth_token', refreshedToken);
+                  localStorage.removeItem('angel_is_guest');
+                }
+                setIsSignedIn(true);
+                setSessionToken(refreshedToken);
+                return null;
+              }
+            } catch (refreshError) {
+              console.warn('[AppContext] Session refresh failed after backend 401.', refreshError);
+            }
+          }
+          return { authenticated: false };
+        }
         if (res.ok) return res.json();
+        // Do not log users out on a transient server/configuration failure.
         return null;
       })
       .then((data) => {
@@ -970,7 +930,7 @@ State your directive, or select a command from the matrix below.`,
             id: data.profile.id,
             name: data.profile.name,
             email: data.profile.email,
-            initials: data.profile.name.slice(0, 2).toUpperCase() || 'DN',
+            initials: (typeof data.profile.name === 'string' && data.profile.name.trim() ? data.profile.name.trim() : (data.profile.email?.split('@')[0] || 'AU')).slice(0, 2).toUpperCase(),
             status: 'online',
             avatarUrl: data.profile.avatarUrl || prev.avatarUrl,
             title: data.profile.title || prev.title,
@@ -980,7 +940,27 @@ State your directive, or select a command from the matrix below.`,
           fetch('/api/user/cloud-data', {
             headers: { Authorization: `Bearer ${token}` },
           })
-            .then((r) => r.json())
+            .then(async (response) => {
+              if (response.status === 401) {
+                const authClient = getClientSupabase();
+                if (authClient) {
+                  try {
+                    const { data, error } = await authClient.auth.refreshSession();
+                    const refreshedToken = data.session?.access_token;
+                    if (!error && refreshedToken && refreshedToken !== token) {
+                      if (typeof localStorage !== 'undefined') localStorage.setItem('angel_auth_token', refreshedToken);
+                      setSessionToken(refreshedToken);
+                    }
+                  } catch (refreshError) {
+                    console.warn('[AppContext] Cloud sync token refresh failed.', refreshError);
+                  }
+                }
+                console.warn('[AppContext] Cloud data request was rejected; local workspace data has been preserved.');
+                return null;
+              }
+              if (!response.ok) throw new Error('Cloud data returned HTTP ' + response.status);
+              return response.json();
+            })
             .then((cloud) => {
               if (cloud?.data) {
                 if (Array.isArray(cloud.data.tasks) && cloud.data.tasks.length > 0) setTasks(cloud.data.tasks);
@@ -990,7 +970,9 @@ State your directive, or select a command from the matrix below.`,
                 if (Array.isArray(cloud.data.libraryItems) && cloud.data.libraryItems.length > 0) setLibraryItems(cloud.data.libraryItems);
               }
             })
-            .catch(() => {});
+            .catch((cloudError) => {
+              console.warn('[AppContext] Cloud hydration failed; local data remains available.', cloudError);
+            });
         } else if (data && data.authenticated === false) {
           // Explicit token rejection from server
           resetToGuestWorkspace();
@@ -1024,7 +1006,7 @@ State your directive, or select a command from the matrix below.`,
 
   // Centralized autosave engine: frequent, change-detected local persistence with cloud queue processing.
   useEffect(() => {
-    const AUTOSAVE_INTERVAL_MS = 10000;
+    const AUTOSAVE_INTERVAL_MS = 30000;
 
     const performAutosave = async () => {
       try {
@@ -1578,7 +1560,7 @@ State your directive, or select a command from the matrix below.`,
   };
 
   // Send Message with SSE streaming
-  const sendMessage = async (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string) => {
+  const sendMessage = async (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string, requestOptions?: ChatRequestOptions) => {
     if (!content.trim() && (!attachments || attachments.length === 0)) return;
 
     let targetConvId = explicitConversationId || activeConversationIdRef.current || activeConversationId;
@@ -1671,6 +1653,9 @@ State your directive, or select a command from the matrix below.`,
         prompt: content,
         agent,
         conversationHistory: convHistory,
+        modelId: requestOptions?.modelId,
+        providerId: requestOptions?.providerId,
+        mode: requestOptions?.mode,
         contextState: {
           memories,
           tasks,
@@ -2173,7 +2158,7 @@ State your directive, or select a command from the matrix below.`,
       reviewCount: 1,
       installs: 1,
       installed: true,
-      author: userProfile.name || 'Danny Davis',
+      author: userProfile.name || 'You',
       authorVerified: true,
     };
     setMarketplaceItems((prev) => [newItem, ...prev]);
@@ -2447,6 +2432,8 @@ State your directive, or select a command from the matrix below.`,
         toggleSidebar,
         isMobileMenuOpen,
         setMobileMenuOpen,
+        isLiveVoiceOpen,
+        setIsLiveVoiceOpen,
         isWorkspaceMinimized,
         setIsWorkspaceMinimized,
         toggleWorkspaceMinimized,

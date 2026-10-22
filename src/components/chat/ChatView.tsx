@@ -1,7 +1,7 @@
 /**
  * ANGEL AI — Conversational Intelligence Workspace
  * Matches Image 1 ("New Chat (Empty State)"), Image 4, and Image 5 Panel 10:
- * - Empty state with Angel Emblem, "Hello again, Danny 🔮", action chips (Think, Search Engine, Browse Web, Model)
+ * - Empty state with Angel Emblem and a personalised greeting
  * - "Try searching for:" suggestions: Latest tech news, Design a marketing plan, Python tutorial, Healthy meal ideas
  * - Streaming chat with tool inspection, agent selection, attachments, and rich markdown
  * - Composer dock with attachments, mic, Voice Node, and submission
@@ -51,9 +51,25 @@ import { getSavedCanvases, saveCanvases, setActiveCanvasId } from '../../service
 import { VisualModePopup } from './VisualModePopup';
 import { VoiceModeView } from '../voice/VoiceModeView';
 
+type ChatModelOption = {
+  id: string;
+  name: string;
+  provider: string;
+  description?: string;
+  isAvailable?: boolean;
+  isDefault?: boolean;
+  tier?: string;
+  capabilities?: { streaming?: boolean; thinking?: boolean };
+};
+
 export const ChatView: React.FC = () => {
   const {
     activeConversation,
+    activeTab,
+    isSignedIn,
+    userProfile,
+    isLiveVoiceOpen,
+    setIsLiveVoiceOpen,
     conversations,
     activeConversationId,
     setActiveConversationId,
@@ -76,13 +92,23 @@ export const ChatView: React.FC = () => {
 
   const [input, setInput] = useState('');
   const [isVisualPanelOpen, setIsVisualPanelOpen] = useState(false);
-  const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
-  const [activeChip, setActiveChip] = useState<'think' | 'search' | 'browse' | 'model'>('think');
+  const [activeChip, setActiveChip] = useState<'think' | 'search' | 'browse'>(() => {
+    try {
+      const savedMode = localStorage.getItem('angel_chat_mode');
+      if (savedMode === 'think' || savedMode === 'search' || savedMode === 'browse') return savedMode;
+    } catch {}
+    return 'think';
+  });
+  const [availableModels, setAvailableModels] = useState<ChatModelOption[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState(() => {
+    try { return localStorage.getItem('angel_chat_model') || 'gemini-3.8-flash'; }
+    catch { return 'gemini-3.8-flash'; }
+  });
   const [isAddSectionOpen, setIsAddSectionOpen] = useState(false);
   const [convToDelete, setConvToDelete] = useState<Conversation | null>(null);
 
@@ -101,6 +127,53 @@ export const ChatView: React.FC = () => {
     },
   });
 
+  const selectedModel = availableModels.find((model) => model.id === selectedModelId) || availableModels.find((model) => model.isDefault) || availableModels[0];
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('angel_chat_mode', activeChip);
+      localStorage.setItem('angel_chat_model', selectedModelId);
+    } catch {
+      // Model and mode remain usable for the current session if storage is unavailable.
+    }
+  }, [activeChip, selectedModelId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/models')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Model catalogue request failed.');
+        const data: unknown = await response.json();
+        if (!Array.isArray(data)) throw new Error('Model catalogue returned an invalid response.');
+        return data as ChatModelOption[];
+      })
+      .then((models) => {
+        if (cancelled) return;
+        const usable = models.filter((model) =>
+          model && typeof model.id === 'string' && typeof model.name === 'string' &&
+          model.isAvailable !== false && ['gemini', 'openai'].includes(model.provider) &&
+          model.capabilities?.streaming !== false,
+        );
+        setAvailableModels(usable);
+        if (!usable.some((model) => model.id === selectedModelId)) {
+          setSelectedModelId(usable.find((model) => model.isDefault)?.id || usable[0]?.id || 'gemini-3.8-flash');
+        }
+      })
+      .catch((error) => {
+        console.warn('[ChatView] Could not load available AI models:', error);
+        if (!cancelled) {
+          setAvailableModels([]);
+          // Keep the fallback model selection aligned with the visible option.
+          setSelectedModelId('gemini-3.8-flash');
+        }
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const closeVoicePanel = () => {
+    setIsLiveVoiceOpen(false);
+    if (activeTab === 'voice') setActiveTab('chat');
+  };
   const toggleSpeechRecognition = () => {
     if (voiceDictation.isListening) {
       voiceDictation.stopListening();
@@ -141,7 +214,7 @@ export const ChatView: React.FC = () => {
       convId = createConversation(selectedAgentId);
     }
 
-    await sendMessage(textToSend, filesToSend, convId);
+    await sendMessage(textToSend, filesToSend, convId, undefined, { modelId: selectedModel?.id || selectedModelId, providerId: selectedModel?.provider || 'gemini', mode: activeChip });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -280,7 +353,7 @@ export const ChatView: React.FC = () => {
           {messages.length === 0 ? (
             /* ========================================================
                IMAGE 1: "New Chat (Empty State)"
-               Emblem + "Hello again, Danny 🔮" + 4 Filter Pills + "Try searching for:"
+               Emblem + contextual greeting + "Try searching for:"
                ======================================================== */
             <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-6 max-w-lg mx-auto animate-in fade-in duration-200">
               <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 shadow-xs">
@@ -293,72 +366,14 @@ export const ChatView: React.FC = () => {
                     isLight ? 'text-slate-900' : 'text-white'
                   }`}
                 >
-                  Hello again, Danny 🔮
+                  {isSignedIn && userProfile.name?.trim() ? `Hello again, ${userProfile.name.trim().split(/\s+/)[0]} 🔮` : 'Hi there 🔮'}
                 </h2>
                 <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-neutral-400'}`}>
                   What would you like Angel to help you with today?
                 </p>
               </div>
 
-              {/* Action Filter Pills Row (Image 1: Think, Search Engine, Browse Web, GPT-4o) */}
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                  onClick={() => setActiveChip('think')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                    activeChip === 'think'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : isLight
-                      ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                      : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
-                  }`}
-                >
-                  <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Think</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveChip('search')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                    activeChip === 'search'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : isLight
-                      ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                      : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
-                  }`}
-                >
-                  <Search className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Search Engine</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveChip('browse')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                    activeChip === 'browse'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : isLight
-                      ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                      : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
-                  }`}
-                >
-                  <Globe className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Browse Web</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveChip('model')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                    activeChip === 'model'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : isLight
-                      ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                      : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 border border-white/5'
-                  }`}
-                >
-                  <Bot className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Gemini 3.8 Flash</span>
-                </button>
-              </div>
-
+              {/* Model and thinking controls remain available in the composer for every conversation. */}
               {/* Suggestions Prompt (Image 1: "Try searching for:") */}
               <div className="w-full space-y-2.5 pt-2">
                 <span
@@ -611,6 +626,42 @@ export const ChatView: React.FC = () => {
             </div>
           )}
 
+          <div className={`mb-2 flex flex-wrap items-center justify-between gap-2 px-1 ${isLight ? 'text-slate-600' : 'text-neutral-300'}`}>
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Response mode">
+              {([{ id: 'think', label: 'Think', icon: Lightbulb }, { id: 'search', label: 'Search', icon: Search }, { id: 'browse', label: 'Browse', icon: Globe }] as const).map((mode) => {
+                const ModeIcon = mode.icon;
+                const selected = activeChip === mode.id;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setActiveChip(mode.id)}
+                    title={mode.id === 'think' ? 'Reason carefully and give a concise conclusion' : mode.id === 'search' ? 'Use available search and workspace tools when relevant' : 'Use available browsing and research tools when relevant'}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${selected ? 'bg-indigo-600 text-white' : isLight ? 'hover:bg-slate-100' : 'hover:bg-white/10'}`}
+                  >
+                    <ModeIcon className="h-3.5 w-3.5" />
+                    {mode.label}
+                  </button>
+                );
+              })}
+            </div>
+            <label className="flex min-w-0 items-center gap-2 text-[11px] font-medium">
+              <span className="shrink-0">Model</span>
+              <select
+                aria-label="Choose AI model"
+                value={selectedModel?.id || selectedModelId}
+                onChange={(event) => setSelectedModelId(event.target.value)}
+                className={`max-w-[220px] min-w-[135px] rounded-lg border px-2 py-1.5 text-[11px] outline-none ${isLight ? 'border-slate-200 bg-white text-slate-800' : 'border-white/10 bg-[#111827] text-white'}`}
+              >
+                {availableModels.length === 0 && <option value="gemini-3.8-flash">Gemini 3.8 Flash (default)</option>}
+                {availableModels.map((model) => (
+                  <option key={model.id} value={model.id}>{model.name}{model.tier === 'pro' ? ' · Pro' : ''}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
           <form
             onSubmit={handleSend}
             className={`relative flex items-center gap-2 rounded-2xl p-2 transition-all shadow-sm ${
@@ -742,7 +793,7 @@ export const ChatView: React.FC = () => {
               <button
                 type="button"
                 id="btn-activate-voice"
-                onClick={() => setIsVoicePanelOpen(true)}
+                onClick={() => setIsLiveVoiceOpen(true)}
                 className={`p-2 rounded-xl transition-all shrink-0 cursor-pointer transform-gpu active:scale-95 animate-in zoom-in-90 duration-150 ${
                   isLight
                     ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200/80 shadow-2xs'
@@ -761,19 +812,19 @@ export const ChatView: React.FC = () => {
               isLight ? 'text-slate-400' : 'text-neutral-400'
             }`}
           >
-            <span>Routing: Google Gemini 3.8 Flash • Hardware Secured</span>
+            <span>Model: {selectedModel?.name || 'Gemini 3.8 Flash'}</span>
             <span>Enter to send • Shift+Enter for newline</span>
           </div>
         </div>
       </div>
 
       {isVisualPanelOpen && <VisualModePopup onClose={() => setIsVisualPanelOpen(false)} />}
-      {isVoicePanelOpen && (
-        <div className="fixed inset-0 z-[70] bg-[#060813] text-white">
-          <div className="absolute right-3 top-3 z-[80]">
-            <button onClick={() => setIsVoicePanelOpen(false)} aria-label="Close voice mode" className="rounded-xl border border-white/15 bg-black/60 p-2 text-white hover:bg-white/10"><X className="h-5 w-5" /></button>
+      {isLiveVoiceOpen && (
+        <div className="fixed bottom-20 right-4 z-[70] h-[min(72vh,680px)] w-[min(440px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-indigo-400/30 bg-[#060813] text-white shadow-2xl">
+          <div className="absolute right-2 top-2 z-[80]">
+            <button onClick={closeVoicePanel} aria-label="Close live voice" className="rounded-xl border border-white/15 bg-black/60 p-2 text-white hover:bg-white/10"><X className="h-4 w-4" /></button>
           </div>
-          <div className="h-full overflow-y-auto"><VoiceModeView /></div>
+          <div className="h-full overflow-y-auto"><VoiceModeView onClose={closeVoicePanel} modelId={selectedModel?.id || selectedModelId} providerId={selectedModel?.provider || 'gemini'} /></div>
         </div>
       )}
 

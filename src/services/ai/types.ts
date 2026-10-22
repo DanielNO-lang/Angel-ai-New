@@ -151,6 +151,10 @@ export interface AssembledContext {
 // ============================================================================
 
 export interface SendMessageOptions {
+  /** Optional per-message intelligence controls selected in the chat composer. */
+  modelId?: string;
+  providerId?: string;
+  mode?: 'think' | 'search' | 'browse';
   conversationId: string;
   prompt: string;
   agent: Agent;

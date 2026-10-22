@@ -35,6 +35,7 @@ export interface GenerateOptions {
   temperature?: number;
   maxTokens?: number;
   topP?: number;
+  thinkingLevel?: 'low' | 'medium' | 'high';
 }
 
 export interface GenerateResult {
@@ -56,6 +57,7 @@ export interface StreamOptions {
   modelId?: string;
   temperature?: number;
   maxTokens?: number;
+  thinkingLevel?: 'low' | 'medium' | 'high';
 }
 
 export interface StructuredOutputOptions<T = unknown> {
@@ -82,6 +84,7 @@ export interface ToolCallOptions {
   modelId?: string;
   temperature?: number;
   toolChoice?: 'auto' | 'any' | 'none';
+  thinkingLevel?: 'low' | 'medium' | 'high';
 }
 
 export interface ToolCallResult {

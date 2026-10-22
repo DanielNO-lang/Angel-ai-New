@@ -248,11 +248,16 @@ export const Sidebar: React.FC = () => {
         onPointerEnter={handleMouseEnterRail}
         onPointerLeave={handleMouseLeaveRail}
         style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
           width: effectiveExpanded ? 240 : 60,
-          transition: 'width 0ms linear',
+          height: '100vh',
+          transition: 'width 160ms ease',
           willChange: 'width',
+          zIndex: 30,
         }}
-        className={`angel-desktop-sidebar hidden md:flex flex-col shrink-0 h-screen select-none overflow-x-hidden overflow-y-hidden relative z-30 border-r backdrop-blur-2xl transition-colors duration-300 ${
+        className={`angel-desktop-sidebar hidden md:flex flex-col h-screen select-none overflow-x-hidden overflow-y-hidden border-r backdrop-blur-2xl transition-colors duration-300 ${
           isLight
             ? 'border-slate-200/60 bg-[#F8FAFC]/80 text-slate-800'
             : isMidnight
@@ -714,7 +719,7 @@ export const Sidebar: React.FC = () => {
 
         {/* ========================================================
             3. FIXED BOTTOM REGION
-            - Quote Card: Permanently fixed right above Danny Davis
+            - Quote Card: Permanently fixed above the user profile
             - User Profile: signed-in identity and online status dot
             ======================================================== */}
         <div

@@ -5,7 +5,6 @@
  */
 
 import { FunctionDeclaration, GoogleGenAI, Type } from '@google/genai';
-import { angelJarvisCore } from '../services/angelJarvisCore';
 import {
   AIProvider,
   GenerateOptions,
@@ -20,6 +19,7 @@ import {
   VisionOptions,
   VisionResult,
 } from './types';
+import { ANGEL_CORE_PERSONA_PROMPT } from '../../src/services/ai/angelPersona';
 
 export class GeminiProvider implements AIProvider {
   readonly id = 'gemini';
@@ -40,7 +40,7 @@ export class GeminiProvider implements AIProvider {
         apiKey,
         httpOptions: {
           // Keep a slow provider from exceeding Netlify's function request window.
-          // On timeout, generate()/stream() can use Angel's explicit local fallback.
+          // On timeout, provider failures propagate to the API so the UI can report them honestly.
           timeout: 20_000,
           headers: {
             'User-Agent': 'aistudio-build',
@@ -171,18 +171,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      const jarvis = angelJarvisCore.generateResponse({
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-        conversationHistory: options.conversationHistory,
-        modelId: model,
-      });
-      return {
-        text: jarvis.text,
-        provider: this.id,
-        modelId: jarvis.modelId,
-        tokensUsed: jarvis.tokensUsed,
-      };
+      throw new Error('Gemini is unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -192,7 +181,7 @@ export class GeminiProvider implements AIProvider {
       const generationConfig: Record<string, unknown> = {
         systemInstruction:
           options.systemInstruction ||
-          'You are Angel, a calm, disciplined, hyper-capable personal AI operating environment. Answer concisely and with clear markdown structure.',
+          ANGEL_CORE_PERSONA_PROMPT,
         maxOutputTokens: options.maxTokens,
       };
       // Gemini 3+ rejects legacy sampling controls; use the model's native
@@ -200,6 +189,14 @@ export class GeminiProvider implements AIProvider {
       if (!model.startsWith('gemini-3.')) {
         generationConfig.temperature = options.temperature ?? 0.7;
         generationConfig.topP = options.topP;
+      }
+      if (options.thinkingLevel) {
+        if (model.startsWith('gemini-2.5-')) {
+          const thinkingBudget = options.thinkingLevel === 'high' ? 8192 : options.thinkingLevel === 'medium' ? 4096 : 1024;
+          generationConfig.thinkingConfig = { thinkingBudget };
+        } else if (model.startsWith('gemini-3.')) {
+          generationConfig.thinkingConfig = { thinkingLevel: options.thinkingLevel };
+        }
       }
       const response = await ai.models.generateContent({
         model,
@@ -223,19 +220,9 @@ export class GeminiProvider implements AIProvider {
           : undefined,
       };
     } catch (err) {
-      console.warn('[GeminiProvider.generate fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
-      const jarvis = angelJarvisCore.generateResponse({
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-        conversationHistory: options.conversationHistory,
-        modelId: model,
-      });
-      return {
-        text: jarvis.text,
-        provider: this.id,
-        modelId: jarvis.modelId,
-        tokensUsed: jarvis.tokensUsed,
-      };
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error('[GeminiProvider.generate] Provider request failed:', detail);
+      throw new Error('Gemini generation failed. Check model availability, API key validity, quota, and provider configuration.');
     }
   }
 
@@ -246,12 +233,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      return await angelJarvisCore.streamResponse({
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-        conversationHistory: options.conversationHistory,
-        modelId: model,
-      }, onChunk);
+      throw new Error('Gemini is unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -259,10 +241,18 @@ export class GeminiProvider implements AIProvider {
       const contents = this.formatContents(options.prompt, options.conversationHistory);
 
       const streamConfig: Record<string, unknown> = {
-        systemInstruction: options.systemInstruction,
+        systemInstruction: options.systemInstruction || ANGEL_CORE_PERSONA_PROMPT,
         maxOutputTokens: options.maxTokens,
       };
       if (!model.startsWith('gemini-3.')) streamConfig.temperature = options.temperature ?? 0.7;
+      if (options.thinkingLevel) {
+        if (model.startsWith('gemini-2.5-')) {
+          const thinkingBudget = options.thinkingLevel === 'high' ? 8192 : options.thinkingLevel === 'medium' ? 4096 : 1024;
+          streamConfig.thinkingConfig = { thinkingBudget };
+        } else if (model.startsWith('gemini-3.')) {
+          streamConfig.thinkingConfig = { thinkingLevel: options.thinkingLevel };
+        }
+      }
       const streamResponse = await ai.models.generateContentStream({
         model,
         contents,
@@ -280,13 +270,9 @@ export class GeminiProvider implements AIProvider {
 
       return fullText;
     } catch (err) {
-      console.warn('[GeminiProvider.stream fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
-      return await angelJarvisCore.streamResponse({
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-        conversationHistory: options.conversationHistory,
-        modelId: model,
-      }, onChunk);
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error('[GeminiProvider.stream] Provider request failed:', detail);
+      throw new Error('Gemini streaming failed. Check model availability, API key validity, quota, and provider configuration.');
     }
   }
 
@@ -306,7 +292,7 @@ export class GeminiProvider implements AIProvider {
       const convertedSchema = this.convertToGeminiSchema(options.jsonSchema);
 
       const structuredConfig: Record<string, unknown> = {
-        systemInstruction: options.systemInstruction,
+        systemInstruction: options.systemInstruction || ANGEL_CORE_PERSONA_PROMPT,
         responseMimeType: 'application/json',
         responseSchema: convertedSchema as any,
       };
@@ -349,10 +335,18 @@ export class GeminiProvider implements AIProvider {
       const toolConfig: Record<string, unknown> = {
         systemInstruction:
           options.systemInstruction ||
-          'You are Angel. When the user prompt requires a tool to be called, invoke the appropriate function with accurate parameters.',
+          ANGEL_CORE_PERSONA_PROMPT + '\n\nWhen the user prompt requires a workspace tool, invoke only the appropriate available function with accurate parameters.',
         tools: [{ functionDeclarations }],
       };
       if (!model.startsWith('gemini-3.')) toolConfig.temperature = options.temperature ?? 0.3;
+      if (options.thinkingLevel) {
+        if (model.startsWith('gemini-2.5-')) {
+          const thinkingBudget = options.thinkingLevel === 'high' ? 8192 : options.thinkingLevel === 'medium' ? 4096 : 1024;
+          toolConfig.thinkingConfig = { thinkingBudget };
+        } else if (model.startsWith('gemini-3.')) {
+          toolConfig.thinkingConfig = { thinkingLevel: options.thinkingLevel };
+        }
+      }
       const response = await ai.models.generateContent({
         model,
         contents,
@@ -391,17 +385,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      const recon = angelJarvisCore.inspectVision({
-        base64Data: options.base64Data,
-        mimeType: options.mimeType,
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-      });
-      return {
-        analysis: recon.analysis,
-        provider: this.id,
-        modelId: recon.modelId,
-      };
+      throw new Error('Gemini vision is unavailable: GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -439,18 +423,9 @@ export class GeminiProvider implements AIProvider {
         modelId: model,
       };
     } catch (err) {
-      console.warn('[GeminiProvider.vision fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
-      const recon = angelJarvisCore.inspectVision({
-        base64Data: options.base64Data,
-        mimeType: options.mimeType,
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-      });
-      return {
-        analysis: recon.analysis,
-        provider: this.id,
-        modelId: recon.modelId,
-      };
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error('[GeminiProvider.vision] Provider request failed:', detail);
+      throw new Error('Gemini vision failed. Check model availability, API key validity, quota, and provider configuration.');
     }
   }
 

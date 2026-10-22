@@ -29,7 +29,6 @@ import { getAngelCapabilityCatalog } from './server/services/angelCapabilityCata
 import { handleAngelMcpMessage } from './server/services/mcpGatewayService';
 import { runWorkflowExecution, approveWorkflowExecution, triggerMatchingWorkflows } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
-import { angelJarvisCore } from './server/services/angelJarvisCore';
 
 export interface CreateAppOptions {
   isServerless?: boolean;
@@ -955,6 +954,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const conversationHistory = req.body?.conversationHistory || req.body?.history;
     const modelId = req.body?.modelId;
     const providerId = req.body?.providerId;
+    const mode = req.body?.mode;
+    const thinkingLevel = mode === 'think' ? 'high' : mode === 'search' || mode === 'browse' ? 'medium' : undefined;
     const temperature = req.body?.temperature;
     const maxTokens = req.body?.maxTokens;
 
@@ -977,6 +978,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
           modelId,
           temperature,
           maxTokens,
+          thinkingLevel,
         },
         (chunk) => {
           res.write(`data: ${JSON.stringify({ chunk, text: chunk })}\n\n`);
@@ -986,26 +988,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
       res.end();
     } catch (err) {
-      console.warn('[API /api/ai/stream fallback to AngelJarvisCore]', err);
-      try {
-        await angelJarvisCore.streamResponse(
-          {
-            prompt,
-            systemInstruction,
-            conversationHistory,
-            modelId,
-          },
-          (chunk) => {
-            res.write(`data: ${JSON.stringify({ chunk, text: chunk })}\n\n`);
-          }
-        );
-        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-        res.end();
-      } catch (streamErr) {
-        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
-        res.write(`data: ${JSON.stringify({ error: msg, done: true })}\n\n`);
-        res.end();
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error('[API /api/ai/stream] Provider request failed:', detail);
+      const publicError = {
+        success: false,
+        code: 'provider_request_failed',
+        error: 'The selected AI provider could not complete this response. Check the provider configuration and try again.',
+      };
+      if (!res.headersSent) {
+        return res.status(502).json(publicError);
       }
+      res.write('data: ' + JSON.stringify({ ...publicError, done: true }) + '\n\n');
+      res.end();
     }
   });
 
@@ -1017,6 +1011,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const conversationHistory = req.body?.conversationHistory || req.body?.history;
     const modelId = req.body?.modelId;
     const providerId = req.body?.providerId;
+    const mode = req.body?.mode;
+    const thinkingLevel = mode === 'think' ? 'high' : mode === 'search' || mode === 'browse' ? 'medium' : undefined;
     const temperature = req.body?.temperature;
     const maxTokens = req.body?.maxTokens;
 
@@ -1033,23 +1029,17 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         modelId,
         temperature,
         maxTokens,
+        thinkingLevel,
       });
 
       res.json(result);
     } catch (err) {
-      console.warn('[API /api/ai/generate fallback to AngelJarvisCore]', err);
-      const jarvis = angelJarvisCore.generateResponse({
-        prompt,
-        systemInstruction,
-        conversationHistory,
-        modelId,
-      });
-      res.json({
-        success: true,
-        text: jarvis.text,
-        provider: 'angel-jarvis',
-        modelId: jarvis.modelId,
-        tokensUsed: jarvis.tokensUsed,
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error('[API /api/ai/generate] Provider request failed:', detail);
+      return res.status(502).json({
+        success: false,
+        code: 'provider_request_failed',
+        error: 'The selected AI provider could not generate a response. Check the provider configuration and try again.',
       });
     }
   });
@@ -1083,7 +1073,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
   // Discoverable Tool Call
   app.post('/api/ai/tool-call', rateLimit(15), async (req: Request, res: Response) => {
-    const { prompt, systemInstruction, conversationHistory, tools, modelId, providerId, temperature } = req.body;
+    const { prompt, systemInstruction, conversationHistory, tools, modelId, providerId, temperature, mode } = req.body;
+    const thinkingLevel = mode === 'think' ? 'high' : mode === 'search' || mode === 'browse' ? 'medium' : undefined;
 
     if (!prompt || !tools || !Array.isArray(tools)) {
       return res.status(400).json({ error: 'Prompt and tools array are required' });
@@ -1098,6 +1089,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         tools,
         modelId,
         temperature,
+        thinkingLevel,
       });
 
       res.json(result);

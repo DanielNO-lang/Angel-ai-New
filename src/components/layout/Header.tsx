@@ -7,7 +7,7 @@
  * - Appearance trigger
  * - Theme toggle (Sun / Moon)
  * - Notification Center
- * - User Profile Avatar trigger ("DD" Danny Davis)
+ * - User profile and account controls
  * - Sign in / Sign up CTA buttons when in Guest mode
  * - Incognito icon at the very top right (represented by an icon, nothing more)
  */

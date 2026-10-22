@@ -12,7 +12,6 @@ import {
   Search,
   Minus,
   Maximize2,
-  Headphones,
   Bot,
   MessageSquare,
   CheckSquare,
@@ -67,7 +66,6 @@ export const MobileTopBar: React.FC = () => {
     media_studio: { label: 'Media Studio', icon: Palette },
     assistants: { label: 'Assistants', icon: Users },
     visual_mode: { label: 'Visual Mode', icon: Eye },
-    voice: { label: 'Voice Mode', icon: Headphones },
     settings: { label: 'Settings', icon: Settings },
   };
 
@@ -133,20 +131,6 @@ export const MobileTopBar: React.FC = () => {
 
       {/* Right: Quick Actions */}
       <div className="flex items-center gap-1 shrink-0">
-        {/* Voice Mode */}
-        <button
-          onClick={() => setActiveTab('voice')}
-          className={`p-2 rounded-xl transition-colors ${
-            isLight
-              ? 'hover:bg-slate-100 text-slate-600 hover:text-indigo-600'
-              : 'hover:bg-white/10 text-neutral-400 hover:text-indigo-400'
-          }`}
-          title="Voice Mode"
-          aria-label="Voice Mode"
-        >
-          <Headphones className="w-4 h-4" />
-        </button>
-
         {/* Global Search */}
         <button
           onClick={() => openCommandPalette('all')}

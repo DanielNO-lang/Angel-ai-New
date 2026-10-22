@@ -14,6 +14,7 @@ import {
   VisionOptions,
   VisionResult,
 } from './types';
+import { ANGEL_CORE_PERSONA_PROMPT } from '../../src/services/ai/angelPersona';
 
 export class OpenAICompatibleProvider implements AIProvider {
   readonly id = 'openai';
@@ -45,7 +46,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     }
 
     const messages = [
-      ...(options.systemInstruction ? [{ role: 'system', content: options.systemInstruction }] : []),
+      { role: 'system', content: options.systemInstruction?.trim() || ANGEL_CORE_PERSONA_PROMPT },
       ...(options.conversationHistory?.map((m) => ({ role: m.role, content: m.content })) || []),
       { role: 'user', content: options.prompt },
     ];
@@ -91,7 +92,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     }
 
     const messages = [
-      ...(options.systemInstruction ? [{ role: 'system', content: options.systemInstruction }] : []),
+      { role: 'system', content: options.systemInstruction?.trim() || ANGEL_CORE_PERSONA_PROMPT },
       ...(options.conversationHistory?.map((m) => ({ role: m.role, content: m.content })) || []),
       { role: 'user', content: options.prompt },
     ];
@@ -147,7 +148,7 @@ export class OpenAICompatibleProvider implements AIProvider {
   async structuredOutput<T = unknown>(options: StructuredOutputOptions<T>): Promise<T> {
     const res = await this.generate({
       prompt: `${options.prompt}\n\nYou must return valid JSON matching this schema:\n${JSON.stringify(options.jsonSchema)}`,
-      systemInstruction: `${options.systemInstruction || ''}\nOutput strictly valid raw JSON without code fences or commentary.`,
+      systemInstruction: `${options.systemInstruction?.trim() || ANGEL_CORE_PERSONA_PROMPT}\nOutput strictly valid raw JSON without code fences or commentary.`,
       conversationHistory: options.conversationHistory,
       modelId: options.modelId,
       temperature: 0.1,
@@ -168,7 +169,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     }));
 
     const messages = [
-      ...(options.systemInstruction ? [{ role: 'system', content: options.systemInstruction }] : []),
+      { role: 'system', content: options.systemInstruction?.trim() || ANGEL_CORE_PERSONA_PROMPT },
       ...(options.conversationHistory?.map((m) => ({ role: m.role, content: m.content })) || []),
       { role: 'user', content: options.prompt },
     ];
@@ -209,6 +210,10 @@ export class OpenAICompatibleProvider implements AIProvider {
 
   async vision(options: VisionOptions): Promise<VisionResult> {
     const messages = [
+      {
+        role: 'system',
+        content: options.systemInstruction?.trim() || ANGEL_CORE_PERSONA_PROMPT,
+      },
       {
         role: 'user',
         content: [

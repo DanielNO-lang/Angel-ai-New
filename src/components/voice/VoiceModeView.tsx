@@ -39,7 +39,9 @@ import { voiceEngine } from '../../services/voice/voiceService';
 import { routeAngelVoiceUtterance } from '../../services/voice/voiceCommandRouter';
 import { buildAngelMasterSystemPrompt, ANGEL_CHARACTER_PRESENTATIONS } from '../../services/ai/angelMasterPrompt';
 
-export const VoiceModeView: React.FC = () => {
+interface VoiceModeViewProps { onClose?: () => void; modelId?: string; providerId?: string; }
+
+export const VoiceModeView: React.FC<VoiceModeViewProps> = ({ onClose, modelId, providerId }) => {
   const {
     settings,
     setActiveTab,
@@ -53,7 +55,10 @@ export const VoiceModeView: React.FC = () => {
   const isLight = settings.theme === 'light';
 
   // Character Presentation Profile (Section 1: Default East Asian-inspired young adult woman or male presentation)
-  const [characterGender, setCharacterGender] = useState<'female' | 'male'>('female');
+  const [characterGender, setCharacterGender] = useState<'female' | 'male'>(() => {
+    try { return localStorage.getItem('angel_voice_character_gender') === 'male' ? 'male' : 'female'; }
+    catch { return 'female'; }
+  });
 
   // Reaction Intensity (Section 6: Levels 0 to 5)
   const [reactionIntensity, setReactionIntensity] = useState<0 | 1 | 2 | 3 | 4 | 5>(1);
@@ -71,11 +76,26 @@ export const VoiceModeView: React.FC = () => {
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isListening, setIsListening] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState('Kore (Balanced)');
+  const [selectedVoice, setSelectedVoice] = useState(() => {
+    try {
+      const savedVoice = localStorage.getItem('angel_voice_profile');
+      if (savedVoice) return savedVoice;
+    } catch {}
+    return characterGender === 'male' ? 'Puck (Direct)' : 'Kore (Balanced)';
+  });
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>('');
   const [pulsePhase, setPulsePhase] = useState(0);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('angel_voice_character_gender', characterGender);
+      localStorage.setItem('angel_voice_profile', selectedVoice);
+    } catch {
+      // Voice preferences remain usable for this session when storage is unavailable.
+    }
+  }, [characterGender, selectedVoice]);
 
   // Transcript states
   const [transcript, setTranscript] = useState('');
@@ -420,22 +440,30 @@ export const VoiceModeView: React.FC = () => {
         body: JSON.stringify({
           prompt,
           systemInstruction: `${masterPrompt}\n\nIMPORTANT CONVERSATIONAL VOCAL CONSTRAINT: Respond conversationally as Angel in 1-3 spoken, natural sentences without markdown headings, asterisks, or robotic filler.`,
-          modelId: 'gemini-3.8-flash',
+          modelId: modelId || 'gemini-3.8-flash',
+          providerId: providerId || 'gemini',
         }),
       });
 
-      const data = await res.json();
-      const response = data.text || `I'm with you. Let's move forward and execute.`;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.text !== 'string' || !data.text.trim()) {
+        throw new Error(typeof data.error === 'string'
+          ? data.error
+          : 'The selected AI model returned no response.');
+      }
+      const response = data.text.trim();
       setAngelResponse(response);
       setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: response }]);
       calculateEmotionalReaction(prompt, response);
       await speakAngelResponse(response);
-    } catch {
-      const fallback = `I hear you. I'm synchronizing our neural models for: "${prompt}".`;
-      setAngelResponse(fallback);
-      setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: fallback }]);
-      calculateEmotionalReaction(prompt, fallback);
-      await speakAngelResponse(fallback);
+    } catch (error) {
+      // Do not fabricate an AI answer when the configured provider fails.
+      const notice = "I couldn't get a reply just now. Please check the AI connection and try again.";
+      setAngelResponse(notice);
+      setTranscriptHistory((prev) => [...prev, { sender: 'angel', text: notice }]);
+      calculateEmotionalReaction(prompt, notice);
+      if (isSpeakerOn) await speakAngelResponse(notice);
+      console.warn('[VoiceMode] Model request failed:', error instanceof Error ? error.message : String(error));
     }
   };
 
@@ -449,7 +477,8 @@ export const VoiceModeView: React.FC = () => {
       setIsSpeaking(false);
       setIsListening(false);
       setAngelResponse('Voice conversation ended.');
-      setActiveTab('chat');
+      if (onClose) onClose();
+      else setActiveTab('chat');
       return;
     }
 
@@ -468,6 +497,7 @@ export const VoiceModeView: React.FC = () => {
 
     if (route.kind === 'navigate') {
       if (route.newChat) createConversation();
+      if (onClose) onClose();
       setActiveTab(route.target);
       const tabLabel = route.target.replace('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
       const response = route.newChat ? 'Starting a new chat.' : `Opening ${tabLabel}.`;
@@ -522,7 +552,7 @@ export const VoiceModeView: React.FC = () => {
 
   return (
     <div
-      className={`relative flex flex-col h-full min-h-screen select-none overflow-hidden bg-transparent transition-colors duration-200 ${
+      className={`relative flex flex-col h-full min-h-0 select-none overflow-hidden bg-transparent transition-colors duration-200 ${
         isLight ? 'text-slate-800' : 'text-neutral-100'
       }`}
     >
@@ -540,7 +570,7 @@ export const VoiceModeView: React.FC = () => {
               </span>
             </div>
             <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-              Model: Gemini 3.8 Flash Audio • {selectedVoice.split(' ')[0]}
+              Model: {modelId || 'Gemini 3.8 Flash'} • {selectedVoice.split(' ')[0]}
             </p>
           </div>
         </div>
@@ -597,7 +627,8 @@ export const VoiceModeView: React.FC = () => {
           <button
             onClick={() => {
               if (window.speechSynthesis) window.speechSynthesis.cancel();
-              setActiveTab('chat');
+              if (onClose) onClose();
+              else setActiveTab('chat');
             }}
             className={`p-2 rounded-xl transition-colors cursor-pointer ${
               isLight ? 'hover:bg-slate-200/80 text-slate-600' : 'hover:bg-neutral-800 text-neutral-400'

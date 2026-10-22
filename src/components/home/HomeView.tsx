@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowUpRight, Bot, Clock3, ImagePlus, MessageSquare, Search, Workflow } from 'lucide-react';
+import { ArrowUpRight, Bot, Clock3, Headphones, ImagePlus, MessageSquare, Search, Workflow } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
 import { saveCapabilityHandoff } from '../../services/capabilityHandoff';
@@ -102,6 +102,7 @@ function chooseOne(items: HomeSuggestion[]): HomeSuggestion {
 export const HomeView: React.FC = () => {
   const {
     setActiveTab,
+    setIsLiveVoiceOpen,
     createConversation,
     setActiveConversationId,
     sendMessage,
@@ -196,6 +197,17 @@ export const HomeView: React.FC = () => {
             </button>
           </div>
         </form>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => { setActiveTab('chat'); setIsLiveVoiceOpen(true); }}
+            className="inline-flex items-center gap-2 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3.5 py-2 text-xs font-semibold text-indigo-500 transition-colors hover:bg-indigo-500/15"
+          >
+            <Headphones className="h-4 w-4" />
+            Live Voice
+          </button>
+          <span className={`text-[11px] ${muted}`}>Talk with Angel in a floating panel while staying in your workspace.</span>
+        </div>
       </section>
 
       <section className="mt-8">

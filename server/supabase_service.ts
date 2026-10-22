@@ -10,6 +10,30 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { normalizeSupabaseProjectUrl } from '../src/services/supabaseUrl';
 
+/**
+ * Server-side URL resolver.
+ * Netlify's SUPABASE_URL has historically been configured as only the
+ * project ref in some contexts. Prefer the full VITE URL, but recover safely
+ * from a bare 20-character Supabase project ref when necessary.
+ */
+function canonicalServerProjectUrl(value: unknown): string {
+  const normalized = normalizeSupabaseProjectUrl(value);
+  if (normalized) return normalized;
+  if (typeof value === 'string') {
+    const candidate = value.trim();
+    if (/^[a-z0-9]{20}$/i.test(candidate)) {
+      return `https://${candidate}.supabase.co`;
+    }
+  }
+  return '';
+}
+
+function resolveServerSupabaseUrl(): string {
+  return canonicalServerProjectUrl(process.env.VITE_SUPABASE_URL) ||
+    canonicalServerProjectUrl(process.env.SUPABASE_URL);
+}
+
+
 export interface SupabaseServerStatus {
   isConfigured: boolean;
   hasUrl: boolean;
@@ -17,6 +41,8 @@ export interface SupabaseServerStatus {
   hasServiceRoleKey: boolean;
   mode: 'connected' | 'pending_configuration';
   message: string;
+  projectUrlMismatch: boolean;
+  serverUrlFormatInvalid: boolean;
 }
 
 export interface TaskVelocityMetrics {
@@ -62,7 +88,7 @@ export interface SyncResult {
 let cachedClient: SupabaseClient | null = null;
 
 export function getSupabaseClient(): SupabaseClient | null {
-  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  const url = resolveServerSupabaseUrl();
   const key =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_ANON_KEY ||
@@ -92,7 +118,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 let cachedAdminClient: SupabaseClient | null = null;
 
 export function getSupabaseAdminClient(): SupabaseClient | null {
-  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  const url = resolveServerSupabaseUrl();
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceKey || url.length < 5 || serviceKey.length < 5) {
@@ -121,7 +147,7 @@ export function getSupabaseAdminClient(): SupabaseClient | null {
  * sign-up, password sign-in, and password recovery. Never uses service-role.
  */
 export function getSupabaseAuthClient(): SupabaseClient | null {
-  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  const url = resolveServerSupabaseUrl();
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   if (!url || !anonKey) return null;
   try {
@@ -140,7 +166,7 @@ export function getSupabaseAuthClient(): SupabaseClient | null {
  * are deliberately never used for user-owned workspace data.
  */
 export function getSupabaseClientForUser(accessToken: string): SupabaseClient | null {
-  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+  const url = resolveServerSupabaseUrl();
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   if (!url || !anonKey || !accessToken) return null;
 
@@ -156,8 +182,13 @@ export function getSupabaseClientForUser(accessToken: string): SupabaseClient | 
 }
 
 export function getSupabaseServerStatus(): SupabaseServerStatus {
-  const url = normalizeSupabaseProjectUrl(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
-  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = resolveServerSupabaseUrl();
+  const rawServerUrl = typeof process.env.SUPABASE_URL === 'string' ? process.env.SUPABASE_URL.trim() : '';
+  const serverUrl = canonicalServerProjectUrl(rawServerUrl);
+  const clientUrl = canonicalServerProjectUrl(process.env.VITE_SUPABASE_URL);
+  const serverUrlFormatInvalid = Boolean(rawServerUrl && !normalizeSupabaseProjectUrl(rawServerUrl));
+  const projectUrlMismatch = Boolean(serverUrl && clientUrl && serverUrl !== clientUrl);
+  const anonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   const hasUrl = Boolean(url && url.length > 5);
@@ -170,9 +201,15 @@ export function getSupabaseServerStatus(): SupabaseServerStatus {
     hasUrl,
     hasAnonKey,
     hasServiceRoleKey,
+    projectUrlMismatch,
+    serverUrlFormatInvalid,
     mode: isConfigured ? 'connected' : 'pending_configuration',
-    message: isConfigured
-      ? 'Supabase credentials detected. Multi-entity PostgreSQL cloud sync active.'
+    message: serverUrlFormatInvalid
+      ? 'Netlify SUPABASE_URL is not a full URL. Angel can recover when VITE_SUPABASE_URL is set, but update SUPABASE_URL to the canonical https://<project-ref>.supabase.co form.'
+      : projectUrlMismatch
+      ? 'Browser and server Supabase project URLs differ. Check the Netlify SUPABASE_URL and VITE_SUPABASE_URL values.'
+      : isConfigured
+      ? 'Supabase credentials detected. Multi-entity PostgreSQL cloud sync configured.'
       : 'Supabase credentials pending in .env. Angel is running with reactive workspace synchronization.',
   };
 }

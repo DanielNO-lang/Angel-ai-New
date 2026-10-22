@@ -299,76 +299,39 @@ export async function signInWithGoogleOAuth(): Promise<{
   profile?: any;
   token?: string;
 }> {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-  const redirectUrl = `${origin}/auth/callback`;
-  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+  if (typeof window === 'undefined') {
+    return { error: 'Google sign-in must be started from a browser window.' };
+  }
 
+  const client = getClientSupabase();
+  if (!client) {
+    return { error: 'Supabase sign-in is not configured in this build. Check the active project URL and publishable key.' };
+  }
+
+  const redirectUrl = new URL('/auth/callback', window.location.origin).toString();
   try {
-    // 1. Obtain authorization URL either from server endpoint or Supabase client
-    let authUrl: string | null = null;
-    try {
-      const serverRes = await fetch('/api/auth/google/url');
-      if (serverRes.ok) {
-        const body = await serverRes.json();
-        authUrl = body.url || null;
-      }
-    } catch {}
-
-    const client = getClientSupabase();
-    if (!authUrl && client) {
-      const { data, error } = await client.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: true,
-          queryParams: { access_type: 'offline', prompt: 'select_account consent' },
+    // Use Supabase's standard browser redirect flow so Google can show the
+    // account chooser on every sign-in/sign-up attempt. Do not restrict users
+    // to a prefilled email or a device-specific account.
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'select_account consent',
         },
-      });
-      if (error) throw error;
-      authUrl = data?.url || null;
-    }
+      },
+    });
 
-    if (!authUrl) {
-      return { error: 'Could not obtain Google authentication URL. Check Supabase OAuth configuration and redirect URLs.' };
-    }
-
-    // 2. Open Google OAuth window
-    const width = 560;
-    const height = 680;
-    const left = typeof window !== 'undefined' ? Math.max(0, (window.screen.width - width) / 2) : 100;
-    const top = typeof window !== 'undefined' ? Math.max(0, (window.screen.height - height) / 2) : 100;
-
-    let popup: Window | null = null;
-    try {
-      popup = window.open(
-        authUrl,
-        'google_oauth_popup',
-        `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
-      );
-    } catch {
-      popup = null;
-    }
-
-    // Supabase completes the callback and persists the session for this origin.
-    if (popup && !popup.closed) {
-      return { redirected: true };
-    }
-
-    // If popup was blocked or suppressed by the iframe sandbox:
-    // In top-level browser (not an iframe), navigate directly
-    if (!isIframe) {
-      window.location.href = authUrl;
-      return { redirected: true };
-    }
-
-    // Never turn a failed popup into a privileged server-side shortcut.
-    // A browser tab or popup is required to complete the real Google OAuth flow.
-    return {
-      error: 'Your browser blocked the Google sign-in popup. Allow popups for this site or open Angel in a full browser tab, then try again.',
-    };
+    if (error) return { error: error.message || 'Google sign-in could not be started.' };
+    return { redirected: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return { error: message || 'Google authentication encountered an unexpected error.' };
+    return {
+      error: err instanceof Error
+        ? err.message
+        : 'Google authentication encountered an unexpected error.',
+    };
   }
 }
 /**

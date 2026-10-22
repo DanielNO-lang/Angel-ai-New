@@ -45,6 +45,7 @@ const WorkspaceContent: React.FC = () => {
   const {
     activeTab,
     setActiveTab,
+    isSidebarCollapsed,
     settings,
     isSignedIn,
     isIncognitoActive,
@@ -287,7 +288,15 @@ const WorkspaceContent: React.FC = () => {
 
       {/* Actual Angel UI rendered at a higher stacking level (z-10) above the backdrop */}
       <div className="relative z-10 flex w-full min-h-screen pl-0 transition-all duration-300 ease-in-out">
-        {/* Persistent Collapsible Sidebar (hidden in Focus Mode) */}
+        {/* Reserve layout width only for the pinned rail, never the transient hover overlay. */}
+        {!isFocusMode && (
+          <div
+            aria-hidden="true"
+            className="hidden md:block shrink-0"
+            style={{ width: isSidebarCollapsed ? 60 : 240 }}
+          />
+        )}
+        {/* Persistent Collapsible Sidebar (hover expansion overlays content) */}
         <Sidebar />
 
         {/* Main Workspace Stage with independent scrolling context and manual minimize/sizing support */}

@@ -22,6 +22,9 @@ export class ConversationService {
       prompt,
       agent,
       conversationHistory,
+      modelId,
+      providerId,
+      mode,
       contextState,
       onToken,
       onToolStart,
@@ -72,6 +75,15 @@ export class ConversationService {
 
     let toolAugmentedInstruction = assembledContext.systemInstruction;
 
+    // Operating modes shape the work, never Angel's personality.
+    if (mode === 'think') {
+      toolAugmentedInstruction += '\n\nReasoning mode: think carefully before answering. Keep private chain-of-thought internal and present a clear conclusion with concise key steps or assumptions when useful. For greetings and simple questions, answer naturally without unnecessary analysis.';
+    } else if (mode === 'search') {
+      toolAugmentedInstruction += '\n\nSearch mode: use available search or workspace tools when relevant. Ground factual claims in returned evidence, distinguish evidence from uncertainty, and cite sources when the tool supplies source references. Do not claim to have searched if no search tool ran.';
+    } else if (mode === 'browse') {
+      toolAugmentedInstruction += '\n\nBrowse mode: use available browsing/research tools to inspect current or user-requested material, summarise findings in Angel’s normal voice, and cite source URLs when available. Do not imply web access if no browser/search tool ran.';
+    }
+
     // Attempt model tool evaluation if prompt suggests tool usage
     const toolKeywords = [
       'create task',
@@ -87,17 +99,19 @@ export class ConversationService {
     ];
     const promptHasToolIntent = toolKeywords.some((kw) => prompt.toLowerCase().includes(kw));
 
-    if (promptHasToolIntent) {
+    if (promptHasToolIntent || mode === 'search' || mode === 'browse') {
       try {
         const toolRes = await fetch('/api/ai/tool-call', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt,
-            systemInstruction: assembledContext.systemInstruction,
+            systemInstruction: toolAugmentedInstruction,
             conversationHistory: assembledContext.recentMessages,
             tools: discoverableTools,
-            modelId: agent.modelConfig.modelId,
+            modelId: modelId || agent.modelConfig.modelId,
+            providerId: providerId || agent.modelConfig.provider || 'gemini',
+            mode,
           }),
         });
 
@@ -144,10 +158,11 @@ export class ConversationService {
       lifecycleSession.sessionId,
       'execution',
       'Initiating Intelligence Stream',
-      `Routing to ${agent.modelConfig.provider} (${agent.modelConfig.modelId}).`
+      `Routing to ${providerId || agent.modelConfig.provider} (${modelId || agent.modelConfig.modelId}).`
     );
 
     let accumulatedText = '';
+    let providerFailureMessage: string | null = null;
 
     try {
       let streamSucceeded = false;
@@ -159,8 +174,9 @@ export class ConversationService {
             prompt,
             systemInstruction: toolAugmentedInstruction,
             conversationHistory: assembledContext.recentMessages,
-            modelId: agent.modelConfig.modelId || 'gemini-3.8-flash',
-            providerId: agent.modelConfig.provider || 'gemini',
+            modelId: modelId || agent.modelConfig.modelId || 'gemini-3.8-flash',
+            providerId: providerId || agent.modelConfig.provider || 'gemini',
+            mode,
             temperature: agent.modelConfig.temperature,
           }),
         });
@@ -194,6 +210,7 @@ export class ConversationService {
                 if (jsonStr === '[DONE]') continue;
                 try {
                   const parsed = JSON.parse(jsonStr);
+                  if (parsed.error && !accumulatedText) providerFailureMessage = String(parsed.error);
                   const token = parsed.chunk || parsed.text;
                   if (token) {
                     accumulatedText += token;
@@ -210,9 +227,15 @@ export class ConversationService {
               }
             }
           }
+        } else {
+          const errorBody = await response.json().catch(() => ({}));
+          providerFailureMessage = typeof errorBody?.error === 'string'
+            ? errorBody.error
+            : 'Streaming request failed with HTTP ' + response.status + '.';
         }
       } catch (streamErr) {
-        console.warn('[ConversationService] Stream attempt caught issue, trying generate fallback:', streamErr);
+        providerFailureMessage = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        console.warn('[ConversationService] Stream attempt failed; trying single-response fallback:', providerFailureMessage);
       }
 
       // If streaming didn't produce text, fallback to /api/ai/generate
@@ -225,28 +248,32 @@ export class ConversationService {
               prompt,
               systemInstruction: toolAugmentedInstruction,
               conversationHistory: assembledContext.recentMessages,
-              modelId: agent.modelConfig.modelId || 'gemini-3.8-flash',
-              providerId: agent.modelConfig.provider || 'gemini',
+              modelId: modelId || agent.modelConfig.modelId || 'gemini-3.8-flash',
+              providerId: providerId || agent.modelConfig.provider || 'gemini',
+              mode,
               temperature: agent.modelConfig.temperature,
             }),
           });
-          if (genRes.ok) {
-            const genData = await genRes.json();
-            if (genData.text && genData.text.trim()) {
-              accumulatedText = genData.text.trim();
-              if (onToken) {
-                onToken(accumulatedText, accumulatedText);
-              }
-            }
+          const genData = await genRes.json().catch(() => ({}));
+          if (genRes.ok && typeof genData.text === 'string' && genData.text.trim()) {
+            accumulatedText = genData.text.trim();
+            if (onToken) onToken(accumulatedText, accumulatedText);
+          } else {
+            providerFailureMessage = typeof genData.error === 'string'
+              ? genData.error
+              : 'Single-response fallback failed with HTTP ' + genRes.status + '.';
           }
         } catch (genErr) {
-          console.warn('[ConversationService] Generate fallback caught issue:', genErr);
+          providerFailureMessage = genErr instanceof Error ? genErr.message : String(genErr);
+          console.warn('[ConversationService] Generate fallback failed:', providerFailureMessage);
         }
       }
 
-      // Empty provider output is a failure, not a completed assistant answer.
+      // An upstream failure must remain a failure. Never synthesize a fake success.
       if (!accumulatedText.trim()) {
-        throw new Error('The AI provider returned no response content. Check provider configuration and try again.');
+        throw new Error(providerFailureMessage
+          ? 'Angel could not reach the selected AI model: ' + providerFailureMessage
+          : 'The selected AI model returned no response. Check its configuration and try again.');
       }
 
       agentExecutionLifecycle.advanceStage(
