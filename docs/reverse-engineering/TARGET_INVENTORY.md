@@ -96,7 +96,7 @@ Status convention: README review completed where content was retrievable; deeper
 
 ## D. Count and tracking
 
-- Total repository targets currently inventoried: **109** (97 earlier targets plus 12 candidates added for the public-product/Microsoft review). Website targets are tracked separately below.
+- Total repository targets currently inventoried: **112** (97 earlier targets plus 12 candidates from the public-product/Microsoft review and 3 HubMind candidates). Website targets are tracked separately below.
 - Research begins with a representative sample, then proceeds by capability family and dependency order.
 - This inventory records links, research focus and review status. README reviews are not equivalent to source-level reverse engineering or runtime verification.
 - If any URL redirects, is unavailable, is a fork/mirror, or has an incompatible license, record that before proceeding.
@@ -169,3 +169,16 @@ See [Audit 05: Public AI products, HubMind, and Microsoft](./reports/05-public-a
 | REA-109 | [lmarena/search-arena](https://github.com/lmarena/search-arena) | Evaluation of search-augmented models | Public organization description reviewed; source audit pending |
 
 The shortlist is not a statement that all candidates are compatible, free to operate, or approved for adoption. Recheck the current repository identity, license, maintenance, dependencies, and API terms before reuse.
+
+
+## H. HubMind repository candidates (2026-10-23)
+
+See [Audit 07: HubMind repository candidates](./reports/07-hubmind-repository-candidates.md). These similarly named projects are not confirmed to be the requested Netlify-hosted app.
+
+| ID | Repository | Research focus | Status |
+|---|---|---|---|
+| REA-110 | [ylw510/HubMind](https://github.com/ylw510/HubMind) | GitHub assistant: repository trends, PR/issue analysis, GitHub API actions, reports, multi-provider LLM and web auth | README reviewed; source/security/license audit pending |
+| REA-111 | [lance808/HubMind](https://github.com/lance808/HubMind) | Cross-platform AI workstation: model adapters, multi-model chat, agent automation, workflow graph, file parsing, budgets and Electron | README reviewed; source/security/license audit pending |
+| REA-112 | [CarlstonG/serverless_hubmind](https://github.com/CarlstonG/serverless_hubmind) | Older Netlify/Firebase/Stripe/Postmark website starter; likely naming collision rather than AI assistant | README reviewed; relevance to requested target unconfirmed |
+
+The exact Netlify URL or repository for the intended HubMind is still needed to identify it definitively.
