@@ -4,6 +4,17 @@
  * No code outside this file interacts with the Gemini SDK directly.
  */
 
+function safeGeminiFailure(error: unknown): Error {
+  const detail = error instanceof Error ? error.message.toLowerCase() : '';
+  if (/(quota|resource[_ -]?exhausted|rate.?limit|429)/i.test(detail)) {
+    return new Error('Gemini provider quota or rate limit reached (429).');
+  }
+  if (/(unauthori[sz]ed|forbidden|invalid api key|401|403)/i.test(detail)) {
+    return new Error('Gemini provider credentials rejected (401/403).');
+  }
+  return new Error('Gemini provider request failed.');
+}
+
 import { FunctionDeclaration, GoogleGenAI, Type } from '@google/genai';
 import {
   AIProvider,
@@ -211,9 +222,10 @@ export class GeminiProvider implements AIProvider {
             }
           : undefined,
       };
-    } catch {
-      console.warn('[GeminiProvider.generate failed]');
-      throw new Error('Gemini generation failed. Check the provider key, quota, and model availability, then retry.');
+    } catch (error) {
+      const safeError = safeGeminiFailure(error);
+      console.warn('[GeminiProvider.generate failed]', safeError.message);
+      throw safeError;
     }
   }
 
@@ -253,9 +265,10 @@ export class GeminiProvider implements AIProvider {
 
       if (!fullText.trim()) throw new Error('Gemini stream returned no text content.');
       return fullText;
-    } catch {
-      console.warn('[GeminiProvider.stream failed]');
-      throw new Error('Gemini streaming failed. Check the provider key, quota, and model availability, then retry.');
+    } catch (error) {
+      const safeError = safeGeminiFailure(error);
+      console.warn('[GeminiProvider.stream failed]', safeError.message);
+      throw safeError;
     }
   }
 
@@ -397,9 +410,10 @@ export class GeminiProvider implements AIProvider {
         provider: this.id,
         modelId: model,
       };
-    } catch {
-      console.warn('[GeminiProvider.vision failed]');
-      throw new Error('Gemini vision failed. Check the provider key, quota, and model availability, then retry.');
+    } catch (error) {
+      const safeError = safeGeminiFailure(error);
+      console.warn('[GeminiProvider.vision failed]', safeError.message);
+      throw safeError;
     }
   }
 
