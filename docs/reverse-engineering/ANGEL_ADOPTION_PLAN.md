@@ -88,3 +88,18 @@ The REA tool itself has **not** been installed or executed in this connected env
 - Do not copy code wholesale; verify license and notices before any code reuse.
 - Future research into ChatGPT, Claude, and Gemini can compare public docs, observable UI behavior, public APIs, and open code. It cannot truthfully reveal proprietary model weights or hidden internal systems.
 - Never claim tested, reverse-engineered, or implemented unless the work happened and evidence is recorded.
+
+
+## Addendum: 22 additional realtime, voice, and OpenAI ecosystem targets (2026-10-23)
+
+The new [Audit 04](./reports/04-realtime-openai-voice-and-chat-ecosystem.md) adds these recommendations to the existing roadmap:
+
+1. **P0 provider and execution governance:** provider capability metadata, usage budgets, timeouts/cancellation, tracing, bounded agent loops and durable checkpoints.
+2. **P1 conversational voice:** realtime WebRTC with a short-lived client token; keep Angel's natural persona for casual conversation and route only complex requests to a supervisor/specialist.
+3. **P1 MCP and skill registry:** typed tool contracts, structured widget results, manifest/version/license tracking, permission review and rollback.
+4. **P1 memory and retrieval:** access-aware RAG, citations, task/session continuity, and careful privacy boundaries.
+5. **P2 offline speech input:** prototype whisper.cpp on target devices, measuring memory, language accuracy, latency and battery; treat wake-word detection as a separate feature.
+6. **P2 speech output:** benchmark alternative TTS providers; do not promise offline operation when using an online backend.
+7. **Security exclusions:** never use shared API-key repositories or expose official API keys in browser bundles; reject unbounded autonomous swarms and untrusted public proxies.
+
+These recommendations are additions to the roadmap, not evidence that the capabilities have been implemented. Source-level review, license checks, and tests are still required before integration.
