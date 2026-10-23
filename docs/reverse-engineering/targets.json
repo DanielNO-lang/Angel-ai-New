@@ -957,17 +957,19 @@
       "category": "coding-agents-ci",
       "purpose_hypothesis": "Official GitHub Actions agent integration",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "ae68417a745a5df4b2124873632bd73a2255e6f6",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/anthropics/claude-code-action/blob/HEAD/README.md"
+        "https://github.com/anthropics/claude-code-action/blob/ae68417a745a5df4b2124873632bd73a2255e6f6/src/entrypoints/prepare.ts",
+        "https://github.com/anthropics/claude-code-action/blob/ae68417a745a5df4b2124873632bd73a2255e6f6/src/entrypoints/run.ts",
+        "https://github.com/anthropics/claude-code-action/blob/ae68417a745a5df4b2124873632bd73a2255e6f6/action.yml"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source modules inspected for typed MCP client/server contracts and/or GitHub action execution; full audit and runtime tests remain"
     },
     {
       "id": "claude-relay-service",
@@ -1197,17 +1199,19 @@
       "category": "mcp-and-tools",
       "purpose_hypothesis": "MCP client/server infrastructure",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "f877f789e7b4979e62e5cbe221bfb29ebb86d1bd",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/mcp-use/mcp-use/blob/HEAD/README.md"
+        "https://github.com/mcp-use/mcp-use/blob/f877f789e7b4979e62e5cbe221bfb29ebb86d1bd/libraries/typescript/packages/client/src/index.ts",
+        "https://github.com/mcp-use/mcp-use/blob/f877f789e7b4979e62e5cbe221bfb29ebb86d1bd/libraries/typescript/packages/server/src/index.ts",
+        "https://github.com/mcp-use/mcp-use/blob/f877f789e7b4979e62e5cbe221bfb29ebb86d1bd/libraries/typescript/packages/server/src/tools.ts"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source modules inspected for typed MCP client/server contracts and/or GitHub action execution; full audit and runtime tests remain"
     },
     {
       "id": "happy",
@@ -1536,8 +1540,8 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 6,
-    "readme_reviewed_count": 68,
+    "source_inspected_count": 8,
+    "readme_reviewed_count": 66,
     "queued_count": 0,
     "note": "Source-inspected means selected source modules were mapped, not a complete repository audit or runtime validation. Readme-reviewed is reconnaissance only."
   }
