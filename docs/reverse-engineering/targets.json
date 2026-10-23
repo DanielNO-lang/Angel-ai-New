@@ -851,17 +851,20 @@
       "category": "model-routing",
       "purpose_hypothesis": "Route coding-agent requests across models/providers",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "057abaa1f95519ab8faf999e1ccef2b80ccdeb9e",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/musistudio/claude-code-router/blob/HEAD/README.md"
+        "https://github.com/musistudio/claude-code-router/blob/057abaa1f95519ab8faf999e1ccef2b80ccdeb9e/packages/core/src/routing/config-compiler.ts",
+        "https://github.com/musistudio/claude-code-router/blob/057abaa1f95519ab8faf999e1ccef2b80ccdeb9e/packages/core/src/routing/execution-plan.ts",
+        "https://github.com/musistudio/claude-code-router/blob/057abaa1f95519ab8faf999e1ccef2b80ccdeb9e/packages/core/src/routing/failure-classifier.ts",
+        "https://github.com/musistudio/claude-code-router/blob/057abaa1f95519ab8faf999e1ccef2b80ccdeb9e/packages/core/src/routing/model-registry.ts"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source modules inspected for tool contracts, task operations and/or routing; full repository audit and runtime tests remain"
     },
     {
       "id": "claude-video",
@@ -911,17 +914,20 @@
       "category": "task-planning",
       "purpose_hypothesis": "AI task decomposition and project planning",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "c0c98d367c55296bfe69e65680625b6db437af02",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/eyaltoledano/claude-task-master/blob/HEAD/README.md"
+        "https://github.com/eyaltoledano/claude-task-master/blob/c0c98d367c55296bfe69e65680625b6db437af02/mcp-server/src/index.js",
+        "https://github.com/eyaltoledano/claude-task-master/blob/c0c98d367c55296bfe69e65680625b6db437af02/mcp-server/src/tools/tool-registry.js",
+        "https://github.com/eyaltoledano/claude-task-master/blob/c0c98d367c55296bfe69e65680625b6db437af02/mcp-server/src/tools/add-task.js",
+        "https://github.com/eyaltoledano/claude-task-master/blob/c0c98d367c55296bfe69e65680625b6db437af02/mcp-server/src/tools/parse-prd.js"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source modules inspected for tool contracts, task operations and/or routing; full repository audit and runtime tests remain"
     },
     {
       "id": "claude-reviews-claude",
@@ -1530,8 +1536,8 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 4,
-    "readme_reviewed_count": 70,
+    "source_inspected_count": 6,
+    "readme_reviewed_count": 68,
     "queued_count": 0,
     "note": "Source-inspected means selected source modules were mapped, not a complete repository audit or runtime validation. Readme-reviewed is reconnaissance only."
   }
