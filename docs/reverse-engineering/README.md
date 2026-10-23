@@ -1,7 +1,7 @@
 # REA-driven capability research for Angel AI
 
 **Branch:** `research/rea-capability-reverse-engineering`  
-**Status:** Research scaffold created; target-by-target inspection and REA execution are pending.  
+**Status:** First-pass README capability review documented for the supplied target set; deeper source, dependency, test, license, and runtime audits remain pending. REA execution is still pending.  
 **Production:** No deployment. No changes to Angel's production deployment configuration.
 
 ## Objective
@@ -89,6 +89,18 @@ Each target gets a report under `docs/reverse-engineering/reports/<owner>--<repo
 6. Remaining SDKs, examples, utilities, and research collections.
 7. Public website URLs submitted later, using the same intake/report structure.
 
+## Reports and current output
+
+- [Target inventory](./TARGET_INVENTORY.md)
+- [REA documentation review](./reports/morluto--rea.md)
+- [First-pass capability map](./FIRST_PASS_CAPABILITY_MAP.md)
+- [Audit 01: Models, agents, and engineering](./reports/01-models-agents-and-engineering.md)
+- [Audit 02: Google APIs, identity, maps, and data](./reports/02-google-apis-identity-and-data.md)
+- [Audit 03: Claude ecosystem, desktop/mobile, workflows, and remaining SDKs](./reports/03-claude-ecosystem-and-apps.md)
+- [Angel adoption plan and priorities](./ANGEL_ADOPTION_PLAN.md)
+
+The three capability audits summarize documented capabilities and Angel adaptation recommendations. Three repository README fetches returned 404 in this pass and are marked unresolved in the adoption plan. Ponderfly/GoogleTranslateIpCheck is discussed in the adoption plan as a network-diagnostics utility. These are documentary findings, not a complete source-level reverse-engineering run.
+
 ## Initial decision
 
-Do not add all targets as runtime dependencies. Treat this as a **capability research program**. Select only the useful, legally compatible, supportable capabilities for Angel after evidence review.
+Do not add all targets as runtime dependencies. Treat this as a **capability research program**. Select only useful, legally compatible, supportable capabilities for Angel after evidence review.
