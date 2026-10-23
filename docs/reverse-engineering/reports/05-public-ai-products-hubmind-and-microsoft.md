@@ -212,3 +212,18 @@ Repository names, licenses, and maintenance must be rechecked from their own fil
 - **Medium confidence:** product-pattern recommendations derived from public descriptions and official help pages.
 - **Low/unresolved:** the identity of the user-intended “upcoming AI on Netlify called HubMind”; standalone `nanobanana.io` relationship to Google; exact live feature availability for every region/account/plan; current API availability for Flow and Labs experiments.
 - **Not done:** login-based UI testing, account creation, network interception, private-backend analysis, full source/license audit of the additional repositories, REA execution, or any code implementation.
+
+
+## 11. Netlify's own AI Gateway and Agent Runners
+
+Official docs: [AI Gateway overview](https://docs.netlify.com/build/ai-gateway/overview/) and [Build with AI](https://docs.netlify.com/build/build-with-ai/overview/).
+
+Netlify documents an AI Gateway that can route supported official OpenAI, Anthropic, Gemini and other model calls from Netlify compute, provide usage analytics, and support rate limiting. Its documentation states that AI Gateway requires at least one production deployment on the site. Netlify Agent Runners are a separate developer workflow for asking agents such as Claude, Gemini, Codex or OpenCode to modify projects and then reviewing a Deploy Preview before production changes.
+
+**Angel recommendation:**
+- Keep this as a candidate provider gateway, not a prerequisite.
+- Since production deployment is explicitly paused, do not deploy merely to unlock this feature. First finish the current research and verify account/plan eligibility, pricing, provider/model availability, rate limits, data handling, and whether the gateway fits Angel's existing serverless API.
+- If evaluated later, use server-side calls only, configure per-user/account rate limits, track spend/usage, and keep a fallback adapter so Angel is not locked to one host.
+- Agent Runners may help with future repository maintenance, but no agent-generated change should bypass review, tests, branch protections, or the user's no-deploy instruction.
+
+This is based on current public Netlify documentation, not a test in Angel's Netlify account. No Netlify settings or deployment were changed.
