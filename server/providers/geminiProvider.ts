@@ -5,7 +5,6 @@
  */
 
 import { FunctionDeclaration, GoogleGenAI, Type } from '@google/genai';
-import { angelJarvisCore } from '../services/angelJarvisCore';
 import {
   AIProvider,
   GenerateOptions,
@@ -171,18 +170,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      const jarvis = angelJarvisCore.generateResponse({
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-        conversationHistory: options.conversationHistory,
-        modelId: model,
-      });
-      return {
-        text: jarvis.text,
-        provider: this.id,
-        modelId: jarvis.modelId,
-        tokensUsed: jarvis.tokensUsed,
-      };
+      throw new Error('Gemini provider is not configured. Add a valid GEMINI_API_KEY in server-side environment settings.');
     }
 
     try {
@@ -192,7 +180,7 @@ export class GeminiProvider implements AIProvider {
       const generationConfig: Record<string, unknown> = {
         systemInstruction:
           options.systemInstruction ||
-          'You are Angel, a calm, disciplined, hyper-capable personal AI operating environment. Answer concisely and with clear markdown structure.',
+          'You are Angel, a thoughtful personal AI companion and capability platform. Be accurate, concise, and clear. Never claim an action succeeded unless the application verifies it.',
         maxOutputTokens: options.maxTokens,
       };
       // Gemini 3+ rejects legacy sampling controls; use the model's native
@@ -207,7 +195,8 @@ export class GeminiProvider implements AIProvider {
         config: generationConfig as any,
       });
 
-      const text = response.text || '';
+      const text = response.text?.trim() || '';
+      if (!text) throw new Error('Gemini returned no text content.');
       const usage = response.usageMetadata;
 
       return {
@@ -222,20 +211,9 @@ export class GeminiProvider implements AIProvider {
             }
           : undefined,
       };
-    } catch (err) {
-      console.warn('[GeminiProvider.generate fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
-      const jarvis = angelJarvisCore.generateResponse({
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-        conversationHistory: options.conversationHistory,
-        modelId: model,
-      });
-      return {
-        text: jarvis.text,
-        provider: this.id,
-        modelId: jarvis.modelId,
-        tokensUsed: jarvis.tokensUsed,
-      };
+    } catch {
+      console.warn('[GeminiProvider.generate failed]');
+      throw new Error('Gemini generation failed. Check the provider key, quota, and model availability, then retry.');
     }
   }
 
@@ -246,12 +224,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      return await angelJarvisCore.streamResponse({
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-        conversationHistory: options.conversationHistory,
-        modelId: model,
-      }, onChunk);
+      throw new Error('Gemini provider is not configured. Add a valid GEMINI_API_KEY in server-side environment settings.');
     }
 
     try {
@@ -278,15 +251,11 @@ export class GeminiProvider implements AIProvider {
         }
       }
 
+      if (!fullText.trim()) throw new Error('Gemini stream returned no text content.');
       return fullText;
-    } catch (err) {
-      console.warn('[GeminiProvider.stream fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
-      return await angelJarvisCore.streamResponse({
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-        conversationHistory: options.conversationHistory,
-        modelId: model,
-      }, onChunk);
+    } catch {
+      console.warn('[GeminiProvider.stream failed]');
+      throw new Error('Gemini streaming failed. Check the provider key, quota, and model availability, then retry.');
     }
   }
 
@@ -391,17 +360,7 @@ export class GeminiProvider implements AIProvider {
     const model = options.modelId || this.defaultModelId;
 
     if (!this.isConfigured()) {
-      const recon = angelJarvisCore.inspectVision({
-        base64Data: options.base64Data,
-        mimeType: options.mimeType,
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-      });
-      return {
-        analysis: recon.analysis,
-        provider: this.id,
-        modelId: recon.modelId,
-      };
+      throw new Error('Gemini vision is unavailable because GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -438,19 +397,9 @@ export class GeminiProvider implements AIProvider {
         provider: this.id,
         modelId: model,
       };
-    } catch (err) {
-      console.warn('[GeminiProvider.vision fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
-      const recon = angelJarvisCore.inspectVision({
-        base64Data: options.base64Data,
-        mimeType: options.mimeType,
-        prompt: options.prompt,
-        systemInstruction: options.systemInstruction,
-      });
-      return {
-        analysis: recon.analysis,
-        provider: this.id,
-        modelId: recon.modelId,
-      };
+    } catch {
+      console.warn('[GeminiProvider.vision failed]');
+      throw new Error('Gemini vision failed. Check the provider key, quota, and model availability, then retry.');
     }
   }
 
