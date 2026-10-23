@@ -7,8 +7,8 @@
 
 ## Current inventory
 - Target repositories catalogued: 74.
-- Source-inspected: 11 (selected modules/functions mapped, no full repo audit/runtime test).
-- README-reviewed: 63 (reconnaissance only; implementation details may remain unknown).
+- Source-inspected: 12 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
+- README-reviewed: 62 targets (reconnaissance only; implementation details may remain unknown).
 - Queued without any review: 0.
 - Local REA runtime executed in this session: No.
 - Angel Reverse Engineering Workbench implemented in the app: No, specification only.
@@ -25,10 +25,10 @@ The status counts are maintained in targets.json. “Source-inspected” and “
 5. phase-1-findings.md — agent frameworks, skills, model routing, task management and Workspace integrations.
 6. phase-2-findings.md — Google APIs, identity, model/media, network, SDK and infrastructure references.
 7. phase-3-findings.md — coding-agent UI, desktop/mobile presence, provider wrappers, risks and later capabilities.
-8. deep-dives-p1.md — source-level function/module maps for the highest-priority operating-core, task, routing, MCP, GitHub automation and remote-session references.
+8. deep-dives-p1.md — source-level function/module maps for the highest-priority operating-core, task, routing, MCP, GitHub automation, remote-session and REA engine references.
 
 ## Source-inspected targets
-Selected modules have been inspected for:
+Selected modules/documents have been inspected for:
 - Google ADK Python: agent lifecycle, Runner, session/event lifecycle and sequential/parallel/loop orchestration.
 - OpenAI Agents SDK Python: run loop, tool contract, schema generation and input/output guardrails.
 - Gentle-AI: planner graph, staged pipeline/rollback, skill registry and recovery trace.
@@ -40,6 +40,9 @@ Selected modules have been inspected for:
 - HAPI: resumable sessions, lifecycle state, CLI process leases, accountable work graph and relay rate limiting.
 - Happy: account pairing/auth, local credential handling, encryption helpers and session client.
 - Open Claude Cowork: Electron main/preload separation, local HTTP endpoints and provider registry.
+- Google Skills: catalogue index and representative skill-routing, repo-migration, Google sign-in, skill-registry and agent-build workflows.
+
+REA itself has now had a source-level map added in deep-dives-p1.md. Its browser tool registration, browser scenario capture, source/trace/evidence tool surfaces, safe metadata filtering, origin scope, cancellation, timeout and cleanup patterns were inspected. **The REA runtime remains unexecuted.**
 
 Official Claude Code itself was examined separately. The inspected public tree exposes docs, plugins, scripts, examples and configuration but not a complete readable source implementation of the whole hosted/runtime product. Its internal implementation is therefore marked not publicly exposed rather than inferred.
 
@@ -55,7 +58,7 @@ Official Claude Code itself was examined separately. The inspected public tree e
 - No changes in this branch have been deployed. No README-level finding is represented as a successful runtime test.
 
 ## Immediate next research queue
-1. Inspect the remaining P1 skill collections and device/MCP packages at source level where source exists.
+1. Perform the first controlled local REA setup with the required Node version and selected agent/MCP client; approve setup changes only after reviewing them.
 2. Deep-read tests and permission/error paths for already source-inspected repositories.
 3. Complete per-target license, maintenance, cost and dependency checks.
 4. Produce a deduplicated capability matrix and map each accepted item to Angel's fixed engineering stages.
