@@ -198,8 +198,7 @@ export class GeminiProvider implements AIProvider {
       const text = response.text?.trim() || '';
       // Some successful provider responses contain no candidate text (for example,
       // blocked or otherwise empty responses). Treat these as provider failures so
-      // generate() falls through to Angel's local response engine instead of showing
-      // an empty assistant message to the user.
+      // generate() surfaces the provider failure instead of showing an empty or fabricated reply.
       if (!text) {
         const finishReason = response.candidates?.[0]?.finishReason || 'unknown';
         throw new Error(`Gemini returned no text content (finish reason: ${finishReason}).`);
@@ -219,8 +218,7 @@ export class GeminiProvider implements AIProvider {
           : undefined,
       };
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'Unknown provider error';
-      console.warn('[GeminiProvider.generate failed]', detail.slice(0, 240));
+      console.warn('[GeminiProvider.generate failed]');
       throw new Error('Gemini generation failed. Check the provider key, quota, and model availability, then retry.');
     }
   }
@@ -266,8 +264,7 @@ export class GeminiProvider implements AIProvider {
       }
       return fullText;
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'Unknown provider error';
-      console.warn('[GeminiProvider.stream failed]', detail.slice(0, 240));
+      console.warn('[GeminiProvider.stream failed]');
       throw new Error('Gemini streaming failed. Check the provider key, quota, and model availability, then retry.');
     }
   }
@@ -411,8 +408,7 @@ export class GeminiProvider implements AIProvider {
         modelId: model,
       };
     } catch (err) {
-      const detail = err instanceof Error ? err.message : 'Unknown provider error';
-      console.warn('[GeminiProvider.vision failed]', detail.slice(0, 240));
+      console.warn('[GeminiProvider.vision failed]');
       throw new Error('Gemini vision failed. Check the provider key, quota, and model availability, then retry.');
     }
   }
