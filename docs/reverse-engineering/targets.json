@@ -284,17 +284,22 @@
       "category": "skills-and-workflows",
       "purpose_hypothesis": "Google skills/workflow examples",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "6d36cc600ea36e91f911ac654e0e66161c3ebe17",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/google/skills/blob/HEAD/README.md"
+        "https://github.com/google/skills/blob/6d36cc600ea36e91f911ac654e0e66161c3ebe17/index.json",
+        "https://github.com/google/skills/blob/6d36cc600ea36e91f911ac654e0e66161c3ebe17/skills/developers/finding-google-skills/SKILL.md",
+        "https://github.com/google/skills/blob/6d36cc600ea36e91f911ac654e0e66161c3ebe17/skills/developers/migrate-to-rust/SKILL.md",
+        "https://github.com/google/skills/blob/6d36cc600ea36e91f911ac654e0e66161c3ebe17/skills/identity/sign-in-with-google-web/SKILL.md",
+        "https://github.com/google/skills/blob/6d36cc600ea36e91f911ac654e0e66161c3ebe17/skills/cloud/agent-platform-skill-registry/SKILL.md",
+        "https://github.com/google/skills/blob/6d36cc600ea36e91f911ac654e0e66161c3ebe17/skills/cloud/google-cloud-solution-build-deploy-agents/SKILL.md"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Index.json catalogued (172 entries) and five representative SKILL.md workflows inspected; remaining individual skills are not individually audited"
     },
     {
       "id": "chatgpt-google-extension",
@@ -1551,9 +1556,9 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 11,
-    "readme_reviewed_count": 63,
+    "source_inspected_count": 12,
+    "readme_reviewed_count": 62,
     "queued_count": 0,
-    "note": "Source-inspected means selected source modules were mapped, not a complete repository audit or runtime validation. Readme-reviewed is reconnaissance only."
+    "note": "Source-inspected means selected source modules/documents were mapped, not a complete repository audit or runtime validation. README-reviewed is reconnaissance only."
   }
 }
