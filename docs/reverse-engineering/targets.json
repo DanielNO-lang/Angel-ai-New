@@ -1059,17 +1059,21 @@
       "category": "desktop-agents",
       "purpose_hypothesis": "Cowork-style agent workflow",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "52335ef50fd033cb5ce87068be0b5b546fa5b73d",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/composio-community/open-claude-cowork/blob/HEAD/README.md"
+        "https://github.com/composio-community/open-claude-cowork/blob/52335ef50fd033cb5ce87068be0b5b546fa5b73d/main.js",
+        "https://github.com/composio-community/open-claude-cowork/blob/52335ef50fd033cb5ce87068be0b5b546fa5b73d/preload.js",
+        "https://github.com/composio-community/open-claude-cowork/blob/52335ef50fd033cb5ce87068be0b5b546fa5b73d/server/server.js",
+        "https://github.com/composio-community/open-claude-cowork/blob/52335ef50fd033cb5ce87068be0b5b546fa5b73d/server/providers/index.js",
+        "https://github.com/composio-community/open-claude-cowork/blob/52335ef50fd033cb5ce87068be0b5b546fa5b73d/server/providers/claude-provider.js"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Electron main/preload, Express local API, provider registry and Claude adapter reviewed; security/license/runtime validation remain"
     },
     {
       "id": "hapi",
@@ -1547,8 +1551,8 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 10,
-    "readme_reviewed_count": 64,
+    "source_inspected_count": 11,
+    "readme_reviewed_count": 63,
     "queued_count": 0,
     "note": "Source-inspected means selected source modules were mapped, not a complete repository audit or runtime validation. Readme-reviewed is reconnaissance only."
   }
