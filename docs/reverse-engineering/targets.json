@@ -781,19 +781,21 @@
       "url": "https://github.com/ComposioHQ/awesome-claude-skills",
       "clone_url": "https://github.com/ComposioHQ/awesome-claude-skills.git",
       "category": "skills-and-workflows",
-      "purpose_hypothesis": "Curated Claude skills catalog",
+      "purpose_hypothesis": "Curated reusable skill packs across productivity, content, app integration, documents and developer workflows.",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "be2a406907dbc61b73e6827ded415c96139d13a2",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/ComposioHQ/awesome-claude-skills/blob/HEAD/README.md"
+        "https://github.com/ComposioHQ/awesome-claude-skills/blob/be2a406907dbc61b73e6827ded415c96139d13a2/skill-creator/SKILL.md",
+        "https://github.com/ComposioHQ/awesome-claude-skills/blob/be2a406907dbc61b73e6827ded415c96139d13a2/README.md"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected notebook/skill-definition files inspected; not every recipe/skill audited and no notebook or script executed.",
+      "source_findings": "The skill-creator SKILL.md defines metadata-driven skill routing, optional scripts/references/assets and progressive disclosure; scripts require independent review and must not gain privileges from the skill text."
     },
     {
       "id": "claude-cookbooks",
@@ -801,19 +803,22 @@
       "url": "https://github.com/anthropics/claude-cookbooks",
       "clone_url": "https://github.com/anthropics/claude-cookbooks.git",
       "category": "model-and-agent-examples",
-      "purpose_hypothesis": "Official model/tool-use cookbooks",
+      "purpose_hypothesis": "Official cookbook examples for classification, RAG, summarization, tool loops, vision/multimodal input, agent SDK, evaluation, observability and cost optimization.",
       "priority": "P2",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "a162e0184e71b60290808a43961a6cbc8060123c",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/anthropics/claude-cookbooks/blob/HEAD/README.md"
+        "https://github.com/anthropics/claude-cookbooks/blob/a162e0184e71b60290808a43961a6cbc8060123c/tool_use/calculator_tool.ipynb",
+        "https://github.com/anthropics/claude-cookbooks/blob/a162e0184e71b60290808a43961a6cbc8060123c/tool_use/customer_service_agent.ipynb",
+        "https://github.com/anthropics/claude-cookbooks/blob/a162e0184e71b60290808a43961a6cbc8060123c/README.md"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README reviewed after filename/default-branch resolution; source modules, tests, license obligations and runtime remain to be inspected"
+      "review_depth": "Selected notebook/skill-definition files inspected; not every recipe/skill audited and no notebook or script executed.",
+      "source_findings": "Selected tool-use notebooks traced: tool schema declaration, process_tool_call dispatch, chat loop on tool_use/tool_result; calculator eval is explicitly demo-only; customer-service data/action is simulated."
     },
     {
       "id": "free-claude-code",
@@ -841,19 +846,21 @@
       "url": "https://github.com/alirezarezvani/claude-skills",
       "clone_url": "https://github.com/alirezarezvani/claude-skills.git",
       "category": "skills-and-workflows",
-      "purpose_hypothesis": "Claude skills collection",
+      "purpose_hypothesis": "Broad skill library for coding, operations, business and specialist work, with authoring standards and multiple agent-format folders.",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "27cfcd0fb0a41f60adffcbd5271fdf8839f86ed2",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/alirezarezvani/claude-skills/blob/HEAD/README.md"
+        "https://github.com/alirezarezvani/claude-skills/blob/27cfcd0fb0a41f60adffcbd5271fdf8839f86ed2/SKILL-AUTHORING-STANDARD.md",
+        "https://github.com/alirezarezvani/claude-skills/blob/27cfcd0fb0a41f60adffcbd5271fdf8839f86ed2/README.md"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected notebook/skill-definition files inspected; not every recipe/skill audited and no notebook or script executed.",
+      "source_findings": "The authoring standard specifies context-first behavior, modes, proactive triggers, output artifacts, confidence tags and skill-name linting; broad cross-agent directories and optional launcher/config folders exist."
     },
     {
       "id": "claudecodeui",
@@ -1402,19 +1409,22 @@
       "url": "https://github.com/openai/openai-cookbook",
       "clone_url": "https://github.com/openai/openai-cookbook.git",
       "category": "model-and-agent-examples",
-      "purpose_hypothesis": "OpenAI API patterns/examples",
+      "purpose_hypothesis": "API guide/example repository for Responses, tools, agent coordination, evaluation, retrieval, multimodal, audio/video, structured output, rate limits and guardrails.",
       "priority": "P2",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "4bb93ceb583c809a5f0f6b374cb66f192dd534a0",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/openai/openai-cookbook/blob/HEAD/README.md"
+        "https://github.com/openai/openai-cookbook/blob/4bb93ceb583c809a5f0f6b374cb66f192dd534a0/examples/responses_api/responses_api_tool_orchestration.ipynb",
+        "https://github.com/openai/openai-cookbook/blob/4bb93ceb583c809a5f0f6b374cb66f192dd534a0/examples/agents_sdk/building_reliable_agents_memory_compaction.ipynb",
+        "https://github.com/openai/openai-cookbook/blob/4bb93ceb583c809a5f0f6b374cb66f192dd534a0/examples/agents_sdk/agent_improvement_loop.ipynb"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected notebook/skill-definition files inspected; not every recipe/skill audited and no notebook or script executed.",
+      "source_findings": "Selected Responses API tool orchestration and Agents SDK notebooks mapped; includes typed tool schema, search + vector retrieval, tool output loop, evidence manifest, sandbox agent, compaction checkpoints, output contract validation and JSONL tracing examples."
     },
     {
       "id": "openai-python",
@@ -1583,9 +1593,9 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 12,
-    "readme_reviewed_count": 62,
+    "source_inspected_count": 16,
+    "readme_reviewed_count": 58,
     "queued_count": 0,
-    "note": "Source-inspected means selected source modules/documents were mapped, not a complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
+    "note": "Source-inspected means selected source modules/documents/notebooks were mapped, not complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
   }
 }
