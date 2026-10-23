@@ -904,17 +904,25 @@
       "category": "coding-agent-ui",
       "purpose_hypothesis": "UI for Claude Code sessions/workspaces",
       "priority": "P2",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "7238368fca24e90938e9a6736d38af8b86575eb9",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/siteboon/claudecodeui/blob/HEAD/README.md"
+        "https://github.com/siteboon/claudecodeui/blob/7238368fca24e90938e9a6736d38af8b86575eb9/server/modules/agent/agent.routes.ts",
+        "https://github.com/siteboon/claudecodeui/blob/7238368fca24e90938e9a6736d38af8b86575eb9/server/modules/browser-use/browser-use.service.ts",
+        "https://github.com/siteboon/claudecodeui/blob/7238368fca24e90938e9a6736d38af8b86575eb9/server/modules/browser-use/browser-use-mcp.ts",
+        "https://github.com/siteboon/claudecodeui/blob/7238368fca24e90938e9a6736d38af8b86575eb9/server/modules/browser-use/browser-use.routes.ts",
+        "https://github.com/siteboon/claudecodeui/blob/7238368fca24e90938e9a6736d38af8b86575eb9/server/modules/worktrees/worktrees.routes.ts",
+        "https://github.com/siteboon/claudecodeui/blob/7238368fca24e90938e9a6736d38af8b86575eb9/server/modules/auth/auth.middleware.ts",
+        "https://github.com/siteboon/claudecodeui/blob/7238368fca24e90938e9a6736d38af8b86575eb9/electron/localServer.js",
+        "https://github.com/siteboon/claudecodeui/blob/7238368fca24e90938e9a6736d38af8b86575eb9/electron/preload.cjs"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected agent routes, GitHub clone/PR path, browser-use session service/MCP bridge, auth middleware, Electron local-server startup and worktree routes inspected; no build or runtime test",
+      "source_findings": "Modular React/Express/Electron agent UI supports multi-provider sessions, GitHub clone/branch/PR workflow, Playwright browser sessions with owner limits and inactivity expiry, local MCP bridge, worktrees, scheduled tasks, file tree and terminal. Important checks remain around auth middleware mount context, token-in-query patterns, path policies and local service exposure."
     },
     {
       "id": "claude-code-router",
@@ -1638,8 +1646,8 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 25,
-    "readme_reviewed_count": 49,
+    "source_inspected_count": 26,
+    "readme_reviewed_count": 48,
     "queued_count": 0,
     "note": "Source-inspected means selected source modules/documents/notebooks/plugins were mapped, not complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
   }
