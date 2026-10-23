@@ -11,7 +11,7 @@ Angel remains Angel. Reverse engineering is a learning and compatibility exercis
 
 ## REA findings
 
-The official `morluto/rea` repository describes REA as an MCP/CLI toolkit for reverse engineering application behavior, native binaries, JavaScript/Electron apps, .NET assemblies, websites and other local artifacts. It retains evidence and limitations rather than treating guesses as facts. Its current README specifies Node.js 22.19+, 24.11+, or 26+ and recommends setup via:
+The official `morluto/rea` repository (`rea-agents` v6.7.0; inspected revision `4c547008c53ee9f0ff2368e7d874a2c3347aa235`) is an MCP/CLI toolkit for reverse engineering application behavior, native binaries, JavaScript/Electron apps, .NET assemblies, websites and other local artifacts. Source inspection mapped its browser registration, browser scenario, evidence/server composition, safe metadata, execution boundary, cancellation, timeout and cleanup modules. This is source inspection only: its runtime has not been installed or executed in this session. The package requires Node.js 22.19+, 24.11+, or 26+ and recommends setup via:
 
 ```bash
 npx rea-agents@latest setup
@@ -19,10 +19,12 @@ npx rea-agents@latest setup
 
 Setup registers REA with a supported local coding agent and requires the user to review and approve configuration changes. Native analysis may require a configured Ghidra, Hopper or IDA installation; static JavaScript/Electron analysis can use extracted app directories or ASAR files. REA is not automatically available inside every chat or GitHub connector. In this current workflow, repository files can also be read using GitHub integration; a full REA run requires an appropriate local agent/MCP connection and target artifacts.
 
-Official source: https://github.com/morluto/rea  
-Official guide: https://github.com/morluto/rea/blob/main/docs/installation.md  
-MCP contracts: https://github.com/morluto/rea/blob/main/docs/mcp-contracts.md  
-CLI and Evidence guide: https://github.com/morluto/rea/blob/main/docs/cli.md
+Official source: https://github.com/morluto/rea/tree/4c547008c53ee9f0ff2368e7d874a2c3347aa235  
+Browser tools: https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/server/registerBrowserTools.ts  
+Browser scenarios: https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/server/registerBrowserScenarioTool.ts  
+Observation service: https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/application/BrowserObservationService.ts  
+MCP contracts: https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/docs/mcp-contracts.md  
+CLI and Evidence guide: https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/docs/cli.md
 
 ## Scope: source repositories and ordinary links
 
