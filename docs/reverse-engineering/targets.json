@@ -12,6 +12,7 @@
   "status_definitions": [
     "queued",
     "metadata-checked",
+    "readme-reviewed",
     "source-inspected",
     "capability-mapped",
     "security-reviewed",
@@ -36,13 +37,17 @@
       "category": "models-and-media",
       "purpose_hypothesis": "Translation and multilingual modeling",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/Tencent-Hunyuan/Hy-MT2/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "qwen-image-2-1",
@@ -52,13 +57,17 @@
       "category": "models-and-media",
       "purpose_hypothesis": "Image generation",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/QwenLM/Qwen-Image-2.1/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "nvidia-model-optimizer",
@@ -68,13 +77,17 @@
       "category": "model-infrastructure",
       "purpose_hypothesis": "Model quantization and optimization",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/NVIDIA/Model-Optimizer/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "nvidia-gpu-operator",
@@ -84,13 +97,17 @@
       "category": "model-infrastructure",
       "purpose_hypothesis": "GPU/Kubernetes infrastructure",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/NVIDIA/gpu-operator/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-adk-python",
@@ -100,13 +117,17 @@
       "category": "agents-and-orchestration",
       "purpose_hypothesis": "Agent development kit and orchestration",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/google/adk-python/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "gentle-ai",
@@ -116,13 +137,17 @@
       "category": "coding-agents",
       "purpose_hypothesis": "Coding-agent memory and workflows",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/Gentleman-Programming/gentle-ai/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "googleapis",
@@ -132,13 +157,17 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google API definitions and schemas",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/googleapis/googleapis/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "gaowanlu-google",
@@ -148,13 +177,17 @@
       "category": "google-related-unknown",
       "purpose_hypothesis": "Purpose to verify from README/source",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/gaowanlu/google/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-research",
@@ -164,13 +197,17 @@
       "category": "research-and-models",
       "purpose_hypothesis": "Research implementations and experiments",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/google-research/google-research/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-services-samples",
@@ -180,13 +217,17 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google services integration samples",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/googlesamples/google-services/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-translate-ip-check",
@@ -196,13 +237,17 @@
       "category": "network-and-translation",
       "purpose_hypothesis": "Translation endpoint/IP diagnostics",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/Ponderfly/GoogleTranslateIpCheck/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-api-php-client",
@@ -212,13 +257,17 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google APIs PHP client",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/googleapis/google-api-php-client/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-skills",
@@ -228,13 +277,17 @@
       "category": "skills-and-workflows",
       "purpose_hypothesis": "Google skills/workflow examples",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/google/skills/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "chatgpt-google-extension",
@@ -244,13 +297,17 @@
       "category": "browser-and-search",
       "purpose_hypothesis": "AI answers alongside Google Search",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/wong2/chatgpt-google-extension/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-api-python-client",
@@ -260,13 +317,17 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google APIs Python client",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/googleapis/google-api-python-client/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-api-nodejs-client",
@@ -276,13 +337,17 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google APIs Node.js client",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/googleapis/google-api-nodejs-client/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-10000-english",
@@ -292,13 +357,17 @@
       "category": "language-data",
       "purpose_hypothesis": "English word list/vocabulary dataset",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/first20hours/google-10000-english/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "ghunt",
@@ -308,13 +377,17 @@
       "category": "security-and-osint",
       "purpose_hypothesis": "Google-account OSINT; lawful and privacy-safe review only",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/mxrch/GHunt/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-ips",
@@ -324,13 +397,17 @@
       "category": "network-and-translation",
       "purpose_hypothesis": "Google IP range lists; freshness/accuracy check",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/justjavac/google-ips/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "googleauth",
@@ -340,13 +417,17 @@
       "category": "authentication-and-identity",
       "purpose_hypothesis": "Google Authenticator/TOTP library",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/wstrange/GoogleAuth/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "react-native-google-signin",
@@ -356,13 +437,17 @@
       "category": "authentication-and-identity",
       "purpose_hypothesis": "Google sign-in for React Native",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/react-native-google-signin/google-signin/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-maps-scraper",
@@ -372,13 +457,17 @@
       "category": "maps-and-location",
       "purpose_hypothesis": "Google Maps extraction; terms and rate limits review",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/gosom/google-maps-scraper/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "protobuf",
@@ -388,13 +477,17 @@
       "category": "api-and-serialization",
       "purpose_hypothesis": "Protocol Buffers compiler/runtime",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/protocolbuffers/protobuf/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-api-go-client",
@@ -404,13 +497,17 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google APIs Go client",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/googleapis/google-api-go-client/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-workspace-mcp",
@@ -420,13 +517,17 @@
       "category": "integrations-and-mcp",
       "purpose_hypothesis": "Google Workspace MCP tools",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/taylorwilsdon/google_workspace_mcp/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-ctf",
@@ -436,13 +537,17 @@
       "category": "security-and-learning",
       "purpose_hypothesis": "CTF challenges/security training",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/google/google-ctf/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "react-google-maps",
@@ -452,13 +557,17 @@
       "category": "maps-and-location",
       "purpose_hypothesis": "React Maps bindings; maintenance review",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/tomchentw/react-google-maps/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google2fa",
@@ -468,13 +577,17 @@
       "category": "authentication-and-identity",
       "purpose_hypothesis": "PHP TOTP two-factor authentication",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/antonioribeiro/google2fa/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "googleads-mobile-android-examples",
@@ -484,13 +597,17 @@
       "category": "ads-and-mobile",
       "purpose_hypothesis": "Mobile ads SDK examples",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/googleads/googleads-mobile-android-examples/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "google-cloud-java",
@@ -500,13 +617,17 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google Cloud Java client libraries",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/googleapis/google-cloud-java/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "angular-google-maps",
@@ -516,13 +637,17 @@
       "category": "maps-and-location",
       "purpose_hypothesis": "Angular Maps integration; legacy review",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/angular-ui/angular-google-maps/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "flutterfire",
@@ -532,13 +657,17 @@
       "category": "firebase-and-mobile",
       "purpose_hypothesis": "Firebase SDKs for Flutter",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/firebase/flutterfire/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "anthropic-claude-code",
@@ -548,13 +677,17 @@
       "category": "coding-agents",
       "purpose_hypothesis": "Official Claude Code agent implementation",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/anthropics/claude-code/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-code-best",
@@ -564,13 +697,17 @@
       "category": "coding-agents-unknown",
       "purpose_hypothesis": "Unofficial Claude Code-related repo; provenance to verify",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/claude-code-best/claude-code/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "learn-claude-code",
@@ -580,13 +717,17 @@
       "category": "coding-agents",
       "purpose_hypothesis": "Learn-by-building coding-agent concepts",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/shareAI-lab/learn-claude-code/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "awesome-claude-skills-composio",
@@ -596,13 +737,17 @@
       "category": "skills-and-workflows",
       "purpose_hypothesis": "Curated Claude skills catalog",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/ComposioHQ/awesome-claude-skills/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-cookbooks",
@@ -628,13 +773,17 @@
       "category": "coding-agents-unknown",
       "purpose_hypothesis": "Unofficial project; inspect licensing, credentials and provider terms",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/Alishahryar1/free-claude-code/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-skills-alirezarezvani",
@@ -644,13 +793,17 @@
       "category": "skills-and-workflows",
       "purpose_hypothesis": "Claude skills collection",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/alirezarezvani/claude-skills/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claudecodeui",
@@ -660,13 +813,17 @@
       "category": "coding-agent-ui",
       "purpose_hypothesis": "UI for Claude Code sessions/workspaces",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/siteboon/claudecodeui/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-code-router",
@@ -676,13 +833,17 @@
       "category": "model-routing",
       "purpose_hypothesis": "Route coding-agent requests across models/providers",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/musistudio/claude-code-router/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-video",
@@ -692,13 +853,17 @@
       "category": "media-workflows",
       "purpose_hypothesis": "Claude-assisted video workflow",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/bradautomates/claude-video/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "thinking-claude",
@@ -708,13 +873,17 @@
       "category": "reasoning-techniques",
       "purpose_hypothesis": "Structured-reasoning prompts/workflows",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/richards199999/Thinking-Claude/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-task-master",
@@ -724,13 +893,17 @@
       "category": "task-planning",
       "purpose_hypothesis": "AI task decomposition and project planning",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/eyaltoledano/claude-task-master/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-reviews-claude",
@@ -740,13 +913,17 @@
       "category": "code-review",
       "purpose_hypothesis": "AI-assisted code review workflows",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/openedclaude/claude-reviews-claude/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-code-action",
@@ -756,13 +933,17 @@
       "category": "coding-agents-ci",
       "purpose_hypothesis": "Official GitHub Actions agent integration",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/anthropics/claude-code-action/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-relay-service",
@@ -772,13 +953,17 @@
       "category": "provider-relay",
       "purpose_hypothesis": "API relay/proxy; credential and terms review required",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/Wei-Shaw/claude-relay-service/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-engineer",
@@ -804,13 +989,17 @@
       "category": "domain-specific-ai",
       "purpose_hypothesis": "Legal-domain workflow examples; not legal authority",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/anthropics/claude-for-legal/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "awesome-claude-skills-behisecc",
@@ -820,13 +1009,17 @@
       "category": "skills-and-workflows",
       "purpose_hypothesis": "Curated skills catalog; deduplicate against other list",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/BehiSecc/awesome-claude-skills/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "open-claude-cowork",
@@ -836,13 +1029,17 @@
       "category": "desktop-agents",
       "purpose_hypothesis": "Cowork-style agent workflow",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/composio-community/open-claude-cowork/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "hapi",
@@ -852,13 +1049,17 @@
       "category": "mobile-agent-ui",
       "purpose_hypothesis": "Mobile-facing coding-agent interface",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/tiann/hapi/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "opencodex",
@@ -868,13 +1069,17 @@
       "category": "coding-agents-unknown",
       "purpose_hypothesis": "Open Codex-related project; purpose to verify",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/lidge-jun/opencodex/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-desktop-app-pretend",
@@ -884,13 +1089,17 @@
       "category": "desktop-agents-unknown",
       "purpose_hypothesis": "Unofficial desktop wrapper; security/terms review",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/pretend1111/claude-desktop-app/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-usage-tracker",
@@ -900,13 +1109,17 @@
       "category": "usage-and-cost",
       "purpose_hypothesis": "Usage tracking and quota awareness",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/hamed-elfayome/Claude-Usage-Tracker/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-artifact-runner",
@@ -916,13 +1129,17 @@
       "category": "artifact-execution",
       "purpose_hypothesis": "Artifact execution/rendering; isolation review",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/claudio-silva/claude-artifact-runner/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-chatgpt-mcp",
@@ -932,13 +1149,17 @@
       "category": "multi-model-and-mcp",
       "purpose_hypothesis": "Cross-assistant MCP bridge; auth/compliance review",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/syedazharmbnr1/claude-chatgpt-mcp/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "mcp-use",
@@ -948,13 +1169,17 @@
       "category": "mcp-and-tools",
       "purpose_hypothesis": "MCP client/server infrastructure",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/mcp-use/mcp-use/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "happy",
@@ -964,13 +1189,17 @@
       "category": "mobile-agent-ui",
       "purpose_hypothesis": "Mobile/remote interface for coding agents",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/slopus/happy/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "pake",
@@ -980,13 +1209,17 @@
       "category": "desktop-wrappers",
       "purpose_hypothesis": "Turn web apps into desktop apps",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/tw93/Pake/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "watermarks-remover",
@@ -996,13 +1229,17 @@
       "category": "image-tools",
       "purpose_hypothesis": "Watermark removal; authorized-media uses only",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/guillaumemeyer/watermarks-remover/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "kuse-cowork",
@@ -1012,13 +1249,17 @@
       "category": "desktop-agents",
       "purpose_hypothesis": "Cowork-style AI workspace and task execution",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/kuse-ai/kuse_cowork/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "apple-design-skill",
@@ -1028,13 +1269,17 @@
       "category": "design-skills",
       "purpose_hypothesis": "Apple-style UI/design skill",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/dickwu/apple-design-skill/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-desktop-karenina",
@@ -1044,13 +1289,17 @@
       "category": "desktop-agents-unknown",
       "purpose_hypothesis": "Unofficial desktop-related repo; purpose to verify",
       "priority": "P4",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/Karenina-na/Claude-Desktop/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "claude-in-mobile",
@@ -1060,13 +1309,17 @@
       "category": "mobile-agent-ui",
       "purpose_hypothesis": "Mobile interaction with Claude/code agent",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/AlexGladkov/claude-in-mobile/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "openai-cookbook",
@@ -1076,13 +1329,17 @@
       "category": "model-and-agent-examples",
       "purpose_hypothesis": "OpenAI API patterns/examples",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/openai/openai-cookbook/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "openai-python",
@@ -1092,13 +1349,17 @@
       "category": "model-sdk",
       "purpose_hypothesis": "Official OpenAI Python SDK",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/openai/openai-python/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "betalgo-openai",
@@ -1124,13 +1385,17 @@
       "category": "model-sdk-unknown",
       "purpose_hypothesis": "OpenAI SDK for Swift; status verify",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/MacPaw/OpenAI/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "openai-agents-python",
@@ -1140,13 +1405,17 @@
       "category": "agents-and-orchestration",
       "purpose_hypothesis": "OpenAI Agents SDK for Python",
       "priority": "P1",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/openai/openai-agents-python/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "openai-gemini",
@@ -1156,13 +1425,17 @@
       "category": "model-compatibility",
       "purpose_hypothesis": "OpenAI/Gemini compatibility integration",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/PublicAffairs/openai-gemini/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "go-openai",
@@ -1172,13 +1445,17 @@
       "category": "model-sdk",
       "purpose_hypothesis": "OpenAI API Go client",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/sashabaranov/go-openai/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "openai-java",
@@ -1188,13 +1465,17 @@
       "category": "model-sdk-unknown",
       "purpose_hypothesis": "OpenAI API Java client; maintenance verify",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/TheoKanning/openai-java/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     },
     {
       "id": "feishu-openai",
@@ -1204,13 +1485,24 @@
       "category": "messaging-integrations",
       "purpose_hypothesis": "OpenAI-enabled Feishu/Lark integration",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/ConnectAI-E/feishu-openai/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
     }
-  ]
+  ],
+  "review_summary": {
+    "last_updated_at": "2026-10-23",
+    "target_count": 74,
+    "readme_reviewed_count": 71,
+    "source_inspected_count": 0,
+    "note": "README review is reconnaissance, not complete reverse engineering. One missing/unsupported repository is left queued and documented for follow-up."
+  }
 }
