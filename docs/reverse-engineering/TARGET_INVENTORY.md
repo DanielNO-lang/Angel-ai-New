@@ -96,8 +96,38 @@ Status convention: README review completed where content was retrievable; deeper
 
 ## D. Count and tracking
 
-- Total supplied target repositories including REA: **75**.
+- Total supplied target repositories including REA: **97** (75 in the first batch plus 22 additional targets).
 - Research begins with a representative sample, then proceeds by capability family and dependency order.
-- This inventory records links and research questions only. It does not imply that all repositories were opened, their code inspected, or their functions verified.
+- This inventory records links, research focus and review status. README reviews are not equivalent to source-level reverse engineering or runtime verification.
 - If any URL redirects, is unavailable, is a fork/mirror, or has an incompatible license, record that before proceeding.
 - New website URLs use the same process and are added to this inventory under a separate website-target section with a stable ID.
+
+
+## E. Additional targets supplied 2026-10-23
+
+See [Audit 04: Realtime, OpenAI ecosystem, voice, and chat interfaces](./reports/04-realtime-openai-voice-and-chat-ecosystem.md) for documented capabilities and Angel recommendations.
+
+| ID | Target | Research focus | Status |
+|---|---|---|---|
+| REA-076 | [openai/openai-realtime-agents](https://github.com/openai/openai-realtime-agents) | Realtime voice agent supervisor pattern and sequential specialist handoffs | README review documented; deeper audit pending |
+| REA-077 | [openai/openai-realtime-console](https://github.com/openai/openai-realtime-console) | WebRTC event streaming, client function calls and voice diagnostics | README review documented; deeper audit pending |
+| REA-078 | [open-webui/open-webui](https://github.com/open-webui/open-webui) | Provider-agnostic self-hosted UI, RAG, memory, tools, automations, voice/video and analytics | README review documented; deeper audit pending |
+| REA-079 | [openai/openai-agents-js](https://github.com/openai/openai-agents-js) | TypeScript agents, tools, handoffs, sandboxing, sessions, guardrails and tracing | README review documented; deeper audit pending |
+| REA-080 | [openai/plugins](https://github.com/openai/plugins) | Plugin manifests, skills, MCP configs, hooks and curated workflows | README review documented; deeper audit pending |
+| REA-081 | [justjavac/openai-proxy](https://github.com/justjavac/openai-proxy) | Proxy repository identity and current content require re-verification | Unresolved: README fetch returned 404 |
+| REA-082 | [alexrudall/ruby-openai](https://github.com/alexrudall/ruby-openai) | Ruby API client surface: responses, tools, audio, images, files and realtime | README review documented; deeper audit pending |
+| REA-083 | [dan1471/FREE-openai-api-keys](https://github.com/dan1471/FREE-openai-api-keys) | Unsafe shared-credential list; explicitly reject, do not use keys | README review documented; deeper audit pending |
+| REA-084 | [adrianhajdin/project_openai_codex](https://github.com/adrianhajdin/project_openai_codex) | Tutorial coding-assistant UI; source-level capabilities still to verify | README review documented; deeper audit pending |
+| REA-085 | [openai/openai-assistants-quickstart](https://github.com/openai/openai-assistants-quickstart) | Historical Next.js streaming, function calling and file-search workflow | README review documented; deeper audit pending |
+| REA-086 | [microsoft/OpenAIWorkshop](https://github.com/microsoft/OpenAIWorkshop) | Multi-agent orchestration, durable workflows, MCP, evaluations and observability | README review documented; deeper audit pending |
+| REA-087 | [egoist/openai-proxy](https://github.com/egoist/openai-proxy) | Edge request-forwarding proxy; security and routing patterns only | README review documented; deeper audit pending |
+| REA-088 | [openai/openai-apps-sdk-examples](https://github.com/openai/openai-apps-sdk-examples) | MCP tools returning structured payloads and interactive UI widgets | README review documented; deeper audit pending |
+| REA-089 | [travisvn/openai-edge-tts](https://github.com/travisvn/openai-edge-tts) | OpenAI-compatible online TTS endpoint, voice mapping and audio streaming | README review documented; deeper audit pending |
+| REA-090 | [KenyonY/openai-forward](https://github.com/KenyonY/openai-forward) | Async model gateway, rate limits, caching, routing, retries and logs | README review documented; deeper audit pending |
+| REA-091 | [MicrosoftLearning/mslearn-openai](https://github.com/MicrosoftLearning/mslearn-openai) | Learning repository link/content unresolved; recheck URL | Unresolved: README fetch returned 404 |
+| REA-092 | [aallam/openai-kotlin](https://github.com/aallam/openai-kotlin) | Kotlin multiplatform API client for native Android/future mobile work | README review documented; deeper audit pending |
+| REA-093 | [daveshap/OpenAI_Agent_Swarm](https://github.com/daveshap/OpenAI_Agent_Swarm) | Hierarchical agent swarm design; autonomy claims require careful validation | README review documented; deeper audit pending |
+| REA-094 | [ggml-org/whisper.cpp](https://github.com/ggml-org/whisper.cpp) | Cross-platform local Whisper ASR, quantization, VAD and hardware acceleration | README review documented; deeper audit pending |
+| REA-095 | [lencx/ChatGPT](https://github.com/lencx/ChatGPT) | Unofficial desktop wrapper; historical UI/packaging reference | README review documented; deeper audit pending |
+| REA-096 | [acheong08/ChatGPT](https://github.com/acheong08/ChatGPT) | Repository link/content unresolved; avoid unofficial token flows | Unresolved: README fetch returned 404 |
+| REA-097 | [Chanzhaoyu/chatgpt-web](https://github.com/Chanzhaoyu/chatgpt-web) | Chat UI, sessions, import/export, themes and historical unofficial token mode | README review documented; deeper audit pending |
