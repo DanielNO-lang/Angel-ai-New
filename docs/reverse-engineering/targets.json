@@ -727,8 +727,8 @@
       "category": "coding-agents",
       "purpose_hypothesis": "Official Claude Code product repository. Public tree contains docs, plugins, scripts, examples and configuration, but not a complete readable source implementation of the full product runtime; investigate public extensions and observable behavior only.",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "65823ec0034ed0aa0266bc43903fefd3ff94a327",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [
@@ -738,10 +738,24 @@
       ],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/anthropics/claude-code/blob/HEAD/README.md"
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/README.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/feature-dev/commands/feature-dev.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/feature-dev/agents/code-explorer.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/feature-dev/agents/code-architect.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/feature-dev/agents/code-reviewer.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/code-review/commands/code-review.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/pr-review-toolkit/README.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/security-guidance/hooks/security_reminder_hook.py",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/security-guidance/hooks/patterns.py",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/security-guidance/hooks/diffstate.py",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/hookify/README.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/ralph-wiggum/README.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/commit-commands/README.md",
+        "https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/plugins/agent-sdk-dev/README.md"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected official public plugin workflows and security hook source inspected; full Claude Code runtime is not present as a complete readable implementation in the public tree, and no plugin was executed",
+      "source_findings": "Public plugins include seven-phase feature development, code exploration/architecture/review agents, high-signal PR review, specialized test/error/type/comment review agents, security patterns plus diff-baseline review hooks, user-defined Hookify rules, bounded Ralph goal loops, commit/push/PR convenience commands and SDK scaffolding/verifiers."
     },
     {
       "id": "claude-code-best",
@@ -1624,9 +1638,9 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 24,
-    "readme_reviewed_count": 50,
+    "source_inspected_count": 25,
+    "readme_reviewed_count": 49,
     "queued_count": 0,
-    "note": "Source-inspected means selected source modules/documents/notebooks were mapped, not complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
+    "note": "Source-inspected means selected source modules/documents/notebooks/plugins were mapped, not complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
   }
 }
