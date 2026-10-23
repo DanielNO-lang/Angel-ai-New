@@ -112,7 +112,9 @@ test('Angel backend smoke contract', async (t) => {
   });
 
   const previousGeminiKey = process.env.GEMINI_API_KEY;
+  const originalGetProvider = providerRegistry.getProvider.bind(providerRegistry);
   delete process.env.GEMINI_API_KEY;
+  providerRegistry.getProvider = () => new GeminiProvider();
   try {
     const unavailableGeneration = await fetch(`${baseUrl}/api/ai/generate`, {
       method: 'POST',
@@ -128,6 +130,7 @@ test('Angel backend smoke contract', async (t) => {
     assert.equal(unavailableBody.text, undefined,
       'provider failure must not be replaced with fabricated answer text');
   } finally {
+    providerRegistry.getProvider = originalGetProvider;
     if (previousGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = previousGeminiKey;
   }
