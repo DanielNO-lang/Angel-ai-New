@@ -771,17 +771,29 @@
       "category": "coding-agents",
       "purpose_hypothesis": "Learn-by-building coding-agent concepts",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "ce8f9f186058939da54c9d6fead78dfb5d0fd6c3",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/shareAI-lab/learn-claude-code/blob/HEAD/README.md"
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s01_agent_loop/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s03_permission/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s07_skill_loading/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s08_context_compact/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s09_memory/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s10_task_system/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s11_background_tasks/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s12_cron_scheduler/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s13_agent_teams/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s14_mcp_plugin/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s16_workflow_runtime/code.py",
+        "https://github.com/shareAI-lab/learn-claude-code/blob/ce8f9f186058939da54c9d6fead78dfb5d0fd6c3/s17_goal_loop/code.py"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source code inspected across all 17 lesson modules; function map recorded, but no examples executed and no full repo/runtime test",
+      "source_findings": "Agent harness modules include tool loop, permission gates, lifecycle hooks, todo management, subagents, progressive skill loading, context compaction, persistent memory, dependency tasks, background jobs, cron, agent teams/worktree isolation, MCP client, integrated runtime, workflow journal/budgets and goal loop."
     },
     {
       "id": "awesome-claude-skills-composio",
@@ -1601,8 +1613,8 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 22,
-    "readme_reviewed_count": 52,
+    "source_inspected_count": 23,
+    "readme_reviewed_count": 51,
     "queued_count": 0,
     "note": "Source-inspected means selected source modules/documents/notebooks were mapped, not complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
   }
