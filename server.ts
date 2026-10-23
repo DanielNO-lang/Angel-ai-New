@@ -29,7 +29,29 @@ import { getAngelCapabilityCatalog } from './server/services/angelCapabilityCata
 import { handleAngelMcpMessage } from './server/services/mcpGatewayService';
 import { runWorkflowExecution, approveWorkflowExecution, triggerMatchingWorkflows } from './server/services/workflowService';
 import { githubService } from './server/services/githubService';
-import { angelJarvisCore } from './server/services/angelJarvisCore';
+
+function describeProviderFailure(error: unknown): { status: number; code: string; message: string } {
+  const detail = error instanceof Error ? error.message.toLowerCase() : '';
+  if (/(quota|resource[_ -]?exhausted|rate.?limit|429)/i.test(detail)) {
+    return {
+      status: 429,
+      code: 'provider_quota_exceeded',
+      message: 'The AI provider has reached a rate limit or quota. Check provider usage and retry.',
+    };
+  }
+  if (/(unauthori[sz]ed|forbidden|invalid api key|401|403)/i.test(detail)) {
+    return {
+      status: 502,
+      code: 'provider_auth_failed',
+      message: 'The AI provider rejected its credentials. Check the server-side provider key.',
+    };
+  }
+  return {
+    status: 502,
+    code: 'provider_request_failed',
+    message: 'The AI provider could not complete this request. Check provider configuration and availability, then retry.',
+  };
+}
 
 export interface CreateAppOptions {
   isServerless?: boolean;
@@ -958,8 +980,22 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const temperature = req.body?.temperature;
     const maxTokens = req.body?.maxTokens;
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required', code: 'prompt_required' });
+
+    let provider;
+    try {
+      provider = providerRegistry.getProvider(providerId);
+    } catch {
+      return res.status(503).json({
+        error: 'No AI provider is available. Configure a provider in server-side environment settings.',
+        code: 'provider_not_configured',
+      });
+    }
+    if (!provider.isConfigured()) {
+      return res.status(503).json({
+        error: "Angel's AI provider is not configured. Add a valid provider key in server-side settings, then retry.",
+        code: 'provider_not_configured',
+      });
     }
 
     res.setHeader('Content-Type', 'text/event-stream');
@@ -967,45 +1003,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     res.setHeader('Connection', 'keep-alive');
 
     try {
-      const provider = providerRegistry.getProvider(providerId);
-
-      await provider.stream(
-        {
-          prompt,
-          systemInstruction,
-          conversationHistory,
-          modelId,
-          temperature,
-          maxTokens,
-        },
-        (chunk) => {
-          res.write(`data: ${JSON.stringify({ chunk, text: chunk })}\n\n`);
-        }
+      const fullText = await provider.stream(
+        { prompt, systemInstruction, conversationHistory, modelId, temperature, maxTokens },
+        (chunk) => res.write('data: ' + JSON.stringify({ chunk, text: chunk }) + '\n\n'),
       );
-
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      if (!fullText.trim()) throw new Error('Provider returned an empty response.');
+      res.write('data: ' + JSON.stringify({ done: true }) + '\n\n');
       res.end();
-    } catch (err) {
-      console.warn('[API /api/ai/stream fallback to AngelJarvisCore]', err);
-      try {
-        await angelJarvisCore.streamResponse(
-          {
-            prompt,
-            systemInstruction,
-            conversationHistory,
-            modelId,
-          },
-          (chunk) => {
-            res.write(`data: ${JSON.stringify({ chunk, text: chunk })}\n\n`);
-          }
-        );
-        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-        res.end();
-      } catch (streamErr) {
-        const msg = streamErr instanceof Error ? streamErr.message : String(streamErr);
-        res.write(`data: ${JSON.stringify({ error: msg, done: true })}\n\n`);
-        res.end();
-      }
+    } catch (error) {
+      const failure = describeProviderFailure(error);
+      console.warn('[API /api/ai/stream] Provider request failed:', failure.code);
+      res.write('data: ' + JSON.stringify({ error: failure.message, code: failure.code, done: true }) + '\n\n');
+      res.end();
     }
   });
 
@@ -1020,37 +1029,30 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const temperature = req.body?.temperature;
     const maxTokens = req.body?.maxTokens;
 
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
-    }
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required', code: 'prompt_required' });
 
     try {
       const provider = providerRegistry.getProvider(providerId);
+      if (!provider.isConfigured()) {
+        return res.status(503).json({
+          error: "Angel's AI provider is not configured. Add a valid provider key in server-side settings, then retry.",
+          code: 'provider_not_configured',
+        });
+      }
       const result = await provider.generate({
-        prompt,
-        systemInstruction,
-        conversationHistory,
-        modelId,
-        temperature,
-        maxTokens,
+        prompt, systemInstruction, conversationHistory, modelId, temperature, maxTokens,
       });
-
-      res.json(result);
-    } catch (err) {
-      console.warn('[API /api/ai/generate fallback to AngelJarvisCore]', err);
-      const jarvis = angelJarvisCore.generateResponse({
-        prompt,
-        systemInstruction,
-        conversationHistory,
-        modelId,
-      });
-      res.json({
-        success: true,
-        text: jarvis.text,
-        provider: 'angel-jarvis',
-        modelId: jarvis.modelId,
-        tokensUsed: jarvis.tokensUsed,
-      });
+      if (!result.text?.trim()) {
+        return res.status(502).json({
+          error: 'The AI provider returned no usable text. Please retry or check provider status.',
+          code: 'provider_empty_response',
+        });
+      }
+      return res.json(result);
+    } catch (error) {
+      const failure = describeProviderFailure(error);
+      console.warn('[API /api/ai/generate] Provider request failed:', failure.code);
+      return res.status(failure.status).json({ error: failure.message, code: failure.code });
     }
   });
 
