@@ -27,7 +27,8 @@ The status counts are maintained in targets.json. “Source-inspected” and “
 7. phase-2-findings.md — Google APIs, identity, model/media, network, SDK and infrastructure references.
 8. phase-3-findings.md — coding-agent UI, desktop/mobile presence, provider wrappers, risks and later capabilities.
 9. phase-4-findings.md — inspected cookbook tool loops, memory compaction, evaluation, evidence contracts and skill authoring standards.
-10. deep-dives-p1.md — source-level function/module maps for the highest-priority operating-core, task, routing, MCP, GitHub automation, remote-session and REA engine references.
+10. phase-5-findings.md — function-level Google API, OAuth and TOTP SDK findings.
+11. deep-dives-p1.md — source-level function/module maps for operating-core, tasks, routing, MCP, GitHub automation, remote sessions and REA.
 
 ## Source-inspected targets
 Selected modules/documents have been inspected for:
@@ -47,7 +48,7 @@ Selected modules/documents have been inspected for:
 - Composio and Alireza skill collections: skill creation/metadata, progressive disclosure and context-first authoring guidance.
 - Google API Node/Python/PHP clients, React Native Google Sign-In and two TOTP libraries: selected discovery/client, OAuth/token, sign-in and OTP functions.
 
-REA itself has now had a source-level map added in deep-dives-p1.md. Its browser tool registration, browser scenario capture, source/trace/evidence tool surfaces, safe metadata filtering, origin scope, cancellation, timeout and cleanup patterns were inspected. **The REA runtime remains unexecuted.**
+REA itself has a dedicated pinned source map in REA-SOURCE-MAP.md and an extended deep dive in deep-dives-p1.md. Its browser tool registration, browser scenario capture, source/trace/evidence tool surfaces, safe metadata filtering, origin scope, cancellation, timeout and cleanup patterns were inspected. **The REA runtime remains unexecuted.**
 
 Official Claude Code itself was examined separately. The inspected public tree exposes docs, plugins, scripts, examples and configuration but not a complete readable source implementation of the whole hosted/runtime product. Its internal implementation is therefore marked not publicly exposed rather than inferred.
 
