@@ -423,3 +423,29 @@ Both provide relevant remote-session concepts, but they implement different clie
 
 ### Decision
 **Study for security and session architecture, then design Angel-owned contracts.** Reusing cryptographic code is a higher bar than reusing an interaction pattern; prefer audited libraries, published protocols and security review over lifting ad hoc crypto helpers into Angel.
+
+
+## 16. Open Claude Cowork: desktop shell and local integration server
+
+Repository: https://github.com/composio-community/open-claude-cowork  
+Revision reviewed: 52335ef50fd033cb5ce87068be0b5b546fa5b73d  
+Files inspected: main.js, preload.js, server/server.js, server/providers/index.js, server/providers/claude-provider.js
+
+### Source map and observable design
+- main.js creates the Electron BrowserWindow; the inspected config sets nodeIntegration=false, contextIsolation=true and webSecurity=true, sends non-file navigation/external links to the system browser, and denies window-open navigation in favor of shell.openExternal.
+- preload.js uses contextBridge/ipcRenderer and provides a small browser renderer bridge to a local server at http://localhost:3001. It includes fetch calls for the abort and provider endpoints and consumes streamed responses.
+- server/server.js creates an Express app, enables CORS middleware, JSON parsing, a POST /api/chat route, POST /api/abort, GET /api/providers and GET /api/health. It maintains an in-memory Composio session map and creates a default-user session when the caller does not supply an alternate user ID. Provider config is updated from an MCP URL/header pair.
+- server/providers/index.js keeps a provider class registry, resolves provider instances and exposes a dynamic registration function plus an available-provider list.
+- server/providers/claude-provider.js implements a provider adapter and AbortController map for stopping an active chat/stream.
+
+### What to borrow
+- Separate Electron main process, preload bridge, renderer and API/service modules.
+- Put local provider integrations behind a provider registry rather than coupling UI to one model.
+- Use streaming events and explicit abort controls.
+- Keep OS navigation out of the embedded application when appropriate.
+
+### Security gate before using this design
+The source inspection shows an Express CORS middleware configured without an explicit origin policy, a default-user fallback, and a local server endpoint set. That is not enough information on its own to prove a remotely exploitable issue, but it is a reason to check the binding host, allowed origins, request authorization, CSRF assumptions, session ownership and MCP header handling before adoption. A localhost API is a privileged boundary when it controls model sessions or integrations. Angel must require authenticated local pairing, strict origin/host controls, per-user isolation, payload/time limits and explicit confirmation for external writes.
+
+### Decision
+**Study the process split and provider adapter patterns; do not adopt the repository as-is.** It is a historical 2026-05-03 revision and must receive current dependency/security/license review before any fork. Angel should preserve the safe Electron isolation pattern and replace the local API's identity/authorization model with Angel-owned controls.
