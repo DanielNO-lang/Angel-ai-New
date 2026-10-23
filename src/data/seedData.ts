@@ -193,7 +193,7 @@ export const INITIAL_CONVERSATIONS: Conversation[] = [
     agentId: 'angel-core',
     pinned: false,
     messageCount: 1,
-    lastMessagePreview: 'Angel Jarvis Core ready for tactical intelligence and workspace execution.',
+    lastMessagePreview: 'Angel is ready whenever you are.',
   },
 ];
 
