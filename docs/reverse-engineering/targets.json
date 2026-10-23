@@ -6,8 +6,35 @@
   "analyzer": {
     "name": "Reverse Engineer Anything (REA)",
     "repository": "https://github.com/morluto/rea",
-    "status": "README/docs inspected; local runtime not executed from this chat",
-    "use": "MCP/CLI workflow for app/runtime/site/artifact analysis; pair with direct source-code review for public GitHub repos"
+    "package": "rea-agents",
+    "package_version": "6.7.0",
+    "license": "MIT (package metadata inspected; third-party notices still apply)",
+    "source_revision": "4c547008c53ee9f0ff2368e7d874a2c3347aa235",
+    "source_review_status": "selected-source-inspected",
+    "runtime_status": "not-executed",
+    "source_review_depth": "Inspected server registration, browser observation/scenario, CDP capture, Playwright scenario, safe metadata, execution boundary and evidence/service layers. This is a source map, not a runtime test.",
+    "key_sources": [
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/server/registerBrowserTools.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/server/registerBrowserScenarioTool.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/server/registerReverseEngineeringTools.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/server/createServer.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/application/BrowserObservationService.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/application/BrowserScenarioCaptureService.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/browser/CdpObservationSession.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/browser/CdpPageCapture.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/browser/PlaywrightBrowserScenarioProvider.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/browser/PlaywrightExecutionBoundary.ts",
+      "https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/src/browser/CdpSafeMetadata.ts"
+    ],
+    "node_requirement": "^22.19.0 || ^24.11.0 || >=26.0.0",
+    "documented_setup": "npx rea-agents@latest setup",
+    "use": "MCP/CLI workflow for supported browser, local application, and artifact analysis; pair with direct GitHub source review for public repositories",
+    "limitations": [
+      "Local REA process/MCP handshake was not run in this session.",
+      "No target repository was cloned, installed, or executed.",
+      "A website URL reveals observable page behavior/public assets only, not hidden private server source.",
+      "Native analyzers may require local providers such as Ghidra, Hopper or IDA."
+    ]
   },
   "status_definitions": [
     "queued",
@@ -1559,6 +1586,6 @@
     "source_inspected_count": 12,
     "readme_reviewed_count": 62,
     "queued_count": 0,
-    "note": "Source-inspected means selected source modules/documents were mapped, not a complete repository audit or runtime validation. README-reviewed is reconnaissance only."
+    "note": "Source-inspected means selected source modules/documents were mapped, not a complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
   }
 }
