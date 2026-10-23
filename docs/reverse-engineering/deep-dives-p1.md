@@ -533,3 +533,34 @@ REA itself is a tool and analysis engine, not a complete personal AI product or 
 **Use REA as the primary evidence adapter for supported browser/local artifact analysis, paired with direct GitHub source inspection.** Build a small adapter and normalized evidence schema; do not import REA's entire large, optional-provider ecosystem into Angel's web bundle. REA has many artifact-specific tools, and the correct provider depends on the target type and local environment.
 
 Do not mark the integration “implemented” until its local installation/MCP handshake, repository intake, website capture, partial-failure handling and evidence export have passed tests in the intended worker/companion environment.
+
+
+## 18. Kuse Cowork: native desktop agent, filesystem tools and MCP
+
+Repository: https://github.com/kuse-ai/kuse_cowork  
+Pinned revision: `09c6ab05c661b5f3337eed503e988becc82b2af1`  
+Source tree: https://github.com/kuse-ai/kuse_cowork/tree/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src
+
+### Core function map inspected
+- `agent/agent_loop.rs`: `AgentLoop::new`, `new_with_provider`, `run`, `run_with_history`, `send_request`, Anthropic/OpenAI/Google request adapters, streaming response handlers, `parse_response`, `parse_plan`, `emit_step_markers`.
+- `agent/tool_executor.rs`: `ToolExecutor::new`, `with_mcp_manager`, `execute`; dispatches named tools to file, shell, directory search, Docker and MCP code.
+- `agent/types.rs`: `ToolDefinition`, `ToolUse`, `ToolResult::success/error`, `ContentBlock`, `AgentMessage`, `AgentContent`, `AgentConfig`, `AgentEvent`, `PlanStepInfo`.
+- `mcp/client.rs`: `MCPManager::new`, `connect_server`, `disconnect_server`, `execute_tool`, `get_all_tools`, `get_server_statuses`, HTTP tool discovery and `perform_oauth_flow`. Tool calls are wrapped in a 60-second timeout and JSON-RPC results/errors are normalized.
+- `mcp/config.rs`: OAuth and enabled-state builder methods, configuration update.
+- `mcp/storage.rs`: create tables, save/list/get/delete server configuration and enable/disable operations.
+- `tools/bash.rs`: tool definition/execute, shell process creation and timeout helper; schema documents default timeout 60s and maximum 300s.
+- `tools/file_read.rs`: typed path, offset/limit and `resolve_path`.
+- `tools/file_write.rs`: typed write/create/overwrite and path resolution.
+- `tools/file_edit.rs`: exact text match counting and refusal of ambiguous repeated matches unless `replace_all` is specified.
+- `tools/docker.rs`: Docker tool definitions and execution, container run/list/images and optional volume mounts.
+- `skills/mod.rs`: skills directory setup, default skill installation, metadata parsing and available-skill list.
+- Frontend `Chat.tsx`, `Agent.tsx`, `MCPSettings.tsx`, `ModelSelector.tsx`, `TaskPanel.tsx`, and chat/settings stores demonstrate the renderer-facing feature layout.
+
+### Security notes from the inspected source
+- The file-tool path resolver accepts absolute paths directly, and the inspected functions do not visibly enforce that the final canonical path remains under a project root. Angel should not copy this as-is. Add canonical-root confinement, symlink/traversal checks, and tests covering absolute paths and `..`.
+- The MCP SQLite schema includes an `oauth_client_secret` field that the inspected storage methods write/read directly; encryption is not visible in this file. Check the surrounding OS-level data protection/key management before any adoption.
+- Shell timeout is a resource bound, not a complete sandbox. A local desktop process can have broad host privileges; shell and Docker tools need a separately scoped workspace, environment-secret scrubbing, mount allowlists, command/resource limits and approval policy.
+- MCP tool discovery is not authorization. A server may expose more tools than Angel should enable; check user connection, scope, policy and per-action confirmation at each invocation.
+
+### Angel decision
+**Adapt the single tool-executor, provider adapter, typed tool-result, MCP lifecycle and skill registry patterns for a future local companion.** Do not move unrestricted shell/filesystem/Docker privileges into the browser app. This repository is a desktop-native reference; the current web/PWA host cannot silently acquire native device privileges.
