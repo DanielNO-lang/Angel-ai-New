@@ -1351,17 +1351,28 @@
       "category": "desktop-agents",
       "purpose_hypothesis": "Cowork-style AI workspace and task execution",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "09c6ab05c661b5f3337eed503e988becc82b2af1",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/kuse-ai/kuse_cowork/blob/HEAD/README.md"
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/agent/agent_loop.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/agent/tool_executor.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/agent/types.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/mcp/client.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/mcp/storage.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/tools/bash.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/tools/file_read.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/tools/file_write.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/tools/file_edit.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/tools/docker.rs",
+        "https://github.com/kuse-ai/kuse_cowork/blob/09c6ab05c661b5f3337eed503e988becc82b2af1/src-tauri/src/skills/mod.rs"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected Rust agent loop/tool executor, MCP client/config/storage, filesystem/shell/Docker tools, skill registry and UI entrypoints inspected; not built or runtime tested",
+      "source_findings": "Native Tauri/Rust agent harness with provider adapters for Anthropic/OpenAI/Google, typed tool dispatch/results, shell/file/Docker tools, MCP connect/discover/execute with timeout, SQLite-backed MCP configuration and skill registry. Path confinement and OAuth-secret-at-rest protection need review before reuse."
     },
     {
       "id": "apple-design-skill",
@@ -1613,8 +1624,8 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 23,
-    "readme_reviewed_count": 51,
+    "source_inspected_count": 24,
+    "readme_reviewed_count": 50,
     "queued_count": 0,
     "note": "Source-inspected means selected source modules/documents/notebooks were mapped, not complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
   }
