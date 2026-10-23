@@ -98,6 +98,8 @@ Each target gets a report under `docs/reverse-engineering/reports/<owner>--<repo
 - [Audit 02: Google APIs, identity, maps, and data](./reports/02-google-apis-identity-and-data.md)
 - [Audit 03: Claude ecosystem, desktop/mobile, workflows, and remaining SDKs](./reports/03-claude-ecosystem-and-apps.md)
 - [Angel adoption plan and priorities](./ANGEL_ADOPTION_PLAN.md)
+- [Audit 04: Realtime, OpenAI ecosystem, voice, and chat interfaces](./reports/04-realtime-openai-voice-and-chat-ecosystem.md)
+
 
 The three capability audits summarize documented capabilities and Angel adaptation recommendations. Three repository README fetches returned 404 in this pass and are marked unresolved in the adoption plan. Ponderfly/GoogleTranslateIpCheck is discussed in the adoption plan as a network-diagnostics utility. These are documentary findings, not a complete source-level reverse-engineering run.
 
