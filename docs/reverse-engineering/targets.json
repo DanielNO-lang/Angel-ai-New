@@ -291,17 +291,18 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google APIs PHP client",
       "priority": "P3",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "31b577e7012c4e68d5289d63aaf7e6d471ec1ff1",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/googleapis/google-api-php-client/blob/HEAD/README.md"
+        "https://github.com/googleapis/google-api-php-client/blob/31b577e7012c4e68d5289d63aaf7e6d471ec1ff1/src/Client.php"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source entrypoint/core file and README inspected; no package installed, no runtime test, and no complete audit",
+      "source_findings": "Google Client OAuth lifecycle, access/refresh token operations, scope configuration, token verification/revocation, cache/logger/HTTP transport."
     },
     {
       "id": "google-skills",
@@ -356,17 +357,19 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google APIs Python client",
       "priority": "P2",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "d25de7189bedfdc75b69d3ae6ebf684020329206",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/googleapis/google-api-python-client/blob/HEAD/README.md"
+        "https://github.com/googleapis/google-api-python-client/blob/d25de7189bedfdc75b69d3ae6ebf684020329206/googleapiclient/discovery.py",
+        "https://github.com/googleapis/google-api-python-client/blob/d25de7189bedfdc75b69d3ae6ebf684020329206/README.md"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source entrypoint/core file and README inspected; no package installed, no runtime test, and no complete audit",
+      "source_findings": "Discovery-based API client builder and Resource/ResourceMethodParameters dynamic service methods; repository README states maintenance mode."
     },
     {
       "id": "google-api-nodejs-client",
@@ -376,17 +379,19 @@
       "category": "google-api-platform",
       "purpose_hypothesis": "Google APIs Node.js client",
       "priority": "P2",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "206bd0334f32aee0fefe02595f88641a5899c2d1",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/googleapis/google-api-nodejs-client/blob/HEAD/README.md"
+        "https://github.com/googleapis/google-api-nodejs-client/blob/206bd0334f32aee0fefe02595f88641a5899c2d1/src/googleapis.ts",
+        "https://github.com/googleapis/google-api-nodejs-client/blob/206bd0334f32aee0fefe02595f88641a5899c2d1/README.md"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source entrypoint/core file and README inspected; no package installed, no runtime test, and no complete audit",
+      "source_findings": "GoogleApis discovery/factory, generated service resource methods, OAuth2/GoogleAuth credentials and service calls."
     },
     {
       "id": "google-10000-english",
@@ -456,17 +461,18 @@
       "category": "authentication-and-identity",
       "purpose_hypothesis": "Google Authenticator/TOTP library",
       "priority": "P2",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "732fbb6958ed35af3454fdeb972d7ddfa305185c",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/wstrange/GoogleAuth/blob/HEAD/README.md"
+        "https://github.com/wstrange/GoogleAuth/blob/732fbb6958ed35af3454fdeb972d7ddfa305185c/src/main/java/com/warrenstrange/googleauth/GoogleAuthenticator.java"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source entrypoint/core file and README inspected; no package installed, no runtime test, and no complete audit",
+      "source_findings": "Java TOTP/HOTP credential generation, time-based password generation/verification, user credential repository and recovery scratch-code concepts."
     },
     {
       "id": "react-native-google-signin",
@@ -476,17 +482,18 @@
       "category": "authentication-and-identity",
       "purpose_hypothesis": "Google sign-in for React Native",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "0600358d71120b1d8ba0b59f136104ffd8d4b44d",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/react-native-google-signin/google-signin/blob/HEAD/README.md"
+        "https://github.com/react-native-google-signin/google-signin/blob/0600358d71120b1d8ba0b59f136104ffd8d4b44d/src/signIn/GoogleSignin.ts"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source entrypoint/core file and README inspected; no package installed, no runtime test, and no complete audit",
+      "source_findings": "Native-module-backed configure, signIn, signInSilently, signOut, revokeAccess, getCurrentUser, getTokens, addScopes and Play Services checks; not browser OAuth."
     },
     {
       "id": "google-maps-scraper",
@@ -619,17 +626,18 @@
       "category": "authentication-and-identity",
       "purpose_hypothesis": "PHP TOTP two-factor authentication",
       "priority": "P3",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "8c4def923114062983bcded1a3d2ce55abf279b5",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/antonioribeiro/google2fa/blob/HEAD/README.md"
+        "https://github.com/antonioribeiro/google2fa/blob/8c4def923114062983bcded1a3d2ce55abf279b5/src/Google2FA.php"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source entrypoint/core file and README inspected; no package installed, no runtime test, and no complete audit",
+      "source_findings": "PHP TOTP generation and verification, secret handling, algorithm/digit length/window configuration. TOTP is distinct from Google OAuth."
     },
     {
       "id": "googleads-mobile-android-examples",
@@ -1593,8 +1601,8 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 16,
-    "readme_reviewed_count": 58,
+    "source_inspected_count": 22,
+    "readme_reviewed_count": 52,
     "queued_count": 0,
     "note": "Source-inspected means selected source modules/documents/notebooks were mapped, not complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
   }
