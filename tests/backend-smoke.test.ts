@@ -111,6 +111,27 @@ test('Angel backend smoke contract', async (t) => {
     });
   });
 
+  const previousGeminiKey = process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+  try {
+    const unavailableGeneration = await fetch(`${baseUrl}/api/ai/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: 'Tell me the result of a real calculation.', providerId: 'gemini' }),
+    });
+    assert.equal(unavailableGeneration.status, 503,
+      'an unconfigured provider must return an explicit unavailable response');
+    const unavailableBody = await unavailableGeneration.json() as { code?: string; success?: boolean; text?: string };
+    assert.equal(unavailableBody.code, 'provider_not_configured');
+    assert.notEqual(unavailableBody.success, true,
+      'provider failure must never be reported as a successful model generation');
+    assert.equal(unavailableBody.text, undefined,
+      'provider failure must not be replaced with fabricated answer text');
+  } finally {
+    if (previousGeminiKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = previousGeminiKey;
+  }
+
   const health = await fetch(`${baseUrl}/api/health`);
   assert.equal(health.status, 200);
   const healthBody = await health.json() as { status?: string; workspace?: string };
