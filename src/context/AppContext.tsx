@@ -257,21 +257,22 @@ function hasStoredAuthSession(): boolean {
   if (localStorage.getItem('angel_is_guest') === 'true') return false;
   const token = localStorage.getItem('angel_auth_token');
   if (!token || token === 'undefined' || token === 'guest') return false;
-  // Accept Supabase JWTs or any angel_ token
-  return /^eyJ[A-Za-z0-9_-]*\./.test(token) || /^angel_/.test(token);
+  // Only a real Supabase JWT may represent an authenticated browser session.
+  // Legacy/local-looking angel_ tokens are not proof of identity.
+  return /^eyJ[A-Za-z0-9_-]*\./.test(token);
 }
 
 function createGuestConversation(): Conversation {
   const now = new Date().toISOString();
   return {
     id: GUEST_CONVERSATION_ID,
-    title: 'Angel Jarvis Command',
+    title: 'Welcome to Angel',
     createdAt: now,
     updatedAt: now,
     agentId: 'angel-core',
     pinned: false,
     messageCount: 1,
-    lastMessagePreview: 'Jarvis tactical engine standing by.',
+    lastMessagePreview: 'Your personal AI companion is ready.',
   };
 }
 
@@ -281,14 +282,13 @@ function createGuestMessages(): Record<string, Message[]> {
       id: `msg-guest-${Date.now()}`,
       conversationId: GUEST_CONVERSATION_ID,
       role: 'assistant',
-      content: `### 🛡️ ANGEL COMMAND CENTER // ONLINE
-**Clearance:** Sovereign Executive Access  
-**Tactical Core:** Autonomous Jarvis Engine Active  
-**Cryptographic Enclave:** AES-GCM 256-bit
+      content: `### Welcome to Angel
 
-Hello, Commander. I am **Angel** — your advanced, military-grade autonomous AI operating environment. I am ready to assist with high-speed intelligence, tactical reasoning, automated workflows, and multi-agent synthesis.
+I'm Angel, your personal AI companion. I can help you think through questions, research topics, create and edit work, plan projects, and use connected tools when they're available and you've granted permission.
 
-State your directive or ask anything to begin.`,
+Some capabilities require an internet connection, a connected provider, or additional setup. I'll tell you when something isn't configured, and I won't claim an action is complete until it's verified.
+
+What would you like to work on?`,
       createdAt: new Date().toISOString(),
       agentId: 'angel-core',
     }],
@@ -460,19 +460,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: 'msg-welcome-init',
           conversationId: 'conv-welcome',
           role: 'assistant',
-          content: `### 🛡️ ANGEL AI COMMAND CENTER // ONLINE
-**System Clearance:** Level 5 Sovereign Executive  
-**Status:** All Neural Subsystems Nominal  
-**Tactical Core:** Autonomous Jarvis Intelligence Engine Active
+          content: `### Welcome to Angel
 
-Welcome, Commander. Angel is your military-grade, zero-compromise personal AI operating environment. 
+I'm Angel, your personal AI companion and workspace. I can help with questions, research, writing, coding, planning, and supported connected-app tasks. Available tools and providers will be shown honestly in the workspace.
 
-* ⚡ **High-Speed Tactical Reasoning & Code Synthesis**
-* 🌐 **Live Web Intelligence & Deep Multi-Agent Execution**
-* 🔒 **Sovereign Cryptographic Enclave (End-to-End Vault)**
-* 🎙️ **Voice Telemetry & HUD Perception**
+Some actions need a connected account, provider configuration, or your permission. I'll explain those requirements and verify results before reporting an action as complete.
 
-State your directive, or select a command from the matrix below.`,
+What would you like to work on today?`,
           createdAt: new Date().toISOString(),
           agentId: 'angel-core',
         },
