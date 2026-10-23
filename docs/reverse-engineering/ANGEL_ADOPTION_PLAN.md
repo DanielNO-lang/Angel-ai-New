@@ -103,3 +103,35 @@ The new [Audit 04](./reports/04-realtime-openai-voice-and-chat-ecosystem.md) add
 7. **Security exclusions:** never use shared API-key repositories or expose official API keys in browser bundles; reject unbounded autonomous swarms and untrusted public proxies.
 
 These recommendations are additions to the roadmap, not evidence that the capabilities have been implemented. Source-level review, license checks, and tests are still required before integration.
+
+
+## Addendum: public AI product, HubMind, and Microsoft ecosystem review (2026-10-23)
+
+See [Audit 05](./reports/05-public-ai-products-hubmind-and-microsoft.md) and [Audit 06](./reports/06-open-source-ai-and-microsoft-shortlist.md).
+
+### New recommended capabilities
+
+- **P1 Research workspace:** multi-query search, source deduplication, claim-to-source citation mapping, citation validation, saved research trails, and exportable reports.
+- **P1 Artifact workspace:** editable/versioned documents, code, diagrams, data visualizations, and generated media alongside chat.
+- **P1 Optional connectors:** Google Workspace and Microsoft Graph, with explicit OAuth consent, narrow scopes, read-only defaults, and separate write permissions.
+- **P1 Skill/connector registry:** skills define workflows; connectors grant service access. Every skill needs provenance, license, version, permissions, tests, compatibility, and rollback.
+- **P2 Creative studio:** image generation/editing and storyboard/video workflows through supported official APIs, with asset provenance and cost/quality tracking.
+- **P2 Internal model arena:** blind comparison and repeatable use-case benchmarks; do not treat one public leaderboard as universal model quality.
+- **P2 Operational AI workflows:** role-scoped agents, knowledge retrieval, task outcomes, audit trails, and quotas inspired by company operating-layer patterns.
+
+### HubMind decision gate
+
+The intended “HubMind on Netlify” is not identified. Public results show separate HubMind-branded products. Do not connect credentials or adopt any implementation until the exact site/repository is confirmed. The useful design ideas are least-privilege connectors, scoped capability tokens, audit logging, approval queues, quotas, and access-aware company knowledge. Any capability URL that grants access must be treated as a secret and revocable.
+
+### Microsoft decision gate
+
+Start with Microsoft Graph as an optional connector for Outlook, Calendar, OneDrive, and SharePoint. The Microsoft 365 Agent SDK is only necessary if Angel must publish an agent into Microsoft channels. Do not make Azure/Microsoft infrastructure a hard dependency for core Angel chat. Verify tenant requirements, licenses, scopes, and costs before implementation.
+
+### New security boundaries
+
+- No consumer-site scraping or use of unofficial session cookies as an integration strategy.
+- Do not infer API rights from a consumer subscription.
+- Never store secrets in frontend code, skill instructions, or logs.
+- Keep all external connectors opt-in, scoped, revocable, and auditable.
+- Creative outputs retain provider/model/version metadata and relevant provenance.
+- Treat Labs experiments and consumer product features as unstable until their specific API, terms, and availability are verified.
