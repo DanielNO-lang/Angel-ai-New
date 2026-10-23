@@ -140,17 +140,21 @@
       "category": "coding-agents",
       "purpose_hypothesis": "Coding-agent memory and workflows",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "eaff4d5a06900b4fed721abe82c0a58a6c78de03",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/Gentleman-Programming/gentle-ai/blob/HEAD/README.md"
+        "https://github.com/Gentleman-Programming/gentle-ai/blob/eaff4d5a06900b4fed721abe82c0a58a6c78de03/internal/pipeline/orchestrator.go",
+        "https://github.com/Gentleman-Programming/gentle-ai/blob/eaff4d5a06900b4fed721abe82c0a58a6c78de03/internal/pipeline/runner.go",
+        "https://github.com/Gentleman-Programming/gentle-ai/blob/eaff4d5a06900b4fed721abe82c0a58a6c78de03/internal/planner/graph.go",
+        "https://github.com/Gentleman-Programming/gentle-ai/blob/eaff4d5a06900b4fed721abe82c0a58a6c78de03/internal/planner/resolver.go",
+        "https://github.com/Gentleman-Programming/gentle-ai/blob/eaff4d5a06900b4fed721abe82c0a58a6c78de03/internal/skillregistry/registry.go"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected source modules inspected: staged pipeline/orchestrator, planner graph/resolver, skill registry and recovery trace; no execution/build test"
     },
     {
       "id": "googleapis",
@@ -681,13 +685,17 @@
       "url": "https://github.com/anthropics/claude-code",
       "clone_url": "https://github.com/anthropics/claude-code.git",
       "category": "coding-agents",
-      "purpose_hypothesis": "Official Claude Code agent implementation",
+      "purpose_hypothesis": "Official Claude Code product repository. Public tree contains docs, plugins, scripts, examples and configuration, but not a complete readable source implementation of the full product runtime; investigate public extensions and observable behavior only.",
       "priority": "P1",
       "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
-      "open_questions": [],
+      "open_questions": [
+        "Which public plugins/examples/scripts contain reusable capabilities?",
+        "Which UI/CLI behaviors can be observed in an authorized installed environment?",
+        "Full internal runtime is not visible in the public source tree inspected."
+      ],
       "angel_decision": "pending",
       "evidence_files": [
         "https://github.com/anthropics/claude-code/blob/HEAD/README.md"
@@ -1522,9 +1530,9 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 3,
-    "readme_reviewed_count": 71,
+    "source_inspected_count": 4,
+    "readme_reviewed_count": 70,
     "queued_count": 0,
-    "note": "Source-inspected means selected source modules were mapped, not complete repository reverse engineering or runtime validation. Readme-reviewed is reconnaissance only."
+    "note": "Source-inspected means selected source modules were mapped, not a complete repository audit or runtime validation. Readme-reviewed is reconnaissance only."
   }
 }
