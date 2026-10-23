@@ -7,8 +7,8 @@
 
 ## Current inventory
 - Target repositories catalogued: 74.
-- Source-inspected: 23 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
-- README-reviewed: 51 targets (reconnaissance only; implementation details may remain unknown).
+- Source-inspected: 24 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
+- README-reviewed: 50 targets (reconnaissance only; implementation details may remain unknown).
 - Queued without any review: 0.
 - Local REA runtime executed in this session: No.
 - Angel Reverse Engineering Workbench implemented in the app: No, specification only.
@@ -49,6 +49,7 @@ Selected modules/documents have been inspected for:
 - Composio and Alireza skill collections: skill creation/metadata, progressive disclosure and context-first authoring guidance.
 - Google API Node/Python/PHP clients, React Native Google Sign-In and two TOTP libraries: selected discovery/client, OAuth/token, sign-in and OTP functions.
 - Learn Claude Code: source functions across 17 lessons covering permissions, hooks, skills, compaction, memory, task dependencies, background jobs, cron, teams, MCP, workflow journal and goal loop.
+- Kuse Cowork: selected native agent-loop, tool executor, MCP, filesystem/shell/Docker and skill registry source paths; identified path confinement and credential-storage checks required before reuse.
 
 REA itself has a dedicated pinned source map in REA-SOURCE-MAP.md and an extended deep dive in deep-dives-p1.md. Its browser tool registration, browser scenario capture, source/trace/evidence tool surfaces, safe metadata filtering, origin scope, cancellation, timeout and cleanup patterns were inspected. **The REA runtime remains unexecuted.**
 
