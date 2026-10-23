@@ -21,11 +21,12 @@ The status counts are maintained in targets.json. “Source-inspected” and “
 1. README.md — scope, evidence labels, status model, safety/licensing rules and review sequence.
 2. targets.json — 74 targets with categories, priorities, URLs, statuses, evidence links and source revisions where pinned.
 3. REA-OPERATING-PLAYBOOK.md — process for both source repositories and browser/website URLs using REA where available.
-4. ANGEL-WORKBENCH-SPEC.md — future Angel feature requirements, architecture, safety model and acceptance tests for URL/repository analysis.
-5. phase-1-findings.md — agent frameworks, skills, model routing, task management and Workspace integrations.
-6. phase-2-findings.md — Google APIs, identity, model/media, network, SDK and infrastructure references.
-7. phase-3-findings.md — coding-agent UI, desktop/mobile presence, provider wrappers, risks and later capabilities.
-8. deep-dives-p1.md — source-level function/module maps for the highest-priority operating-core, task, routing, MCP, GitHub automation, remote-session and REA engine references.
+4. REA-SOURCE-MAP.md — pinned REA source map, function inventory, website observation limits, safety boundaries and Angel adapter design.
+5. ANGEL-WORKBENCH-SPEC.md — future Angel feature requirements, architecture, safety model and acceptance tests for URL/repository analysis.
+6. phase-1-findings.md — agent frameworks, skills, model routing, task management and Workspace integrations.
+7. phase-2-findings.md — Google APIs, identity, model/media, network, SDK and infrastructure references.
+8. phase-3-findings.md — coding-agent UI, desktop/mobile presence, provider wrappers, risks and later capabilities.
+9. deep-dives-p1.md — source-level function/module maps for the highest-priority operating-core, task, routing, MCP, GitHub automation, remote-session and REA engine references.
 
 ## Source-inspected targets
 Selected modules/documents have been inspected for:
