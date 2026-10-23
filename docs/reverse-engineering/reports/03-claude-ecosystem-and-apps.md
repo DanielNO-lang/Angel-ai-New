@@ -131,32 +131,9 @@
 **Architecture:** Base MCP server plus optional platform plugins.
 **Angel recommendation:** Potential model for an opt-in device connector registry. Show the exact device/action/permission/effect; start with safe read-only status and screenshots. A web page cannot control a phone without a local bridge and OS permission.
 
-## 73. openai/openai-cookbook
-See audit 01. Example code and guides for common API tasks; use as a reference, not as a production framework.
+## OpenAI SDK repositories
 
-## 74. openai/openai-python
-See audit 01. Official Python client with typed models and sync/async transport; relevant only if Angel uses a Python service.
-
-## 75. betalgo/openai
-**Status:** README fetch returned 404. Repository identity/features are unverified; no adoption decision until confirmed.
-
-## 76. MacPaw/OpenAI
-See audit 01. Swift client for OpenAI public API; relevant only for a Swift-native companion app.
-
-## 77. openai/openai-agents-python
-See audit 01. Strong reference for agent tools, guardrails, handoffs, voice, tracing, and evaluation. Prefer one orchestrator in Angel.
-
-## 78. PublicAffairs/openai-gemini
-See audit 01. OpenAI-compatible proxy backed by Gemini; provider abstraction is useful, but prefer a native provider adapter inside Angel.
-
-## 79. sashabaranov/go-openai
-See audit 01. Unofficial Go client covering text, tools, images, audio, moderation, files, embeddings, and more; only relevant for a Go backend.
-
-## 80. TheoKanning/openai-java
-See audit 01. Archived Java client for older APIs; do not adopt for new development.
-
-## 81. ConnectAI-E/feishu-openai
-**Status:** README fetch returned 404. Repository identity/features are unverified; no adoption decision until confirmed.
+The OpenAI-specific SDK and cookbook entries (openai-cookbook, openai-python, MacPaw/OpenAI, openai-agents-python, PublicAffairs/openai-gemini, sashabaranov/go-openai, TheoKanning/openai-java, and the unresolved betalgo/openai and ConnectAI-E/feishu-openai entries) are documented in audits 01 and 02 where applicable. This avoids repeating the same capability notes in this report.
 
 ## Consolidated recommendation: what Angel should adopt first
 
