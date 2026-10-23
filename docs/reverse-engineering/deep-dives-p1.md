@@ -153,3 +153,55 @@ The reviewed source converges on a few requirements for Angel's reliable operati
 - no dependency on a specific provider's private session storage as Angel's source of truth.
 
 A future implementation should turn these into small, testable TypeScript changes first. The next concrete repository tasks are to add run/task schema designs, a permission-policy contract, feature acceptance tests and a source-linked comparison of provider adapters. No adoption or runtime success is claimed by this source review.
+
+
+## 5. Gentle-AI: planning, staged execution, rollback and skill registry
+
+Repository: https://github.com/Gentleman-Programming/gentle-ai  
+Revision reviewed: eaff4d5a06900b4fed721abe82c0a58a6c78de03  
+README: https://github.com/Gentleman-Programming/gentle-ai/blob/eaff4d5a06900b4fed721abe82c0a58a6c78de03/README.md
+
+The project is a Go-based coding-agent harness with explicit modules for planning, staged pipeline execution, rollback, recovery traces, skill registry, component contracts, state management and agent building. Source tree inspected at the reviewed revision.
+
+### Source paths and function-level evidence
+
+| Module | Inspected symbols | Potential reusable idea |
+|---|---|---|
+| internal/pipeline/orchestrator.go | Orchestrator, WithFailurePolicy, WithProgressFunc, WithTerminalCleanup, NewOrchestrator, Execute, Rollback, indexSteps | Stage-plan execution, progress callbacks, explicit failure policy and rollback entry points |
+| internal/pipeline/runner.go | Runner.Run, emitProgress | Each step emits running state; records start/end times and step result; stages have results instead of only a final chat response |
+| internal/planner/graph.go | Graph, NewGraph, Has, DependenciesOf, MVPGraph, SoftOrderingConstraints | Dependency graph and softer ordering preferences |
+| internal/planner/resolver.go | NewResolver, Resolve, expandDependencies | Expand selected work into required dependent tasks and reject unknown components |
+| internal/skillregistry/registry.go | UserSkillDirs, ProjectSkillDirs, Regenerate, List, Fingerprint, LoadSkill, RenderRegistry, parseFrontmatter, ScopeForPath, dedupeBySkillName | Skill discovery across user/project scopes, metadata parsing, deterministic inventory and fingerprint cache |
+| internal/skillregistry/guard.go | Guard module and corresponding tests exist in the same package | A dedicated policy/guard boundary exists; inspect individual decisions before adopting |
+| internal/recoverytrace | generate.go, import.go, model.go, rows.go, validate.go and tests | Structured recovery evidence and validation rather than opaque run logs |
+| internal/state | home.go, manifest.go, state.go and tests | Explicit project home/state and manifest model |
+
+### What this means for Angel
+1. **Plan dependencies before executing:** represent each action as a task node, prerequisites and ordering constraints.
+2. **Make execution observable:** every step should report pending/running/succeeded/failed/skipped/cancelled, timestamps, and sanitized output/evidence.
+3. **Use an explicit failure policy:** distinguish stop-on-failure from allowed independent continuation; never guess whether a dependent step should run.
+4. **Rollback is a compensating action, not magic:** a local patch can be reverted; an email already sent or an external publication may not be. Track reversible and irreversible side effects separately.
+5. **Skill registry should be curated:** store path/origin, version, license, scope, input/output schema, permissions, tests and a fingerprint; never auto-execute discovered skill code.
+6. **Preserve evidence:** save changed paths, test results, command summaries, and review decisions with the task. Redact secrets and do not record entire credentials or sensitive response bodies.
+
+### Decision
+**High-value architectural reference.** Implement a compact TypeScript task graph and execution result contract inside Angel first. Do not introduce a Go sidecar solely because this reference is written in Go. Deep-dive the guard, review-transaction and consent-envelope modules before reusing any of the security details.
+
+## 6. Official Claude Code repository: public-source boundary
+
+Repository: https://github.com/anthropics/claude-code  
+Revision examined: 65823ec0034ed0aa0266bc43903fefd3ff94a327  
+README: https://github.com/anthropics/claude-code/blob/65823ec0034ed0aa0266bc43903fefd3ff94a327/README.md
+
+The public repository tree inspected contains documentation, changelog, scripts, examples, plugins, mods and configuration directories. The README describes the official Claude Code coding tool as a terminal/IDE/GitHub agent, but the public tree inspected does **not** present a complete implementation of the entire commercial runtime as readable source modules. Therefore we can reverse engineer and test the public plugins, skills, scripts, examples, workflows and observable behavior, but must not state that we inspected Claude Code's full internal runtime.
+
+### How to investigate this target correctly
+- Catalog visible public files and license terms.
+- Trace public plugins, example scripts, commands and configuration schemas.
+- Use official documentation to record declared capabilities.
+- For black-box UI/CLI behavior, test only an installation and account the user is authorized to use; use REA observation/evidence and keep credentials out of captures.
+- Record inaccessible implementation details as **Unknown / not publicly exposed**, not inferred from marketing claims.
+- Do not decompile or bypass product access controls, license checks or account restrictions.
+
+### Decision
+**Study public extensions and user-visible workflows.** Use this reference to learn interaction patterns and public integration contracts, not as a fully open-source implementation to copy.
