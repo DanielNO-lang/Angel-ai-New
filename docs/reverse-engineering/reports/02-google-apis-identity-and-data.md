@@ -118,3 +118,9 @@
 - Prefer official APIs over scraping or proxy workarounds. Never collect cookies or bypass service restrictions.
 - Use generated clients only in the runtime/language where they belong; avoid unnecessary PHP, Python, Go, Java, Flutter, and React Native dependencies.
 - Add a URL research adapter to Angel's capability research workflow: classify public URL type, fetch allowed docs, capture citations and dates, identify licensing and security notes, and label unverified inferences. Do not bypass login, paywalls, CAPTCHA, rate limits, or technical access controls.
+
+
+## Ponderfly/GoogleTranslateIpCheck
+**Capabilities:** Cross-platform utility to test Google Translate endpoint IP connectivity, with scan mode, IPv6 support, optional host-file updates, and platform-specific execution instructions.
+**Architecture:** Network endpoint scanner and optional local host-file modification.
+**Angel recommendation:** Not a core AI capability. If network diagnostics are needed, provide transparent, user-authorized connectivity tests and clear remediation guidance. Do not automatically rewrite host files or use endpoint scanning to bypass provider access controls.
