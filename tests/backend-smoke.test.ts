@@ -471,7 +471,7 @@ test('authentication routes cannot mutate existing accounts or bypass confirmati
   const clientSource = readFileSync(new URL('../src/context/AppContext.tsx', import.meta.url), 'utf8');
   assert.doesNotMatch(clientSource, /angel_sov_|signInWithExecutivePass/,
     'the client must not manufacture a fake privileged session');
-  assert.doesNotMatch(clientSource, /\\^angel_/,
+  assert.doesNotMatch(clientSource, /\^angel_/,
     'legacy angel_ tokens must not be accepted as proof of an authenticated Supabase session');
   assert.doesNotMatch(clientSource, /Jarvis|military-grade|Sovereign Executive|AES-GCM 256-bit|all Neural Subsystems Nominal/i,
     'welcome messages must not present fictional Jarvis-style systems or unverified security claims');
