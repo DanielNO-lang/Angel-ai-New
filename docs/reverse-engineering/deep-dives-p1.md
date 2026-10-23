@@ -310,3 +310,61 @@ These should converge into Angel's own interfaces, not a set of competing framew
 6. Persistence owns task/run/event/memory state, not the provider-specific SDK.
 7. Skill registry stores reviewed manifest metadata, not arbitrary runnable code.
 8. UI reflects real states and external-action approval, not optimistic mock progress.
+
+
+## 11. MCP Use: typed MCP clients, server mounts and tool security metadata
+
+Repository: https://github.com/mcp-use/mcp-use  
+Revision reviewed: f877f789e7b4979e62e5cbe221bfb29ebb86d1bd  
+TypeScript source: https://github.com/mcp-use/mcp-use/tree/f877f789e7b4979e62e5cbe221bfb29ebb86d1bd/libraries/typescript
+
+### Source map reviewed
+- Client entry: libraries/typescript/packages/client/src/index.ts exports MCP connection/connector patterns, transport, OAuth flow helpers such as completeOAuthFlow, isOAuthInteractionRequired and isUnauthorized, plus code-mode and telemetry modules.
+- Server entry: packages/server/src/index.ts exports MCPServer, createMcpMount, fetch composition and middleware helpers such as hostValidationMiddleware, originValidationMiddleware, jsonBodyMiddleware, matchesPath and pathnameOf.
+- Server tool contract: packages/server/src/tools.ts declares ToolSecurityScheme, ToolDefinition, ToolRef, ToolResult, input/output inference and resolveToolInputSchema. This separates a tool's display/inputs/security metadata from its handler.
+- Client source tree contains adapters, auth, code-mode, core, React helpers, sandbox, telemetry, and transport.
+- Server source tree contains OAuth, HTTP, request/context handling, MCP mount, resources, prompts, tools, skills, response conversion and middleware modules.
+
+### Angel adoption
+- Use a single typed adapter contract per MCP server: metadata, declared tools, schemas, authentication state, allowed scopes, execution risk and output schema.
+- Treat all remote MCP tool descriptions, schemas and outputs as untrusted input. Validate schemas and outputs again inside Angel's server before using them in privileged actions.
+- Host/origin/request validation matters when tools are exposed through a web server. Do not publish MCP endpoints without authenticating callers or validating allowed origins/hosts as appropriate to the deployment topology.
+- Show required permissions and side effects before connecting; keep server-side action logging, revocation and per-user isolation.
+- Avoid running arbitrary tool-generated code in code-mode without an isolated sandbox, explicit resource/network policy and time limits.
+
+### Decision
+**Adapt interface patterns after comparing with Angel's existing toolRegistry.** Do not install a second MCP stack until a concrete use case shows it reduces integration work. Prefer compatible schemas and security metadata over a new framework dependency.
+
+## 12. Claude Code Action: GitHub-hosted coding runs
+
+Repository: https://github.com/anthropics/claude-code-action  
+Revision reviewed: ae68417a745a5df4b2124873632bd73a2255e6f6  
+Source: https://github.com/anthropics/claude-code-action/tree/ae68417a745a5df4b2124873632bd73a2255e6f6/src
+
+### Source map reviewed
+- src/entrypoints/prepare.ts: parses GitHub context, detects run mode, sets up GitHub token, checks write permissions, validates trigger conditions and prepares tracking comments.
+- src/entrypoints/run.ts: installs/resolves the agent executable, checks GitHub context/write permissions, prepares a prompt, runs the agent and writes the result/turn summary.
+- src/entrypoints/collect-inputs.ts and format-turns.ts: input normalization and conversion of execution turns into a user-visible summary.
+- src/github/validation/permissions and src/github/token: dedicated permission validation and token setup boundaries.
+- src/modes/detector.ts and mode-specific modules: routes supported GitHub interaction types into an execution mode.
+- action.yml and base-action define GitHub Actions integration and reusable action variants.
+
+### Angel adoption
+For Angel's GitHub integration:
+- begin with repository/PR/issue read-only analysis and CI status summaries;
+- give each job only the GitHub permissions it needs;
+- log the trigger event, repo/PR identity, branch/ref, approved tools and changed files;
+- use branch/PR patches as the review boundary;
+- request explicit approval before commits, pushing, merging, editing issues/comments or deploying;
+- record tests and the resulting commit/PR link as evidence.
+
+### Decision
+**Use as a design and implementation reference for GitHub workflows.** The action's environment is GitHub Actions; it does not automatically provide an Angel SaaS backend or a general-purpose device-control mechanism. Implement only the necessary behavior through Angel's own authorized GitHub integration and isolated jobs.
+
+## 13. P1 cross-check: keep proprietary/session-specific boundaries visible
+
+- Public code may show provider adapters, wrappers, plugins and integration tools without disclosing the entire hosted model/runtime.
+- A proxy or compatibility layer can translate protocols; it does not grant access to another provider, change that provider's price or make paid quotas unlimited.
+- Skill instructions are not the same as executable code, and neither one is permission to access an app.
+- Browser observation is not browser-write permission. Inspecting a website and clicking “send”, “delete”, “purchase” or “publish” are different risk classes.
+- The internal event/task state, memory, audit record and account ownership should remain Angel-owned, even when an external tool/framework performs part of the work.
