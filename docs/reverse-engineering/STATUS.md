@@ -7,8 +7,8 @@
 
 ## Current inventory
 - Target repositories catalogued: 74.
-- Source-inspected: 16 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
-- README-reviewed: 58 targets (reconnaissance only; implementation details may remain unknown).
+- Source-inspected: 22 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
+- README-reviewed: 52 targets (reconnaissance only; implementation details may remain unknown).
 - Queued without any review: 0.
 - Local REA runtime executed in this session: No.
 - Angel Reverse Engineering Workbench implemented in the app: No, specification only.
@@ -45,6 +45,7 @@ Selected modules/documents have been inspected for:
 - Google Skills: catalogue index and representative skill-routing, repo-migration, Google sign-in, skill-registry and agent-build workflows.
 - Claude Cookbooks and OpenAI Cookbook: selected notebook code for tool loops, search/retrieval, sandboxed memory compaction, evidence coverage and output-contract checks.
 - Composio and Alireza skill collections: skill creation/metadata, progressive disclosure and context-first authoring guidance.
+- Google API Node/Python/PHP clients, React Native Google Sign-In and two TOTP libraries: selected discovery/client, OAuth/token, sign-in and OTP functions.
 
 REA itself has now had a source-level map added in deep-dives-p1.md. Its browser tool registration, browser scenario capture, source/trace/evidence tool surfaces, safe metadata filtering, origin scope, cancellation, timeout and cleanup patterns were inspected. **The REA runtime remains unexecuted.**
 
