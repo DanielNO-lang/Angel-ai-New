@@ -4,17 +4,6 @@
  * No code outside this file interacts with the Gemini SDK directly.
  */
 
-function safeGeminiFailure(error: unknown): Error {
-  const detail = error instanceof Error ? error.message.toLowerCase() : '';
-  if (/(quota|resource[_ -]?exhausted|rate.?limit|429)/i.test(detail)) {
-    return new Error('Gemini provider quota or rate limit reached (429).');
-  }
-  if (/(unauthori[sz]ed|forbidden|invalid api key|401|403)/i.test(detail)) {
-    return new Error('Gemini provider credentials rejected (401/403).');
-  }
-  return new Error('Gemini provider request failed.');
-}
-
 import { FunctionDeclaration, GoogleGenAI, Type } from '@google/genai';
 import {
   AIProvider,
@@ -30,6 +19,18 @@ import {
   VisionOptions,
   VisionResult,
 } from './types';
+
+function safeGeminiFailure(error: unknown): Error {
+  const detail = error instanceof Error ? error.message.toLowerCase() : '';
+  if (/(quota|resource[_ -]?exhausted|rate.?limit|429)/i.test(detail)) {
+    return new Error('Gemini provider quota or rate limit reached (429).');
+  }
+  if (/(unauthori[sz]ed|forbidden|invalid api key|401|403)/i.test(detail)) {
+    return new Error('Gemini provider credentials rejected (401/403).');
+  }
+  return new Error('Gemini provider request failed.');
+}
+
 
 export class GeminiProvider implements AIProvider {
   readonly id = 'gemini';
