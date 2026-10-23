@@ -87,7 +87,8 @@ Each target gets a report under `docs/reverse-engineering/reports/<owner>--<repo
 4. Developer workflow and skills: coding agents, skill catalogs, task managers, review tools.
 5. Multimodal and model infrastructure: translation, image generation, model optimization, GPU operator.
 6. Remaining SDKs, examples, utilities, and research collections.
-7. Public website URLs submitted later, using the same intake/report structure.
+7. Public AI product websites and creative tools, using the same evidence/limitations discipline.
+8. Microsoft 365/Graph and related connector SDKs, followed by source-level license, manifest, test, and runtime checks.
 
 ## Reports and current output
 
@@ -99,6 +100,8 @@ Each target gets a report under `docs/reverse-engineering/reports/<owner>--<repo
 - [Audit 03: Claude ecosystem, desktop/mobile, workflows, and remaining SDKs](./reports/03-claude-ecosystem-and-apps.md)
 - [Angel adoption plan and priorities](./ANGEL_ADOPTION_PLAN.md)
 - [Audit 04: Realtime, OpenAI ecosystem, voice, and chat interfaces](./reports/04-realtime-openai-voice-and-chat-ecosystem.md)
+- [Audit 05: Public AI products, HubMind, and Microsoft](./reports/05-public-ai-products-hubmind-and-microsoft.md)
+- [Audit 06: Open-source AI and Microsoft shortlist](./reports/06-open-source-ai-and-microsoft-shortlist.md)
 
 
 The three capability audits summarize documented capabilities and Angel adaptation recommendations. Three repository README fetches returned 404 in this pass and are marked unresolved in the adoption plan. Ponderfly/GoogleTranslateIpCheck is discussed in the adoption plan as a network-diagnostics utility. These are documentary findings, not a complete source-level reverse-engineering run.
@@ -106,3 +109,12 @@ The three capability audits summarize documented capabilities and Angel adaptati
 ## Initial decision
 
 Do not add all targets as runtime dependencies. Treat this as a **capability research program**. Select only useful, legally compatible, supportable capabilities for Angel after evidence review.
+
+
+## Addendum: public AI products, HubMind, and Microsoft (2026-10-23)
+
+Audit 05 reviews public product surfaces for ChatGPT, Claude, Gemini, Arena, Perplexity, Nano Banana, Google Flow, and Google Labs, and investigates the ambiguous HubMind reference. Audit 06 identifies open-source candidates for skill systems, Gemini, Microsoft Graph/Agents, and model evaluation.
+
+**Important unresolved identity:** web research surfaced multiple distinct HubMind-branded services, including hubmind.com.au, aigateway.hubmind.app, and hu-mind.ai. None establishes which “upcoming AI on Netlify” the user meant. The exact Netlify URL or repository is needed before attributing features or reviewing code.
+
+**No production work was performed.** Reports are on the research branch. No login-based product tests, private-backend analysis, REA run, implementation, merge, or deployment occurred.
