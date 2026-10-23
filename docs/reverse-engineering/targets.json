@@ -117,17 +117,20 @@
       "category": "agents-and-orchestration",
       "purpose_hypothesis": "Agent development kit and orchestration",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "b89dda409e062bd20015ad9508cf75d252dd2ab9",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/google/adk-python/blob/HEAD/README.md"
+        "https://github.com/google/adk-python/blob/b89dda409e062bd20015ad9508cf75d252dd2ab9/src/google/adk/agents/base_agent.py",
+        "https://github.com/google/adk-python/blob/b89dda409e062bd20015ad9508cf75d252dd2ab9/src/google/adk/agents/llm_agent.py",
+        "https://github.com/google/adk-python/blob/b89dda409e062bd20015ad9508cf75d252dd2ab9/src/google/adk/runners.py",
+        "https://github.com/google/adk-python/blob/b89dda409e062bd20015ad9508cf75d252dd2ab9/src/google/adk/agents/sequential_agent.py"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected orchestration/permission/tool registry source files inspected; not full repo audit or runtime verified"
     },
     {
       "id": "gentle-ai",
@@ -517,17 +520,20 @@
       "category": "integrations-and-mcp",
       "purpose_hypothesis": "Google Workspace MCP tools",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "ae1259b35ae2d3648166bb780ffd8da9d758e36f",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/taylorwilsdon/google_workspace_mcp/blob/HEAD/README.md"
+        "https://github.com/taylorwilsdon/google_workspace_mcp/blob/ae1259b35ae2d3648166bb780ffd8da9d758e36f/auth/permissions.py",
+        "https://github.com/taylorwilsdon/google_workspace_mcp/blob/ae1259b35ae2d3648166bb780ffd8da9d758e36f/auth/scopes.py",
+        "https://github.com/taylorwilsdon/google_workspace_mcp/blob/ae1259b35ae2d3648166bb780ffd8da9d758e36f/core/tool_registry.py",
+        "https://github.com/taylorwilsdon/google_workspace_mcp/blob/ae1259b35ae2d3648166bb780ffd8da9d758e36f/gmail/gmail_tools.py"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected orchestration/permission/tool registry source files inspected; not full repo audit or runtime verified"
     },
     {
       "id": "google-ctf",
@@ -757,13 +763,17 @@
       "category": "model-and-agent-examples",
       "purpose_hypothesis": "Official model/tool-use cookbooks",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/anthropics/claude-cookbooks/blob/HEAD/README.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README reviewed after filename/default-branch resolution; source modules, tests, license obligations and runtime remain to be inspected"
     },
     {
       "id": "free-claude-code",
@@ -973,13 +983,17 @@
       "category": "coding-agents",
       "purpose_hypothesis": "Agentic software engineering workflow",
       "priority": "P2",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/Doriandarko/claude-engineer/blob/HEAD/readme.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README reviewed after filename/default-branch resolution; source modules, tests, license obligations and runtime remain to be inspected"
     },
     {
       "id": "claude-for-legal",
@@ -1369,13 +1383,17 @@
       "category": "model-sdk-unknown",
       "purpose_hypothesis": "OpenAI SDK for .NET; status verify",
       "priority": "P3",
-      "status": "queued",
+      "status": "readme-reviewed",
       "source_revision": null,
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
-      "evidence_files": []
+      "evidence_files": [
+        "https://github.com/betalgo/openai/blob/HEAD/Readme.md"
+      ],
+      "last_reviewed_at": "2026-10-23",
+      "review_depth": "README reviewed after filename/default-branch resolution; source modules, tests, license obligations and runtime remain to be inspected"
     },
     {
       "id": "macpaw-openai",
@@ -1405,17 +1423,20 @@
       "category": "agents-and-orchestration",
       "purpose_hypothesis": "OpenAI Agents SDK for Python",
       "priority": "P1",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "0dc4cf152bff1f50bdc0e41f28808563406545b2",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/openai/openai-agents-python/blob/HEAD/README.md"
+        "https://github.com/openai/openai-agents-python/blob/0dc4cf152bff1f50bdc0e41f28808563406545b2/src/agents/agent.py",
+        "https://github.com/openai/openai-agents-python/blob/0dc4cf152bff1f50bdc0e41f28808563406545b2/src/agents/run.py",
+        "https://github.com/openai/openai-agents-python/blob/0dc4cf152bff1f50bdc0e41f28808563406545b2/src/agents/tool.py",
+        "https://github.com/openai/openai-agents-python/blob/0dc4cf152bff1f50bdc0e41f28808563406545b2/src/agents/guardrail.py"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected orchestration/permission/tool registry source files inspected; not full repo audit or runtime verified"
     },
     {
       "id": "openai-gemini",
@@ -1501,8 +1522,9 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
+    "source_inspected_count": 3,
     "readme_reviewed_count": 71,
-    "source_inspected_count": 0,
-    "note": "README review is reconnaissance, not complete reverse engineering. One missing/unsupported repository is left queued and documented for follow-up."
+    "queued_count": 0,
+    "note": "Source-inspected means selected source modules were mapped, not complete repository reverse engineering or runtime validation. Readme-reviewed is reconnaissance only."
   }
 }
