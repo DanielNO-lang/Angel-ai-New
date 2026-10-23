@@ -982,7 +982,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
 
     if (!prompt) return res.status(400).json({ error: 'Prompt is required', code: 'prompt_required' });
 
-    let provider;
+    let provider: ReturnType<typeof providerRegistry.getProvider>;
     try {
       provider = providerRegistry.getProvider(providerId);
     } catch {
