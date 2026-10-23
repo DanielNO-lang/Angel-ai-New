@@ -7,8 +7,8 @@
 
 ## Current inventory
 - Target repositories catalogued: 74.
-- Source-inspected: 25 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
-- README-reviewed: 49 targets (reconnaissance only; implementation details may remain unknown).
+- Source-inspected: 26 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
+- README-reviewed: 48 targets (reconnaissance only; implementation details may remain unknown).
 - Queued without any review: 0.
 - Local REA runtime executed in this session: No.
 - Angel Reverse Engineering Workbench implemented in the app: No, specification only.
@@ -52,6 +52,7 @@ Selected modules/documents have been inspected for:
 - Learn Claude Code: source functions across 17 lessons covering permissions, hooks, skills, compaction, memory, task dependencies, background jobs, cron, teams, MCP, workflow journal and goal loop.
 - Kuse Cowork: selected native agent-loop, tool executor, MCP, filesystem/shell/Docker and skill registry source paths; identified path confinement and credential-storage checks required before reuse.
 - Official Claude Code public plugins: seven-phase feature-dev flow, code-review/PR-review roles, security reminders, Hookify rules, bounded Ralph iterations, Git commands and SDK verifier workflows. The proprietary/full runtime remains not publicly exposed.
+- ClaudeCodeUI: selected agent routes, GitHub cloning/PR, browser-use service/MCP adapter, session expiry, Electron loopback server and worktree API. Authorization mounting and path checks remain open security-audit items.
 
 REA itself has a dedicated pinned source map in REA-SOURCE-MAP.md and an extended deep dive in deep-dives-p1.md. Its browser tool registration, browser scenario capture, source/trace/evidence tool surfaces, safe metadata filtering, origin scope, cancellation, timeout and cleanup patterns were inspected. **The REA runtime remains unexecuted.**
 
