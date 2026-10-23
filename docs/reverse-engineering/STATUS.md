@@ -7,8 +7,8 @@
 
 ## Current inventory
 - Target repositories catalogued: 74.
-- Source-inspected: 27 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
-- README-reviewed: 47 targets (reconnaissance only; implementation details may remain unknown).
+- Source-inspected: 29 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
+- README-reviewed: 45 targets (reconnaissance only; implementation details may remain unknown).
 - Queued without any review: 0.
 - Local REA runtime executed in this session: No.
 - Angel Reverse Engineering Workbench implemented in the app: No, specification only.
@@ -31,7 +31,8 @@ The status counts are maintained in targets.json. “Source-inspected” and “
 11. phase-6-findings.md — function maps for the 17-stage Learn Claude Code harness, task/memory/background mechanics and safeguards.
 12. phase-8-findings.md — source-level analysis of official Claude Code public plugins, feature development, high-signal review, security hooks, goal loops and Git workflow.
 13. phase-10-findings.md — Claude Code Best workflow engine, journal/budget/concurrency, script trust boundary and remote-control auth notes.
-14. deep-dives-p1.md — source-level function/module maps for operating-core, tasks, routing, MCP, GitHub automation, remote sessions and REA.
+14. phase-11-findings.md — Hy-MT2 translation, Qwen Image 2.1 prompt-rewrite source and model-license findings.
+15. deep-dives-p1.md — source-level function/module maps for operating-core, tasks, routing, MCP, GitHub automation, remote sessions and REA.
 
 ## Source-inspected targets
 Selected modules/documents have been inspected for:
@@ -55,6 +56,8 @@ Selected modules/documents have been inspected for:
 - Official Claude Code public plugins: seven-phase feature-dev flow, code-review/PR-review roles, security reminders, Hookify rules, bounded Ralph iterations, Git commands and SDK verifier workflows. The proprietary/full runtime remains not publicly exposed.
 - ClaudeCodeUI: selected agent routes, GitHub cloning/PR, browser-use service/MCP adapter, session expiry, Electron loopback server and worktree API. Authorization mounting and path checks remain open security-audit items.
 - Claude Code Best V5: deterministic workflow engine, journal/replay, token budget, concurrency and output schemas, plus remote-control authentication/session store. Workflow scripts are not sandboxed for security; remote control needs hardened configuration.
+- Hy-MT2: translation-instruction benchmark functions and model-license discrepancy/territory gate.
+- Qwen Image 2.1: text-to-image/edit prompt-enhancer profiles, parser, output contracts, Transformers/vLLM runners and research-only license gate.
 
 REA itself has a dedicated pinned source map in REA-SOURCE-MAP.md and an extended deep dive in deep-dives-p1.md. Its browser tool registration, browser scenario capture, source/trace/evidence tool surfaces, safe metadata filtering, origin scope, cancellation, timeout and cleanup patterns were inspected. **The REA runtime remains unexecuted.**
 
