@@ -449,3 +449,87 @@ The source inspection shows an Express CORS middleware configured without an exp
 
 ### Decision
 **Study the process split and provider adapter patterns; do not adopt the repository as-is.** It is a historical 2026-05-03 revision and must receive current dependency/security/license review before any fork. Angel should preserve the safe Electron isolation pattern and replace the local API's identity/authorization model with Angel-owned controls.
+
+
+## 17. Reverse Engineer Anything (REA): source-level architecture and key functions
+
+Repository: https://github.com/morluto/rea  
+Revision inspected: 4c547008c53ee9f0ff2368e7d874a2c3347aa235  
+Package: `rea-agents` v6.7.0, MIT; current package engine requires Node.js `^22.19.0 || ^24.11.0 || >=26.0.0`.  
+Current package entry points: `rea` / `rea-agents` CLI at `scripts/rea.mjs`; the package script `start` runs `node scripts/rea.mjs mcp`. Official setup guide: https://github.com/morluto/rea/blob/4c547008c53ee9f0ff2368e7d874a2c3347aa235/docs/installation.md
+
+**Evidence boundary:** selected source files and architecture were inspected via GitHub. REA was not installed or executed in this chat; local Node is 22.16.0, below the required 22.19.0, and the local shell environment cannot fetch GitHub. No browser session, native target or local artifact was analyzed by a running REA process. This is a source map, not a runtime pass.
+
+### 17.1 Main architectural layers
+
+| Layer | Source path | Key symbols / responsibilities |
+|---|---|---|
+| Entry point / startup | src/main.ts, src/main/startup.ts, src/main/transport.ts, src/main/eagerRuntime.ts, src/main/deferredRuntime.ts | CLI/MCP startup, transport setup, runtime composition and deferred provider loading |
+| Server composition | src/server/createServer.ts | `createServer`, `createMcpServer`, tool registration composition, environment snapshot, provider/service composition, output/result-delivery selection, session-availability policy, analysis admission, close/cleanup |
+| Standard evidence server | src/server/EvidenceMcpServer.ts, src/server/EvidenceMcpServerCore.ts | Server identity and registration base; evidence/result lifecycle, schemas and retained-analysis output surface |
+| Browser tool registration | src/server/registerBrowserTools.ts | Registers list/inspect/analyze/observe/discover/compare/screenshot contracts and routes them to application services |
+| Browser scenario registration | src/server/registerBrowserScenarioTool.ts | Registers `capture_browser_scenario`; validates input with `browserScenarioSchema.safeParse`, logs execution, admits bounded operation and delivers structured evidence |
+| Other reverse tools | src/server/registerReverseEngineeringTools.ts | Registers operations including `inspect_with_objdump` and `execute_rizin_command`; includes admitted external-mutation path, cleanup, retry and normalized evidence/errors |
+| Browser business/service layer | src/application/BrowserObservationService.ts | `listBrowserTargets`, `inspectWebPage`, `analyzeWebBundle`, `observeWebSession`, `discoverWebMcpTools`, `compareWebCaptureEvidence`, `captureWebScreenshot`, `compareWebScreenshotEvidence` |
+| Scenario business/service layer | src/application/BrowserScenarioCaptureService.ts | `captureBrowserScenario`, validates complete/partial capture report, provider identity and evidence, retains incomplete observation when needed |
+| Browser session recorder | src/browser/CdpObservationSession.ts | `observeCdpSession`; collects a time-bounded timeline of navigation/lifecycle/network events scoped to allowed origins and an authorized main frame |
+| Page artifact capture | src/browser/CdpPageCapture.ts | `capturePage`; coordinates authorized frame capture, resources, DOM, accessibility, scripts, workers and storage with completeness status |
+| Browser automation provider | src/browser/PlaywrightBrowserScenarioProvider.ts | Runs declared scenario steps, records before/after URLs and event sequence, obtains per-step artifacts, captures partial results, serializes provider use and retries cleanup |
+| Execution boundary | src/browser/PlaywrightExecutionBoundary.ts | `withPlaywrightExecutionBoundary`; wraps async work with a deadline, AbortSignal handling and bounded completion/cleanup semantics |
+| Metadata filtering | src/browser/CdpSafeMetadata.ts | `safeResponseMetadata`; normalizes selected response metadata, CSP/link/agent hints and only safe bounded fields, rather than retaining raw headers indiscriminately |
+| Evidence and inventory | src/application/BrowserEvidence.ts, src/application/CapabilityInventory.ts, src/application/EvidenceInputResolver.ts, src/application/EvidenceBundleCommands.ts | Evidence objects, capability inventory, references/resolution, dossier/bundle collection and export-related composition |
+| Function/call path analysis | src/application/FunctionAnalysisEvidence.ts, src/application/CallPathTracing.ts, src/application/CallRelationshipTraversal.ts | Function-level evidence, call relationships and traversal for code-level analysis |
+| Static/recovery analysis | src/server/registerWebModuleTool.ts, registerJavaScriptRecoveryTool.ts, registerWebScriptTool.ts, registerWebSourceLocationTool.ts | Website module trace, JS artifact recovery, script inspection/source-map location tools where provider capabilities exist |
+
+### 17.2 Core workflow, reconstructed from source
+
+1. **Choose a target/provider.** Browser target and artifact entry points resolve only known/supported provider types. Provider absence is reported as capability-unavailable rather than silently pretending a capture occurred.
+2. **Validate the request.** Tool input is parsed against named domain schemas (including the browser-scenario schema). Invalid input becomes a structured user-facing error.
+3. **Admit the operation.** The server uses analysis admission and operation wrappers; riskier external mutations are handled through separate admission helpers, not assumed to be ordinary reads.
+4. **Execute in a bounded context.** Browser scenario execution uses explicit actions, timeout/deadline, cancellation signals and cleanup leases. Provider sessions are scoped and cleanup is part of the operation result.
+5. **Collect evidence.** The service returns typed data and evidence objects; browser capture reports completeness, partial observations and limitations instead of treating a truncated capture as complete.
+6. **Normalize and retain results.** Tool result/evidence delivery uses output schemas, structured logging, retained evidence and output/result policy. Browser metadata is sanitized; raw headers and unrelated browser state should not be exported casually.
+7. **Report limitations.** An unavailable provider, cancelled scenario, missing artifact or incomplete observation needs a distinct status/error and, where possible, a partial evidence bundle.
+
+### 17.3 Website analysis key tools
+
+| Tool | Appropriate purpose | What it does not prove |
+|---|---|---|
+| `list_browser_targets` | Enumerate visible/eligible pages from a configured browser target | Does not grant permission to control unrelated pages |
+| `inspect_web_page` | Inspect selected page state and safe metadata | Does not reveal private server source or hidden behavior |
+| `observe_web_session` | Passively record an approved observation window around user action, navigation or reload | Does not itself authorize form submission or other writes |
+| `capture_web_screenshot` | Capture viewport evidence | A screenshot alone does not prove a transaction/backend action succeeded |
+| `capture_browser_scenario` | Run a declared, bounded sequence with expected conditions and per-step evidence | Does not safely execute arbitrary scripts unless separately admitted/configured |
+| `discover_webmcp_tools` | Discover published WebMCP tool schemas, if supported by the page | Discovery does not invoke discovered tools and does not grant permission |
+| `compare_web_captures` / `compare_web_screenshots` | Compare captures and identify observed differences | Difference is limited by capture completeness and equivalent scope |
+
+### 17.4 Source-level safeguards to reuse
+
+- **Allowlisted origins:** CDP event URLs are scoped through allowed-origin checks and URL sanitation; evidence should exclude unrelated tabs and destinations.
+- **Authorized main frame:** page capture relies on an explicitly selected/authorized main frame rather than taking unbounded control of every browser target.
+- **Schema-first operations:** browser scenario input uses a named schema; Angel should implement equivalent Zod/TypeScript input validation for repository and website jobs.
+- **Deadline/cancellation:** `withPlaywrightExecutionBoundary` bounds execution and cooperates with AbortSignal. Angel should persist cancellation state and stop downstream steps when cancellation is observed.
+- **Cleanup as part of outcome:** scenario provider cleanup may itself fail; report that failure alongside partial observations instead of marking the operation successful.
+- **Completeness metadata:** capture logic models missing/truncated sections and partial observations. Angel's dossiers should have an explicit coverage matrix and list unknowns.
+- **Sanitized metadata:** `safeResponseMetadata` permits only bounded metadata from headers and filters URL destinations; Angel should redact authorization/cookie/token headers and avoid storing arbitrary bodies by default.
+- **External mutation admission:** REA's reverse-engineering tool registration separates high-impact external mutation from read/inspect functions. Angel must likewise separate read-only analysis from code execution, file changes, publication, account changes and other writes.
+- **Structured evidence and error types:** use evidence IDs, provenance, operation name, failure type and partial result instead of generic “failed” text.
+- **Bounded provider/resource cleanup:** long-running analysis tools require per-operation resource limits, safe process lifecycle and predictable cleanup.
+
+### 17.5 Angel-specific adaptation
+
+REA itself is a tool and analysis engine, not a complete personal AI product or general URL-to-repo crawler service. Angel should put an independent coordinator around it:
+
+`Input URL / artifact → Type classifier → Scope/authorization → Source or browser collector → Feature trace → Evidence store → License/security review → Cross-target deduplication → Angel adoption decision → Implementation task`
+
+- For GitHub repositories, prioritize source tree, README/docs, license, package manifests, entry points, APIs, function-call path, persistence and tests. Use the repository's pinned commit SHA as evidence identity.
+- For website links, record route/page/state, interaction steps, screenshot/DOM/accessibility evidence and only approved network metadata. Mark hidden backend behavior unknown unless source or valid authorized telemetry establishes it.
+- For local binaries or installed applications, run REA-specific analyzers only in an approved local environment and only against artifacts the user is authorized to inspect.
+- Keep analysis artifacts out of production code by default; produce a separate dossier and reviewable implementation task.
+- Add support for ordinary URLs to Angel's own intake classifier and workflow, rather than assuming any pasted URL should be sent to a repository parser.
+
+### 17.6 Decision
+
+**Use REA as the primary evidence adapter for supported browser/local artifact analysis, paired with direct GitHub source inspection.** Build a small adapter and normalized evidence schema; do not import REA's entire large, optional-provider ecosystem into Angel's web bundle. REA has many artifact-specific tools, and the correct provider depends on the target type and local environment.
+
+Do not mark the integration “implemented” until its local installation/MCP handshake, repository intake, website capture, partial-failure handling and evidence export have passed tests in the intended worker/companion environment.
