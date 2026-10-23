@@ -96,7 +96,7 @@ Status convention: README review completed where content was retrievable; deeper
 
 ## D. Count and tracking
 
-- Total supplied target repositories including REA: **97** (75 in the first batch plus 22 additional targets).
+- Total repository targets currently inventoried: **109** (97 earlier targets plus 12 candidates added for the public-product/Microsoft review). Website targets are tracked separately below.
 - Research begins with a representative sample, then proceeds by capability family and dependency order.
 - This inventory records links, research focus and review status. README reviews are not equivalent to source-level reverse engineering or runtime verification.
 - If any URL redirects, is unavailable, is a fork/mirror, or has an incompatible license, record that before proceeding.
@@ -131,3 +131,41 @@ See [Audit 04: Realtime, OpenAI ecosystem, voice, and chat interfaces](./reports
 | REA-095 | [lencx/ChatGPT](https://github.com/lencx/ChatGPT) | Unofficial desktop wrapper; historical UI/packaging reference | README review documented; deeper audit pending |
 | REA-096 | [acheong08/ChatGPT](https://github.com/acheong08/ChatGPT) | Repository link/content unresolved; avoid unofficial token flows | Unresolved: README fetch returned 404 |
 | REA-097 | [Chanzhaoyu/chatgpt-web](https://github.com/Chanzhaoyu/chatgpt-web) | Chat UI, sessions, import/export, themes and historical unofficial token mode | README review documented; deeper audit pending |
+
+
+## F. Public AI product and Microsoft ecosystem targets (2026-10-23)
+
+See [Audit 05: Public AI products, HubMind, and Microsoft](./reports/05-public-ai-products-hubmind-and-microsoft.md) and [Audit 06: Open-source AI and Microsoft shortlist](./reports/06-open-source-ai-and-microsoft-shortlist.md). The websites below are product surfaces, not automatically open-source code.
+
+| ID | Website / product | Research focus | Status |
+|---|---|---|---|
+| WEB-001 | [ChatGPT](https://chatgpt.com) | Research, projects, files, data analysis, voice, memory, tasks, connected apps and artifact workflows | Public docs reviewed; live account/plan testing not performed |
+| WEB-002 | [Claude](https://claude.ai) | Research, Artifacts, versioned outputs, skill/plugin workflows | Public docs reviewed; live account/plan testing not performed |
+| WEB-003 | [Gemini](https://gemini.google.com) | Multimodal assistant, Google ecosystem, official API capability boundaries | Public docs reviewed; API and account entitlements not tested |
+| WEB-004 | [Arena](https://arena.ai) | Blind model comparisons, public evaluation methods and ranking caveats | Public organization/repository surface reviewed; benchmark not executed |
+| WEB-005 | [Perplexity](https://www.perplexity.ai) | Search-first research, citations, source trail and answer synthesis | Initial product-pattern review; deeper official-doc review pending |
+| WEB-006 | [Nano Banana](https://nanobanana.io) | Verify domain identity; compare only against official Gemini image-generation documentation | Domain-to-Google relationship unresolved |
+| WEB-007 | [Google Flow](https://flow.google.com) | AI video/filmmaking, storyboard, scene continuity and creative asset management | Initial product-pattern review; API availability unverified |
+| WEB-008 | [Google Labs](https://labs.google) | Experimental AI product discovery and maturity/availability tracking | Catalog reviewed at high level; experiments require individual review |
+| WEB-009 | [HubMind, exact Netlify URL not yet identified](https://hubmind.com.au/) | Distinguish similarly named products; company brain, connectors, role-scoped agents, audit trails | Identity unresolved; do not treat this link as the requested Netlify app |
+| WEB-010 | [HubMind AI Gateway](https://aigateway.hubmind.app/) | Credential proxy, capability URLs, MCP manifests, quotas, approvals, secret vault | Public product page reviewed; security posture/code not audited |
+| WEB-011 | [Hu-mind.ai](https://www.hu-mind.ai/) | Separate similarly named VLSI AI teammate product | Public product page surfaced; not confirmed as intended target |
+
+## G. Additional open-source candidates (2026-10-23)
+
+| ID | Repository | Initial research focus | Status |
+|---|---|---|---|
+| REA-098 | [anthropics/skills](https://github.com/anthropics/skills) | Portable skill format, examples, resource layout and provenance | Candidate identified; source/license audit pending |
+| REA-099 | [anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official) | Curated plugin packaging, metadata, review and versioning | Candidate identified; source/license audit pending |
+| REA-100 | [anthropics/knowledge-work-plugins](https://github.com/anthropics/knowledge-work-plugins) | Practical knowledge-work workflows and domain packs | Candidate identified; source/license audit pending |
+| REA-101 | [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli) | Agent loop, context, tool execution, extensions and developer workflows | Candidate identified; source/license audit pending |
+| REA-102 | [microsoft/Agents](https://github.com/microsoft/Agents) | Microsoft 365 multi-channel agent SDK family; JS/Python/.NET | Public README reviewed; deeper source audit pending |
+| REA-103 | [microsoftgraph/msgraph-sdk-javascript](https://github.com/microsoftgraph/msgraph-sdk-javascript) | Microsoft Graph client, auth, paging, throttling and errors | Candidate identified; source/license audit pending |
+| REA-104 | [microsoft/semantic-kernel](https://github.com/microsoft/semantic-kernel) | Agent orchestration, plugins/functions, memory and provider abstraction | Candidate identified; source/license audit pending |
+| REA-105 | [microsoft/agent-framework](https://github.com/microsoft/agent-framework) | Agent orchestration and durable workflow patterns; verify maturity | Candidate identified; identity/maturity audit pending |
+| REA-106 | [google-gemini/gemini-api-quickstart](https://github.com/google-gemini/gemini-api-quickstart) | Official Gemini API quickstart and multimodal payload patterns | Candidate identified; source/license audit pending |
+| REA-107 | [lmarena/arena-rank](https://github.com/lmarena/arena-rank) | Public preference-ranking methodology | Public organization description reviewed; source audit pending |
+| REA-108 | [lmarena/arena-hard-auto](https://github.com/lmarena/arena-hard-auto) | Automatic model benchmark methodology | Public organization description reviewed; source audit pending |
+| REA-109 | [lmarena/search-arena](https://github.com/lmarena/search-arena) | Evaluation of search-augmented models | Public organization description reviewed; source audit pending |
+
+The shortlist is not a statement that all candidates are compatible, free to operate, or approved for adoption. Recheck the current repository identity, license, maintenance, dependencies, and API terms before reuse.
