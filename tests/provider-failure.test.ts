@@ -17,7 +17,7 @@ test('Gemini generation, streaming, and vision never fabricate output when uncon
       /not configured/i,
     );
     await assert.rejects(
-      provider.vision({ base64Data: 'dGVzdA==', prompt: 'Describe this image.' }),
+      provider.vision({ base64Data: 'dGVzdA==', mimeType: 'image/png', prompt: 'Describe this image.' }),
       /not configured/i,
     );
   } finally {
