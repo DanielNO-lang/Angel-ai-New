@@ -765,17 +765,28 @@
       "category": "coding-agents-unknown",
       "purpose_hypothesis": "Unofficial Claude Code-related repo; provenance to verify",
       "priority": "P4",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "77a7934e15d69da13879112ed7db695c9ee7a52a",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/claude-code-best/claude-code/blob/HEAD/README.md"
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a52a/packages/workflow-engine/src/engine/runWorkflow.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/packages/workflow-engine/src/engine/script.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/packages/workflow-engine/src/engine/journal.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/packages/workflow-engine/src/engine/budget.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/packages/workflow-engine/src/engine/concurrency.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/packages/workflow-engine/src/engine/structuredOutput.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/src/workflow/persistence.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/packages/remote-control-server/src/auth/middleware.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/packages/remote-control-server/src/auth/jwt.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/packages/remote-control-server/src/auth/api-key.ts",
+        "https://github.com/claude-code-best/claude-code/blob/77a7934e15d69da13879112ed7db695c9ee7a/packages/remote-control-server/src/store.ts"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected workflow-engine, journal/budget/concurrency, script sandbox, workflow persistence, task types, remote-control authentication and store modules inspected; no packages installed or runtime tests; unofficial repo risk remains",
+      "source_findings": "Deterministic workflow engine with ports, journal replay, SHA-256 call keys, structured output schema validation, budgets, semaphore/cancellation, run persistence and task models. Remote-control package implements WebSocket/SSE, API-key/JWT auth and session ownership. Workflow script sandbox explicitly preserves replay determinism, not security; remote-control default bind/auth config needs fail-closed deployment review."
     },
     {
       "id": "learn-claude-code",
@@ -1646,8 +1657,8 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 26,
-    "readme_reviewed_count": 48,
+    "source_inspected_count": 27,
+    "readme_reviewed_count": 47,
     "queued_count": 0,
     "note": "Source-inspected means selected source modules/documents/notebooks/plugins were mapped, not complete repository audit or runtime validation. README-reviewed is reconnaissance only. REA runtime itself has selected-source-inspected status but was not executed."
   }
