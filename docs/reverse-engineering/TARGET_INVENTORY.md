@@ -1,15 +1,15 @@
 # Target inventory
 
-All targets below were supplied by the project owner. **Capability notes are research hypotheses based on repository names and public project descriptions, not completed reverse-engineering findings.** Confirm the actual repository, default branch, license, current maintenance, and contents before recommending reuse.
+All targets below were supplied by the project owner. The inventory records the supplied targets and their initial research focus. **A first-pass public README review has now been documented in the linked audit reports; this is not complete source-level reverse engineering and REA has not been run.** Confirm source, default branch, license, maintenance, and contents before implementation.
 
-Status for all entries at creation: **queued**. The research reports must cite evidence and distinguish verified facts from hypotheses.
+Status convention: README review completed where content was retrievable; deeper source/dependency/test audit remains pending. Repositories whose README fetch returned 404 remain unresolved. The reports distinguish documented claims from source-confirmed or tested behavior.
 
 ## A. Models, agents, MCP, and AI development
 
 | ID | Repository | Initial research focus | Status |
 |---|---|---|---|
 | REA-001 | [morluto/rea](https://github.com/morluto/rea) | Research tooling: repository/site/app analysis workflow, evidence capture, MCP interfaces, supported target types, limitations, local setup | Inspecting docs; not executed |
-| REA-002 | [Tencent-Hunyuan/Hy-MT2](https://github.com/Tencent-Hunyuan/Hy-MT2) | Multilingual translation models, instruction following, local inference options, model sizes and deployment cost | Queued |
+| REA-002 | [Tencent-Hunyuan/Hy-MT2](https://github.com/Tencent-Hunyuan/Hy-MT2) | Multilingual translation models, instruction following, local inference options, model sizes and deployment cost | README review documented; deeper audit pending |
 | REA-003 | [QwenLM/Qwen-Image-2.1](https://github.com/QwenLM/Qwen-Image-2.1) | Text-to-image, image editing, reference-image conditioning, masking/region edits, inference integrations and compute needs | Queued |
 | REA-004 | [NVIDIA/Model-Optimizer](https://github.com/NVIDIA/Model-Optimizer) | Quantization and inference optimization; compatibility and hardware constraints | Queued |
 | REA-005 | [NVIDIA/gpu-operator](https://github.com/NVIDIA/gpu-operator) | Kubernetes GPU provisioning and operations; future infrastructure only | Queued |
@@ -30,7 +30,7 @@ Status for all entries at creation: **queued**. The research reports must cite e
 | REA-020 | [openedclaude/claude-reviews-claude](https://github.com/openedclaude/claude-reviews-claude) | Automated code review workflow, critique loops and review evidence; verify provenance | Queued |
 | REA-021 | [anthropics/claude-code-action](https://github.com/anthropics/claude-code-action) | GitHub Actions integration, issue/PR workflows and repository permissions | Queued |
 | REA-022 | [Wei-Shaw/claude-relay-service](https://github.com/Wei-Shaw/claude-relay-service) | Relay architecture, multi-user isolation, provider terms, secrets handling and security; do not bypass provider access controls | Queued |
-| REA-023 | [Doriandarko/claude-engineer](https://github.com/Doriandarko/claude-engineer) | Tool-using software engineering agent, terminal/filesystem workflow and human approvals | Queued |
+| REA-023 | [Doriandarko/claude-engineer](https://github.com/Doriandarko/claude-engineer) | Tool-using software engineering agent, terminal/filesystem workflow and human approvals | Unresolved: README fetch returned 404 |
 | REA-024 | [anthropics/claude-for-legal](https://github.com/anthropics/claude-for-legal) | Legal-domain workflow patterns, document analysis and professional-domain limitations | Queued |
 | REA-025 | [BehiSecc/awesome-claude-skills](https://github.com/BehiSecc/awesome-claude-skills) | Skill catalog, categorization and duplicate comparison with other skill lists | Queued |
 | REA-026 | [composio-community/open-claude-cowork](https://github.com/composio-community/open-claude-cowork) | Desktop/workspace agent workflows, tools, permissions and app integration | Queued |
