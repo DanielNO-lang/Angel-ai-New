@@ -226,6 +226,12 @@ This list consolidates earlier user requirements and prior project context. Each
 
 ### Browser extension and cross-app access plan (new product requirement)
 
+Official platform references:
+- [Chrome extension permissions and optional host permissions](https://developer.chrome.com/docs/extensions/mv3/declare_permissions)
+- [MDN WebExtensions host permissions and cross-browser behavior](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/host_permissions)
+- [Apple Safari Web Extensions and distribution](https://developer.apple.com/documentation/safariservices/safari-web-extensions)
+
+
 Angel should remain a standalone Angel app. Browser access is an extension/companion capability, not a requirement to move Angel into the browser.
 
 - **Chrome Web Store:** build and publish an Angel extension for Google Chrome using Manifest V3, least-privilege permissions, a clear privacy disclosure, and explicit per-site access. Chrome and Chromium-based browsers share many extension APIs, but compatibility must be tested separately; Chromium is not a guarantee of Chrome Web Store approval or identical behavior.
