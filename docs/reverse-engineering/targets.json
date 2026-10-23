@@ -1079,17 +1079,21 @@
       "category": "mobile-agent-ui",
       "purpose_hypothesis": "Mobile-facing coding-agent interface",
       "priority": "P2",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "5d8deb201189dc1f183c4f5bf38c87ec4d34dd70",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/tiann/hapi/blob/HEAD/README.md"
+        "https://github.com/tiann/hapi/blob/5d8deb201189dc1f183c4f5bf38c87ec4d34dd70/shared/src/resume.ts",
+        "https://github.com/tiann/hapi/blob/5d8deb201189dc1f183c4f5bf38c87ec4d34dd70/shared/src/sessionLifecycle.ts",
+        "https://github.com/tiann/hapi/blob/5d8deb201189dc1f183c4f5bf38c87ec4d34dd70/shared/src/agentCliSpawnLease.ts",
+        "https://github.com/tiann/hapi/blob/5d8deb201189dc1f183c4f5bf38c87ec4d34dd70/shared/src/workGraph.ts",
+        "https://github.com/tiann/hapi/blob/5d8deb201189dc1f183c4f5bf38c87ec4d34dd70/relay/src/rateLimit.ts"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected session lifecycle, cross-device resume, pairing/credential or encryption modules inspected; no full security audit/runtime test"
     },
     {
       "id": "opencodex",
@@ -1221,17 +1225,20 @@
       "category": "mobile-agent-ui",
       "purpose_hypothesis": "Mobile/remote interface for coding agents",
       "priority": "P2",
-      "status": "readme-reviewed",
-      "source_revision": null,
+      "status": "source-inspected",
+      "source_revision": "d6b85a0dda14c9582e1f083539fd11d99924022f",
       "license": "unverified",
       "verified_features": [],
       "open_questions": [],
       "angel_decision": "pending",
       "evidence_files": [
-        "https://github.com/slopus/happy/blob/HEAD/README.md"
+        "https://github.com/slopus/happy/blob/d6b85a0dda14c9582e1f083539fd11d99924022f/packages/happy-agent/src/auth.ts",
+        "https://github.com/slopus/happy/blob/d6b85a0dda14c9582e1f083539fd11d99924022f/packages/happy-agent/src/encryption.ts",
+        "https://github.com/slopus/happy/blob/d6b85a0dda14c9582e1f083539fd11d99924022f/packages/happy-agent/src/credentials.ts",
+        "https://github.com/slopus/happy/blob/d6b85a0dda14c9582e1f083539fd11d99924022f/packages/happy-agent/src/session.ts"
       ],
       "last_reviewed_at": "2026-10-23",
-      "review_depth": "README/entry-point preflight only; source modules, tests, current release and license remain to be inspected"
+      "review_depth": "Selected session lifecycle, cross-device resume, pairing/credential or encryption modules inspected; no full security audit/runtime test"
     },
     {
       "id": "pake",
@@ -1540,8 +1547,8 @@
   "review_summary": {
     "last_updated_at": "2026-10-23",
     "target_count": 74,
-    "source_inspected_count": 8,
-    "readme_reviewed_count": 66,
+    "source_inspected_count": 10,
+    "readme_reviewed_count": 64,
     "queued_count": 0,
     "note": "Source-inspected means selected source modules were mapped, not a complete repository audit or runtime validation. Readme-reviewed is reconnaissance only."
   }
