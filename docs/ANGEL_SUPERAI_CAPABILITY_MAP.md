@@ -6,7 +6,7 @@
 
 ## 1. Product principle
 
-Angel should be a unified personal AI operating layer: conversational companion, researcher, creator, tutor, career partner, project operator, and permissioned interface to a user's digital tools. It should preserve Angel's own identity, voice, visual characters, and judgement. Other products are capability references and optional integrations, not personalities to copy.
+Angel should be a unified personal AI companion and capability platform: conversational partner, researcher, creator, tutor, career partner, project helper, and permissioned interface to a user's digital tools. Angel is **not an operating system and is not meant to behave like Jarvis**. Jarvis is a reference for selected capabilities only. Angel keeps its own identity, voice, visual characters, judgement, interaction style, and product architecture. Other products are capability references and optional integrations, not personalities or system designs to copy.
 
 "Everything" should mean a coherent capability platform with a discoverable roadmap, not shipping every product at once or claiming every capability works on every device.
 
@@ -188,7 +188,7 @@ This list consolidates earlier user requirements and prior project context. Each
 - Secure memory and sync between IndexedDB/local state and Supabase, with conflict handling.
 - Action lifecycle: explain intended action → obtain permission when required → execute → verify result → report outcome.
 - Expiring or revocable permissions, least privilege, audit logs and budget limits.
-- Cross-device availability on web, desktop, tablet, phone and extension where the platform permits it; do not claim arbitrary OS-level control from a web page.
+- Cross-device availability on web, desktop, tablet, phone and browser extension where the platform permits it; do not claim arbitrary OS-level control from a web page.
 
 ### I. Existing UI and reliability constraints to preserve
 - Approved dashboard blueprint and exact accepted visual direction.
@@ -219,9 +219,22 @@ This list consolidates earlier user requirements and prior project context. Each
 | Career coaching | Research/search + structured workflow patterns | Career workspace and job tracker | P1 |
 | Travel/exploration | Google Maps/Earth/Travel and search | Map-based explore and itinerary planner | P1 |
 | Model evaluation | Arena, internal eval frameworks | Blind comparisons plus task-specific regression suite | P2 |
-| Desktop/system control | Native OS APIs and carefully sandboxed agents | Separate native/extension bridge; never promise web-only OS control | Later |
+| Desktop/system control | Native OS APIs and carefully sandboxed agents | Optional companion bridge with explicit grants; never promise web-only OS control | Later |
 | Multi-agent task orchestration | OpenAI Agents, Microsoft Agents, other workflow systems | Bounded orchestrator with checkpoints and approval gates | P1 |
 | Knowledge/RAG and file extraction | Microsoft Graph/SharePoint, Google Drive, open-web retrieval | Access-aware retrieval with citations and per-user isolation | P1 |
+
+
+### Browser extension and cross-app access plan (new product requirement)
+
+Angel should remain a standalone Angel app. Browser access is an extension/companion capability, not a requirement to move Angel into the browser.
+
+- **Chrome Web Store:** build and publish an Angel extension for Google Chrome using Manifest V3, least-privilege permissions, a clear privacy disclosure, and explicit per-site access. Chrome and Chromium-based browsers share many extension APIs, but compatibility must be tested separately; Chromium is not a guarantee of Chrome Web Store approval or identical behavior.
+- **Other browsers:** design a shared extension core with browser-specific build/configuration targets. Firefox, Microsoft Edge, and Safari each need their own compatibility testing and potentially separate packaging, signing, review, and store submissions. Safari has a different distribution/tooling path. Do not promise one upload that automatically works everywhere.
+- **Side-by-side workflow:** extension can list permitted tabs, read page content only after user permission, summarize/research selected tabs, draft or fill content with confirmation, and pass a selected page or tab context to Angel's standalone app through a secure, authenticated handoff. Tab access must be visible and revocable.
+- **Beyond the browser:** use official service APIs/connectors for Google, Microsoft, GitHub, and other apps where available. For desktop applications that have no API, an optional signed native companion may provide narrowly scoped accessibility/automation features after explicit OS permissions. Mobile OSes and browsers impose different limits.
+- **No universal-access claim:** a Chrome extension cannot control every unrelated desktop or mobile app. A web app cannot silently read all browser tabs, inspect arbitrary apps, or bypass OS security. Each capability must be implemented through an approved API, a browser extension, a supported native bridge, or a user-driven file/share flow.
+- **Security baseline:** no broad all-sites permission by default; request optional host permissions when the user enables a site; never collect page contents in the background without an explicit action; redact secrets and payment/health/authentication fields; isolate per-user data; show active capture state; maintain audit history; offer revoke/disconnect and deletion controls.
+- **Build order:** first stabilize Angel core and API contracts; then ship a Chrome MV3 proof of concept for selected-tab summarization and handoff; test in Chrome; port/test Edge and Firefox; assess Safari packaging; only then add native companion exploration. Chrome Web Store publication requires owner account/review and cannot be claimed complete until approved.
 
 ## 5. Build sequence
 
@@ -257,11 +270,13 @@ This list consolidates earlier user requirements and prior project context. Each
 3. Image/media studio with asset provenance, prompt history and provider-specific quality/cost evaluation.
 4. Expand to other connectors based on validated use cases.
 
-### Phase 5: cross-device and agentic expansion
+### Phase 5: browser extension and cross-device expansion
 1. Offline transcription and offline-aware task behavior where feasible.
-2. Browser extension/native companion only when a concrete permissioned capability requires it.
-3. Multi-agent workflows with bounded steps, explicit tool grants, budget limits and independent verification.
-4. Evaluation harness, model arena and regression monitoring.
+2. Build a Chrome Manifest V3 extension proof of concept for user-selected tabs, explicit page access, and secure handoff to the standalone Angel app.
+3. Test browser compatibility separately and prepare Edge/Firefox/Safari targets where feasible; handle each store's signing, review, and distribution requirements.
+4. Add a signed native companion only if specific cross-app workflows cannot be delivered through official APIs or browser extensions.
+5. Multi-agent workflows with bounded steps, explicit tool grants, budget limits and independent verification.
+6. Evaluation harness, model arena and regression monitoring.
 
 ## 6. Definition of done
 
@@ -292,4 +307,4 @@ Every feature must have:
 
 ## 8. Limitations
 
-This is a consolidated capability and brand map, not an exhaustive inventory of every page/subdomain, regional product, enterprise SKU, API endpoint, or experimental service. Public products change frequently. The feature list is based on user requirements and prior project context; current implementation status must be verified from the repository. No source code has been changed as part of this document, and no device-specific feature is considered tested by being listed here.
+Angel is a personal AI companion and capability platform, not an operating system or a Jarvis clone. The cross-app reach described here is permissioned and platform-specific, not unrestricted access to every application. This is a consolidated capability and brand map, not an exhaustive inventory of every page/subdomain, regional product, enterprise SKU, API endpoint, or experimental service. Public products change frequently. The feature list is based on user requirements and prior project context; current implementation status must be verified from the repository. No source code has been changed as part of this document, and no device-specific feature is considered tested by being listed here.
