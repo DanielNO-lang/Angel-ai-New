@@ -124,3 +124,9 @@
 **Capabilities:** Cross-platform utility to test Google Translate endpoint IP connectivity, with scan mode, IPv6 support, optional host-file updates, and platform-specific execution instructions.
 **Architecture:** Network endpoint scanner and optional local host-file modification.
 **Angel recommendation:** Not a core AI capability. If network diagnostics are needed, provide transparent, user-authorized connectivity tests and clear remediation guidance. Do not automatically rewrite host files or use endpoint scanning to bypass provider access controls.
+
+
+## wong2/chatgpt-google-extension
+**Capabilities:** Browser extension showing ChatGPT responses alongside search results across Google, Bing, DuckDuckGo, Brave, Yahoo, and other search engines; supports official OpenAI API/ChatGPT Plus, Markdown/code rendering, dark mode, copy-to-clipboard, custom trigger mode, and language switching.
+**Architecture:** Browser extension injecting a response panel into search pages and calling an AI endpoint.
+**Angel recommendation:** The side-by-side search-assistant pattern is useful for a future Angel browser extension: summarize search results with citations, compare sources, and allow user-controlled triggers. The README says this repository stopped being updated after acquisition in 2023, so do not adopt it as a production dependency. Build against current browser extension APIs and use a clear permissions/privacy model.
