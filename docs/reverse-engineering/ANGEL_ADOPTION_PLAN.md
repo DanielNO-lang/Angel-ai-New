@@ -135,3 +135,14 @@ Start with Microsoft Graph as an optional connector for Outlook, Calendar, OneDr
 - Keep all external connectors opt-in, scoped, revocable, and auditable.
 - Creative outputs retain provider/model/version metadata and relevant provenance.
 - Treat Labs experiments and consumer product features as unstable until their specific API, terms, and availability are verified.
+
+
+### HubMind repository comparison (2026-10-23)
+
+See [Audit 07](./reports/07-hubmind-repository-candidates.md). The highest-value transferable patterns are:
+- Provider adapters, multi-model comparison, budgets/circuit breakers, and typed workflow nodes from the AI-workstation candidate.
+- GitHub repository/PR/issue discovery, duplicate detection, health reports, and natural-language task planning from the GitHub-assistant candidate.
+- Do not deploy Electron desktop code to Netlify as-is. Extract portable modules only after license, security, dependency, and runtime checks.
+- Treat broad GitHub `repo` scopes, shell execution, filesystem access, and batch writes as high-risk. Start read-only and require confirmation for side effects.
+- The older serverless_hubmind repository is a website starter, not an evidenced AI assistant.
+- The exact Netlify URL remains unresolved, so do not claim the intended HubMind has been definitively reviewed.
