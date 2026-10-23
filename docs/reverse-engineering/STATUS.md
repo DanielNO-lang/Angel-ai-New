@@ -7,8 +7,8 @@
 
 ## Current inventory
 - Target repositories catalogued: 74.
-- Source-inspected: 22 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
-- README-reviewed: 52 targets (reconnaissance only; implementation details may remain unknown).
+- Source-inspected: 23 targets in the 74-repository catalogue (selected modules/functions mapped; no full-repository audit/runtime test).
+- README-reviewed: 51 targets (reconnaissance only; implementation details may remain unknown).
 - Queued without any review: 0.
 - Local REA runtime executed in this session: No.
 - Angel Reverse Engineering Workbench implemented in the app: No, specification only.
@@ -28,7 +28,8 @@ The status counts are maintained in targets.json. “Source-inspected” and “
 8. phase-3-findings.md — coding-agent UI, desktop/mobile presence, provider wrappers, risks and later capabilities.
 9. phase-4-findings.md — inspected cookbook tool loops, memory compaction, evaluation, evidence contracts and skill authoring standards.
 10. phase-5-findings.md — function-level Google API, OAuth and TOTP SDK findings.
-11. deep-dives-p1.md — source-level function/module maps for operating-core, tasks, routing, MCP, GitHub automation, remote sessions and REA.
+11. phase-6-findings.md — function maps for the 17-stage Learn Claude Code harness, task/memory/background mechanics and safeguards.
+12. deep-dives-p1.md — source-level function/module maps for operating-core, tasks, routing, MCP, GitHub automation, remote sessions and REA.
 
 ## Source-inspected targets
 Selected modules/documents have been inspected for:
@@ -47,6 +48,7 @@ Selected modules/documents have been inspected for:
 - Claude Cookbooks and OpenAI Cookbook: selected notebook code for tool loops, search/retrieval, sandboxed memory compaction, evidence coverage and output-contract checks.
 - Composio and Alireza skill collections: skill creation/metadata, progressive disclosure and context-first authoring guidance.
 - Google API Node/Python/PHP clients, React Native Google Sign-In and two TOTP libraries: selected discovery/client, OAuth/token, sign-in and OTP functions.
+- Learn Claude Code: source functions across 17 lessons covering permissions, hooks, skills, compaction, memory, task dependencies, background jobs, cron, teams, MCP, workflow journal and goal loop.
 
 REA itself has a dedicated pinned source map in REA-SOURCE-MAP.md and an extended deep dive in deep-dives-p1.md. Its browser tool registration, browser scenario capture, source/trace/evidence tool surfaces, safe metadata filtering, origin scope, cancellation, timeout and cleanup patterns were inspected. **The REA runtime remains unexecuted.**
 
