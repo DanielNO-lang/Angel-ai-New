@@ -102,6 +102,7 @@ Each target gets a report under `docs/reverse-engineering/reports/<owner>--<repo
 - [Audit 04: Realtime, OpenAI ecosystem, voice, and chat interfaces](./reports/04-realtime-openai-voice-and-chat-ecosystem.md)
 - [Audit 05: Public AI products, HubMind, and Microsoft](./reports/05-public-ai-products-hubmind-and-microsoft.md)
 - [Audit 06: Open-source AI and Microsoft shortlist](./reports/06-open-source-ai-and-microsoft-shortlist.md)
+- [Audit 07: HubMind repository candidates](./reports/07-hubmind-repository-candidates.md)
 
 
 The three capability audits summarize documented capabilities and Angel adaptation recommendations. Three repository README fetches returned 404 in this pass and are marked unresolved in the adoption plan. Ponderfly/GoogleTranslateIpCheck is discussed in the adoption plan as a network-diagnostics utility. These are documentary findings, not a complete source-level reverse-engineering run.
@@ -118,3 +119,8 @@ Audit 05 reviews public product surfaces for ChatGPT, Claude, Gemini, Arena, Per
 **Important unresolved identity:** web research surfaced multiple distinct HubMind-branded services, including hubmind.com.au, aigateway.hubmind.app, and hu-mind.ai. None establishes which “upcoming AI on Netlify” the user meant. The exact Netlify URL or repository is needed before attributing features or reviewing code.
 
 **No production work was performed.** Reports are on the research branch. No login-based product tests, private-backend analysis, REA run, implementation, merge, or deployment occurred.
+
+
+## Addendum: HubMind repository disambiguation (2026-10-23)
+
+Audit 07 inspects public READMEs for three similarly named repositories: `ylw510/HubMind` (GitHub assistant), `lance808/HubMind` (cross-platform AI workstation), and `CarlstonG/serverless_hubmind` (older website starter). None is confirmed as the intended upcoming Netlify-hosted product. Treat them as candidate references only until the exact Netlify URL/repository is identified.
