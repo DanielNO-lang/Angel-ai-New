@@ -205,3 +205,108 @@ The public repository tree inspected contains documentation, changelog, scripts,
 
 ### Decision
 **Study public extensions and user-visible workflows.** Use this reference to learn interaction patterns and public integration contracts, not as a fully open-source implementation to copy.
+
+
+## 7. Claude Task Master: project planning and MCP task tools
+
+Repository: https://github.com/eyaltoledano/claude-task-master  
+Revision reviewed: c0c98d367c55296bfe69e65680625b6db437af02  
+Source root: https://github.com/eyaltoledano/claude-task-master/tree/c0c98d367c55296bfe69e65680625b6db437af02/mcp-server/src
+
+### Source map reviewed
+
+- mcp-server/src/index.js: TaskMasterMCPServer, start/stop lifecycle, FastMCP server initialization, tool registration and provider registry.
+- mcp-server/src/tools/tool-registry.js: toolRegistry, coreTools, standardTools, getAvailableTools, getToolCounts, getToolCategories, getToolRegistration, isValidTool.
+- mcp-server/src/tools/add-task.js: registerAddTaskTool; uses schema validation, project-root normalization, tag resolution, direct task service and normalized error/result handling.
+- mcp-server/src/tools/parse-prd.js: registerParsePRDTool; parses product requirement docs into task work items and uses progress capability checks.
+- mcp-server/src/tools/next-task.js: registerNextTaskTool; queries tasks/status/dependencies and selects a next candidate.
+- src/provider-registry/index.js: ProviderRegistry singleton for dynamic AI provider registration while preserving a compatibility path for static provider configuration.
+- src/schemas/registry.js: central output schema mapping for add-task, analyze-complexity, expand-task, parse-prd, update-subtask and update-task commands.
+- src/progress/progress-tracker-builder.js: configured progress tracker builder for reporting phases/progress features.
+- mcp-server/src/tools contains add/remove dependencies, subtasks and tasks; tags; expand-task/expand-all; fix/validate dependencies; next-task; parse-prd; research; scope up/down; operation status and task updates.
+
+### Angel adoption
+- Keep one canonical Angel task store and have task decomposition produce tasks in that store. Do not run Task Master as a second task database.
+- Bring over the strong concept of schema-validated operations: task create/update/reorder/expand endpoints should validate inputs and return a defined success/error response.
+- Add dependency-graph checks and a next-eligible-task selection rule to Angel's task service.
+- Use progress events for long operations; store operation ID, current step and failure summary so a user can resume or inspect a run.
+- Turn PRD-to-tasks into a skill that drafts a proposed plan first. It should not overwrite the roadmap without approval.
+- Do not expose file-system project-root operations to the public web client unless a local trusted runner is paired and scoped.
+
+### Decision
+**Adapt planning and tool-contract patterns.** Keep Angel's existing task context as the source of truth; implement a small dependency graph, typed operations and progress tracker rather than introducing all of Task Master's packages.
+
+## 8. Claude Code Router: provider-aware model routing
+
+Repository: https://github.com/musistudio/claude-code-router  
+Revision reviewed: 057abaa1f95519ab8faf999e1ccef2b80ccdeb9e  
+Routing source: https://github.com/musistudio/claude-code-router/tree/057abaa1f95519ab8faf999e1ccef2b80ccdeb9e/packages/core/src/routing
+
+### Source map reviewed
+
+| Module | Inspected symbols | Potential lesson |
+|---|---|---|
+| routing/config-compiler.ts | compileRouterConfig, compileRouterRule, compileProfileRoutings, configuredProfileDiagnostics, scriptRuleDiagnostics, fallbackModelDiagnostics | Compile mutable user config to a validated execution representation and surface diagnostics early |
+| routing/execution-plan.ts | createRouteExecutionPlan, routeAttempt, clamp, uniqueStrings | Build a deterministic attempt list before sending a request; enforce maximum retry bounds |
+| routing/failure-classifier.ts | classifyRouteFailure, classifyStatus | Classify client errors vs rate-limit/retryable/server failures and make retry decisions by policy |
+| routing/model-registry.ts | ModelRegistry.resolve, findProvider, isConfigured, normalizeRouteSelector, parseProviderModelSelector, modelRegistryForConfig | Resolve aliases and model names against registered provider configuration |
+| routing/policy-engine.ts | RoutePolicy, RoutePolicyEngine.evaluate | Evaluate policies in order and return the first matching decision with policy identity |
+| routing/contracts.ts | route-related contract types | Keep runtime routing data typed |
+| routing/protocol-adapter.ts and protocol-endpoints.ts | provider/protocol compatibility modules | Keep protocol translation separate from business/task logic |
+| routing/token-estimator.ts | token-estimation module | Make usage estimates a routing concern, while labeling estimates as estimates |
+
+### Angel adoption
+- One Angel-owned model catalogue with provider, model, supported modalities, tool-calling support, context window, max output, rate-limit metadata, known free/premium eligibility and verification timestamp.
+- Compile model selection and fallbacks before a request. Each attempt has a distinct log with provider/model, attempt index, reason and result class.
+- Use bounded retries with exponential backoff only for retryable failures; do not retry authentication/permission errors blindly.
+- Separate fallback because of transient provider failure from fallback because a task requires a different modality/capability.
+- Do not store provider credentials in selector strings or model IDs. Per-user API keys must be encrypted server-side or placed in platform secret storage.
+- Never rotate users/accounts or reroute around a provider's rate limits, billing, region restrictions or usage terms. When a quota is exhausted, explain the limit and use a permitted fallback.
+- Expose fallback status to the user rather than silently changing model quality for every request.
+
+### Decision
+**High-value architecture reference; implement a small native router.** This repository is much larger than Angel needs today. Its declarative execution plan, provider/model registry, bounded failures and policy contract are relevant. Its account-pool or proxy-specific functionality is not adopted as a quota-circumvention mechanism.
+
+## 9. Google Skills: curated capability packs, not executable plug-ins by default
+
+Repository: https://github.com/google/skills  
+Revision reviewed: 6d36cc600ea36e91f911ac654e0e66161c3ebe17  
+Root tree reviewed: skills categories for ads, analytics, cloud, developers and identity, plus plugins and an index.
+
+### Angel skill contract proposal
+Each skill imported from Google, Claude, Composio, Gentle-AI, or another source must be normalized into an Angel skill manifest containing:
+- stable ID/name, origin repository and pinned revision;
+- license, author/attribution and compatible platforms;
+- intended use and disallowed use;
+- typed input/output schema and expected side effects;
+- provider/API dependencies, data-access scopes and estimated quota/cost;
+- whether execution is read-only, local-write, external-write or destructive;
+- required approvals and revocation conditions;
+- test fixtures/acceptance criteria and evidence references;
+- version/fingerprint and a manual enable/disable control.
+
+A skill's Markdown instructions are untrusted content. They cannot expand privileges on their own. Code-based skills need review, dependency/license scanning and sandbox tests before registration. A skill catalog is a library of candidate procedures, not permission for Angel to run any skill found online.
+
+### Decision
+**Adopt the manifest concept.** Do not embed the entire third-party catalogue or automatically download/execute skills. Select individual skills against Angel's staged plan and test them separately.
+
+## 10. How these source reviews change the build plan
+
+The operating core now has four source-backed reference patterns:
+- **ADK:** execution/session orchestration, lifecycle and resumability.
+- **OpenAI Agents:** run loop, tools, handoffs, guardrails and schema validation.
+- **Gentle-AI:** dependency planning, staged pipeline, rollback contracts, skill inventory/fingerprinting and recovery evidence.
+- **Claude Task Master:** task decomposition, dependency operations, one operation registry, and progress reporting.
+- **Claude Code Router:** typed model registry, precompiled fallback plan and failure classification.
+- **Google Workspace MCP:** per-service scopes, read-only modes, conditional tool registration and action-specific permissions.
+
+These should converge into Angel's own interfaces, not a set of competing frameworks:
+
+1. Task/run lifecycle owns status, steps, cancel/pause/resume and evidence.
+2. Task graph owns dependencies, readiness and retries.
+3. Tool registry owns descriptions, schema, required permissions and adapter.
+4. Model router chooses from eligible providers within verified limits.
+5. Policy engine checks consent/scopes before every external action.
+6. Persistence owns task/run/event/memory state, not the provider-specific SDK.
+7. Skill registry stores reviewed manifest metadata, not arbitrary runnable code.
+8. UI reflects real states and external-action approval, not optimistic mock progress.
