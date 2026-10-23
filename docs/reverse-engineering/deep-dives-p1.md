@@ -368,3 +368,58 @@ For Angel's GitHub integration:
 - Skill instructions are not the same as executable code, and neither one is permission to access an app.
 - Browser observation is not browser-write permission. Inspecting a website and clicking “send”, “delete”, “purchase” or “publish” are different risk classes.
 - The internal event/task state, memory, audit record and account ownership should remain Angel-owned, even when an external tool/framework performs part of the work.
+
+
+## 14. HAPI: remote sessions, resumability and background agent connection
+
+Repository: https://github.com/tiann/hapi  
+Revision reviewed: 5d8deb201189dc1f183c4f5bf38c87ec4d34dd70  
+Source map: https://github.com/tiann/hapi/tree/5d8deb201189dc1f183c4f5bf38c87ec4d34dd70/shared/src
+
+### Source paths and functions inspected
+- shared/src/resume.ts: Zod schemas for LocalResumeTarget, ResumableSession, LocalResumeTargetResponse, ResumableSessionsResponse and LocalHandoffResponse; models resume targets with session ID, agent flavor, directory/machine, live status, ownership-control state and capability/model metadata.
+- shared/src/sessionLifecycle.ts: lifecycle state vocabulary (running, idle, archived) and isLiveLifecycleState. Comments explicitly distinguish transport liveness (socket/keepalive) from agent-work liveness. An idle marker is reversible and does not mean the transport is disconnected.
+- shared/src/agentCliSpawnLease.ts: getAgentCliSpawnLockTarget, tryAcquireAgentCliSpawnLeaseSync, acquireAgentCliSpawnLeaseSync/acquireAgentCliSpawnLease, releaseAgentCliSpawnLeaseSync and ACP release; uses an exclusive process lease because concurrent CLI child processes can terminate each other.
+- shared/src/workGraph.ts: Zod principal/event/link schemas, strict size caps, allowed work-graph event types, isPrincipalAccountable and principalMatchesAuthenticatedOwner. Non-human agent/service actions must identify an accountable human via on_behalf_of.
+- relay/src/rateLimit.ts: TokenBucketLimiter, process-local token bucket with per-key capacity/refill, bounded key map and LRU-like cleanup/eviction.
+- hub/src exposes socket/SSE, sync, notifications, visibility, tunnel and push modules; relay/src has device push endpoints and tests.
+- Extensive colocated unit/integration tests exist for resume/session lifecycle, schema limits, spawn lease and rate limiting. Their presence is not a claim that tests were executed here.
+
+### Lessons for Angel's Background Presence
+1. **Separate device/process availability from actual work status.** A connected agent process can be idle; a web socket being alive does not prove that a task is progressing.
+2. **Use one explicit session lifecycle:** starting, running, idle, waiting for approval, paused, archived/disconnected, failed. Mark timestamps and recent progress separately.
+3. **Resume rather than duplicate work.** A user moving from a laptop to a phone should see the same task/session, not spawn a second process or repeat a non-idempotent tool call.
+4. **Pair/authorize a device or companion.** A floating icon is not an authenticated device connection; sessions should carry a verified owner, bounded scope, expiry/revocation and a clear current-device indicator.
+5. **Require accountable ownership for delegated agents.** Every agent or service action should point to the human account and task that authorized it.
+6. **Use size, rate and concurrency limits.** Bound command payloads, attachments, request frequency and simultaneous local tool/CLI invocations; provide clear backpressure/error messages.
+7. **Do not confuse remote access with unrestricted remote control.** Every privileged feature needs a platform adapter, permissions and an audit record.
+
+### Decision
+**High-value reference for Stage 9 Background Angel.** Adapt session/resume/lifecycle/lease patterns. Do not expose a local CLI or tunnel directly to the public internet; use a paired, authenticated companion or strictly scoped server-side tools. A browser alone cannot create OS-level startup or persistent device control.
+
+## 15. Happy: cross-device session transfer and encryption design
+
+Repository: https://github.com/slopus/happy  
+Revision reviewed: d6b85a0dda14c9582e1f083539fd11d99924022f  
+Agent source: https://github.com/slopus/happy/tree/d6b85a0dda14c9582e1f083539fd11d99924022f/packages/happy-agent/src
+
+### Source paths inspected
+- packages/happy-agent/src/auth.ts: authLogin generates an ephemeral public-key box keypair, requests account authorization through the service, polls for authorization with a bounded timeout, decrypts an encrypted account secret and stores authorized credentials. authLogout and authStatus support session lifecycle.
+- packages/happy-agent/src/encryption.ts: base64 encoders, random-byte generation, HMAC-SHA512-based derivation, key tree/child derivation, deriveKey, deriveContentKeyPair, AES-256-GCM data-key encryption/decryption, legacy encryption handling and public-key box encryption/decryption.
+- packages/happy-agent/src/credentials.ts: readCredentials, writeCredentials, clearCredentials and requireCredentials manage local credential data and derive content key material.
+- packages/happy-agent/src/session.ts: SessionClient over Socket.IO; validates session and encryption configuration, encrypts outgoing session content, decrypts incoming messages, detects turn-start/turn-end and readiness events, and observes idle/agent state.
+- Tests are colocated for auth, credentials, encryption, API, session and integration flow. These were inspected as file presence only; not executed.
+
+### Lessons for Angel
+- Device linking can use a short-lived pairing handshake rather than making a user paste long-lived secrets into the UI.
+- Account credentials and content-encryption keys must remain separate concepts, with revocation and recovery behavior designed explicitly.
+- The session protocol should encrypt sensitive session content end-to-end where feasible; do not claim that a channel is end-to-end encrypted unless key ownership, server visibility, rekeying and recovery have been reviewed.
+- Persisted sessions need clear expiry, logout, revocation and device-management controls.
+- Keep protocol/session encryption separate from normal app database access and model-provider API keys.
+- Use authenticated device pairing and server-side rate limits; a QR code or a URL scheme alone is not proof of identity.
+
+### HAPI versus Happy
+Both provide relevant remote-session concepts, but they implement different client/session/security models and likely require different backend assumptions. Angel should choose one coherent pairing/session architecture only after comparing full authentication, threat model, license and supported host platforms. Do not combine their session protocols, encryption envelopes or schemas blindly.
+
+### Decision
+**Study for security and session architecture, then design Angel-owned contracts.** Reusing cryptographic code is a higher bar than reusing an interaction pattern; prefer audited libraries, published protocols and security review over lifting ad hoc crypto helpers into Angel.
