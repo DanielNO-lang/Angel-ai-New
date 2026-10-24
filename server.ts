@@ -112,17 +112,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       return res.status(401).json({ error: 'Sign in to synchronize your workspace.' });
     }
 
-    if (accessToken.startsWith('angel_jwt_') || accessToken.startsWith('angel_exec_') || accessToken.includes('danielokohnwachukwu22')) {
-      const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-      (req as any).angelAuth = {
-        userId: '8da72a15-8909-410b-97e1-38709930d60d',
-        accessToken,
-        client: adminClient,
-        isExecutive: true,
-      };
-      return next();
-    }
-
     const client = getSupabaseClientForUser(accessToken);
     if (!client) {
       return res.status(503).json({ error: 'Supabase authentication is not configured on the server.' });
@@ -145,17 +134,6 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     const header = req.headers.authorization || '';
     const accessToken = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
     if (!accessToken) return next();
-
-    if (accessToken.startsWith('angel_jwt_') || accessToken.startsWith('angel_exec_') || accessToken.includes('danielokohnwachukwu22')) {
-      const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-      (req as any).angelAuth = {
-        userId: '8da72a15-8909-410b-97e1-38709930d60d',
-        accessToken,
-        client: adminClient,
-        isExecutive: true,
-      };
-      return next();
-    }
 
     const client = getSupabaseClientForUser(accessToken);
     if (!client) return res.status(503).json({ error: 'Supabase authentication is not configured on the server.' });
