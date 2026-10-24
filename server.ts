@@ -1214,7 +1214,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
       allowedTools,
       permissions,
       memoryAccess,
+      autonomyMode: requestedAutonomyMode,
     } = req.body;
+    const autonomyModes = ['assist', 'supervised', 'bounded', 'proactive'] as const;
+    const autonomyMode = autonomyModes.includes(requestedAutonomyMode) ? requestedAutonomyMode : 'bounded';
 
     if (!taskPrompt || !agentId) {
       return res.status(400).json({ error: 'agentId and taskPrompt are required' });
@@ -1238,6 +1241,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
         allowedTools,
         permissions,
         memoryAccess,
+        autonomyMode,
       });
 
       res.json(result);
