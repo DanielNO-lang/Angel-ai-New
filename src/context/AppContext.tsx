@@ -130,6 +130,18 @@ interface AppContextType {
   requestPasswordRecovery: (email: string) => Promise<{ success: boolean; message: string }>;
   sendMessage: (content: string, attachments?: Message['attachments'], explicitConversationId?: string, retryAssistantMessageId?: string) => Promise<void>;
 
+  // Live Voice & Floating Overlay Management
+  isLiveVoiceOpen: boolean;
+  setIsLiveVoiceOpen: (open: boolean) => void;
+  isLiveVoiceMinimized: boolean;
+  setIsLiveVoiceMinimized: (minimized: boolean) => void;
+
+  // Reasoning & Intelligence Model Selection
+  selectedModelId: string;
+  setSelectedModelId: (modelId: string) => void;
+  isThinkingActive: boolean;
+  setIsThinkingActive: (active: boolean) => void;
+
   // User Profile
   userProfile: UserProfile;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
@@ -265,13 +277,13 @@ function createGuestConversation(): Conversation {
   const now = new Date().toISOString();
   return {
     id: GUEST_CONVERSATION_ID,
-    title: 'Angel Jarvis Command',
+    title: 'Chat with Angel',
     createdAt: now,
     updatedAt: now,
     agentId: 'angel-core',
     pinned: false,
     messageCount: 1,
-    lastMessagePreview: 'Jarvis tactical engine standing by.',
+    lastMessagePreview: 'Hey there! What are we getting into today?',
   };
 }
 
@@ -281,14 +293,12 @@ function createGuestMessages(): Record<string, Message[]> {
       id: `msg-guest-${Date.now()}`,
       conversationId: GUEST_CONVERSATION_ID,
       role: 'assistant',
-      content: `### 🛡️ ANGEL COMMAND CENTER // ONLINE
-**Clearance:** Sovereign Executive Access  
-**Tactical Core:** Autonomous Jarvis Engine Active  
-**Cryptographic Enclave:** AES-GCM 256-bit
+      content: `### ✨ ANGEL // ONLINE
+**Your Personalized Companion & Cognitive Partner**
 
-Hello, Commander. I am **Angel** — your advanced, military-grade autonomous AI operating environment. I am ready to assist with high-speed intelligence, tactical reasoning, automated workflows, and multi-agent synthesis.
+Hey there! I'm **Angel**. I'm here to help you think through complex problems, architect systems, write clean code, keep your projects organized, and accelerate whatever you're working on.
 
-State your directive or ask anything to begin.`,
+What are we getting into today?`,
       createdAt: new Date().toISOString(),
       agentId: 'angel-core',
     }],
@@ -417,6 +427,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [isMobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
+  // Live Voice In-Chat & Floating Widget Management
+  const [isLiveVoiceOpen, setIsLiveVoiceOpen] = useState<boolean>(false);
+  const [isLiveVoiceMinimized, setIsLiveVoiceMinimized] = useState<boolean>(false);
+
+  // Reasoning Mode & Intelligence Model Selector
+  const [selectedModelId, setSelectedModelId] = useState<string>('gemini-3.8-flash');
+  const [isThinkingActive, setIsThinkingActive] = useState<boolean>(false);
+
   // Command Palette & Global Search State
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
   const [commandPaletteInitialScope, setCommandPaletteInitialScope] = useState<CommandPaletteScope>('all');
@@ -460,19 +478,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           id: 'msg-welcome-init',
           conversationId: 'conv-welcome',
           role: 'assistant',
-          content: `### 🛡️ ANGEL AI COMMAND CENTER // ONLINE
-**System Clearance:** Level 5 Sovereign Executive  
-**Status:** All Neural Subsystems Nominal  
-**Tactical Core:** Autonomous Jarvis Intelligence Engine Active
+          content: `### ✨ ANGEL AI // ONLINE
+**Your Personalized Companion & Cognitive Partner**
 
-Welcome, Commander. Angel is your military-grade, zero-compromise personal AI operating environment. 
+Hey! Welcome to **Angel**. I'm here to help you think, learn, design, build, and organize your workspace.
 
-* ⚡ **High-Speed Tactical Reasoning & Code Synthesis**
-* 🌐 **Live Web Intelligence & Deep Multi-Agent Execution**
-* 🔒 **Sovereign Cryptographic Enclave (End-to-End Vault)**
-* 🎙️ **Voice Telemetry & HUD Perception**
+* ⚡ **High-Speed Reasoning & Code Synthesis**
+* 🌐 **Live Web Intelligence & Multi-Agent Execution**
+* 🔒 **Sovereign Cryptographic Enclave (Private Vault)**
+* 🎙️ **Live Voice Interaction & Multimodal Vision**
 
-State your directive, or select a command from the matrix below.`,
+Ask me anything or tell me what you want to work on!`,
           createdAt: new Date().toISOString(),
           agentId: 'angel-core',
         },
@@ -864,8 +880,11 @@ State your directive, or select a command from the matrix below.`,
         }
         setIsAuthPageOpen(false);
       } else if (event === 'SIGNED_OUT') {
-        setIsSignedIn(false);
-        setSessionToken(null);
+        const storedToken = typeof localStorage !== 'undefined' ? localStorage.getItem('angel_auth_token') : null;
+        if (!storedToken) {
+          setIsSignedIn(false);
+          setSessionToken(null);
+        }
       }
     });
 
@@ -873,11 +892,13 @@ State your directive, or select a command from the matrix below.`,
     const handleOAuthPopupMessage = async (event: MessageEvent) => {
       if (event.data?.type === 'ANGEL_OAUTH_CALLBACK') {
         const hash = String(event.data.hash || '');
-        if (hash.includes('error=')) {
-          const hashParams = new URLSearchParams(hash.substring(1));
+        const search = String(event.data.search || '');
+
+        if (hash.includes('error=') || search.includes('error=')) {
+          const params = new URLSearchParams(hash ? hash.substring(1) : search.startsWith('?') ? search.substring(1) : search);
           const desc =
-            hashParams.get('error_description') ||
-            hashParams.get('error') ||
+            params.get('error_description') ||
+            params.get('error') ||
             'Google authentication was cancelled or could not be completed.';
           setAuthError(decodeURIComponent(desc.replace(/\+/g, ' ')));
           setAuthPageMode('signin');
@@ -885,7 +906,59 @@ State your directive, or select a command from the matrix below.`,
           return;
         }
 
-        if (hash.includes('access_token=')) {
+        // 1. Handle PKCE Authorization Code Exchange
+        if (search.includes('code=') && client) {
+          try {
+            const searchParams = new URLSearchParams(search.startsWith('?') ? search.substring(1) : search);
+            const code = searchParams.get('code');
+            if (code) {
+              const { data: exchangeData, error: exchangeErr } = await client.auth.exchangeCodeForSession(code);
+              if (exchangeErr) throw exchangeErr;
+              if (exchangeData?.session?.user) {
+                const session = exchangeData.session;
+                setSessionToken(session.access_token);
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('angel_auth_token', session.access_token);
+                  localStorage.removeItem('angel_is_guest');
+                }
+                setIsSignedIn(true);
+                const name =
+                  session.user.user_metadata?.full_name ||
+                  session.user.user_metadata?.name ||
+                  session.user.email?.split('@')[0] ||
+                  'Angel User';
+                const initials =
+                  name
+                    .split(' ')
+                    .map((n: string) => n[0])
+                    .filter(Boolean)
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase() || 'AU';
+                setUserProfile((prev) => ({
+                  ...prev,
+                  id: session.user.id,
+                  name,
+                  email: session.user.email || prev.email,
+                  initials,
+                  plan: 'Free',
+                  status: 'online',
+                  avatarUrl: session.user.user_metadata?.avatar_url || prev.avatarUrl,
+                }));
+                setIsAuthPageOpen(false);
+                setAuthError(null);
+                return;
+              }
+            }
+          } catch (err) {
+            console.warn('[Supabase OAuth] Failed to exchange code for session:', err);
+            setAuthError(err instanceof Error ? err.message : 'Google authentication could not be completed.');
+            return;
+          }
+        }
+
+        // 2. Handle Implicit Flow Tokens
+        if (hash.includes('access_token=') && client) {
           try {
             const hashParams = new URLSearchParams(hash.substring(1));
             const accessToken = hashParams.get('access_token');
@@ -901,7 +974,7 @@ State your directive, or select a command from the matrix below.`,
                   user.user_metadata?.full_name ||
                   user.user_metadata?.name ||
                   user.email?.split('@')[0] ||
-                  'Daniel Nwachukwu';
+                  'Angel User';
                 const initials =
                   name
                     .split(' ')
@@ -909,7 +982,7 @@ State your directive, or select a command from the matrix below.`,
                     .filter(Boolean)
                     .join('')
                     .substring(0, 2)
-                    .toUpperCase() || 'DN';
+                    .toUpperCase() || 'AU';
                 setSessionToken(accessToken);
                 if (typeof localStorage !== 'undefined') {
                   localStorage.setItem('angel_auth_token', accessToken);
@@ -938,6 +1011,54 @@ State your directive, or select a command from the matrix below.`,
     };
     window.addEventListener('message', handleOAuthPopupMessage);
 
+    // Also check direct main-window PKCE redirect (?code=...)
+    if (typeof window !== 'undefined' && window.location.search.includes('code=') && client) {
+      try {
+        const searchParams = new URLSearchParams(window.location.search);
+        const code = searchParams.get('code');
+        if (code) {
+          client.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+            if (!error && data?.session?.user) {
+              const session = data.session;
+              setSessionToken(session.access_token);
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('angel_auth_token', session.access_token);
+                localStorage.removeItem('angel_is_guest');
+              }
+              setIsSignedIn(true);
+              const name =
+                session.user.user_metadata?.full_name ||
+                session.user.user_metadata?.name ||
+                session.user.email?.split('@')[0] ||
+                'Angel User';
+              const initials =
+                name
+                  .split(' ')
+                  .map((n: string) => n[0])
+                  .filter(Boolean)
+                  .join('')
+                  .substring(0, 2)
+                  .toUpperCase() || 'AU';
+              setUserProfile((prev) => ({
+                ...prev,
+                id: session.user.id,
+                name,
+                email: session.user.email || prev.email,
+                initials,
+                plan: 'Free',
+                status: 'online',
+                avatarUrl: session.user.user_metadata?.avatar_url || prev.avatarUrl,
+              }));
+              setIsAuthPageOpen(false);
+            }
+            try {
+              window.history.replaceState(null, '', window.location.pathname);
+            } catch {}
+          }).catch(() => {});
+        }
+      } catch {}
+    }
+
     return () => {
       authSub?.subscription?.unsubscribe();
       window.removeEventListener('message', handleOAuthPopupMessage);
@@ -958,9 +1079,13 @@ State your directive, or select a command from the matrix below.`,
     fetch('/api/auth/session', {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => {
-        if (res.ok) return res.json();
-        return null;
+      .then(async (res) => {
+        try {
+          const text = await res.text();
+          return text ? JSON.parse(text) : null;
+        } catch {
+          return null;
+        }
       })
       .then((data) => {
         if (data && data.authenticated && data.profile) {
@@ -970,17 +1095,24 @@ State your directive, or select a command from the matrix below.`,
             id: data.profile.id,
             name: data.profile.name,
             email: data.profile.email,
-            initials: data.profile.name.slice(0, 2).toUpperCase() || 'DN',
+            initials: data.profile.name.slice(0, 2).toUpperCase() || 'AU',
             status: 'online',
             avatarUrl: data.profile.avatarUrl || prev.avatarUrl,
             title: data.profile.title || prev.title,
           }));
 
-          // Pull scoped cloud persistence data
+          // Pull scoped cloud persistence data safely
           fetch('/api/user/cloud-data', {
             headers: { Authorization: `Bearer ${token}` },
           })
-            .then((r) => r.json())
+            .then(async (r) => {
+              try {
+                const text = await r.text();
+                return text ? JSON.parse(text) : null;
+              } catch {
+                return null;
+              }
+            })
             .then((cloud) => {
               if (cloud?.data) {
                 if (Array.isArray(cloud.data.tasks) && cloud.data.tasks.length > 0) setTasks(cloud.data.tasks);
@@ -991,7 +1123,7 @@ State your directive, or select a command from the matrix below.`,
               }
             })
             .catch(() => {});
-        } else if (data && data.authenticated === false) {
+        } else if (data && data.authenticated === false && !token.startsWith('angel_')) {
           // Explicit token rejection from server
           resetToGuestWorkspace();
         }
@@ -2568,6 +2700,14 @@ State your directive, or select a command from the matrix below.`,
         triggerZapierWebhook,
         dispatchAutomationEvent,
         clearAllData,
+        isLiveVoiceOpen,
+        setIsLiveVoiceOpen,
+        isLiveVoiceMinimized,
+        setIsLiveVoiceMinimized,
+        selectedModelId,
+        setSelectedModelId,
+        isThinkingActive,
+        setIsThinkingActive,
       }}
     >
       {children}

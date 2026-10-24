@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowUpRight, Bot, Clock3, ImagePlus, MessageSquare, Search, Workflow } from 'lucide-react';
+import { ArrowUpRight, Bot, Clock3, Headphones, ImagePlus, MessageSquare, Search, Workflow } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
 import { saveCapabilityHandoff } from '../../services/capabilityHandoff';
@@ -108,6 +108,8 @@ export const HomeView: React.FC = () => {
     conversations,
     tasks,
     settings,
+    setIsLiveVoiceOpen,
+    setIsLiveVoiceMinimized,
   } = useAngel();
   const isLight = settings.theme === 'light';
   const [promptText, setPromptText] = useState('');
@@ -123,6 +125,12 @@ export const HomeView: React.FC = () => {
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   })();
+
+  const startLiveVoiceSession = () => {
+    setIsLiveVoiceOpen(true);
+    setIsLiveVoiceMinimized(false);
+    setActiveTab('chat');
+  };
 
   const openChatWithPrompt = (prompt: string) => {
     const cleanPrompt = prompt.trim();
@@ -187,13 +195,28 @@ export const HomeView: React.FC = () => {
           />
           <div className="flex items-center justify-between gap-3 border-t border-inherit px-2 pt-2">
             <span className={`text-[11px] ${muted}`}>Your request stays in Chat until you choose a tool.</span>
-            <button
-              type="submit"
-              disabled={!promptText.trim()}
-              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Start chat <ArrowUpRight className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={startLiveVoiceSession}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                  isLight
+                    ? 'border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100'
+                    : 'border-indigo-500/30 bg-indigo-950/40 text-indigo-300 hover:bg-indigo-900/50'
+                }`}
+                title="Start interactive Live Voice session in Chat"
+              >
+                <Headphones className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Live Voice</span>
+              </button>
+              <button
+                type="submit"
+                disabled={!promptText.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Start chat <ArrowUpRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </form>
       </section>

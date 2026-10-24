@@ -32,6 +32,7 @@ import { AutomationView } from './components/automation/AutomationView';
 import { SkillsView } from './components/skills/SkillsView';
 import { PluginsView } from './components/plugins/PluginsView';
 import { CommandPalette } from './components/search/CommandPalette';
+import { FloatingVoiceWidget } from './components/voice/FloatingVoiceWidget';
 import { BackdropLayer } from './components/ui/BackdropLayer';
 import { NetworkStatusToast } from './components/ui/NetworkStatusToast';
 import { Maximize2 } from 'lucide-react';
@@ -223,6 +224,7 @@ const WorkspaceContent: React.FC = () => {
       case 'research':
         return <ResearchWorkspace />;
       case 'voice':
+        return <ChatView />;
       case 'visual_mode':
         return <ChatView />;
       case 'canvas':
@@ -353,6 +355,9 @@ const WorkspaceContent: React.FC = () => {
 
       {/* Global Workspace Search & Command Palette */}
       <CommandPalette />
+
+      {/* Floating Live Voice Widget (active when minimized or outside chat) */}
+      <FloatingVoiceWidget />
 
       {/* Sign-in / Sign-up Screen */}
       <AuthPage />

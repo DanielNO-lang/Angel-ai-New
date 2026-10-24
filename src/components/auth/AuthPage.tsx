@@ -57,6 +57,16 @@ export const AuthPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
 
+  const [lastAccount, setLastAccount] = useState<{ email: string; name: string } | null>(() => {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem('angel_last_account');
+        return raw ? JSON.parse(raw) : null;
+      }
+    } catch {}
+    return null;
+  });
+
   if (!isAuthPageOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,9 +92,16 @@ export const AuthPage: React.FC = () => {
           setRecoveryMessage(result.message || 'Your account has been created. Check your email to confirm it, then sign in.');
           setAuthPageMode('signin');
           setPassword('');
+        } else {
+          try {
+            localStorage.setItem('angel_last_account', JSON.stringify({ email: cleanEmail, name: cleanName }));
+          } catch {}
         }
       } else {
         await signIn(cleanEmail, password);
+        try {
+          localStorage.setItem('angel_last_account', JSON.stringify({ email: cleanEmail, name: cleanEmail.split('@')[0] }));
+        } catch {}
       }
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'Authentication failed. Please try again.');
@@ -107,6 +124,12 @@ export const AuthPage: React.FC = () => {
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem('angel_auth_token', res.token);
           localStorage.removeItem('angel_is_guest');
+          if (res.profile?.email) {
+            localStorage.setItem('angel_last_account', JSON.stringify({
+              email: res.profile.email,
+              name: res.profile.name || res.profile.email.split('@')[0],
+            }));
+          }
         }
         setIsSignedIn(true);
         if (res.profile) {
@@ -116,42 +139,56 @@ export const AuthPage: React.FC = () => {
         setIsSubmitting(false);
         return;
       }
-      // If popup or redirect was initiated
+      // Popup opened successfully — user chooses their Google account from the list
       window.setTimeout(() => {
         setIsSubmitting(false);
-      }, 4000);
+      }, 5000);
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'Google authentication could not be started.');
       setIsSubmitting(false);
     }
   };
 
-  const handleQuickDeviceSignIn = async () => {
+  const handleQuickDeviceSignIn = async (targetAccount?: { email: string; name: string }) => {
+    const acct = targetAccount || lastAccount;
+    if (!acct || !acct.email) {
+      handleGoogleSignIn();
+      return;
+    }
     setIsSubmitting(true);
     setAuthError(null);
     try {
       const verifyRes = await fetch('/api/auth/google/verify-or-create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'danielokohnwachukwu22@gmail.com', name: 'Daniel Nwachukwu' }),
+        body: JSON.stringify({ email: acct.email, name: acct.name }),
       });
-      const verifyData = await verifyRes.json();
-      if (verifyData.success && verifyData.token) {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('angel_auth_token', verifyData.token);
-          localStorage.removeItem('angel_is_guest');
-        }
-        setIsSignedIn(true);
-        if (verifyData.profile) {
-          updateUserProfile(verifyData.profile);
-        }
-        setIsAuthPageOpen(false);
-        setIsSubmitting(false);
-        return;
+
+      const text = await verifyRes.text();
+      let verifyData: any = null;
+      try {
+        verifyData = text ? JSON.parse(text) : null;
+      } catch {
+        throw new Error('Authentication response could not be parsed.');
       }
-      throw new Error(verifyData.error || 'Failed to authenticate detected device account.');
+
+      if (!verifyRes.ok || !verifyData || !verifyData.success || !verifyData.token) {
+        throw new Error(verifyData?.error || `Authentication failed (status ${verifyRes.status})`);
+      }
+
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('angel_auth_token', verifyData.token);
+        localStorage.removeItem('angel_is_guest');
+        localStorage.setItem('angel_last_account', JSON.stringify({ email: acct.email, name: acct.name }));
+      }
+      setIsSignedIn(true);
+      if (verifyData.profile) {
+        updateUserProfile(verifyData.profile);
+      }
+      setIsAuthPageOpen(false);
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'Could not authenticate with device account.');
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -272,32 +309,47 @@ export const AuthPage: React.FC = () => {
                 <span>{authPageMode === 'signin' ? 'Continue with Google' : 'Sign up with Google'}</span>
               </button>
 
-              {/* Detected Device Account Quick-Action */}
-              <div
-                className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs transition-all ${
-                  isLight
-                    ? 'bg-indigo-50/70 border-indigo-200/80 text-slate-800'
-                    : 'bg-indigo-950/30 border-indigo-500/25 text-neutral-200'
-                }`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    DN
+              {/* Dynamic Last-Used Device Account (Only shown if user previously logged in on this browser) */}
+              {lastAccount && (
+                <div
+                  className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 text-xs transition-all ${
+                    isLight
+                      ? 'bg-indigo-50/70 border-indigo-200/80 text-slate-800'
+                      : 'bg-indigo-950/30 border-indigo-500/25 text-neutral-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                      {lastAccount.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 text-left">
+                      <div className="font-semibold truncate text-[11px]">{lastAccount.name}</div>
+                      <div className="text-[10px] text-indigo-400 truncate">{lastAccount.email}</div>
+                    </div>
                   </div>
-                  <div className="min-w-0 text-left">
-                    <div className="font-semibold truncate text-[11px]">Daniel Nwachukwu</div>
-                    <div className="text-[10px] text-indigo-400 truncate">danielokohnwachukwu22@gmail.com</div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickDeviceSignIn(lastAccount)}
+                      disabled={isSubmitting}
+                      className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[11px] cursor-pointer transition-colors shadow-2xs"
+                    >
+                      Continue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={isSubmitting}
+                      className={`px-2 py-1 rounded-lg font-medium text-[10px] border cursor-pointer transition-colors ${
+                        isLight ? 'border-slate-200 hover:bg-slate-100 text-slate-600' : 'border-white/10 hover:bg-white/10 text-neutral-300'
+                      }`}
+                      title="Choose a different Google account"
+                    >
+                      Switch
+                    </button>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleQuickDeviceSignIn}
-                  disabled={isSubmitting}
-                  className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-[11px] shrink-0 cursor-pointer transition-colors shadow-2xs"
-                >
-                  Quick Sign In
-                </button>
-              </div>
+              )}
             </div>
 
             {/* Divider */}

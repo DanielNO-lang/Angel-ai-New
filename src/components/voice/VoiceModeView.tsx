@@ -32,6 +32,7 @@ import {
   User,
   Sparkles,
   Smile,
+  Minus,
 } from 'lucide-react';
 import { useAngel } from '../../context/AppContext';
 import { AngelLogo } from '../ui/AngelLogo';
@@ -39,7 +40,17 @@ import { voiceEngine } from '../../services/voice/voiceService';
 import { routeAngelVoiceUtterance } from '../../services/voice/voiceCommandRouter';
 import { buildAngelMasterSystemPrompt, ANGEL_CHARACTER_PRESENTATIONS } from '../../services/ai/angelMasterPrompt';
 
-export const VoiceModeView: React.FC = () => {
+export interface VoiceModeViewProps {
+  embedded?: boolean;
+  onClose?: () => void;
+  onMinimize?: () => void;
+}
+
+export const VoiceModeView: React.FC<VoiceModeViewProps> = ({
+  embedded = false,
+  onClose,
+  onMinimize,
+}) => {
   const {
     settings,
     setActiveTab,
@@ -79,6 +90,7 @@ export const VoiceModeView: React.FC = () => {
 
   // Transcript states
   const [transcript, setTranscript] = useState('');
+  const [customVoiceInput, setCustomVoiceInput] = useState('');
   const [angelResponse, setAngelResponse] = useState("I'm listening. Ask me anything, or instruct me to run an agent workflow.");
   const [transcriptHistory, setTranscriptHistory] = useState<Array<{ sender: 'user' | 'angel'; text: string }>>([]);
 
@@ -362,7 +374,8 @@ export const VoiceModeView: React.FC = () => {
       text,
       voiceKey,
       () => { isSpeakingRef.current = true; setIsSpeaking(true); },
-      () => { isSpeakingRef.current = false; setIsSpeaking(false); }
+      () => { isSpeakingRef.current = false; setIsSpeaking(false); },
+      speakingSpeed
     );
   };
 
@@ -522,66 +535,68 @@ export const VoiceModeView: React.FC = () => {
 
   return (
     <div
-      className={`relative flex flex-col h-full min-h-screen select-none overflow-hidden bg-transparent transition-colors duration-200 ${
-        isLight ? 'text-slate-800' : 'text-neutral-100'
-      }`}
+      className={`relative flex flex-col ${
+        embedded
+          ? 'w-full max-h-[460px] h-[430px] rounded-2xl border border-indigo-500/30 shadow-2xl backdrop-blur-xl bg-[#090D18]/95 overflow-hidden'
+          : 'h-full min-h-screen select-none overflow-hidden bg-transparent'
+      } transition-colors duration-200 ${isLight ? 'text-slate-800' : 'text-neutral-100'}`}
     >
-      {/* Top Header (Aligned with Image 3) */}
-      <div className="flex items-center justify-between p-4 sm:p-6 z-20">
+      {/* Top Header */}
+      <div className={`flex items-center justify-between ${embedded ? 'px-4 py-3 border-b border-indigo-500/20' : 'p-4 sm:p-6'} z-20`}>
         <div className="flex items-center gap-3">
-          <AngelLogo size={28} glow={true} />
+          <AngelLogo size={embedded ? 24 : 28} glow={true} />
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xs font-bold tracking-tight">Voice Mode</h2>
+              <h2 className="text-xs font-bold tracking-tight">Live Voice Studio</h2>
               <span className={`text-[10px] font-medium ${
                 isSpeaking ? 'text-purple-400' : isListening ? 'text-emerald-400' : 'text-neutral-400'
               }`}>
                 {isSpeaking ? 'Angel Speaking' : isListening ? 'Live Listening' : 'Paused'}
               </span>
             </div>
-            <p className={`text-[11px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
-              Model: Gemini 3.8 Flash Audio • {selectedVoice.split(' ')[0]}
+            <p className={`text-[10px] ${isLight ? 'text-slate-400' : 'text-neutral-500'}`}>
+              Gemini 3.8 Flash • {selectedVoice.split(' ')[0]}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Character Presentation Switcher (Section 1) */}
-          <div className="flex items-center p-1 rounded-xl bg-indigo-950/40 border border-indigo-500/20 text-xs">
+          <div className="flex items-center p-0.5 rounded-lg bg-indigo-950/40 border border-indigo-500/20 text-[11px]">
             <button
               onClick={() => {
                 setCharacterGender('female');
                 setSelectedVoice('Kore (Balanced)');
               }}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+              className={`px-2 py-0.5 rounded-md font-medium transition-all cursor-pointer ${
                 characterGender === 'female'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'text-neutral-400 hover:text-white'
               }`}
-              title="Female (Default: East Asian-inspired young adult woman)"
+              title="Angel (Female presentation)"
             >
-              Angel (Female)
+              Female
             </button>
             <button
               onClick={() => {
                 setCharacterGender('male');
                 setSelectedVoice('Puck (Direct)');
               }}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer ${
+              className={`px-2 py-0.5 rounded-md font-medium transition-all cursor-pointer ${
                 characterGender === 'male'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'text-neutral-400 hover:text-white'
               }`}
-              title="Male Presentation"
+              title="Angel (Male presentation)"
             >
-              Angel (Male)
+              Male
             </button>
           </div>
 
           {/* Incognito Pill Button (Image 3) */}
           <button
             onClick={() => setIsIncognitoActive(!isIncognitoActive)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
               isIncognitoActive
                 ? 'bg-indigo-600 border-indigo-500 text-white shadow-md'
                 : isLight
@@ -589,22 +604,40 @@ export const VoiceModeView: React.FC = () => {
                 : 'bg-neutral-900/80 border-white/10 text-neutral-300 hover:bg-neutral-850'
             }`}
           >
-            <Flame className="w-3.5 h-3.5 text-amber-400" />
+            <Flame className="w-3 h-3 text-amber-400" />
             <span>Incognito {isIncognitoActive ? 'ON' : ''}</span>
           </button>
+
+          {/* Minimize to Floating Bubble */}
+          {onMinimize && (
+            <button
+              onClick={onMinimize}
+              className={`p-1.5 rounded-xl border transition-colors cursor-pointer ${
+                isLight ? 'border-slate-200 hover:bg-slate-100 text-slate-600' : 'border-white/10 hover:bg-white/10 text-neutral-300'
+              }`}
+              title="Minimize Live Voice to Floating Widget"
+              aria-label="Minimize"
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+          )}
 
           {/* Close button to Chat */}
           <button
             onClick={() => {
               if (window.speechSynthesis) window.speechSynthesis.cancel();
-              setActiveTab('chat');
+              if (onClose) {
+                onClose();
+              } else {
+                setActiveTab('chat');
+              }
             }}
-            className={`p-2 rounded-xl transition-colors cursor-pointer ${
+            className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
               isLight ? 'hover:bg-slate-200/80 text-slate-600' : 'hover:bg-neutral-800 text-neutral-400'
             }`}
             title="Exit Voice Mode"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -887,23 +920,59 @@ export const VoiceModeView: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Suggestion Voice Prompts */}
-        <div className="flex items-center gap-2 flex-wrap justify-center max-w-lg pt-1">
+        {/* Interactive Voice Test Input Bar */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (customVoiceInput.trim()) {
+              handleProcessUserPrompt(customVoiceInput.trim());
+              setCustomVoiceInput('');
+            }
+          }}
+          className="w-full max-w-md flex items-center gap-2 pt-1"
+        >
+          <input
+            type="text"
+            value={customVoiceInput}
+            onChange={(e) => setCustomVoiceInput(e.target.value)}
+            placeholder="Type a prompt to test Angel's voice & personality..."
+            className={`flex-1 px-3.5 py-2 text-xs rounded-xl border outline-none transition-all ${
+              isLight
+                ? 'bg-white border-slate-200 text-slate-800 placeholder-slate-400 focus:border-indigo-500'
+                : 'bg-neutral-900/80 border-white/10 text-white placeholder-neutral-500 focus:border-indigo-400'
+            }`}
+          />
+          <button
+            type="submit"
+            disabled={!customVoiceInput.trim()}
+            className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-xs font-semibold shrink-0 transition-all cursor-pointer shadow-xs"
+          >
+            Speak
+          </button>
+        </form>
+
+        {/* Angel Architecture Prompt Test Chips */}
+        <div className="flex items-center gap-1.5 flex-wrap justify-center max-w-lg pt-1">
           {[
-            'Summarize my open projects',
-            'Plan my schedule for tomorrow',
-            'Review system architecture',
-          ].map((prompt) => (
+            { label: 'Identity (Sec 1)', prompt: 'Angel, are you an AI or a super being?' },
+            { label: 'Slightly Sassy (Sec 2)', prompt: 'Are you smarter than other assistants, or just pretending?' },
+            { label: 'Professor Clarity (Sec 3)', prompt: 'Explain how quantum entanglement enables quantum key distribution in 2 sentences.' },
+            { label: 'Emotional Support (Sec 4)', prompt: 'I had a really grueling day and feel overwhelmed with this deadline.' },
+            { label: 'Peak Reaction (Sec 6)', prompt: 'We just achieved a massive breakthrough on our sovereign neural network!' },
+            { label: 'Respectful Disagree (Sec 2/4)', prompt: 'I think we should delete all database backups to save disk space.' },
+          ].map((item) => (
             <button
-              key={prompt}
-              onClick={() => handleSimulatePrompt(prompt)}
-              className={`px-3 py-1 rounded-full text-[11px] border transition-all ${
+              key={item.label}
+              type="button"
+              onClick={() => handleSimulatePrompt(item.prompt)}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all cursor-pointer ${
                 isLight
-                  ? 'bg-white/80 border-slate-200 hover:border-indigo-400 text-slate-700'
-                  : 'bg-neutral-900/60 border-white/10 hover:border-indigo-500/40 text-neutral-300'
+                  ? 'bg-white/80 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 text-slate-700'
+                  : 'bg-neutral-900/60 border-white/10 hover:border-indigo-500/40 hover:bg-indigo-950/30 text-neutral-300'
               }`}
+              title={item.prompt}
             >
-              "{prompt}"
+              {item.label}
             </button>
           ))}
         </div>

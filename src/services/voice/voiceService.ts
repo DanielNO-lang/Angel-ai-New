@@ -64,7 +64,8 @@ class VoiceEngine {
     text: string,
     voiceName: string = 'Kore',
     onStart?: () => void,
-    onEnd?: () => void
+    onEnd?: () => void,
+    speed: number = 1.0
   ): Promise<void> {
     this.stopSpeaking();
 
@@ -73,13 +74,14 @@ class VoiceEngine {
       const res = await fetch('/api/voice/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voiceName }),
+        body: JSON.stringify({ text, voiceName, speed }),
       });
 
       if (res.ok) {
         const data = await res.json();
         if (data.audioBase64) {
           const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audioBase64}`);
+          audio.playbackRate = Math.max(0.7, Math.min(1.8, speed));
           this.activeAudio = audio;
           this.isSpeaking = true;
 
@@ -93,7 +95,7 @@ class VoiceEngine {
             this.isSpeaking = false;
             this.activeAudio = null;
             // Fallback to browser speech
-            this.fallbackBrowserSpeech(text, onStart, onEnd);
+            this.fallbackBrowserSpeech(text, voiceName, speed, onStart, onEnd);
           };
 
           await audio.play();
@@ -105,18 +107,40 @@ class VoiceEngine {
     }
 
     // 2. Fallback to browser SpeechSynthesis
-    this.fallbackBrowserSpeech(text, onStart, onEnd);
+    this.fallbackBrowserSpeech(text, voiceName, speed, onStart, onEnd);
   }
 
-  private fallbackBrowserSpeech(text: string, onStart?: () => void, onEnd?: () => void) {
-    if (!window.speechSynthesis) {
+  private fallbackBrowserSpeech(
+    text: string,
+    voiceName: string = 'Kore',
+    speed: number = 1.0,
+    onStart?: () => void,
+    onEnd?: () => void
+  ) {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
       onEnd?.();
       return;
     }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.05;
-    utterance.pitch = 1.0;
+    utterance.rate = Math.max(0.75, Math.min(1.5, speed));
+    utterance.pitch = voiceName === 'Puck' || voiceName === 'Charon' || voiceName === 'Fenrir' ? 0.9 : 1.05;
+
+    // Pick best matching voice if available
+    try {
+      const availableVoices = window.speechSynthesis.getVoices();
+      if (availableVoices && availableVoices.length > 0) {
+        const isMale = voiceName === 'Puck' || voiceName === 'Charon' || voiceName === 'Fenrir';
+        const match = availableVoices.find(v => {
+          const name = v.name.toLowerCase();
+          return isMale
+            ? name.includes('male') || name.includes('david') || name.includes('george') || name.includes('daniel')
+            : name.includes('female') || name.includes('samantha') || name.includes('karen') || name.includes('victoria') || name.includes('zira');
+        });
+        if (match) utterance.voice = match;
+      }
+    } catch {}
+
     utterance.onstart = () => {
       this.isSpeaking = true;
       onStart?.();
