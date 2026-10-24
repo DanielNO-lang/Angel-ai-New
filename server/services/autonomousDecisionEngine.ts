@@ -115,12 +115,28 @@ export function evaluatePlan(steps: PlannedStep[], policy: AutonomyPolicy): {
   const ranked = [...steps]
     .sort((a, b) => b.priority - a.priority)
     .slice(0, maxSteps);
+  const maxWrites = Math.max(0, Math.min(10, Math.floor(policy.maxAutomaticWrites ?? 3)));
+  let automaticWrites = 0;
+  const decisions = ranked.map((step) => {
+    let decision = evaluateAutonomousAction({ step, policy });
+    if (step.actionKind !== 'read' && decision.outcome === 'allow') {
+      if (automaticWrites >= maxWrites) {
+        decision = {
+          outcome: 'approval_required',
+          reason: 'The automatic write budget for this plan has been reached.',
+          requiresUserApproval: true,
+          policyMode: policy.mode,
+        };
+      } else {
+        automaticWrites++;
+      }
+    }
+    return { stepId: step.id, decision };
+  });
+  const allowedIds = new Set(decisions.filter((item) => item.decision.outcome === 'allow').map((item) => item.stepId));
   return {
-    accepted: ranked,
-    decisions: ranked.map((step) => ({
-      stepId: step.id,
-      decision: evaluateAutonomousAction({ step, policy }),
-    })),
+    accepted: ranked.filter((step) => allowedIds.has(step.id)),
+    decisions,
     truncated: steps.length > ranked.length,
   };
 }
