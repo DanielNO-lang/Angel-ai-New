@@ -133,9 +133,8 @@ export function evaluatePlan(steps: PlannedStep[], policy: AutonomyPolicy): {
     }
     return { stepId: step.id, decision };
   });
-  const allowedIds = new Set(decisions.filter((item) => item.decision.outcome === 'allow').map((item) => item.stepId));
   return {
-    accepted: ranked.filter((step) => allowedIds.has(step.id)),
+    accepted: ranked.filter((_step, index) => decisions[index]?.decision.outcome === 'allow'),
     decisions,
     truncated: steps.length > ranked.length,
   };
