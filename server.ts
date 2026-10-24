@@ -1501,21 +1501,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
   </div>
   <script>
     (function() {
-      var search = window.location.search || '';
-      var hash = window.location.hash || '';
-      if (window.opener && window.opener !== window) {
-        window.opener.postMessage({
-          type: 'ANGEL_OAUTH_CALLBACK',
-          hash: hash,
-          search: search
-        }, '*');
-        setTimeout(function() { window.close(); }, 350);
-      } else {
-        var returnUrl = new URL('/', window.location.origin);
-        returnUrl.search = search;
-        returnUrl.hash = hash;
-        window.location.replace(returnUrl.toString());
-      }
+      var returnUrl = new URL('/', window.location.origin);
+      returnUrl.search = window.location.search || '';
+      returnUrl.hash = window.location.hash || '';
+      window.location.replace(returnUrl.toString());
     })();
   </script>
 </body>
@@ -1557,128 +1546,34 @@ export async function createApp(options: CreateAppOptions = {}): Promise<Express
     }
   });
 
-  // Fast-track / verified Google account authorization for device accounts
-  app.post('/api/auth/google/verify-or-create', rateLimit(30), async (req: Request, res: Response) => {
-    const { email, name, avatarUrl } = req.body || {};
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return res.status(400).json({ error: 'A valid email address is required for Google account authentication.' });
-    }
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanName = typeof name === 'string' && name.trim() ? name.trim() : cleanEmail.split('@')[0];
-
-    const adminClient = getSupabaseAdminClient() || getSupabaseClient();
-    const authClient = getSupabaseAuthClient();
-    if (!adminClient || !authClient) {
-      return res.status(503).json({ error: 'Supabase service is unavailable.' });
-    }
-
+  // Sync profile metadata only after Supabase has verified the user's existing session.
+  // Never create accounts, confirm emails, or reset passwords based only on a client-supplied email.
+  app.post('/api/auth/google/verify-or-create', requireSupabaseUser, rateLimit(30), async (req: Request, res: Response) => {
+    const auth = (req as any).angelAuth;
     try {
-      let targetUser: any = null;
-      const { data: usersData } = await adminClient.auth.admin.listUsers();
-      targetUser = usersData?.users?.find(u => u.email?.toLowerCase() === cleanEmail);
-
-      const fixedPassword = `AngelAuth_${createHash('sha256').update(cleanEmail + '_angel_auth_salt').digest('hex').slice(0, 16)}!`;
-
-      if (!targetUser) {
-        const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
-          email: cleanEmail,
-          password: fixedPassword,
-          email_confirm: true,
-          user_metadata: {
-            name: cleanName,
-            full_name: cleanName,
-            avatar_url: avatarUrl || 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-          },
-        });
-        if (createError) throw createError;
-        targetUser = createData.user;
-      } else {
-        // Ensure email is confirmed and password synchronized
-        await adminClient.auth.admin.updateUserById(targetUser.id, {
-          email_confirm: true,
-          password: fixedPassword,
-          user_metadata: {
-            ...targetUser.user_metadata,
-            name: cleanName,
-            full_name: cleanName,
-            avatar_url: avatarUrl || targetUser.user_metadata?.avatar_url || 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-          },
-        });
-      }
-
-      // Generate active session
-      let { data: sessionData, error: signinError } = await authClient.auth.signInWithPassword({
-        email: cleanEmail,
-        password: fixedPassword,
-      });
-
-      if (signinError || !sessionData?.session) {
-        // Fallback: update password again and retry
-        await adminClient.auth.admin.updateUserById(targetUser.id, { password: fixedPassword, email_confirm: true });
-        const retry = await authClient.auth.signInWithPassword({ email: cleanEmail, password: fixedPassword });
-        sessionData = retry.data;
-      }
-
-      const activeToken = sessionData?.session?.access_token || `angel_jwt_${targetUser.id}_${Date.now()}`;
-      const refreshToken = sessionData?.session?.refresh_token || null;
-
-      const profile = {
-        id: targetUser.id,
-        name: cleanName,
-        email: cleanEmail,
-        avatarUrl: avatarUrl || targetUser.user_metadata?.avatar_url || 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-        title: 'Executive Commander',
-        role: 'user' as const,
-        createdAt: targetUser.created_at || new Date().toISOString(),
-      };
-
-      // Persist profile in public.profiles table
-      try {
-        await adminClient.from('profiles').upsert({
-          id: targetUser.id,
-          name: cleanName,
-          email: cleanEmail,
-          initials: cleanName.split(' ').map((p: string) => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'DN',
-          plan: 'Pro',
-          status: 'online',
-          avatar_url: profile.avatarUrl,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-      } catch {}
-
-      return res.json({
-        success: true,
-        profile,
-        token: activeToken,
-        refreshToken,
-      });
+      const { data: authData, error: authError } = await auth.client.auth.getUser(auth.accessToken);
+      if (authError || !authData.user) return res.status(401).json({ error: 'Your Google session is invalid or expired.' });
+      const user = authData.user;
+      const email = user.email || '';
+      const metadata = user.user_metadata || {};
+      const name = String(metadata.full_name || metadata.name || email.split('@')[0] || 'Angel User').trim().slice(0, 120);
+      const avatarUrl = typeof metadata.avatar_url === 'string' ? metadata.avatar_url.slice(0, 2048) : null;
+      const initials = name.split(/\\s+/).map((part: string) => part[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || 'AU';
+      const { data: existing } = await auth.client.from('profiles').select('plan').eq('id', user.id).maybeSingle();
+      const { data: profile, error: profileError } = await auth.client.from('profiles').upsert({
+        id: user.id,
+        name,
+        email,
+        initials,
+        avatar_url: avatarUrl,
+        plan: existing?.plan || 'Free',
+        status: 'online',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' }).select('id, name, email, initials, avatar_url, plan, status').single();
+      if (profileError) return res.status(400).json({ error: profileError.message });
+      return res.json({ success: true, authenticated: true, profile });
     } catch (err) {
       return res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-    }
-  });
-
-  app.get('/api/auth/session', requireSupabaseUser, async (req: Request, res: Response) => {
-    try {
-      const auth = (req as any).angelAuth;
-      if (auth.isExecutive) {
-        return res.json({
-          authenticated: true,
-          profile: {
-            id: '8da72a15-8909-410b-97e1-38709930d60d',
-            name: 'Daniel Nwachukwu',
-            email: 'danielokohnwachukwu22@gmail.com',
-            role: 'user',
-            title: 'Executive Commander',
-            status: 'online',
-            avatarUrl: 'https://lh3.googleusercontent.com/a/ACg8ocLsdVIDMZsVtRHqYwjfYAkFZnBLH2-_OKij2_kxvllnlazfhQ=s96-c',
-          },
-        });
-      }
-      const { data, error } = await auth.client.auth.getUser(auth.accessToken);
-      if (error || !data.user) return res.status(401).json({ authenticated: false, error: 'Session expired or invalid.' });
-      return res.json({ authenticated: true, profile: profileFromAuthUser(data.user) });
-    } catch (err) {
-      return res.status(401).json({ authenticated: false, error: err instanceof Error ? err.message : String(err) });
     }
   });
 
