@@ -97,6 +97,17 @@ export function getAngelCapabilityCatalog(): {
       notes: ['The catalog adapts selected practices instead of copying full third-party skill libraries.', 'At most four skills are attached to one agent execution request.'],
     },
     {
+      id: 'nvidia-nim',
+      name: 'NVIDIA NIM inference provider',
+      category: 'model',
+      status: (process.env.NVIDIA_NIM_API_KEY?.trim() || process.env.NVIDIA_API_KEY?.trim()) ? 'configured' : 'needs-configuration',
+      summary: 'Optional OpenAI-compatible NVIDIA NIM model provider for chat, streaming, tool calls and compatible vision/embedding endpoints.',
+      runtime: 'NVIDIA-hosted endpoint or separately operated NIM service',
+      configured: Boolean(process.env.NVIDIA_NIM_API_KEY?.trim() || process.env.NVIDIA_API_KEY?.trim()),
+      endpoints: ['/api/health'],
+      notes: ['A configured key does not prove quota or successful inference.', 'The model ID and base URL must match the selected NVIDIA endpoint.', 'Keep credentials server-side and do not use a VITE_ prefix.'],
+    },
+    {
       id: 'model-optimization',
       name: 'NVIDIA Model Optimizer',
       category: 'infrastructure',
