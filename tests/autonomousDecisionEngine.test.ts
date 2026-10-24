@@ -44,3 +44,22 @@ test('plan is priority ordered and bounded by maxSteps', () => {
   assert.deepEqual(result.accepted.map((step) => step.id), ['high']);
   assert.equal(result.truncated, true);
 });
+
+test('denied steps are excluded from the executable plan', () => {
+  const result = evaluatePlan([
+    { ...writeStep, id: 'denied-write', priority: 9 },
+    { ...readStep, id: 'allowed-read', priority: 5 },
+  ], { mode: 'bounded', allowedPermissions: [], maxSteps: 5 });
+  assert.deepEqual(result.accepted.map((step) => step.id), ['allowed-read']);
+  assert.equal(result.decisions.find((item) => item.stepId === 'denied-write')?.decision.outcome, 'deny');
+});
+
+test('automatic write budget sends excess writes to approval', () => {
+  const permittedWrite = { ...writeStep, requiredPermission: 'draft.write' };
+  const result = evaluatePlan([
+    { ...permittedWrite, id: 'write-1', priority: 9 },
+    { ...permittedWrite, id: 'write-2', priority: 8 },
+  ], { mode: 'bounded', allowedPermissions: ['draft.write'], maxAutomaticWrites: 1 });
+  assert.deepEqual(result.accepted.map((step) => step.id), ['write-1']);
+  assert.equal(result.decisions.find((item) => item.stepId === 'write-2')?.decision.outcome, 'approval_required');
+});
