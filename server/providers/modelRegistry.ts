@@ -18,7 +18,7 @@ export interface ModelCapability {
 export interface ModelMetadata {
   id: string;
   name: string;
-  provider: 'gemini' | 'openai' | 'anthropic' | 'local' | 'qwen';
+  provider: 'gemini' | 'openai' | 'anthropic' | 'local' | 'qwen' | 'nvidia-nim';
   description: string;
   contextWindow: number;
   maxOutputTokens: number;
@@ -250,6 +250,28 @@ export const UNIVERSAL_MODEL_CATALOG: ModelMetadata[] = [
     },
     isAvailable: false,
     tier: 'enterprise',
+  },
+
+  // NVIDIA NIM (optional hosted or self-hosted OpenAI-compatible inference)
+  {
+    id: 'meta/llama-3.1-8b-instruct',
+    name: 'Llama 3.1 8B Instruct (NVIDIA NIM)',
+    provider: 'nvidia-nim',
+    description: 'Optional NVIDIA NIM chat model. Availability depends on NVIDIA endpoint access and the configured model ID.',
+    contextWindow: 131072,
+    maxOutputTokens: 4096,
+    capabilities: {
+      vision: false,
+      audioInput: false,
+      audioOutput: false,
+      toolCalling: true,
+      structuredOutput: true,
+      streaming: true,
+      embeddings: false,
+      thinking: false,
+    },
+    isAvailable: false,
+    tier: 'free',
   },
 
   // Local / Self-Hosted Models

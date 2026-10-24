@@ -9,6 +9,7 @@ import { modelRouter } from './providers';
 import { dispatchZapierEvent } from './zapier_service';
 import { getSupabaseClientForUser } from './supabase_service';
 import { researchService } from './services/researchService';
+import { evaluateAutonomousAction, type AutonomyMode } from './services/autonomousDecisionEngine';
 
 export interface ExecutionStepLog {
   stage:
@@ -54,6 +55,8 @@ export interface OrchestrationRequest {
     canWrite?: boolean;
     types?: string[];
   };
+  /** Autonomy policy; bounded is the default. Permissions remain mandatory for writes. */
+  autonomyMode?: AutonomyMode;
 }
 
 export interface OrchestrationResult {
@@ -345,12 +348,22 @@ You are Angel. Your voice and conversation style is bold, confident, intelligent
 
     // Execute planned tools based on generation analysis
     if (plannedTools.includes('task_manager') || (tools.includes('task_create') && lowerPrompt.includes('task'))) {
-      const hasTaskPermission = request.permissions === undefined ||
-        request.permissions.some((permission) => ['task_create', 'tasks.write', 'task_manager', 'tasks'].includes(permission));
-      if (!hasTaskPermission || !userDb || !request.userId) {
-        addLog('execution', 'Task creation was not performed: an authenticated session and explicit task-write permission are required.', {
+      const taskPermission = (request.permissions || []).find((permission) =>
+        ['task_create', 'tasks.write', 'task_manager', 'tasks'].includes(permission)
+      );
+      const taskDecision = evaluateAutonomousAction({
+        step: {
+          id: 'task_manager', title: 'Create workspace task', description: 'Persist a task in the authenticated workspace',
+          actionKind: 'reversible_write', priority: 5, reversible: true,
+          requiresExternalSideEffect: false, requiredPermission: taskPermission || 'task_create',
+        },
+        policy: { mode: request.autonomyMode || 'bounded', allowedPermissions: request.permissions || [] },
+      });
+      if (taskDecision.outcome !== 'allow' || !userDb || !request.userId) {
+        addLog('execution', 'Task creation was not performed by the autonomy policy.', {
           tool: 'task_manager',
-          permissionGranted: hasTaskPermission,
+          decision: taskDecision.outcome,
+          reason: taskDecision.reason,
           authenticated: Boolean(userDb && request.userId),
         });
       } else {
@@ -383,14 +396,23 @@ You are Angel. Your voice and conversation style is bold, confident, intelligent
     }
 
     if (plannedTools.includes('memory_vault') || (tools.includes('memory_write') && (lowerPrompt.includes('remember') || lowerPrompt.includes('prefer')))) {
-      const canWriteMemory = request.memoryAccess?.canWrite !== false &&
-        (request.permissions === undefined || request.permissions.some((permission) =>
-          ['memory_write', 'memory.write', 'memory_vault', 'memory'].includes(permission)
-        ));
+      const memoryPermission = (request.permissions || []).find((permission) =>
+        ['memory_write', 'memory.write', 'memory_vault', 'memory'].includes(permission)
+      );
+      const memoryDecision = evaluateAutonomousAction({
+        step: {
+          id: 'memory_vault', title: 'Save workspace memory', description: 'Persist a memory in the authenticated workspace',
+          actionKind: 'reversible_write', priority: 4, reversible: true,
+          requiresExternalSideEffect: false, requiredPermission: memoryPermission || 'memory_write',
+        },
+        policy: { mode: request.autonomyMode || 'bounded', allowedPermissions: request.permissions || [] },
+      });
+      const canWriteMemory = request.memoryAccess?.canWrite !== false && memoryDecision.outcome === 'allow';
       if (!canWriteMemory || !userDb || !request.userId) {
-        addLog('execution', 'Memory was not saved: an authenticated session and memory-write permission are required.', {
+        addLog('execution', 'Memory was not saved by the autonomy policy.', {
           tool: 'memory_vault',
-          permissionGranted: canWriteMemory,
+          decision: memoryDecision.outcome,
+          reason: request.memoryAccess?.canWrite === false ? 'Memory write is disabled for this agent.' : memoryDecision.reason,
           authenticated: Boolean(userDb && request.userId),
         });
       } else {

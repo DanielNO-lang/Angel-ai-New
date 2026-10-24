@@ -6,6 +6,7 @@
 
 import { GeminiProvider } from './geminiProvider';
 import { OpenAICompatibleProvider } from './openAICompatibleProvider';
+import { NvidiaNimProvider } from './nvidiaNimProvider';
 import { AIProvider } from './types';
 import { UNIVERSAL_MODEL_CATALOG, ModelMetadata, getAvailableModels } from './modelRegistry';
 
@@ -22,8 +23,10 @@ export class ProviderRegistry {
   constructor() {
     const gemini = new GeminiProvider();
     const openai = new OpenAICompatibleProvider();
+    const nvidiaNim = new NvidiaNimProvider();
     this.providers.set(gemini.id, gemini);
     this.providers.set(openai.id, openai);
+    this.providers.set(nvidiaNim.id, nvidiaNim);
   }
 
   registerProvider(provider: AIProvider): void {
