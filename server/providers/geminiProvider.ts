@@ -207,7 +207,15 @@ export class GeminiProvider implements AIProvider {
         config: generationConfig as any,
       });
 
-      const text = response.text || '';
+      const text = response.text?.trim() || '';
+      // Some successful provider responses contain no candidate text (for example,
+      // blocked or otherwise empty responses). Treat these as provider failures so
+      // generate() falls through to Angel's local response engine instead of showing
+      // an empty assistant message to the user.
+      if (!text) {
+        const finishReason = response.candidates?.[0]?.finishReason || 'unknown';
+        throw new Error(`Gemini returned no text content (finish reason: ${finishReason}).`);
+      }
       const usage = response.usageMetadata;
 
       return {
@@ -278,6 +286,11 @@ export class GeminiProvider implements AIProvider {
         }
       }
 
+      // A stream may complete normally without yielding any text. Force the same
+      // fallback path used for provider errors so the client never receives an empty reply.
+      if (!fullText.trim()) {
+        throw new Error('Gemini stream completed without text content.');
+      }
       return fullText;
     } catch (err) {
       console.warn('[GeminiProvider.stream fallback to AngelJarvisCore]', err instanceof Error ? err.message : String(err));
