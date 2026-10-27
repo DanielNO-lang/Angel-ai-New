@@ -1,0 +1,18 @@
+# Keep the image build context small and deterministic.
+node_modules
+dist
+server-build
+server.js
+server.cjs
+.git
+.gitignore
+.github
+.aistudio
+.env
+.env.*
+*.log
+coverage
+.nyc_output
+.DS_Store
+.idea
+.vscode
