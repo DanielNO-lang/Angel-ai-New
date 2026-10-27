@@ -1,2 +1,2 @@
-// Replaced by scripts/write-build-meta.mjs during production builds.
-export const BUILD_COMMIT_SHA = 'unknown';
+// Generated at build time. Do not edit by hand for a specific deploy.
+export const BUILD_COMMIT_SHA = "unknown";
