@@ -39,9 +39,13 @@ RUN npm install --omit=dev --no-audit --no-fund \
  && npm cache clean --force
 
 # Built assets and server sources (server/buildMeta.ts carries the build marker).
+# src/ is required at runtime: server/supabase_service.ts imports
+# src/services/supabaseUrl and server/services/angelJarvisCore.ts imports
+# src/services/ai/angelPersona.
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server-build ./server-build
 COPY --from=build /app/server ./server
+COPY --from=build /app/src/services ./src/services
 COPY --from=build /app/server.ts ./server.ts
 COPY --from=build /app/devServer.ts ./devServer.ts
 COPY --from=build /app/tsconfig.json ./tsconfig.json
