@@ -12,7 +12,8 @@ WORKDIR /app
 
 # Build-time tooling (vite, esbuild, typescript, tsx) needs devDependencies.
 ENV NODE_ENV=development
-COPY package.json bun.lock ./
+# package-lock.json pins the exact dependency tree used for the build.
+COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-fund
 
 COPY . .
@@ -33,7 +34,7 @@ ENV NODE_ENV=production \
 
 # Runtime dependencies only, plus tsx which executes the TypeScript server
 # entrypoint (devServer.ts). tsx is not persisted into package.json.
-COPY package.json bun.lock ./
+COPY package.json package-lock.json ./
 RUN npm install --omit=dev --no-audit --no-fund \
  && npm install --no-save --no-audit --no-fund "tsx@^4.21.0" \
  && npm cache clean --force
